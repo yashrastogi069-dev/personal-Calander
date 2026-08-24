@@ -54,3 +54,4 @@
 - [ ] Add create, recall, pin, update, and delete behavior for persisted task saved views.
 - [ ] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
 - [ ] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.
+- [x] Add evidence-based decision signals for schedule reliability, carryover pressure, blocked-work age, estimate coverage, and visible goal momentum.

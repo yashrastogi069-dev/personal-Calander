@@ -111,6 +111,7 @@ describe("planning rules", () => {
       ], goals: [], projectGoalById: new Map(), categoryNames: new Map(), habitCheckIns: [], habitIds: [], todayLocalDate: "2026-08-24", rangeStart: "2026-08-18", rangeEnd: "2026-08-24", capacityMinutes: 360,
     });
     expect(summary.planningHealth).toMatchObject({ carryoverCount: 1, blockedCount: 1, completedToday: 1, focusCompletionRate: 100, atRiskGoalCount: 0 });
+    expect(summary.decisionSignals).toMatchObject({ scheduleReliability: 50, carryoverRate: 50, averageBlockedAgeDays: 0, estimateCoverage: 100, goalsWithVisibleProgress: 0 });
   });
 
   it("exposes a per-habit streak value in the dashboard summary", () => {

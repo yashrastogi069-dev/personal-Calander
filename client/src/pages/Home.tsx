@@ -160,6 +160,18 @@ function PlanningHealthStrip() {
   return <div className="planning-health"><div><span>Plan health</span><p>{advice}</p></div><dl><div><dt>Carryover</dt><dd>{health.carryoverCount}</dd></div><div><dt>Blocked</dt><dd>{health.blockedCount}</dd></div><div><dt>Focus</dt><dd>{health.focusCompletionRate}%</dd></div></dl></div>;
 }
 
+function DecisionSignals() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const range = useMemo(() => isoRange(today), [today]);
+  const dashboard = trpc.planner.dashboard.useQuery({ ...scope, todayLocalDate: today, rangeStart: range.start, rangeEnd: range.end });
+  const signals = dashboard.data?.decisionSignals;
+  if (!signals) return null;
+  const reliability = signals.scheduleReliability === null ? "No scheduled history" : `${signals.scheduleReliability}% kept`;
+  const advice = signals.carryoverRate >= 35 ? "Reduce the next plan before adding more commitments." : signals.estimateCoverage < 60 ? "Add estimates to make capacity guidance more useful." : signals.averageBlockedAgeDays >= 3 ? "Resolve or deliberately close ageing blocked work." : "Your plan has enough signal for a deliberate next move.";
+  return <div className="decision-signals"><div><span>Decision signals</span><p>{advice}</p></div><dl><div><dt>Reliability</dt><dd>{reliability}</dd></div><div><dt>Carryover</dt><dd>{signals.carryoverRate}%</dd></div><div><dt>Estimated</dt><dd>{signals.estimateCoverage}%</dd></div></dl></div>;
+}
+
 function CalendarSubscriptionControl() {
   const scope = useMemo(() => getWorkspaceScope(), []);
   const [feed, setFeed] = useState<any>(null);
@@ -205,6 +217,7 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
       <OccurrencePanel />
       <ReviewRitual />
       <PlanningHealthStrip />
+      <DecisionSignals />
       <CalendarSubscriptionControl />
       <BrowserNotificationControl />
       <AICompanion />

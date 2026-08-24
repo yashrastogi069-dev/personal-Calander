@@ -4,6 +4,14 @@
   "description": "A private planning workspace for goals, tasks, habits, and reviews.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6faf7",
-  "theme_color": "#2f6b5f"
+  "background_color": "#e8ecea",
+  "theme_color": "#285d52",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

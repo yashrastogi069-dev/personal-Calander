@@ -8,6 +8,7 @@ export type CompactTask = {
   scheduledLocalDate: string | null;
   estimateMinutes: number | null;
   completedAt: Date | null;
+  createdAt?: Date;
 };
 
 export type CompactGoal = {
@@ -150,6 +151,11 @@ export function dashboardSummary(input: {
   const carryoverTasks = activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate < input.todayLocalDate);
   const blockedTasks = activeTasks.filter(task => task.state === "blocked");
   const completedToday = input.tasks.filter(task => task.completedAt?.toISOString().slice(0, 10) === input.todayLocalDate).length;
+  const scheduledThroughToday = input.tasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate <= input.todayLocalDate && task.state !== "archived");
+  const finishedScheduledThroughToday = scheduledThroughToday.filter(task => task.state === "completed");
+  const datedWorkThroughToday = input.tasks.filter(task => (task.scheduledLocalDate ?? task.dueLocalDate) && (task.scheduledLocalDate ?? task.dueLocalDate)! <= input.todayLocalDate && task.state !== "archived");
+  const estimateCoverage = activeTasks.length ? Math.round((activeTasks.filter(task => task.estimateMinutes !== null).length / activeTasks.length) * 100) : 100;
+  const averageBlockedAgeDays = blockedTasks.length ? Math.round(blockedTasks.reduce((total, task) => total + (task.createdAt ? Math.max(0, Math.floor((new Date(`${input.todayLocalDate}T12:00:00.000Z`).getTime() - task.createdAt.getTime()) / 86_400_000)) : 0), 0) / blockedTasks.length) : 0;
   const goalProgressItems = input.goals
     .filter(goal => goal.state !== "archived")
     .map(goal => ({
@@ -184,6 +190,13 @@ export function dashboardSummary(input: {
       completedToday,
       focusCompletionRate: allTodayTasks.length ? Math.round((allTodayTasks.filter(task => task.state === "completed").length / allTodayTasks.length) * 100) : 0,
       atRiskGoalCount: goalProgressItems.filter(item => item.atRisk).length,
+    },
+    decisionSignals: {
+      scheduleReliability: scheduledThroughToday.length ? Math.round((finishedScheduledThroughToday.length / scheduledThroughToday.length) * 100) : null,
+      carryoverRate: datedWorkThroughToday.length ? Math.round((carryoverTasks.length / datedWorkThroughToday.length) * 100) : 0,
+      averageBlockedAgeDays,
+      estimateCoverage,
+      goalsWithVisibleProgress: goalProgressItems.filter(item => item.progress > 0 && item.progress < 100).length,
     },
     workload: {
       plannedMinutes,
