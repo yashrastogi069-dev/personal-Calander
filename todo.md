@@ -50,8 +50,17 @@
 - [x] Reload after a persisted habit skip and confirm the stored state and streak survive a fresh workspace snapshot before restoring the original completion.
 - [x] Add successful habit check-in and clear-contract coverage in addition to invalid-input validation.
 - [x] Recalibrate the visual system from bright mint surfaces to a restrained, premium material palette with stronger hierarchy and lower glare.
-- [ ] Make task sort, filters, selection, and bulk lifecycle actions function through persisted workspace mutations.
-- [ ] Add create, recall, pin, update, and delete behavior for persisted task saved views.
+- [x] Make task sort, filters, selection, and bulk lifecycle actions function through persisted workspace mutations.
+- [x] Add create, recall, pin, update, and delete behavior for persisted task saved views.
+- [x] Browser-test applying a saved view and confirm it restores persisted filter and sort configuration.
+- [ ] Add and verify a user-facing saved-view configuration update flow beyond pinning, then complete end-to-end validation.
+- [ ] Reload after saved-view overwrite and verify visibly selected filter/sort values are restored from the fresh persisted configuration.
+- [ ] Reload and recall an actually overwritten saved view, recording the selected-control values from the fresh workspace snapshot.
+- [x] Add focused successful service or router coverage for saved-view configuration update and returned updated configuration.
 - [ ] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
 - [ ] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.
 - [x] Add evidence-based decision signals for schedule reliability, carryover pressure, blocked-work age, estimate coverage, and visible goal momentum.
+- [ ] Verify GitHub source synchronization and diagnose the Vercel build, runtime, environment, and output configuration.
+- [ ] Add production deployment guidance and platform configuration needed for a Vite client plus Express/tRPC planner backend.
+- [ ] Write the complete VAPID, iPhone Home Screen, browser permission, subscription, and safe reminder-delivery activation guide.
+- [ ] Connect scheduled calendar work to habit check-ins through an explicit, user-controlled workflow with persistence and tests.

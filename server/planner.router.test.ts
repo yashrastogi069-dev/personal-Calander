@@ -48,4 +48,14 @@ describe("planner task API", () => {
     skip.mockRestore();
     clear.mockRestore();
   });
+
+  it("passes a saved-view configuration overwrite through the public router contract", async () => {
+    const update = vi.spyOn(planning, "updateSavedView").mockResolvedValue({ id: "view-1", name: "Focus", configuration: { filter: "all", sort: "created" }, version: 2 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", id: "view-1", expectedVersion: 1, configuration: { filter: "all", sort: "created" } };
+
+    await expect(caller.planner.savedView.update(input)).resolves.toMatchObject({ id: "view-1", configuration: { filter: "all", sort: "created" }, version: 2 });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: input.workspaceId, timezone: input.timezone }), expect.objectContaining({ id: input.id, expectedVersion: input.expectedVersion, configuration: input.configuration }));
+    update.mockRestore();
+  });
 });

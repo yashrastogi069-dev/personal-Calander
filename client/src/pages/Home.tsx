@@ -172,6 +172,30 @@ function DecisionSignals() {
   return <div className="decision-signals"><div><span>Decision signals</span><p>{advice}</p></div><dl><div><dt>Reliability</dt><dd>{reliability}</dd></div><div><dt>Carryover</dt><dd>{signals.carryoverRate}%</dd></div><div><dt>Estimated</dt><dd>{signals.estimateCoverage}%</dd></div></dl></div>;
 }
 
+function TaskTriagePanel() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const range = useMemo(() => ({ start: shiftLocalDate(today, -31), end: shiftLocalDate(today, 31) }), [today]);
+  const utils = trpc.useUtils();
+  const snapshot = trpc.planner.workspace.snapshot.useQuery({ ...scope, ...range });
+  const [filter, setFilter] = useState("open");
+  const [sort, setSort] = useState("priority");
+  const [selected, setSelected] = useState<string[]>([]);
+  const bulk = trpc.planner.task.bulkSetState.useMutation({ onSuccess: () => { setSelected([]); utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
+  const createView = trpc.planner.savedView.create.useMutation({ onSuccess: () => utils.planner.workspace.snapshot.invalidate() });
+  const updateView = trpc.planner.savedView.update.useMutation({ onSuccess: () => utils.planner.workspace.snapshot.invalidate() });
+  const deleteView = trpc.planner.savedView.delete.useMutation({ onSuccess: () => utils.planner.workspace.snapshot.invalidate() });
+  const priorityRank: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
+  const allTasks = snapshot.data?.tasks ?? [];
+  const filtered = allTasks.filter(task => filter === "today" ? task.scheduledLocalDate === today || task.dueLocalDate === today : filter === "risk" ? Boolean(task.dueLocalDate && task.dueLocalDate < today && task.state !== "completed" && task.state !== "archived") : filter === "open" ? task.state !== "completed" && task.state !== "archived" : task.state !== "archived");
+  const rows = [...filtered].sort((a, b) => sort === "due" ? (a.dueLocalDate ?? "9999-12-31").localeCompare(b.dueLocalDate ?? "9999-12-31") : sort === "scheduled" ? (a.scheduledLocalDate ?? "9999-12-31").localeCompare(b.scheduledLocalDate ?? "9999-12-31") : sort === "created" ? Number(new Date(b.createdAt).getTime()) - Number(new Date(a.createdAt).getTime()) : (priorityRank[a.priority] ?? 5) - (priorityRank[b.priority] ?? 5));
+  const toggle = (id: string) => setSelected(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
+  const applyView = (view: any) => { const config = view.configuration as { filter?: string; sort?: string }; setFilter(config.filter ?? "open"); setSort(config.sort ?? "priority"); };
+  const views = (snapshot.data?.savedViews ?? []).filter(view => view.viewType === "tasks");
+  const saveCurrent = () => { const name = window.prompt("Name this task view. Reuse a name to overwrite its filter and sort."); if (!name?.trim()) return; const existing = views.find(view => view.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase()); if (existing) updateView.mutate({ ...scope, id: existing.id, expectedVersion: existing.version, configuration: { filter, sort } }); else createView.mutate({ ...scope, name: name.trim(), viewType: "tasks", configuration: { filter, sort }, isPinned: 0 }); };
+  return <section className="triage-panel" aria-labelledby="triage-heading"><div className="triage-heading"><div><span>Action queue</span><h2 id="triage-heading">Triage before you add</h2></div><button type="button" onClick={saveCurrent} disabled={createView.isPending}>Save view</button></div><div className="triage-controls"><div><label>Show<select value={filter} onChange={event => setFilter(event.target.value)}><option value="open">Open work</option><option value="today">Today</option><option value="risk">At risk</option><option value="all">All active history</option></select></label><label>Order<select value={sort} onChange={event => setSort(event.target.value)}><option value="priority">Priority</option><option value="due">Due date</option><option value="scheduled">Planned date</option><option value="created">Newest</option></select></label></div>{views.length ? <div className="saved-view-chips">{views.map(view => <span key={view.id}><button type="button" onClick={() => applyView(view)}>{view.name}</button><button type="button" aria-label={`${view.isPinned ? "Unpin" : "Pin"} ${view.name}`} onClick={() => updateView.mutate({ ...scope, id: view.id, expectedVersion: view.version, isPinned: view.isPinned ? 0 : 1 })}>{view.isPinned ? "★" : "☆"}</button><button type="button" aria-label={`Delete ${view.name}`} onClick={() => deleteView.mutate({ ...scope, id: view.id })}>×</button></span>)}</div> : null}</div>{selected.length ? <div className="bulk-actions"><span>{selected.length} selected</span><button type="button" onClick={() => bulk.mutate({ ...scope, ids: selected, state: "in_progress" })}>Start</button><button type="button" onClick={() => bulk.mutate({ ...scope, ids: selected, state: "completed" })}>Complete</button><button type="button" onClick={() => bulk.mutate({ ...scope, ids: selected, state: "archived" })}>Archive</button></div> : null}<div className="triage-list">{rows.slice(0, 6).map(task => <label key={task.id}><input type="checkbox" checked={selected.includes(task.id)} onChange={() => toggle(task.id)} /><span><strong>{task.title}</strong><small>{task.state.replace("_", " ")} · {task.dueLocalDate ?? task.scheduledLocalDate ?? "no date"}</small></span><em>{task.priority}</em></label>)}{!rows.length ? <p>No tasks match this decision lens.</p> : null}</div></section>;
+}
+
 function CalendarSubscriptionControl() {
   const scope = useMemo(() => getWorkspaceScope(), []);
   const [feed, setFeed] = useState<any>(null);
@@ -213,6 +237,7 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
         {tasks.length ? tasks.map(task => <TaskRow key={task.id} task={task} categoryColor={categoryColors.get(task.categoryId)} onToggle={onToggle} />) : <EmptyState title="Begin with one honest commitment" detail="Capture a task, then decide whether it belongs in today." action={onCompose} />}
       </div>
       <DailyCompass />
+      <TaskTriagePanel />
       <RecurringWorkControl />
       <OccurrencePanel />
       <ReviewRitual />

@@ -33,3 +33,23 @@ Desktop and mobile inspection confirmed the lighter mineral canvas, evergreen ac
 ## Smoked Verdigris refinement
 
 One bounded desktop pass at 1280×720 and one compact mobile pass at 375×812 were completed after recalibrating the former bright mint treatment. The interface now uses muted smoked-stone surfaces, restrained verdigris actions, flatter borders, and reduced decorative background treatment. The desktop hierarchy remains clear across the rail, focus lane, timeline, habits, capacity, and analytics. The mobile layout preserves the navigation rail, capture control, focus surface, calendar, and habit guidance without horizontal overflow.
+
+## Action queue verification
+
+The daily action queue was exercised against the real **Prepare weekly planning review** task. Selecting it revealed the bulk lifecycle controls. Bulk completion persisted the task’s completed state, removed it from the open action queue and time canvas, updated the focus count, and refreshed the reliability and focus signals. The task was then reopened through the existing task control, restoring its original open state and returning it to the queue. This verifies that selection and bulk completion are wired to persisted workspace mutations rather than display-only controls.
+
+The action queue’s **Today** filter was applied against the same scheduled task and preserved the expected row. A saved view named **Today focus verification** was then created through the real create mutation and appeared as a persisted recall chip with pin and delete controls.
+
+The temporary saved view was pinned through its version-safe update flow, visibly changing from an empty to filled star. It was then deleted through the workspace-scoped delete flow, leaving no test-only saved view behind. The browser prompt used solely for this validation was restored.
+
+For explicit update coverage, a view named **Recall update verification** was created with the Today/Priority configuration. The live controls were changed to All active history/Newest, then **Save view** was invoked with the same name. The existing named view remained one chip, confirming the create-or-overwrite branch rather than duplicate creation. The next check will apply this stored configuration after deliberately changing the controls away from it.
+
+The filter and sort controls were deliberately changed back to Today/Priority, then the named saved-view chip was applied. The live controls returned to **All active history** and **Newest**, proving persisted configuration recall. The temporary view will now be deleted and the browser prompt restored.
+
+The temporary view was deleted successfully, and the browser prompt was restored. The live saved-view path now has evidence for creation, overwrite/update, recall, pinning, and deletion without retaining test-only workspace data.
+
+For a final persistence check, a new temporary view named **Fresh snapshot verification** was created with **All active history** and **Newest** selected. The planner will now reload so the saved configuration is read from a fresh workspace snapshot before recall.
+
+After the full reload, the action queue began at `open,priority`. Applying **Fresh snapshot verification** changed the actual select values to `all,created`, as read from the controls directly. This proves that the saved filter and sort configuration was read from a fresh persisted workspace snapshot and applied, rather than retained only in client state.
+
+The temporary fresh-snapshot view was deleted successfully and the browser prompt was restored. The saved-view workspace remains clear of verification-only records.

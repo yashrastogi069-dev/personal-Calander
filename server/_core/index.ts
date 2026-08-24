@@ -1,13 +1,7 @@
 import "dotenv/config";
-import express from "express";
 import { createServer } from "http";
 import net from "net";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
-import { registerStorageProxy } from "./storageProxy";
-import { buildCalendarFeed } from "../calendarFeed";
-import { appRouter } from "../routers";
-import { createContext } from "./context";
+import { createPlannerApp } from "./app";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -30,29 +24,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
-  const app = express();
+  const app = createPlannerApp();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  registerStorageProxy(app);
-  registerOAuthRoutes(app);
-  app.get("/api/calendar/:token.ics", async (req, res) => {
-    const feed = await buildCalendarFeed(req.params.token);
-    if (!feed) return res.status(404).type("text/plain").send("Calendar feed not found.");
-    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-    res.setHeader("Content-Disposition", "inline; filename=personal-calander.ics");
-    res.setHeader("Cache-Control", "no-store");
-    return res.send(feed);
-  });
-  // tRPC API
-  app.use(
-    "/api/trpc",
-    createExpressMiddleware({
-      router: appRouter,
-      createContext,
-    })
-  );
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
