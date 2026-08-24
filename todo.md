@@ -65,3 +65,5 @@
 - [ ] Write the complete VAPID, iPhone Home Screen, browser permission, subscription, and safe reminder-delivery activation guide.
 - [ ] Connect scheduled calendar work to habit check-ins through an explicit, user-controlled workflow with persistence and tests.
 - [ ] Fix the Vercel runtime crash caused by an unavailable browser timezone resolving to `Etc/Unknown`, then redeploy and verify the public planner renders.
+- [ ] Verify the Vercel project is linked to `yashrastogi069-dev/personal-Calander`, deploys the `main` branch from repository root, and is not serving a stale or duplicate project.
+- [ ] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
