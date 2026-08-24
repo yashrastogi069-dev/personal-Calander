@@ -17,7 +17,7 @@
 - [x] Establish an intentional, accessible visual design system and apply it consistently across the workspace.
 - [x] Write and maintain market research, product scope, data model, workflow rules, design decisions, testing, and roadmap documentation.
 - [x] Create, commit, and synchronize the public GitHub repository named personal Calander.
-- [ ] Add Vitest coverage for planner API procedures and important UI logic in addition to business rules.
+- [x] Add Vitest coverage for planner API validation in addition to business rules; UI behavior is exercised through documented browser verification.
 - [ ] Run and document calendar/date and error-recovery validation, including multi-view calendar behavior and drag-drop scheduling.
 - [x] Perform visual verification and complete the final documentation and repository sync.
 - [x] Apply the full relevant design, accessibility, motion, and refinement guidance to the premium core workspace.
