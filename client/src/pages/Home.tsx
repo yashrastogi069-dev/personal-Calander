@@ -116,6 +116,39 @@ function TaskRow({ task, categoryColor, onToggle, onSchedule }: { task: any; cat
   </article><Dialog open={editorOpen} onOpenChange={setEditorOpen}><DialogContent className="composer-dialog small-dialog"><DialogHeader><DialogTitle>Refine the commitment</DialogTitle><DialogDescription>Due date, planned date, and work time remain distinct so rescheduling stays honest.</DialogDescription></DialogHeader><form className="composer-form" onSubmit={submit}><div className="field"><Label htmlFor={`task-title-${task.id}`}>Task</Label><Input id={`task-title-${task.id}`} value={title} onChange={event => setTitle(event.target.value)} /></div><div className="field"><Label>State</Label><Select value={state} onValueChange={setState}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["not_started", "in_progress", "blocked", "completed", "archived"].map(value => <SelectItem key={value} value={value}>{value.replace("_", " ")}</SelectItem>)}</SelectContent></Select></div><div className="field-grid"><div className="field"><Label htmlFor={`task-due-${task.id}`}>Due date</Label><Input id={`task-due-${task.id}`} type="date" value={dueLocalDate} onChange={event => setDueLocalDate(event.target.value)} /></div><div className="field"><Label htmlFor={`task-plan-${task.id}`}>Planned date</Label><Input id={`task-plan-${task.id}`} type="date" value={scheduledLocalDate} onChange={event => setScheduledLocalDate(event.target.value)} /></div></div><div className="field"><Label htmlFor={`task-estimate-${task.id}`}>Estimate in minutes</Label><Input id={`task-estimate-${task.id}`} type="number" min="0" max="1440" value={estimateMinutes} onChange={event => setEstimateMinutes(event.target.value)} /></div><div className="composer-submit"><Button type="button" variant="ghost" onClick={() => setEditorOpen(false)}>Cancel</Button><Button type="submit" className="primary-action" disabled={saveTask.isPending}>{saveTask.isPending ? "Saving…" : "Save changes"}</Button></div></form></DialogContent></Dialog></>;
 }
 
+function DailyCompass() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const [intention, setIntention] = useState("");
+  const [energy, setEnergy] = useState("3");
+  const [mood, setMood] = useState("3");
+  const checkIn = trpc.planner.dailyCheckIn.upsert.useMutation();
+  const submit = (event: FormEvent) => { event.preventDefault(); checkIn.mutate({ ...scope, localDate: today, intention: intention.trim() || null, energy: Number(energy), mood: Number(mood) }); };
+  return <form className="daily-compass" onSubmit={submit}><div className="daily-compass-copy"><span>Daily signal</span><p>Set the conditions, not just the list.</p></div><Input value={intention} onChange={event => setIntention(event.target.value)} placeholder="One sentence for today" aria-label="Daily intention" /><div className="daily-compass-controls"><label>Energy<Select value={energy} onValueChange={setEnergy}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4, 5].map(value => <SelectItem key={value} value={String(value)}>{value}/5</SelectItem>)}</SelectContent></Select></label><label>Mood<Select value={mood} onValueChange={setMood}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4, 5].map(value => <SelectItem key={value} value={String(value)}>{value}/5</SelectItem>)}</SelectContent></Select></label><Button type="submit" variant="ghost" disabled={checkIn.isPending}>{checkIn.isPending ? "Saving" : "Check in"}</Button></div></form>;
+}
+
+function RecurringWorkControl() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const utils = trpc.useUtils();
+  const materialize = trpc.planner.occurrence.materialize.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
+  const end = shiftLocalDate(today, 28);
+  return <div className="recurrence-control"><span>Recurring work</span><p>{materialize.data ? `${materialize.data.length} dated occurrences are ready through ${end}.` : "Generate the next four weeks of scheduled repetitions."}</p><Button type="button" variant="ghost" onClick={() => materialize.mutate({ ...scope, start: today, end })} disabled={materialize.isPending}>{materialize.isPending ? "Refreshing…" : "Refresh series"}</Button></div>;
+}
+
+function ReviewRitual() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const [review, setReview] = useState<any>(null);
+  const [reflection, setReflection] = useState("");
+  const start = trpc.planner.review.start.useMutation({ onSuccess: setReview });
+  const complete = trpc.planner.review.complete.useMutation({ onSuccess: setReview });
+  const periodStartLocalDate = shiftLocalDate(today, -6);
+  if (!review) return <div className="review-ritual"><span>Weekly review</span><p>Clear the week, name what changed, and choose one honest next move.</p><Button type="button" variant="ghost" onClick={() => start.mutate({ ...scope, kind: "weekly", periodStartLocalDate, periodEndLocalDate: today, snapshot: { openPeriod: true } })} disabled={start.isPending}>{start.isPending ? "Opening…" : "Begin review"}</Button></div>;
+  if (review.state === "completed") return <div className="review-ritual"><span>Weekly review</span><p>Reflection saved. The next review can begin when you are ready.</p><Button type="button" variant="ghost" onClick={() => { setReview(null); setReflection(""); }}>New review</Button></div>;
+  return <div className="review-ritual is-active"><span>Weekly review · {periodStartLocalDate} to {today}</span><textarea value={reflection} onChange={event => setReflection(event.target.value)} placeholder="What moved, what was blocked, and what will change next week?" aria-label="Weekly review reflection" /><Button type="button" className="primary-action" onClick={() => complete.mutate({ ...scope, id: review.id, expectedVersion: review.version, reflection: reflection.trim() || null })} disabled={complete.isPending}>{complete.isPending ? "Saving…" : "Close review"}</Button></div>;
+}
+
 function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; categories: any[]; onToggle: (task: any) => void; onCompose: () => void }) {
   const categoryColors = new Map(categories.map(category => [category.id, category.color]));
   return (
@@ -124,6 +157,9 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
       <div className="focus-list">
         {tasks.length ? tasks.map(task => <TaskRow key={task.id} task={task} categoryColor={categoryColors.get(task.categoryId)} onToggle={onToggle} />) : <EmptyState title="Begin with one honest commitment" detail="Capture a task, then decide whether it belongs in today." action={onCompose} />}
       </div>
+      <DailyCompass />
+      <RecurringWorkControl />
+      <ReviewRitual />
       <AICompanion />
     </section>
   );

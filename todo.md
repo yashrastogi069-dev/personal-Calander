@@ -32,3 +32,13 @@
 - [x] Surface per-habit streak metrics in the dashboard and verify them with persisted check-in data.
 - [x] Create a real habit and persisted check-ins, then verify the visible streak metric updates from stored data.
 - [x] Add automated coverage for streak visibility derived from persisted habit history.
+- [x] Prepare and verify a complete downloadable source archive containing code, schema, documentation, tests, and configuration.
+- [x] Audit the current product for functional gaps, actionable planning improvements, analytics opportunities, and integration constraints.
+- [x] Research organizer workflows, analytics patterns, calendar connectivity, and permission-based mobile-notification approaches.
+- [x] Define a safe upgrade architecture for integrations, scheduling, privacy, and migration-compatible data structures.
+- [x] Redesign the workspace into a lighter premium visual system with refined responsive interactions, accessibility, and desktop/mobile verification.
+- [ ] Implement actionable daily planning, task triage, saved views, recurring work, reviews, and personal-context workflows.
+- [ ] Implement advanced analytics for focus, consistency, capacity, carryover, completion trends, and goal health.
+- [ ] Implement user-controlled iPhone-calendar connectivity and phone-notification readiness with documented activation requirements.
+- [ ] Test upgraded workflows, integration boundaries, browser permissions, responsive layouts, accessibility, and error recovery.
+- [ ] Update documentation, tests, checkpoint history, and the public GitHub repository for the completed upgrade.

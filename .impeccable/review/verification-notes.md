@@ -25,3 +25,7 @@ The calendar’s Day, Week, Month, Quarter, and Year controls were exercised aga
 The same persisted workspace was switched to **Asia/Kolkata** and retained the selected local-date planning context. A real task was dispatched from Monday, August 24 to the Week matrix cell for Tuesday, August 25. The backend mutation completed, the refreshed calendar removed the task from Monday, and it appeared on Tuesday. This verifies multi-view persistence and the workspace-timezone display contract without relying on static mock data.
 
 The same task was then dispatched into the Day timeline for Monday, August 24. After reopening the deliberately completed task so active-calendar items are visible, the refreshed Day surface displayed it in the 09:00 time canvas on Monday. This confirms the Day drop path persisted the same local-date scheduling field as the matrix drop path.
+
+## Verdigris Daylight redesign
+
+Desktop and mobile inspection confirmed the lighter mineral canvas, evergreen action color, focus-first hierarchy, and line-based time motif. At mobile width, the compact navigation retains visible touch targets, the quick capture stays directly under the page title, the focus panel remains visually dominant, and all lower planning surfaces stack without horizontal page overflow. The review verified visible focus states, contrast-bearing controls, and reduced-motion-compatible CSS remain in place.

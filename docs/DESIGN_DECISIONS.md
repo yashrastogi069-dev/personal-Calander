@@ -2,7 +2,7 @@
 
 ## Experience direction
 
-The workspace uses the **Basalt Ledger** planning-studio direction rather than a generic card grid. The person uses this board during focused desk time, so a deep mineral canvas, quiet warm-white type, and one carefully constrained lichen action color provide lower-luminance comfort without looking muted. High-information typography, ordinary surfaces, and structured timeline bands allow dense planning information to remain legible. Data visualizations are analytical rather than decorative and always provide labels, tooltips, and non-color cues.
+The upgraded workspace uses **Verdigris Daylight**, a composed planning-studio direction rather than a generic card grid. It replaces the previous near-black environment with a mineral light canvas, white operational surfaces, muted blue-tinted time planning, and a single evergreen action color. The aim is focused and premium without becoming heavy, clinical, or decorative. High-information typography, ordinary surfaces, and structured timeline bands allow dense planning information to remain legible. Data visualizations are analytical rather than decorative and always provide labels, tooltips, and non-color cues.
 
 The first viewport demonstrates the equal-balance model. Today’s prioritized work and calendar time planning appear in one continuous working canvas, with goals and habit signals providing visible context without taking over the decision surface. This composition deliberately rejects a metric-first dashboard and nested collections of generic cards.
 

@@ -41,6 +41,35 @@ export function localDateSequence(start: string, end: string) {
   return dates;
 }
 
+export type RecurrenceRule = {
+  frequency: "daily" | "weekly" | "monthly";
+  interval?: number;
+  weekdays?: number[];
+};
+
+export function recurringLocalDates(rule: RecurrenceRule, start: string, end: string, until?: string | null) {
+  const cappedEnd = until && until < end ? until : end;
+  const interval = Math.max(1, Math.floor(rule.interval ?? 1));
+  const results: string[] = [];
+  let cursor = start;
+  let guard = 0;
+  while (cursor <= cappedEnd && guard < 5000) {
+    const date = new Date(`${cursor}T12:00:00.000Z`);
+    const daysFromStart = Math.floor((date.getTime() - new Date(`${start}T12:00:00.000Z`).getTime()) / 86_400_000);
+    const weekOffset = Math.floor(daysFromStart / 7);
+    const monthOffset = (date.getUTCFullYear() - new Date(`${start}T12:00:00.000Z`).getUTCFullYear()) * 12 + date.getUTCMonth() - new Date(`${start}T12:00:00.000Z`).getUTCMonth();
+    const matches = rule.frequency === "daily"
+      ? daysFromStart % interval === 0
+      : rule.frequency === "weekly"
+        ? weekOffset % interval === 0 && (rule.weekdays?.includes(date.getUTCDay()) ?? date.getUTCDay() === new Date(`${start}T12:00:00.000Z`).getUTCDay())
+        : monthOffset % interval === 0 && date.getUTCDate() === new Date(`${start}T12:00:00.000Z`).getUTCDate();
+    if (matches) results.push(cursor);
+    cursor = shiftLocalDate(cursor, 1);
+    guard += 1;
+  }
+  return results;
+}
+
 export function wouldCreateDependencyCycle(edges: Array<{ taskId: string; dependsOnTaskId: string }>, taskId: string, dependsOnTaskId: string) {
   if (taskId === dependsOnTaskId) return true;
   const dependenciesByTask = new Map<string, string[]>();

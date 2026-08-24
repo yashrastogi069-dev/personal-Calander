@@ -8,13 +8,15 @@ import {
   habitCheckIns,
   habits,
   projects,
+  reviewSessions,
   savedViews,
   taskDependencies,
+  taskOccurrences,
   tasks,
   workspaces,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import { dashboardSummary, wouldCreateDependencyCycle } from "./plannerRules";
+import { dashboardSummary, recurringLocalDates, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
 
 export type PlannerScope = {
   workspaceId: string;
@@ -102,6 +104,44 @@ export async function createTask(scope: PlannerScope, input: Omit<typeof tasks.$
   return (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, id))).limit(1))[0]!;
 }
 
+function isRecurrenceRule(value: unknown): value is RecurrenceRule {
+  if (!value || typeof value !== "object") return false;
+  const rule = value as Record<string, unknown>;
+  return rule.frequency === "daily" || rule.frequency === "weekly" || rule.frequency === "monthly";
+}
+
+export async function materializeTaskOccurrences(scope: PlannerScope, input: { start: string; end: string }) {
+  const db = await requireDb();
+  const [workspaceTasks, existing] = await Promise.all([
+    db.select().from(tasks).where(eq(tasks.workspaceId, scope.workspaceId)),
+    db.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), gte(taskOccurrences.localDate, input.start), lte(taskOccurrences.localDate, input.end))),
+  ]);
+  const existingKeys = new Set(existing.map(item => `${item.taskId}:${item.localDate}`));
+  const inserts: Array<typeof taskOccurrences.$inferInsert> = [];
+  for (const task of workspaceTasks) {
+    if (!isRecurrenceRule(task.recurrenceRule) || task.state === "archived") continue;
+    const seriesStart = task.scheduledLocalDate ?? task.dueLocalDate ?? task.createdAt.toISOString().slice(0, 10);
+    for (const localDate of recurringLocalDates(task.recurrenceRule, seriesStart, input.end, task.recurrenceUntilLocalDate)) {
+      if (localDate < input.start || existingKeys.has(`${task.id}:${localDate}`)) continue;
+      inserts.push({ id: nanoid(), workspaceId: scope.workspaceId, taskId: task.id, localDate, state: "pending" });
+    }
+  }
+  if (inserts.length) await db.insert(taskOccurrences).values(inserts);
+  return db.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), gte(taskOccurrences.localDate, input.start), lte(taskOccurrences.localDate, input.end))).orderBy(asc(taskOccurrences.localDate));
+}
+
+export async function resolveTaskOccurrence(scope: PlannerScope, input: { id: string; expectedVersion: number; state: "completed" | "skipped" | "missed" | "rescheduled"; rescheduledToLocalDate?: string | null; note?: string | null }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Occurrence was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  const now = new Date();
+  await db.update(taskOccurrences).set({ state: input.state, rescheduledToLocalDate: input.rescheduledToLocalDate ?? null, note: input.note ?? null, completedAt: input.state === "completed" ? now : null, resolvedAt: now, version: input.expectedVersion + 1 }).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.id, input.id), eq(taskOccurrences.version, input.expectedVersion)));
+  const updated = (await db.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
 export async function updateTask(scope: PlannerScope, input: { id: string; expectedVersion: number; patch: Partial<typeof tasks.$inferInsert> }) {
   const db = await requireDb();
   const existing = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0];
@@ -170,6 +210,24 @@ export async function createSavedView(scope: PlannerScope, input: { name: string
   const id = nanoid();
   await db.insert(savedViews).values({ id, workspaceId: scope.workspaceId, name: input.name, viewType: input.viewType, configuration: input.configuration, isPinned: input.isPinned ?? 0 });
   return (await db.select().from(savedViews).where(and(eq(savedViews.workspaceId, scope.workspaceId), eq(savedViews.id, id))).limit(1))[0]!;
+}
+
+export async function startReviewSession(scope: PlannerScope, input: { kind: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"; periodStartLocalDate: string; periodEndLocalDate: string; snapshot?: unknown }) {
+  const db = await requireDb();
+  const id = nanoid();
+  await db.insert(reviewSessions).values({ id, workspaceId: scope.workspaceId, ...input, state: "in_progress" });
+  return (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, id))).limit(1))[0]!;
+}
+
+export async function completeReviewSession(scope: PlannerScope, input: { id: string; expectedVersion: number; reflection?: string | null }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Review session was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(reviewSessions).set({ state: "completed", reflection: input.reflection ?? null, completedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id), eq(reviewSessions.version, input.expectedVersion)));
+  const updated = (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
 }
 
 export async function getDashboard(scope: PlannerScope, input: { todayLocalDate: string; rangeStart: string; rangeEnd: string }) {

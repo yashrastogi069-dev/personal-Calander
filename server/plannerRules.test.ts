@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentHabitStreak, dashboardSummary, goalProgress, localDateSequence, wouldCreateDependencyCycle } from "./plannerRules";
+import { currentHabitStreak, dashboardSummary, goalProgress, localDateSequence, recurringLocalDates, wouldCreateDependencyCycle } from "./plannerRules";
 
 describe("planning rules", () => {
   it("calculates task-backed goal progress across direct and project-linked work", () => {
@@ -33,6 +33,12 @@ describe("planning rules", () => {
 
   it("carries a local date safely across a month boundary", () => {
     expect(localDateSequence("2026-01-30", "2026-02-02")).toEqual(["2026-01-30", "2026-01-31", "2026-02-01", "2026-02-02"]);
+  });
+
+  it("generates weekly occurrences on selected weekdays without crossing the series end", () => {
+    expect(recurringLocalDates({ frequency: "weekly", weekdays: [1, 3, 5] }, "2026-08-24", "2026-09-06", "2026-09-02")).toEqual([
+      "2026-08-24", "2026-08-26", "2026-08-28", "2026-08-31", "2026-09-02",
+    ]);
   });
 
   it("breaks a habit streak on a missed eligible day", () => {
