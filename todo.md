@@ -98,4 +98,4 @@
 - [ ] Checkpoint, push, and verify the corrected embedded-action release on GitHub and the public Vercel alias.
 - [ ] Run and document a complete current-release regression: compiler, automated suite, production build, embedded-plus browser paths, public health/tRPC/snapshot, and rendered Vercel root.
 - [ ] Update the durable release record with the corrected embedded-plus behavior, verification evidence, final GitHub revision, and Vercel alias target.
-- [ ] Checkpoint and push every current local change to the public GitHub main branch, then confirm the remote revision matches.
+- [x] Checkpoint and push every current local change to the public GitHub main branch, then confirm the remote revision matches.
