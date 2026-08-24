@@ -41,6 +41,24 @@ export function localDateSequence(start: string, end: string) {
   return dates;
 }
 
+export function wouldCreateDependencyCycle(edges: Array<{ taskId: string; dependsOnTaskId: string }>, taskId: string, dependsOnTaskId: string) {
+  if (taskId === dependsOnTaskId) return true;
+  const dependenciesByTask = new Map<string, string[]>();
+  for (const edge of edges) {
+    dependenciesByTask.set(edge.taskId, [...(dependenciesByTask.get(edge.taskId) ?? []), edge.dependsOnTaskId]);
+  }
+  const pending = [dependsOnTaskId];
+  const visited = new Set<string>();
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (current === taskId) return true;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    pending.push(...(dependenciesByTask.get(current) ?? []));
+  }
+  return false;
+}
+
 export function goalProgress(
   goal: CompactGoal,
   tasks: CompactTask[],

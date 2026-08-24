@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentHabitStreak, dashboardSummary, goalProgress, localDateSequence } from "./plannerRules";
+import { currentHabitStreak, dashboardSummary, goalProgress, localDateSequence, wouldCreateDependencyCycle } from "./plannerRules";
 
 describe("planning rules", () => {
   it("calculates task-backed goal progress across direct and project-linked work", () => {
@@ -55,6 +55,11 @@ describe("planning rules", () => {
       new Map()
     );
     expect(progress).toBe(100);
+  });
+
+  it("rejects a dependency that would create a task cycle", () => {
+    expect(wouldCreateDependencyCycle([{ taskId: "task-b", dependsOnTaskId: "task-a" }], "task-a", "task-b")).toBe(true);
+    expect(wouldCreateDependencyCycle([{ taskId: "task-b", dependsOnTaskId: "task-a" }], "task-c", "task-b")).toBe(false);
   });
 
   it("flags an over-capacity day without excluding its scheduled tasks", () => {

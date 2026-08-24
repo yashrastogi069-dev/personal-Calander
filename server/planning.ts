@@ -9,11 +9,12 @@ import {
   habits,
   projects,
   savedViews,
+  taskDependencies,
   tasks,
   workspaces,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import { dashboardSummary } from "./plannerRules";
+import { dashboardSummary, wouldCreateDependencyCycle } from "./plannerRules";
 
 export type PlannerScope = {
   workspaceId: string;
@@ -124,6 +125,20 @@ export async function bulkSetTaskState(scope: PlannerScope, input: { ids: string
   if (input.state === "archived") patch.archivedAt = new Date();
   await db.update(tasks).set(patch).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, input.ids)));
   return db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, input.ids)));
+}
+
+export async function createTaskDependency(scope: PlannerScope, input: { taskId: string; dependsOnTaskId: string; dependencyType: "hard" | "soft" }) {
+  const db = await requireDb();
+  const [task, prerequisite, edges] = await Promise.all([
+    db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.taskId))).limit(1),
+    db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.dependsOnTaskId))).limit(1),
+    db.select().from(taskDependencies).where(eq(taskDependencies.workspaceId, scope.workspaceId)),
+  ]);
+  if (!task[0] || !prerequisite[0]) throw new Error("Both tasks must exist in this workspace before linking a dependency.");
+  if (wouldCreateDependencyCycle(edges, input.taskId, input.dependsOnTaskId)) throw new Error("That dependency would create a cycle.");
+  const id = nanoid();
+  await db.insert(taskDependencies).values({ id, workspaceId: scope.workspaceId, ...input });
+  return (await db.select().from(taskDependencies).where(eq(taskDependencies.id, id)).limit(1))[0]!;
 }
 
 export async function createHabit(scope: PlannerScope, input: Omit<typeof habits.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "archivedAt">) {

@@ -23,4 +23,4 @@ Goals do not appear as directly completable calendar work unless linked tasks ex
 
 ## Deliberate non-goals for the initial release
 
-The initial release does not attempt collaboration, shared workspaces, external calendar write-back, or autonomous AI actions. Integration adapters remain disabled until explicitly configured, and AI suggestions remain drafts until a person confirms them.
+The initial release does not attempt collaboration, shared workspaces, external calendar write-back, phone delivery, or autonomous AI actions. Integration adapters and reminder delivery remain disabled until the future integration phase, and AI suggestions remain drafts until a person confirms them.
