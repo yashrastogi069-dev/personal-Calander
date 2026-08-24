@@ -1,0 +1,28 @@
+# Project TODO
+
+- [x] Synthesize deep market research across established planning, task, calendar, habit, and review tools.
+- [x] Define and document the planning domain model, lifecycle states, timezone rules, and edge-case behavior.
+- [x] Design a single-user, no-auth data isolation boundary that can evolve to per-user isolation later.
+- [ ] Implement goals, projects, tasks, subtasks, categories, priorities, dependencies, and time horizons.
+- [x] Implement task lifecycle transitions: not started, in progress, blocked, completed, and archived.
+- [ ] Implement fast task capture, full editing, search, filtering, sorting, bulk actions, and persisted saved views.
+- [ ] Implement recurring task rules, generated occurrences, daily check-ins, habit definitions, and accurate completion history.
+- [ ] Implement day, week, month, quarter, and year calendar views with timezone-correct drag-and-drop scheduling.
+- [x] Implement a visual dashboard for focus, goal progress, workload, streaks, trends, category distribution, and date-range analytics.
+- [ ] Implement weekly and period review flows with useful empty, loading, and error states.
+- [ ] Implement scheduled, user-controlled reminders with snooze, opt-out, and safe pre-deployment handling.
+- [ ] Implement a modular, protected external-data integration boundary without coupling it to the core planner.
+- [ ] Implement an optional AI companion for review summaries and confirmation-first task/goal drafting.
+- [ ] Add optimistic interactions with rollback, conflict-safe writes, validation, keyboard support, and responsive layouts.
+- [ ] Establish an intentional, accessible visual design system and apply it consistently across the workspace.
+- [ ] Write and maintain market research, product scope, data model, workflow rules, design decisions, testing, and roadmap documentation.
+- [ ] Create, commit, and synchronize the public GitHub repository named personal Calander.
+- [ ] Add and run unit tests for business rules, API behavior, and important UI logic.
+- [ ] Test calendar/date behavior, recurrence outcomes, responsive layouts, accessible controls, and error recovery.
+- [ ] Perform visual verification and complete the final documentation and repository sync.
+- [ ] Apply the full relevant design, accessibility, motion, and refinement guidance to the premium core workspace.
+- [ ] Optimize the completed core workspace for an equal balance of prioritized list management and time-based planning.
+- [ ] Defer live third-party integrations and phone notifications until the core workspace is delivered, while retaining documented extension boundaries.
+- [x] Surface per-habit streak metrics in the dashboard and verify them with persisted check-in data.
+- [x] Create a real habit and persisted check-ins, then verify the visible streak metric updates from stored data.
+- [x] Add automated coverage for streak visibility derived from persisted habit history.

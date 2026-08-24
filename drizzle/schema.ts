@@ -1,17 +1,21 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import {
+  index,
+  int,
+  json,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
+export const lifecycleStates = ["not_started", "in_progress", "blocked", "completed", "archived"] as const;
+export const priorities = ["none", "low", "medium", "high", "critical"] as const;
+export const horizons = ["daily", "weekly", "monthly", "quarterly", "yearly", "someday"] as const;
+
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -22,7 +26,357 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const workspaces = mysqlTable("workspaces", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  name: varchar("name", { length: 120 }).notNull().default("My planning workspace"),
+  timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
+  weekStartsOn: int("weekStartsOn").notNull().default(1),
+  dailyCapacityMinutes: int("dailyCapacityMinutes").notNull().default(360),
+  planningDayStartsAt: varchar("planningDayStartsAt", { length: 5 }).notNull().default("06:00"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  version: int("version").notNull().default(1),
+});
+
+export const categories = mysqlTable(
+  "categories",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    color: varchar("color", { length: 16 }).notNull(),
+    sortOrder: int("sortOrder").notNull().default(0),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("categories_workspace_idx").on(table.workspaceId),
+    uniqueIndex("categories_workspace_name_unique").on(table.workspaceId, table.name),
+  ]
+);
+
+export const goals = mysqlTable(
+  "goals",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    categoryId: varchar("categoryId", { length: 64 }),
+    parentGoalId: varchar("parentGoalId", { length: 64 }),
+    title: varchar("title", { length: 280 }).notNull(),
+    description: text("description"),
+    state: mysqlEnum("state", lifecycleStates).notNull().default("not_started"),
+    priority: mysqlEnum("priority", priorities).notNull().default("medium"),
+    horizon: mysqlEnum("horizon", horizons).notNull().default("yearly"),
+    color: varchar("color", { length: 16 }),
+    progressMode: mysqlEnum("progressMode", ["manual", "task", "measure", "habit"]).notNull().default("task"),
+    progressValue: int("progressValue").notNull().default(0),
+    targetValue: int("targetValue").notNull().default(100),
+    startLocalDate: varchar("startLocalDate", { length: 10 }),
+    dueLocalDate: varchar("dueLocalDate", { length: 10 }),
+    completedAt: timestamp("completedAt"),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("goals_workspace_state_idx").on(table.workspaceId, table.state),
+    index("goals_workspace_horizon_idx").on(table.workspaceId, table.horizon),
+    index("goals_parent_idx").on(table.parentGoalId),
+  ]
+);
+
+export const projects = mysqlTable(
+  "projects",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    goalId: varchar("goalId", { length: 64 }),
+    categoryId: varchar("categoryId", { length: 64 }),
+    title: varchar("title", { length: 280 }).notNull(),
+    description: text("description"),
+    state: mysqlEnum("state", lifecycleStates).notNull().default("not_started"),
+    priority: mysqlEnum("priority", priorities).notNull().default("medium"),
+    horizon: mysqlEnum("horizon", horizons).notNull().default("quarterly"),
+    startLocalDate: varchar("startLocalDate", { length: 10 }),
+    dueLocalDate: varchar("dueLocalDate", { length: 10 }),
+    completedAt: timestamp("completedAt"),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("projects_workspace_state_idx").on(table.workspaceId, table.state),
+    index("projects_goal_idx").on(table.goalId),
+  ]
+);
+
+export const tasks = mysqlTable(
+  "tasks",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    parentTaskId: varchar("parentTaskId", { length: 64 }),
+    goalId: varchar("goalId", { length: 64 }),
+    projectId: varchar("projectId", { length: 64 }),
+    categoryId: varchar("categoryId", { length: 64 }),
+    title: varchar("title", { length: 280 }).notNull(),
+    description: text("description"),
+    state: mysqlEnum("state", lifecycleStates).notNull().default("not_started"),
+    priority: mysqlEnum("priority", priorities).notNull().default("medium"),
+    horizon: mysqlEnum("horizon", horizons).notNull().default("weekly"),
+    dueLocalDate: varchar("dueLocalDate", { length: 10 }),
+    scheduledLocalDate: varchar("scheduledLocalDate", { length: 10 }),
+    plannedStartAt: timestamp("plannedStartAt"),
+    plannedEndAt: timestamp("plannedEndAt"),
+    estimateMinutes: int("estimateMinutes"),
+    sortOrder: int("sortOrder").notNull().default(0),
+    recurrenceRule: json("recurrenceRule"),
+    recurrenceAnchor: mysqlEnum("recurrenceAnchor", ["scheduled", "completion"]),
+    recurrenceUntilLocalDate: varchar("recurrenceUntilLocalDate", { length: 10 }),
+    completedAt: timestamp("completedAt"),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("tasks_workspace_state_idx").on(table.workspaceId, table.state),
+    index("tasks_workspace_due_idx").on(table.workspaceId, table.dueLocalDate),
+    index("tasks_workspace_schedule_idx").on(table.workspaceId, table.scheduledLocalDate),
+    index("tasks_parent_idx").on(table.parentTaskId),
+    index("tasks_project_idx").on(table.projectId),
+    index("tasks_goal_idx").on(table.goalId),
+  ]
+);
+
+export const taskDependencies = mysqlTable(
+  "taskDependencies",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    dependsOnTaskId: varchar("dependsOnTaskId", { length: 64 }).notNull(),
+    dependencyType: mysqlEnum("dependencyType", ["hard", "soft"]).notNull().default("hard"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("task_dependencies_workspace_task_idx").on(table.workspaceId, table.taskId),
+    uniqueIndex("task_dependency_unique").on(table.taskId, table.dependsOnTaskId),
+  ]
+);
+
+export const taskOccurrences = mysqlTable(
+  "taskOccurrences",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    state: mysqlEnum("state", ["pending", "completed", "skipped", "missed", "rescheduled"]).notNull().default("pending"),
+    plannedStartAt: timestamp("plannedStartAt"),
+    plannedEndAt: timestamp("plannedEndAt"),
+    rescheduledToLocalDate: varchar("rescheduledToLocalDate", { length: 10 }),
+    completedAt: timestamp("completedAt"),
+    resolvedAt: timestamp("resolvedAt"),
+    note: text("note"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("occurrences_workspace_date_idx").on(table.workspaceId, table.localDate),
+    uniqueIndex("occurrences_task_date_unique").on(table.taskId, table.localDate),
+  ]
+);
+
+export const habits = mysqlTable(
+  "habits",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    goalId: varchar("goalId", { length: 64 }),
+    categoryId: varchar("categoryId", { length: 64 }),
+    name: varchar("name", { length: 160 }).notNull(),
+    description: text("description"),
+    color: varchar("color", { length: 16 }).notNull(),
+    frequency: mysqlEnum("frequency", ["daily", "days_of_week", "times_per_week", "interval"]).notNull().default("daily"),
+    schedule: json("schedule").notNull(),
+    reminderTime: varchar("reminderTime", { length: 5 }),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("habits_workspace_active_idx").on(table.workspaceId, table.archivedAt),
+    index("habits_goal_idx").on(table.goalId),
+  ]
+);
+
+export const habitCheckIns = mysqlTable(
+  "habitCheckIns",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    habitId: varchar("habitId", { length: 64 }).notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    timezoneAtCheckIn: varchar("timezoneAtCheckIn", { length: 64 }).notNull(),
+    state: mysqlEnum("state", ["completed", "skipped", "missed"]).notNull(),
+    completedAt: timestamp("completedAt"),
+    note: text("note"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("habit_checkins_workspace_date_idx").on(table.workspaceId, table.localDate),
+    uniqueIndex("habit_checkin_unique").on(table.habitId, table.localDate),
+  ]
+);
+
+export const dailyCheckIns = mysqlTable(
+  "dailyCheckIns",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    intention: text("intention"),
+    reflection: text("reflection"),
+    energy: int("energy"),
+    mood: int("mood"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [uniqueIndex("daily_checkin_unique").on(table.workspaceId, table.localDate)]
+);
+
+export const savedViews = mysqlTable(
+  "savedViews",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    viewType: mysqlEnum("viewType", ["tasks", "goals", "projects", "calendar", "habits"]).notNull().default("tasks"),
+    configuration: json("configuration").notNull(),
+    isPinned: int("isPinned").notNull().default(0),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [index("saved_views_workspace_type_idx").on(table.workspaceId, table.viewType)]
+);
+
+export const reviewSessions = mysqlTable(
+  "reviewSessions",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    kind: mysqlEnum("kind", ["daily", "weekly", "monthly", "quarterly", "yearly"]).notNull(),
+    periodStartLocalDate: varchar("periodStartLocalDate", { length: 10 }).notNull(),
+    periodEndLocalDate: varchar("periodEndLocalDate", { length: 10 }).notNull(),
+    state: mysqlEnum("state", ["not_started", "in_progress", "completed", "archived"]).notNull().default("not_started"),
+    reflection: text("reflection"),
+    snapshot: json("snapshot"),
+    completedAt: timestamp("completedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [index("reviews_workspace_period_idx").on(table.workspaceId, table.periodStartLocalDate)]
+);
+
+export const reminderRules = mysqlTable(
+  "reminderRules",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    targetType: mysqlEnum("targetType", ["task", "goal", "review", "daily_plan"]).notNull(),
+    targetId: varchar("targetId", { length: 64 }),
+    type: mysqlEnum("type", ["due", "daily_plan", "weekly_review", "at_risk"]).notNull(),
+    cronExpression: varchar("cronExpression", { length: 80 }),
+    timezone: varchar("timezone", { length: 64 }).notNull(),
+    isEnabled: int("isEnabled").notNull().default(0),
+    snoozedUntil: timestamp("snoozedUntil"),
+    scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+    lastTriggeredAt: timestamp("lastTriggeredAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("reminders_workspace_enabled_idx").on(table.workspaceId, table.isEnabled),
+    uniqueIndex("reminders_schedule_task_unique").on(table.scheduleCronTaskUid),
+  ]
+);
+
+export const integrationConnections = mysqlTable(
+  "integrationConnections",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    provider: mysqlEnum("provider", ["google_calendar", "microsoft_outlook", "custom"]).notNull(),
+    displayName: varchar("displayName", { length: 160 }).notNull(),
+    sourceOfTruth: mysqlEnum("sourceOfTruth", ["read_only", "explicit_export"]).notNull().default("read_only"),
+    syncCursor: text("syncCursor"),
+    status: mysqlEnum("status", ["disconnected", "connected", "syncing", "error", "paused"]).notNull().default("disconnected"),
+    lastSyncedAt: timestamp("lastSyncedAt"),
+    lastError: text("lastError"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [index("integrations_workspace_idx").on(table.workspaceId)]
+);
+
+export const externalEvents = mysqlTable(
+  "externalEvents",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    connectionId: varchar("connectionId", { length: 64 }).notNull(),
+    externalId: varchar("externalId", { length: 255 }).notNull(),
+    title: varchar("title", { length: 280 }).notNull(),
+    startsAt: timestamp("startsAt").notNull(),
+    endsAt: timestamp("endsAt").notNull(),
+    isAllDay: int("isAllDay").notNull().default(0),
+    status: mysqlEnum("status", ["active", "cancelled"]).notNull().default("active"),
+    payload: json("payload"),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    index("external_events_workspace_time_idx").on(table.workspaceId, table.startsAt),
+    uniqueIndex("external_events_connection_external_unique").on(table.connectionId, table.externalId),
+  ]
+);
+
+export const aiDrafts = mysqlTable(
+  "aiDrafts",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    type: mysqlEnum("type", ["task", "goal", "review"]).notNull(),
+    sourceText: text("sourceText").notNull(),
+    draft: json("draft").notNull(),
+    state: mysqlEnum("state", ["proposed", "accepted", "dismissed", "expired"]).notNull().default("proposed"),
+    expiresAt: timestamp("expiresAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [index("ai_drafts_workspace_state_idx").on(table.workspaceId, table.state)]
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
-
-// TODO: Add your tables here
+export type Workspace = typeof workspaces.$inferSelect;
+export type Category = typeof categories.$inferSelect;
+export type Goal = typeof goals.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type Task = typeof tasks.$inferSelect;
+export type TaskOccurrence = typeof taskOccurrences.$inferSelect;
+export type Habit = typeof habits.$inferSelect;
+export type HabitCheckIn = typeof habitCheckIns.$inferSelect;
