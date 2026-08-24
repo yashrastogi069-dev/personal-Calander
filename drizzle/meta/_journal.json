@@ -15,6 +15,20 @@
       "when": 1787536065465,
       "tag": "0001_secret_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787542462863,
+      "tag": "0002_aberrant_thunderbolts",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787542514076,
+      "tag": "0003_charming_sentry",
+      "breakpoints": true
     }
   ]
 }

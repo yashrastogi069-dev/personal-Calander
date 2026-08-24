@@ -54,6 +54,24 @@ describe("planning rules", () => {
     expect(streak).toBe(1);
   });
 
+  it("returns to the prior streak when a same-day check-in is cleared", () => {
+    const whileCompleted = currentHabitStreak(
+      [
+        { habitId: "habit-1", localDate: "2026-08-23", state: "completed" },
+        { habitId: "habit-1", localDate: "2026-08-24", state: "completed" },
+      ],
+      "habit-1",
+      "2026-08-24"
+    );
+    const afterUndo = currentHabitStreak(
+      [{ habitId: "habit-1", localDate: "2026-08-23", state: "completed" }],
+      "habit-1",
+      "2026-08-24"
+    );
+    expect(whileCompleted).toBe(2);
+    expect(afterUndo).toBe(1);
+  });
+
   it("clamps measured goal progress to a readable percentage", () => {
     const progress = goalProgress(
       { id: "goal-1", state: "in_progress", progressMode: "measure", progressValue: 180, targetValue: 100, dueLocalDate: null },
@@ -83,6 +101,16 @@ describe("planning rules", () => {
     });
     expect(summary.counts.today).toBe(1);
     expect(summary.workload.isOverCapacity).toBe(true);
+  });
+
+  it("surfaces carryover, blocked work, and focus completion as planning-health signals", () => {
+    const summary = dashboardSummary({
+      tasks: [
+        { id: "carry", goalId: null, projectId: null, categoryId: null, state: "blocked", dueLocalDate: null, scheduledLocalDate: "2026-08-23", estimateMinutes: 20, completedAt: null },
+        { id: "done", goalId: null, projectId: null, categoryId: null, state: "completed", dueLocalDate: null, scheduledLocalDate: "2026-08-24", estimateMinutes: 20, completedAt: new Date("2026-08-24T12:00:00.000Z") },
+      ], goals: [], projectGoalById: new Map(), categoryNames: new Map(), habitCheckIns: [], habitIds: [], todayLocalDate: "2026-08-24", rangeStart: "2026-08-18", rangeEnd: "2026-08-24", capacityMinutes: 360,
+    });
+    expect(summary.planningHealth).toMatchObject({ carryoverCount: 1, blockedCount: 1, completedToday: 1, focusCompletionRate: 100, atRiskGoalCount: 0 });
   });
 
   it("exposes a per-habit streak value in the dashboard summary", () => {

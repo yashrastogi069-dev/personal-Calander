@@ -42,3 +42,15 @@
 - [ ] Implement user-controlled iPhone-calendar connectivity and phone-notification readiness with documented activation requirements.
 - [ ] Test upgraded workflows, integration boundaries, browser permissions, responsive layouts, accessibility, and error recovery.
 - [ ] Update documentation, tests, checkpoint history, and the public GitHub repository for the completed upgrade.
+- [x] Diagnose the habit tracker’s failed tick/untick flow across UI events, mutation payloads, persistence, cache refresh, timezone handling, and streak calculations.
+- [x] Implement and browser-test reliable habit check-in, undo, skipped state, error recovery, and persisted streak updates.
+- [x] Browser-test the habit Skip today transition, persisted rendering, and streak behavior after a refresh, then restore the user’s original state.
+- [x] Force and verify a habit mutation error so the inline recovery message and retry path are proven in the browser.
+- [x] Add focused server/API coverage for habit clear and skipped-state transitions.
+- [x] Reload after a persisted habit skip and confirm the stored state and streak survive a fresh workspace snapshot before restoring the original completion.
+- [x] Add successful habit check-in and clear-contract coverage in addition to invalid-input validation.
+- [x] Recalibrate the visual system from bright mint surfaces to a restrained, premium material palette with stronger hierarchy and lower glare.
+- [ ] Make task sort, filters, selection, and bulk lifecycle actions function through persisted workspace mutations.
+- [ ] Add create, recall, pin, update, and delete behavior for persisted task saved views.
+- [ ] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
+- [ ] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.

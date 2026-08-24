@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   bulkSetTaskState,
+  clearHabitCheckIn,
   completeReviewSession,
   createCategory,
   createGoal,
@@ -10,14 +11,18 @@ import {
   createSavedView,
   createTask,
   createTaskDependency,
+  ensureCalendarFeed,
   ensureWorkspace,
+  deleteSavedView,
   getDashboard,
   getWorkspaceSnapshot,
   materializeTaskOccurrences,
   PlannerConflictError,
   resolveTaskOccurrence,
+  revokeCalendarFeed,
   startReviewSession,
   updateTask,
+  updateSavedView,
   updateWorkspace,
   upsertDailyCheckIn,
   upsertHabitCheckIn,
@@ -99,12 +104,22 @@ export const plannerRouter = router({
       return createHabit({ workspaceId, timezone }, habit);
     }),
     checkIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, state: z.enum(["completed", "skipped", "missed"]), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => upsertHabitCheckIn(input, input)),
+    clearCheckIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString })).mutation(async ({ input }) => clearHabitCheckIn(input, input)),
   }),
   dailyCheckIn: router({
     upsert: publicProcedure.input(scope.extend({ localDate: dateString, intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), energy: z.number().int().min(1).max(5).nullable().optional(), mood: z.number().int().min(1).max(5).nullable().optional() })).mutation(async ({ input }) => upsertDailyCheckIn(input, input)),
   }),
   savedView: router({
     create: publicProcedure.input(scope.extend({ name: z.string().trim().min(1).max(120), viewType: z.enum(["tasks", "goals", "projects", "calendar", "habits"]), configuration: z.record(z.string(), z.unknown()), isPinned: z.number().int().min(0).max(1).optional() })).mutation(async ({ input }) => createSavedView(input, input)),
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), name: z.string().trim().min(1).max(120).optional(), configuration: z.record(z.string(), z.unknown()).optional(), isPinned: z.number().int().min(0).max(1).optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...view } = input;
+      try { return await updateSavedView({ workspaceId, timezone }, view); } catch (error) { return plannerError(error); }
+    }),
+    delete: publicProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => deleteSavedView(input, input)),
+  }),
+  calendarFeed: router({
+    ensure: publicProcedure.input(scope).mutation(async ({ input }) => ensureCalendarFeed(input)),
+    revoke: publicProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => revokeCalendarFeed(input, input)),
   }),
   review: router({
     start: publicProcedure.input(scope.extend({ kind: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]), periodStartLocalDate: dateString, periodEndLocalDate: dateString, snapshot: z.record(z.string(), z.unknown()).optional() })).mutation(async ({ input }) => startReviewSession(input, input)),

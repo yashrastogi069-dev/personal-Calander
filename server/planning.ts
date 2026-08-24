@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import {
+  calendarFeeds,
   categories,
   dailyCheckIns,
   externalEvents,
@@ -198,6 +199,17 @@ export async function upsertHabitCheckIn(scope: PlannerScope, input: { habitId: 
   return (await db.select().from(habitCheckIns).where(and(eq(habitCheckIns.habitId, input.habitId), eq(habitCheckIns.localDate, input.localDate))).limit(1))[0]!;
 }
 
+/** Removes a recorded check-in so the date becomes genuinely unrecorded again. This is safe to retry. */
+export async function clearHabitCheckIn(scope: PlannerScope, input: { habitId: string; localDate: string }) {
+  const db = await requireDb();
+  await db.delete(habitCheckIns).where(and(
+    eq(habitCheckIns.workspaceId, scope.workspaceId),
+    eq(habitCheckIns.habitId, input.habitId),
+    eq(habitCheckIns.localDate, input.localDate)
+  ));
+  return { habitId: input.habitId, localDate: input.localDate, cleared: true } as const;
+}
+
 export async function upsertDailyCheckIn(scope: PlannerScope, input: { localDate: string; intention?: string | null; reflection?: string | null; energy?: number | null; mood?: number | null }) {
   const db = await requireDb();
   const id = nanoid();
@@ -210,6 +222,41 @@ export async function createSavedView(scope: PlannerScope, input: { name: string
   const id = nanoid();
   await db.insert(savedViews).values({ id, workspaceId: scope.workspaceId, name: input.name, viewType: input.viewType, configuration: input.configuration, isPinned: input.isPinned ?? 0 });
   return (await db.select().from(savedViews).where(and(eq(savedViews.workspaceId, scope.workspaceId), eq(savedViews.id, id))).limit(1))[0]!;
+}
+
+export async function updateSavedView(scope: PlannerScope, input: { id: string; expectedVersion: number; name?: string; configuration?: unknown; isPinned?: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(savedViews).where(and(eq(savedViews.workspaceId, scope.workspaceId), eq(savedViews.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Saved view was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  const patch = { ...input, version: input.expectedVersion + 1 } as Record<string, unknown>;
+  delete patch.id;
+  delete patch.expectedVersion;
+  await db.update(savedViews).set(patch).where(and(eq(savedViews.workspaceId, scope.workspaceId), eq(savedViews.id, input.id), eq(savedViews.version, input.expectedVersion)));
+  const updated = (await db.select().from(savedViews).where(and(eq(savedViews.workspaceId, scope.workspaceId), eq(savedViews.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+export async function deleteSavedView(scope: PlannerScope, input: { id: string }) {
+  const db = await requireDb();
+  await db.delete(savedViews).where(and(eq(savedViews.workspaceId, scope.workspaceId), eq(savedViews.id, input.id)));
+  return { success: true } as const;
+}
+
+export async function ensureCalendarFeed(scope: PlannerScope) {
+  const db = await requireDb();
+  const existing = (await db.select().from(calendarFeeds).where(and(eq(calendarFeeds.workspaceId, scope.workspaceId), eq(calendarFeeds.isEnabled, 1))).limit(1))[0];
+  if (existing) return existing;
+  const id = nanoid();
+  await db.insert(calendarFeeds).values({ id, workspaceId: scope.workspaceId, token: nanoid(48) });
+  return (await db.select().from(calendarFeeds).where(eq(calendarFeeds.id, id)).limit(1))[0]!;
+}
+
+export async function revokeCalendarFeed(scope: PlannerScope, input: { id: string }) {
+  const db = await requireDb();
+  await db.update(calendarFeeds).set({ isEnabled: 0, revokedAt: new Date() }).where(and(eq(calendarFeeds.workspaceId, scope.workspaceId), eq(calendarFeeds.id, input.id)));
+  return { success: true } as const;
 }
 
 export async function startReviewSession(scope: PlannerScope, input: { kind: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"; periodStartLocalDate: string; periodEndLocalDate: string; snapshot?: unknown }) {

@@ -353,6 +353,38 @@ export const externalEvents = mysqlTable(
   ]
 );
 
+export const calendarFeeds = mysqlTable(
+  "calendarFeeds",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    token: varchar("token", { length: 128 }).notNull(),
+    name: varchar("name", { length: 120 }).notNull().default("Personal Calander"),
+    isEnabled: int("isEnabled").notNull().default(1),
+    includeCompleted: int("includeCompleted").notNull().default(0),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    revokedAt: timestamp("revokedAt"),
+  },
+  table => [index("calendar_feeds_workspace_idx").on(table.workspaceId), uniqueIndex("calendar_feeds_token_unique").on(table.token)]
+);
+
+export const pushSubscriptions = mysqlTable(
+  "pushSubscriptions",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    endpoint: varchar("endpoint", { length: 512 }).notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    status: mysqlEnum("status", ["active", "disabled", "expired"]).notNull().default("active"),
+    failureReason: text("failureReason"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("push_subscriptions_workspace_status_idx").on(table.workspaceId, table.status), uniqueIndex("push_subscriptions_endpoint_unique").on(table.endpoint)]
+);
+
 export const aiDrafts = mysqlTable(
   "aiDrafts",
   {

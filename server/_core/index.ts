@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
+import { buildCalendarFeed } from "../calendarFeed";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -36,6 +37,14 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  app.get("/api/calendar/:token.ics", async (req, res) => {
+    const feed = await buildCalendarFeed(req.params.token);
+    if (!feed) return res.status(404).type("text/plain").send("Calendar feed not found.");
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", "inline; filename=personal-calander.ics");
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(feed);
+  });
   // tRPC API
   app.use(
     "/api/trpc",

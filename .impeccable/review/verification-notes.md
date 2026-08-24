@@ -29,3 +29,7 @@ The same task was then dispatched into the Day timeline for Monday, August 24. A
 ## Verdigris Daylight redesign
 
 Desktop and mobile inspection confirmed the lighter mineral canvas, evergreen action color, focus-first hierarchy, and line-based time motif. At mobile width, the compact navigation retains visible touch targets, the quick capture stays directly under the page title, the focus panel remains visually dominant, and all lower planning surfaces stack without horizontal page overflow. The review verified visible focus states, contrast-bearing controls, and reduced-motion-compatible CSS remain in place.
+
+## Smoked Verdigris refinement
+
+One bounded desktop pass at 1280×720 and one compact mobile pass at 375×812 were completed after recalibrating the former bright mint treatment. The interface now uses muted smoked-stone surfaces, restrained verdigris actions, flatter borders, and reduced decorative background treatment. The desktop hierarchy remains clear across the rail, focus lane, timeline, habits, capacity, and analytics. The mobile layout preserves the navigation rail, capture control, focus surface, calendar, and habit guidance without horizontal overflow.

@@ -1,0 +1,9 @@
+{
+  "name": "Personal Calander",
+  "short_name": "Calander",
+  "description": "A private planning workspace for goals, tasks, habits, and reviews.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6faf7",
+  "theme_color": "#2f6b5f"
+}

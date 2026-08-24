@@ -143,9 +143,13 @@ export function dashboardSummary(input: {
 }) {
   const activeTasks = input.tasks.filter(task => task.state !== "completed" && task.state !== "archived");
   const today = activeTasks.filter(task => task.scheduledLocalDate === input.todayLocalDate || task.dueLocalDate === input.todayLocalDate);
+  const allTodayTasks = input.tasks.filter(task => task.scheduledLocalDate === input.todayLocalDate || task.dueLocalDate === input.todayLocalDate);
   const upcomingEnd = shiftLocalDate(input.todayLocalDate, 7);
   const upcoming = activeTasks.filter(task => task.dueLocalDate && task.dueLocalDate > input.todayLocalDate && task.dueLocalDate <= upcomingEnd);
   const plannedMinutes = today.reduce((total, task) => total + (task.estimateMinutes ?? 0), 0);
+  const carryoverTasks = activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate < input.todayLocalDate);
+  const blockedTasks = activeTasks.filter(task => task.state === "blocked");
+  const completedToday = input.tasks.filter(task => task.completedAt?.toISOString().slice(0, 10) === input.todayLocalDate).length;
   const goalProgressItems = input.goals
     .filter(goal => goal.state !== "archived")
     .map(goal => ({
@@ -173,6 +177,13 @@ export function dashboardSummary(input: {
       upcoming: upcoming.length,
       completedInRange: completionTrend.reduce((total, item) => total + item.completed, 0),
       activeGoals: goalProgressItems.length,
+    },
+    planningHealth: {
+      carryoverCount: carryoverTasks.length,
+      blockedCount: blockedTasks.length,
+      completedToday,
+      focusCompletionRate: allTodayTasks.length ? Math.round((allTodayTasks.filter(task => task.state === "completed").length / allTodayTasks.length) * 100) : 0,
+      atRiskGoalCount: goalProgressItems.filter(item => item.atRisk).length,
     },
     workload: {
       plannedMinutes,
