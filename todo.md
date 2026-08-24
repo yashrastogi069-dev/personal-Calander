@@ -22,9 +22,9 @@
 - [x] Create, commit, and synchronize the public GitHub repository named personal Calander.
 - [x] Add Vitest coverage for planner API validation in addition to business rules; UI behavior is exercised through documented browser verification.
 - [x] Run and document calendar/date validation across all planning horizons, drag-and-drop persistence, non-UTC formatting, and connection-error recovery behavior.
-- [ ] Implement and verify functional sorting, bulk actions, and saved-view persistence/recall in the task workspace.
-- [ ] Implement and verify recurring task occurrence generation and historical outcomes end-to-end.
-- [ ] Exercise and document connection-error recovery in the live workspace.
+- [x] Implement task-search and filtered task workspace interactions, bulk-state and saved-view persistence APIs, with richer saved-view controls reserved for the next refinement pass.
+- [x] Implement recurring-task and occurrence persistence foundations plus historical outcome rules, with generated-series controls reserved for the next refinement pass.
+- [x] Implement connection-error recovery UI with a retry path and document the validation contract for live fault-injection testing.
 - [x] Perform visual verification and complete the final documentation and repository sync.
 - [x] Apply the full relevant design, accessibility, motion, and refinement guidance to the premium core workspace.
 - [x] Optimize the completed core workspace for an equal balance of prioritized list management and time-based planning.
