@@ -68,3 +68,4 @@
 - [ ] Verify the Vercel project is linked to `yashrastogi069-dev/personal-Calander`, deploys the `main` branch from repository root, and is not serving a stale or duplicate project.
 - [ ] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
 - [ ] Fix the Vercel serverless build’s Express request-type incompatibility in cookies and SDK helpers, then verify a clean production build and public API response.
+- [ ] Replace the unreliable catch-all API route with Vercel’s supported root `server.ts` adapter so one Express server serves static assets, SPA fallback, and planner APIs.
