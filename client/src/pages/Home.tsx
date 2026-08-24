@@ -65,17 +65,9 @@ function shortTime(date: Date | null) {
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(date));
 }
 
-function EmptyState({ title, detail, action }: { title: string; detail: string; action?: () => void }) {
-  return (
-    <div className="empty-state">
-      <div className="empty-state-mark"><Plus size={18} strokeWidth={1.7} /></div>
-      <div>
-        <p className="empty-state-title">{title}</p>
-        <p className="empty-state-copy">{detail}</p>
-      </div>
-      {action ? <Button variant="ghost" className="empty-state-action" onClick={action}>Shape it</Button> : null}
-    </div>
-  );
+function EmptyState({ title, detail, action, actionLabel = "Create" }: { title: string; detail: string; action?: () => void; actionLabel?: string }) {
+  const content = <><span className="empty-state-mark" aria-hidden="true"><Plus size={18} strokeWidth={1.7} /></span><span><span className="empty-state-title">{title}</span><span className="empty-state-copy">{detail}</span></span>{action ? <span className="empty-state-action">{actionLabel}</span> : null}</>;
+  return action ? <button type="button" className="empty-state empty-state-trigger" onClick={action} aria-label={`${actionLabel}: ${title}`}>{content}</button> : <div className="empty-state">{content}</div>;
 }
 
 function LoadingBoard() {
