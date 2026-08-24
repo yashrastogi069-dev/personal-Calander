@@ -8,12 +8,46 @@ The repository is a combined Vite frontend and Express/tRPC backend. Its `build`
 
 The next remediation is to introduce a Vercel-specific function entry and routing configuration, plus production environment values for the database and any retained OAuth/storage integrations. The static Vite assets must be served at `/`; tRPC, the calendar feed, and other backend endpoints must be served under `/api/*`.
 
-## Live follow-up findings
+## Verified production recovery
 
-The GitHub integration successfully created production deployments for `44fab2e`, `09675e5`, and `1e3033c` in the Vercel project under the `yashnew869-2746s-projects` team. The public alias now serves the current client rather than the earlier `Etc/Unknown` timezone crash. The remaining blocker is backend routing/runtime: a direct request to `https://personal-calander.vercel.app/api/trpc` now reaches a Vercel Function but returns `HTTP 500 FUNCTION_INVOCATION_FAILED`, rather than the prior incorrect `index.html` response. The browser therefore displays the planner’s loading skeleton while its snapshot query cannot complete.
+The GitHub integration created the production deployment for commit `390df1c` in the `yashnew869-2746s-projects/personal-calander` Vercel project. That revision corrected the remaining API-function failure by compiling `server/_core/vercelApp.ts` to `dist/server/planner-app.mjs` during `pnpm build:client`, then importing that bundle through the supported `api/trpc/[...path].mjs` Function entry. This deliberately prevents Vercel’s API Function TypeScript checker from traversing the Express application’s type surface, which had reported incompatible Express declaration errors even though the local compiler passed.
 
-The authenticated Vercel project console is available at <https://vercel.com/yashnew869-2746s-projects/personal-calander>; its production deployment is GitHub-backed. The next task is to inspect the function runtime exception and reconcile the server-only environment configuration or function bundle initialization.
+The Function then returned correct responses for `GET /api/health` and the typed `system.health` tRPC procedure. The first database-backed `planner.workspace.snapshot` request still returned the application’s safe “Planning data is temporarily unavailable” error. An environment audit showed that the Vercel project had no Production variables. The existing managed `DATABASE_URL` was therefore added to Vercel **Production** as a sensitive secret without revealing its value, and the successful `390df1c` deployment was rebuilt. The production alias now points to `personal-calander-p8c7xh3ok-yashnew869-2746s-projects.vercel.app`.
 
-## Source
+| Verification | Result |
+|---|---|
+| `GET /api/health` | `200` JSON `{ "status": "ok" }` |
+| Typed tRPC procedure | `GET /api/trpc/system.health` with a valid timestamp returned `200` and `{ "ok": true }` |
+| Database-backed snapshot | `GET /api/trpc/planner.workspace.snapshot` returned `200` with the expected anonymous workspace snapshot |
+| Browser root | The public alias rendered the usable Today dashboard, task capture, calendar canvas, goal, habit, and notification-readiness surfaces rather than a loading skeleton |
 
-The response was retrieved directly from <https://personal-calander.vercel.app/>. Official deployment references used for the remediation are [Vercel’s Express guide](https://vercel.com/docs/frameworks/backend/express), [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite), and [Vercel rewrites](https://vercel.com/docs/routing/rewrites).
+The authenticated Vercel project console remains available at <https://vercel.com/yashnew869-2746s-projects/personal-calander>. For any future Vercel deployment or environment migration, retain the production `DATABASE_URL`; VAPID credentials are intentionally not configured until the user supplies them.
+
+## Verified Vercel production configuration
+
+| Setting | Verified value |
+|---|---|
+| Repository and branch | `yashrastogi069-dev/personal-Calander`, branch `main` |
+| Vercel project | `yashnew869-2746s-projects/personal-calander` (`prj_1LDL8LPGI7Nv8styrNljWflHzqZg`) |
+| Root directory | Repository root (`.`) |
+| Runtime | Node.js `24.x` |
+| Build command | `pnpm build:client`, defined in `vercel.json` and therefore overriding the dashboard default |
+| Build output | `dist/public` |
+| API Functions | `api/health.ts`, `api/calendar/[token].ics.ts`, and `api/trpc/[...path].mjs` |
+| Frontend routing | The SPA rewrite applies only to non-`/api/*` paths, preserving Function routing |
+| Required Production secret | `DATABASE_URL`, stored in Vercel as a sensitive secret; no value is recorded in this repository |
+| Latest code revision | GitHub commit `390df1c` |
+| Current production alias | `https://personal-calander.vercel.app/` → `personal-calander-p8c7xh3ok-yashnew869-2746s-projects.vercel.app` |
+
+The project’s direct configuration audit reported `ssoProtection: null`; an unauthenticated command-line request to the public alias returned `200` from both the health Function and the database-backed planner procedure. Together, those checks establish that SSO deployment protection is not blocking the intended public production app. The audit also reports `gitForkProtection: true` and `protectedSourcemaps: true`; those settings do not prevent ordinary public access to the production alias.
+
+> **Operational sequence.** After modifying a Production environment variable, redeploy the latest production deployment. Vercel injects environment variables into a new deployment build; changing the value alone does not repair an already-running Function.
+
+## Sources
+
+The live checks above were run directly against the public Vercel alias and immutable deployment. The implementation follows Vercel’s documented Function, Express, Vite, and rewrite models. [1] [2] [3] [4]
+
+[1]: https://vercel.com/docs/functions "Vercel Functions documentation"
+[2]: https://vercel.com/docs/frameworks/backend/express "Vercel Express guide"
+[3]: https://vercel.com/docs/frameworks/frontend/vite "Vite on Vercel"
+[4]: https://vercel.com/docs/routing/rewrites "Vercel rewrites documentation"

@@ -53,3 +53,7 @@ For a final persistence check, a new temporary view named **Fresh snapshot verif
 After the full reload, the action queue began at `open,priority`. Applying **Fresh snapshot verification** changed the actual select values to `all,created`, as read from the controls directly. This proves that the saved filter and sort configuration was read from a fresh persisted workspace snapshot and applied, rather than retained only in client state.
 
 The temporary fresh-snapshot view was deleted successfully and the browser prompt was restored. The saved-view workspace remains clear of verification-only records.
+
+## Public Vercel production recovery
+
+The public alias at `https://personal-calander.vercel.app/` was reloaded after the production serverless API and database configuration were repaired. It rendered the complete usable Today workspace rather than the previous loading skeleton: the navigation rail, quick capture, daily signal, action queue, calendar time canvas, goal runway, habit rhythm, planning-health signals, private iPhone-calendar link control, and browser-notification permission control were all visible. Direct public API checks also returned `200` for the health function, typed tRPC health procedure, and the database-backed workspace snapshot. This confirms the browser state is backed by the public Function and persisted planner workspace rather than static HTML.

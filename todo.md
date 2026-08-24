@@ -60,13 +60,15 @@
 - [ ] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
 - [ ] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.
 - [x] Add evidence-based decision signals for schedule reliability, carryover pressure, blocked-work age, estimate coverage, and visible goal momentum.
-- [ ] Verify GitHub source synchronization and diagnose the Vercel build, runtime, environment, and output configuration.
-- [ ] Add production deployment guidance and platform configuration needed for a Vite client plus Express/tRPC planner backend.
-- [ ] Write the complete VAPID, iPhone Home Screen, browser permission, subscription, and safe reminder-delivery activation guide.
+- [x] Verify GitHub source synchronization and diagnose the Vercel build, runtime, environment, and output configuration.
+- [x] Add production deployment guidance and platform configuration needed for a Vite client plus Express/tRPC planner backend.
+- [x] Write the complete VAPID, iPhone Home Screen, browser permission, subscription, and safe reminder-delivery activation guide.
 - [ ] Connect scheduled calendar work to habit check-ins through an explicit, user-controlled workflow with persistence and tests.
-- [ ] Fix the Vercel runtime crash caused by an unavailable browser timezone resolving to `Etc/Unknown`, then redeploy and verify the public planner renders.
-- [ ] Verify the Vercel project is linked to `yashrastogi069-dev/personal-Calander`, deploys the `main` branch from repository root, and is not serving a stale or duplicate project.
-- [ ] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
-- [ ] Fix the Vercel serverless build’s Express request-type incompatibility in cookies and SDK helpers, then verify a clean production build and public API response.
-- [ ] Replace the unreliable catch-all API route with Vercel’s supported root `server.ts` adapter so one Express server serves static assets, SPA fallback, and planner APIs.
-- [ ] Bundle the Express tRPC application during the Vercel build and use a JavaScript API entry to isolate it from Vercel’s incompatible function TypeScript checker.
+- [x] Fix the Vercel runtime crash caused by an unavailable browser timezone resolving to `Etc/Unknown`, then redeploy and verify the public planner renders.
+- [x] Verify the Vercel project is linked to `yashrastogi069-dev/personal-Calander`, deploys the `main` branch from repository root, and is not serving a stale or duplicate project.
+- [x] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
+- [x] Fix the Vercel serverless build’s Express request-type incompatibility in cookies and SDK helpers, then verify a clean production build and public API response.
+- [x] Supersede the unreliable root `server.ts` adapter with verified Vercel-supported nested Functions, keeping the SPA rewrite limited to non-API routes.
+- [x] Bundle the Express tRPC application during the Vercel build and use a JavaScript API entry to isolate it from Vercel’s incompatible function TypeScript checker.
+- [x] Record the final verified Vercel production configuration, including repository, branch, root, build/output settings, nested API Functions, database secret requirement, and alias behavior.
+- [x] Explicitly inspect and record the Vercel Deployment Protection setting in addition to the already verified production alias target.
