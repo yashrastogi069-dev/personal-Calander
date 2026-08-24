@@ -37,3 +37,9 @@ The router suite additionally mocks `createHabit` and proves that both `days_of_
 The browser audit exercised each visible creation affordance individually: the top-bar **New** action; **New goal**; **Add habit**; all three context-specific **Shape it** empty-state actions; **New project**; and **New category**. Each opened the exact expected composer or organizer surface. Quick capture created a disposable task, and its row-level **Add subtask** control opened a prompt that persisted a real child task. The parent and child were then archived through confirmation-backed lifecycle controls and verified absent from a fresh accessibility search.
 
 The archive manager no longer truncates its active-record list at twelve entries. It now exposes all active tasks, goals, projects, and habits in the workspace in alphabetical order, retaining the existing confirmation message and history-preserving archive semantics.
+
+## Integration-boundary and keyboard verification
+
+In an isolated local workspace, the **Create link** control generated a real private, read-only `.ics` subscription URL and presented **Copy link**, **Open .ics**, and **Revoke** controls. The verification did not represent two-way iCloud sync. The notification control first presented the browser-ready default action, then, under an isolated temporary granted browser permission, rendered **Permission ready. Delivery activates after VAPID credentials are configured.** No device subscription, VAPID request, or push message was sent.
+
+Keyboard checks focused and operated the task composer’s **Repeat** combobox with `Enter` and `Escape`; focused the Review route’s **Begin review** button; and used `Enter` to complete then undo a daily habit directly through the selected-date Habit Calendar control. The disposable habit was archived afterward. These checks confirm keyboard reachability for the upgraded recurrence, review, and dedicated habit-calendar paths.

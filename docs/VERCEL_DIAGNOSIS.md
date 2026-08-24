@@ -41,6 +41,19 @@ The authenticated Vercel project console remains available at <https://vercel.co
 
 The project’s direct configuration audit reported `ssoProtection: null`; an unauthenticated command-line request to the public alias returned `200` from both the health Function and the database-backed planner procedure. Together, those checks establish that SSO deployment protection is not blocking the intended public production app. The audit also reports `gitForkProtection: true` and `protectedSourcemaps: true`; those settings do not prevent ordinary public access to the production alias.
 
+## Interaction release verification — 2026-08-24
+
+The validated interaction release was pushed to GitHub `main` at revision `83eb780814c0c8a56344ddb9d1217eb4b53e661b`. Vercel created production deployment `dpl_DmkQfZKNDHK7MXH5kz9sqPWomeeh`, which reached **Ready** and assigned the public alias to `https://personal-calander-ezfdsagmp-yashnew869-2746s-projects.vercel.app`.
+
+| Verification | Observed result |
+| --- | --- |
+| Public health | `GET /api/health` returned `200` and `{ "status": "ok" }`. |
+| Typed health | `system.health` with a valid timestamp returned `200` and `{ "ok": true }`. |
+| Database-backed planner | `planner.workspace.snapshot` created and returned an isolated anonymous workspace snapshot with the expected planning collections. |
+| Public root | `https://personal-calander.vercel.app/` rendered the full Today planner, including categories, task capture, task calendar, goal/habit entry points, private iPhone Calendar control, and notification-readiness copy. |
+
+The public alias is therefore serving the current functional interaction release rather than a stale shell. Live Web Push remains intentionally inactive: no VAPID values, device subscriptions, sender, or scheduled delivery process have been configured.
+
 > **Operational sequence.** After modifying a Production environment variable, redeploy the latest production deployment. Vercel injects environment variables into a new deployment build; changing the value alone does not repair an already-running Function.
 
 ## Sources

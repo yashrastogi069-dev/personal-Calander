@@ -74,9 +74,9 @@
 - [x] Explicitly inspect and record the Vercel Deployment Protection setting in addition to the already verified production alias target.
 - [x] Browser-test a same-name saved-view overwrite, then reload the app, recall that overwritten view, and record the visible filter/sort control values.
 - [x] Add durable verification notes for the overwritten-saved-view reload path, distinct from the existing fresh-create reload proof.
-- [ ] Browser-test the notification permission control through a supported/default and a denied-or-granted visible state, then record the outcome without claiming delivery.
-- [ ] Record keyboard focus and accessibility verification for the upgraded task recurrence, Review route, and calendar-habit controls.
-- [ ] Verify and document the iPhone calendar-link and notification-readiness integration boundaries through explicit user-facing control behavior.
+- [x] Browser-test the notification permission control through a supported/default and a denied-or-granted visible state, then record the outcome without claiming delivery.
+- [x] Record keyboard focus and accessibility verification for the upgraded task recurrence, Review route, and calendar-habit controls.
+- [x] Verify and document the iPhone calendar-link and notification-readiness integration boundaries through explicit user-facing control behavior.
 - [x] Audit every visible plus/add control and make each one initiate a concrete, valid creation workflow or remove it when no coherent action exists.
 - [x] Add an explicit category-management workflow: create, name, color, apply, rename, and safely remove categories without orphaning planner records.
 - [x] Add clear, safe removal/archive workflows for user-created tasks, goals, projects, habits, categories, and saved views, including consequences and confirmation where needed.
