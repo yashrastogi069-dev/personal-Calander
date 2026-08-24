@@ -169,6 +169,29 @@ function CalendarSubscriptionControl() {
   return <div className="calendar-subscription"><span>iPhone Calendar</span>{!feed ? <><p>Create a private, read-only calendar link for the iPhone Calendar app.</p><Button type="button" variant="ghost" onClick={() => ensure.mutate(scope)} disabled={ensure.isPending}>{ensure.isPending ? "Creating…" : "Create link"}</Button></> : <><p>Use this link with <strong>Calendar → Add Subscription Calendar</strong> on iPhone.</p><div className="calendar-feed-actions"><Button type="button" variant="ghost" onClick={() => navigator.clipboard?.writeText(url!)}>Copy link</Button><a href={url ?? undefined} target="_blank" rel="noreferrer">Open .ics</a><Button type="button" variant="ghost" onClick={() => revoke.mutate({ ...scope, id: feed.id })}>Revoke</Button></div></>}</div>;
 }
 
+function BrowserNotificationControl() {
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+  const requestPermission = async () => {
+    if (typeof Notification === "undefined") return setPermission("unsupported");
+    setPermission(await Notification.requestPermission());
+  };
+  const copy = permission === "unsupported" ? "This browser does not support web notifications." : permission === "granted" ? "Permission is ready. Delivery activates after VAPID credentials are configured." : permission === "denied" ? "Permission is blocked. Re-enable notifications in this browser’s site settings to continue." : "Allow notifications only if you want planning reminders on this device.";
+  return <div className="notification-control"><span>Phone reminders</span><p>{copy}</p>{permission === "default" ? <Button type="button" variant="ghost" onClick={requestPermission}>Allow on this device</Button> : <span className={cn("notification-state", `is-${permission}`)}>{permission === "granted" ? "Permission ready" : permission === "denied" ? "Blocked" : "Unavailable"}</span>}</div>;
+}
+
+function OccurrencePanel() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const range = useMemo(() => ({ start: shiftLocalDate(today, -7), end: shiftLocalDate(today, 7) }), [today]);
+  const utils = trpc.useUtils();
+  const snapshot = trpc.planner.workspace.snapshot.useQuery({ ...scope, ...range });
+  const resolve = trpc.planner.occurrence.resolve.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
+  const taskTitles = new Map((snapshot.data?.tasks ?? []).map(task => [task.id, task.title]));
+  const pending = (snapshot.data?.taskOccurrences ?? []).filter(item => item.state === "pending" && item.localDate <= today).slice(0, 3);
+  if (!pending.length) return null;
+  return <div className="occurrence-panel"><div><span>Recurring work due</span><p>{pending.length} dated commitment{pending.length === 1 ? "" : "s"} need an outcome.</p></div><div className="occurrence-list">{pending.map(item => <div className="occurrence-row" key={item.id}><p><strong>{taskTitles.get(item.taskId) ?? "Recurring task"}</strong><small>{item.localDate === today ? "Today" : item.localDate}</small></p><div><button type="button" onClick={() => resolve.mutate({ ...scope, id: item.id, expectedVersion: item.version, state: "completed" })} disabled={resolve.isPending}>Done</button><button type="button" onClick={() => resolve.mutate({ ...scope, id: item.id, expectedVersion: item.version, state: "skipped" })} disabled={resolve.isPending}>Skip</button><button type="button" onClick={() => resolve.mutate({ ...scope, id: item.id, expectedVersion: item.version, state: "missed" })} disabled={resolve.isPending}>Missed</button></div></div>)}</div></div>;
+}
+
 function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; categories: any[]; onToggle: (task: any) => void; onCompose: () => void }) {
   const categoryColors = new Map(categories.map(category => [category.id, category.color]));
   return (
@@ -179,9 +202,11 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
       </div>
       <DailyCompass />
       <RecurringWorkControl />
+      <OccurrencePanel />
       <ReviewRitual />
       <PlanningHealthStrip />
       <CalendarSubscriptionControl />
+      <BrowserNotificationControl />
       <AICompanion />
     </section>
   );
