@@ -5,18 +5,28 @@ export type WorkspaceScope = {
 
 const STORAGE_KEY = "personal-calander:workspace:v1";
 
+export function safeTimeZone(candidate?: string | null) {
+  if (!candidate) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format();
+    return candidate;
+  } catch {
+    return "UTC";
+  }
+}
+
 function newWorkspaceId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `workspace_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 }
 
 export function getWorkspaceScope(): WorkspaceScope {
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timezone = safeTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
     try {
       const parsed = JSON.parse(stored) as WorkspaceScope;
-      if (parsed.workspaceId) return { workspaceId: parsed.workspaceId, timezone: parsed.timezone || timezone };
+      if (parsed.workspaceId) return { workspaceId: parsed.workspaceId, timezone: safeTimeZone(parsed.timezone) };
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -27,7 +37,7 @@ export function getWorkspaceScope(): WorkspaceScope {
 }
 
 export function localDateInTimezone(timezone: string, date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: safeTimeZone(timezone), year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
   const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
 }
@@ -39,5 +49,5 @@ export function shiftLocalDate(localDate: string, amount: number) {
 }
 
 export function displayLocalDate(localDate: string, timezone: string, options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) {
-  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: timezone }).format(new Date(`${localDate}T12:00:00.000Z`));
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: safeTimeZone(timezone) }).format(new Date(`${localDate}T12:00:00.000Z`));
 }

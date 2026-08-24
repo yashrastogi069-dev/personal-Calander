@@ -64,3 +64,4 @@
 - [ ] Add production deployment guidance and platform configuration needed for a Vite client plus Express/tRPC planner backend.
 - [ ] Write the complete VAPID, iPhone Home Screen, browser permission, subscription, and safe reminder-delivery activation guide.
 - [ ] Connect scheduled calendar work to habit check-ins through an explicit, user-controlled workflow with persistence and tests.
+- [ ] Fix the Vercel runtime crash caused by an unavailable browser timezone resolving to `Etc/Unknown`, then redeploy and verify the public planner renders.
