@@ -67,3 +67,4 @@
 - [ ] Fix the Vercel runtime crash caused by an unavailable browser timezone resolving to `Etc/Unknown`, then redeploy and verify the public planner renders.
 - [ ] Verify the Vercel project is linked to `yashrastogi069-dev/personal-Calander`, deploys the `main` branch from repository root, and is not serving a stale or duplicate project.
 - [ ] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
+- [ ] Fix the Vercel serverless build’s Express request-type incompatibility in cookies and SDK helpers, then verify a clean production build and public API response.
