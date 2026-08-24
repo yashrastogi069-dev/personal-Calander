@@ -16,7 +16,7 @@ export function getWorkspaceScope(): WorkspaceScope {
   if (stored) {
     try {
       const parsed = JSON.parse(stored) as WorkspaceScope;
-      if (parsed.workspaceId) return { workspaceId: parsed.workspaceId, timezone };
+      if (parsed.workspaceId) return { workspaceId: parsed.workspaceId, timezone: parsed.timezone || timezone };
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }

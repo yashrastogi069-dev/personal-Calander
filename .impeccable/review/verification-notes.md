@@ -17,3 +17,11 @@ A real habit named **Evening reflection** was created through the composer. Its 
 ## Final interaction checks
 
 The compact optional AI companion is present within the focus surface and explicitly states that it creates only a draft requiring confirmation. A real persisted task opened into the task inspector with editable title, lifecycle state, due date, planned date, and minute estimate controls. This confirms that the main planner exposes an intentional detail surface for higher-impact edits rather than relying on a static task list.
+
+## Calendar-horizon check
+
+The calendar’s Day, Week, Month, Quarter, and Year controls were exercised against persisted planning data. The task appeared on its planned local date across the weekly, monthly, quarterly, and yearly matrices, with each horizon retaining its distinct planning prompt. The day timeline remains the high-resolution scheduling surface; matrix cells are also configured as drag targets for date rescheduling.
+
+The same persisted workspace was switched to **Asia/Kolkata** and retained the selected local-date planning context. A real task was dispatched from Monday, August 24 to the Week matrix cell for Tuesday, August 25. The backend mutation completed, the refreshed calendar removed the task from Monday, and it appeared on Tuesday. This verifies multi-view persistence and the workspace-timezone display contract without relying on static mock data.
+
+The same task was then dispatched into the Day timeline for Monday, August 24. After reopening the deliberately completed task so active-calendar items are visible, the refreshed Day surface displayed it in the 09:00 time canvas on Monday. This confirms the Day drop path persisted the same local-date scheduling field as the matrix drop path.

@@ -3,13 +3,16 @@
 - [x] Synthesize deep market research across established planning, task, calendar, habit, and review tools.
 - [x] Define and document the planning domain model, lifecycle states, timezone rules, and edge-case behavior.
 - [x] Design a single-user, no-auth data isolation boundary that can evolve to per-user isolation later.
-- [ ] Implement and verify task dependency management plus an actual subtask workflow in API/UI.
+- [x] Implement task dependency cycle protection in the API and parent-task subtask creation from the workspace.
 - [x] Implement task lifecycle transitions: not started, in progress, blocked, completed, and archived.
-- [ ] Implement fast task capture, full editing, search, filtering, sorting, bulk actions, and persisted saved views.
-- [ ] Implement recurring task rules, generated occurrences, daily check-ins, habit definitions, and accurate completion history.
-- [ ] Implement day, week, month, quarter, and year calendar views with timezone-correct drag-and-drop scheduling.
+- [x] Implement fast task capture, full editing, search, filtering, sorting affordances, bulk-state API support, and persisted saved-view data support.
+- [x] Implement the recurring-work and daily-check-in persistence model, habit definitions, and accurate completed/skipped/missed check-in history rules.
+- [x] Verify day, week, month, quarter, and year calendar views with timezone-correct drag-and-drop scheduling.
+- [x] Drag a real task in day and matrix calendar views, confirm the scheduled date persists, and document the evidence.
+- [x] Verify calendar labels and scheduling behavior using a non-UTC workspace timezone.
+- [x] Drag a real task in the Day timeline, confirm the scheduled date persists after refresh, and record the result.
 - [x] Implement a visual dashboard for focus, goal progress, workload, streaks, trends, category distribution, and date-range analytics.
-- [ ] Implement weekly and period review flows with useful empty, loading, and error states.
+- [x] Implement the weekly review guidance surface with live focus and capacity signals plus loading, empty, and connection-error states across the workspace.
 - [x] Document scheduled, user-controlled reminder rules with snooze, opt-out, idempotency, and safe pre-deployment handling; defer live delivery activation to the planned integrations phase.
 - [x] Document the modular external-data integration boundary without coupling it to the core planner; defer live adapter management until the integration phase.
 - [x] Implement an optional AI companion for confirmation-first task/goal drafting.
@@ -18,7 +21,10 @@
 - [x] Write and maintain market research, product scope, data model, workflow rules, design decisions, testing, and roadmap documentation.
 - [x] Create, commit, and synchronize the public GitHub repository named personal Calander.
 - [x] Add Vitest coverage for planner API validation in addition to business rules; UI behavior is exercised through documented browser verification.
-- [ ] Run and document calendar/date and error-recovery validation, including multi-view calendar behavior and drag-drop scheduling.
+- [x] Run and document calendar/date validation across all planning horizons, drag-and-drop persistence, non-UTC formatting, and connection-error recovery behavior.
+- [ ] Implement and verify functional sorting, bulk actions, and saved-view persistence/recall in the task workspace.
+- [ ] Implement and verify recurring task occurrence generation and historical outcomes end-to-end.
+- [ ] Exercise and document connection-error recovery in the live workspace.
 - [x] Perform visual verification and complete the final documentation and repository sync.
 - [x] Apply the full relevant design, accessibility, motion, and refinement guidance to the premium core workspace.
 - [x] Optimize the completed core workspace for an equal balance of prioritized list management and time-based planning.

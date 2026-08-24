@@ -131,10 +131,11 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
 
 function Timeline({ tasks, selectedDate, onDrop, onMoveDay }: { tasks: any[]; selectedDate: string; onDrop: (id: string, localDate: string) => void; onMoveDay: (amount: number) => void }) {
   const hours = Array.from({ length: 10 }, (_, index) => index + 8);
+  const scope = useMemo(() => getWorkspaceScope(), []);
   const scheduled = tasks.filter(task => task.scheduledLocalDate === selectedDate && task.state !== "completed");
   return (
     <section className="timeline-panel" aria-labelledby="timeline-heading">
-      <div className="timeline-heading"><div><span className="eyebrow">Time canvas</span><h2 id="timeline-heading">{displayLocalDate(selectedDate, "UTC", { weekday: "long", month: "short", day: "numeric" })}</h2></div><div className="date-pager"><button onClick={() => onMoveDay(-1)} aria-label="Previous day"><ChevronLeft size={17} /></button><button onClick={() => onMoveDay(1)} aria-label="Next day"><ChevronRight size={17} /></button></div></div>
+      <div className="timeline-heading"><div><span className="eyebrow">Time canvas</span><h2 id="timeline-heading">{displayLocalDate(selectedDate, scope.timezone, { weekday: "long", month: "short", day: "numeric" })}</h2></div><div className="date-pager"><button onClick={() => onMoveDay(-1)} aria-label="Previous day"><ChevronLeft size={17} /></button><button onClick={() => onMoveDay(1)} aria-label="Next day"><ChevronRight size={17} /></button></div></div>
       <div className="timeline-scroller">
         {hours.map(hour => {
           const slotTasks = scheduled.filter(task => !task.plannedStartAt ? hour === 9 : new Date(task.plannedStartAt).getHours() === hour);
@@ -297,9 +298,13 @@ export default function Home() {
 
 function CalendarMatrix({ mode, anchor, tasks, categories, today, onMoveDay }: { mode: CalendarMode; anchor: string; tasks: any[]; categories: any[]; today: string; onMoveDay: (amount: number) => void }) {
   const categoryColors = new Map(categories.map(category => [category.id, category.color]));
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const utils = trpc.useUtils();
+  const updateTask = trpc.planner.task.update.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
+  const scheduleFromDrop = (taskId: string, localDate: string) => { const task = tasks.find(item => item.id === taskId); if (task) updateTask.mutate({ ...scope, id: task.id, expectedVersion: task.version, patch: { scheduledLocalDate: localDate } }); };
   const slots = mode === "Week" ? 7 : mode === "Month" ? 35 : mode === "Quarter" ? 12 : 12;
   const step = mode === "Week" ? 1 : mode === "Month" ? 1 : mode === "Quarter" ? 7 : 30;
   const start = shiftLocalDate(anchor, mode === "Month" ? -14 : mode === "Week" ? -3 : -Math.floor(slots / 2) * step);
   const dates = Array.from({ length: slots }, (_, index) => shiftLocalDate(start, index * step));
-  return <div className={cn("calendar-matrix", `matrix-${mode.toLowerCase()}`)}><div className="matrix-header"><button onClick={() => onMoveDay(-slots * step)}><ChevronLeft size={17} /></button><strong>{mode === "Year" ? anchor.slice(0, 4) : displayLocalDate(anchor, "UTC", { month: "long", year: "numeric" })}</strong><button onClick={() => onMoveDay(slots * step)}><ChevronRight size={17} /></button></div><div className="matrix-grid">{dates.map(date => { const items = tasks.filter(task => task.scheduledLocalDate === date || task.dueLocalDate === date).slice(0, 3); return <article key={date} className={cn("matrix-cell", date === today && "is-today")}><time>{mode === "Quarter" || mode === "Year" ? displayLocalDate(date, "UTC", { month: "short", year: mode === "Year" ? "2-digit" : undefined }) : displayLocalDate(date, "UTC", { weekday: mode === "Week" ? "short" : undefined, month: "short", day: "numeric" })}</time>{items.map(task => <div className="matrix-task" key={task.id}><i style={{ background: categoryColors.get(task.categoryId) ?? "#C6F06A" }} />{task.title}</div>)}{items.length === 0 ? <span className="matrix-empty">—</span> : null}</article>; })}</div></div>;
+  return <div className={cn("calendar-matrix", `matrix-${mode.toLowerCase()}`)}><div className="matrix-header"><button onClick={() => onMoveDay(-slots * step)}><ChevronLeft size={17} /></button><strong>{mode === "Year" ? anchor.slice(0, 4) : displayLocalDate(anchor, scope.timezone, { month: "long", year: "numeric" })}</strong><button onClick={() => onMoveDay(slots * step)}><ChevronRight size={17} /></button></div><div className="matrix-grid">{dates.map(date => { const items = tasks.filter(task => task.scheduledLocalDate === date || task.dueLocalDate === date).slice(0, 3); return <article key={date} className={cn("matrix-cell", date === today && "is-today")} onDragOver={event => event.preventDefault()} onDrop={event => scheduleFromDrop(event.dataTransfer.getData("text/plain"), date)}><time>{mode === "Quarter" || mode === "Year" ? displayLocalDate(date, scope.timezone, { month: "short", year: mode === "Year" ? "2-digit" : undefined }) : displayLocalDate(date, scope.timezone, { weekday: mode === "Week" ? "short" : undefined, month: "short", day: "numeric" })}</time>{items.map(task => <div className="matrix-task" key={task.id}><i style={{ background: categoryColors.get(task.categoryId) ?? "#C6F06A" }} />{task.title}</div>)}{items.length === 0 ? <span className="matrix-empty">—</span> : null}</article>; })}</div></div>;
 }
