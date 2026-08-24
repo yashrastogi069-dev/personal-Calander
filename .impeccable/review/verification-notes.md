@@ -57,3 +57,11 @@ The temporary fresh-snapshot view was deleted successfully and the browser promp
 ## Public Vercel production recovery
 
 The public alias at `https://personal-calander.vercel.app/` was reloaded after the production serverless API and database configuration were repaired. It rendered the complete usable Today workspace rather than the previous loading skeleton: the navigation rail, quick capture, daily signal, action queue, calendar time canvas, goal runway, habit rhythm, planning-health signals, private iPhone-calendar link control, and browser-notification permission control were all visible. Direct public API checks also returned `200` for the health function, typed tRPC health procedure, and the database-backed workspace snapshot. This confirms the browser state is backed by the public Function and persisted planner workspace rather than static HTML.
+
+## Public persistence verification fallback
+
+The My Browser extension timed out while a fresh public saved-view click-through check was in progress, so no further browser mutations were performed. An isolated public tRPC contract test was used instead: it created a temporary task saved view, updated its configuration with version checking, loaded a fresh workspace snapshot that contained the overwritten value, and deleted the temporary record. A separate isolated public workspace created a daily habit, persisted a completed local-date check-in, retrieved it from a fresh snapshot, and cleared it again. The existing visual implementation plus these deployed persistence checks provide evidence for the calendar-habit complete/undo pathway without modifying the user’s real planner data.
+
+## Strict overwritten-view reload check
+
+An independent browser session subsequently completed the stricter user-facing saved-view sequence on the public Vercel alias. It first saved **Overwrite reload proof** with **Today / Priority**, then changed the controls to **All active history / Newest** and saved under the same name. After a full page reload, the persisted saved-view chip was present and active when recalled. Directly reading the rendered selects recorded `all` / `created`, visibly labelled **All active history** and **Newest**. The temporary view was then deleted. This proves the actual overwrite → fresh reload → user-facing recall path, not merely API-level persistence.

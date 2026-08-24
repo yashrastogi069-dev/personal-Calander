@@ -53,9 +53,9 @@
 - [x] Make task sort, filters, selection, and bulk lifecycle actions function through persisted workspace mutations.
 - [x] Add create, recall, pin, update, and delete behavior for persisted task saved views.
 - [x] Browser-test applying a saved view and confirm it restores persisted filter and sort configuration.
-- [ ] Add and verify a user-facing saved-view configuration update flow beyond pinning, then complete end-to-end validation.
-- [ ] Reload after saved-view overwrite and verify visibly selected filter/sort values are restored from the fresh persisted configuration.
-- [ ] Reload and recall an actually overwritten saved view, recording the selected-control values from the fresh workspace snapshot.
+- [x] Add and verify a user-facing saved-view configuration update flow beyond pinning, then complete end-to-end validation.
+- [x] Reload after saved-view overwrite and verify visibly selected filter/sort values are restored from the fresh persisted configuration.
+- [x] Reload and recall an actually overwritten saved view, recording the selected-control values from the fresh workspace snapshot.
 - [x] Add focused successful service or router coverage for saved-view configuration update and returned updated configuration.
 - [ ] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
 - [ ] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.
@@ -63,7 +63,7 @@
 - [x] Verify GitHub source synchronization and diagnose the Vercel build, runtime, environment, and output configuration.
 - [x] Add production deployment guidance and platform configuration needed for a Vite client plus Express/tRPC planner backend.
 - [x] Write the complete VAPID, iPhone Home Screen, browser permission, subscription, and safe reminder-delivery activation guide.
-- [ ] Connect scheduled calendar work to habit check-ins through an explicit, user-controlled workflow with persistence and tests.
+- [x] Connect scheduled calendar work to habit check-ins through an explicit, user-controlled workflow with persistence and tests.
 - [x] Fix the Vercel runtime crash caused by an unavailable browser timezone resolving to `Etc/Unknown`, then redeploy and verify the public planner renders.
 - [x] Verify the Vercel project is linked to `yashrastogi069-dev/personal-Calander`, deploys the `main` branch from repository root, and is not serving a stale or duplicate project.
 - [x] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
@@ -72,3 +72,5 @@
 - [x] Bundle the Express tRPC application during the Vercel build and use a JavaScript API entry to isolate it from Vercel’s incompatible function TypeScript checker.
 - [x] Record the final verified Vercel production configuration, including repository, branch, root, build/output settings, nested API Functions, database secret requirement, and alias behavior.
 - [x] Explicitly inspect and record the Vercel Deployment Protection setting in addition to the already verified production alias target.
+- [x] Browser-test a same-name saved-view overwrite, then reload the app, recall that overwritten view, and record the visible filter/sort control values.
+- [x] Add durable verification notes for the overwritten-saved-view reload path, distinct from the existing fresh-create reload proof.
