@@ -69,3 +69,4 @@
 - [ ] Verify Vercel Deployment Protection and `personal-calander.vercel.app` alias propagation point to the latest successful production deployment.
 - [ ] Fix the Vercel serverless build’s Express request-type incompatibility in cookies and SDK helpers, then verify a clean production build and public API response.
 - [ ] Replace the unreliable catch-all API route with Vercel’s supported root `server.ts` adapter so one Express server serves static assets, SPA fallback, and planner APIs.
+- [ ] Bundle the Express tRPC application during the Vercel build and use a JavaScript API entry to isolate it from Vercel’s incompatible function TypeScript checker.

@@ -3,6 +3,11 @@
   "framework": null,
   "buildCommand": "pnpm build:client",
   "outputDirectory": "dist/public",
+  "functions": {
+    "api/trpc/[...path].mjs": {
+      "includeFiles": "dist/server/planner-app.mjs"
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",
