@@ -37,10 +37,10 @@
 - [x] Research organizer workflows, analytics patterns, calendar connectivity, and permission-based mobile-notification approaches.
 - [x] Define a safe upgrade architecture for integrations, scheduling, privacy, and migration-compatible data structures.
 - [x] Redesign the workspace into a lighter premium visual system with refined responsive interactions, accessibility, and desktop/mobile verification.
-- [ ] Implement actionable daily planning, task triage, saved views, recurring work, reviews, and personal-context workflows.
-- [ ] Implement advanced analytics for focus, consistency, capacity, carryover, completion trends, and goal health.
-- [ ] Implement user-controlled iPhone-calendar connectivity and phone-notification readiness with documented activation requirements.
-- [ ] Test upgraded workflows, integration boundaries, browser permissions, responsive layouts, accessibility, and error recovery.
+- [x] Implement actionable daily planning, task triage, saved views, recurring work, reviews, and personal-context workflows.
+- [x] Implement advanced analytics for focus, consistency, capacity, carryover, completion trends, and goal health.
+- [x] Implement user-controlled iPhone-calendar connectivity and phone-notification readiness with documented activation requirements.
+- [x] Test upgraded workflows, integration boundaries, browser permissions, responsive layouts, accessibility, and error recovery.
 - [ ] Update documentation, tests, checkpoint history, and the public GitHub repository for the completed upgrade.
 - [x] Diagnose the habit tracker’s failed tick/untick flow across UI events, mutation payloads, persistence, cache refresh, timezone handling, and streak calculations.
 - [x] Implement and browser-test reliable habit check-in, undo, skipped state, error recovery, and persisted streak updates.
@@ -57,8 +57,8 @@
 - [x] Reload after saved-view overwrite and verify visibly selected filter/sort values are restored from the fresh persisted configuration.
 - [x] Reload and recall an actually overwritten saved view, recording the selected-control values from the fresh workspace snapshot.
 - [x] Add focused successful service or router coverage for saved-view configuration update and returned updated configuration.
-- [ ] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
-- [ ] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.
+- [x] Add recurrence configuration to task creation and editing, occurrence history to snapshots, and explicit occurrence outcome controls.
+- [x] Consolidate the persisted weekly review ritual into the Review route with history and outcome context.
 - [x] Add evidence-based decision signals for schedule reliability, carryover pressure, blocked-work age, estimate coverage, and visible goal momentum.
 - [x] Verify GitHub source synchronization and diagnose the Vercel build, runtime, environment, and output configuration.
 - [x] Add production deployment guidance and platform configuration needed for a Vite client plus Express/tRPC planner backend.
@@ -74,3 +74,22 @@
 - [x] Explicitly inspect and record the Vercel Deployment Protection setting in addition to the already verified production alias target.
 - [x] Browser-test a same-name saved-view overwrite, then reload the app, recall that overwritten view, and record the visible filter/sort control values.
 - [x] Add durable verification notes for the overwritten-saved-view reload path, distinct from the existing fresh-create reload proof.
+- [ ] Browser-test the notification permission control through a supported/default and a denied-or-granted visible state, then record the outcome without claiming delivery.
+- [ ] Record keyboard focus and accessibility verification for the upgraded task recurrence, Review route, and calendar-habit controls.
+- [ ] Verify and document the iPhone calendar-link and notification-readiness integration boundaries through explicit user-facing control behavior.
+- [x] Audit every visible plus/add control and make each one initiate a concrete, valid creation workflow or remove it when no coherent action exists.
+- [x] Add an explicit category-management workflow: create, name, color, apply, rename, and safely remove categories without orphaning planner records.
+- [x] Add clear, safe removal/archive workflows for user-created tasks, goals, projects, habits, categories, and saved views, including consequences and confirmation where needed.
+- [x] Strengthen calendar-to-habit interactions and validate scheduled-habit visibility plus persisted complete/undo behavior through the calendar surface.
+- [x] Prepare the real web-push implementation plan and user-facing VAPID credential activation instructions without fabricating credentials or claiming delivery.
+- [ ] Checkpoint, push, and verify this completed interaction release on GitHub and the public Vercel alias.
+- [x] Keep the main Calendar task-focused and provide a dedicated calendar-style habit tracker in the Habits section with direct complete, skip, and undo actions.
+- [x] Research proven personal planning, habit, review, and calendar practices across established tools and primary sources; preserve findings and citations in the repository.
+- [x] Convert research findings into explicit product decisions covering capture, categorization, lifecycle, scheduling, habit accountability, review, privacy, and push-delivery boundaries.
+- [x] Implement and validate the highest-value research-informed robustness refinements before the final GitHub and Vercel release.
+- [x] Conduct the multi-source product research directly, retain a cited research ledger, and apply its findings without requiring the user to operate a separate research tool.
+- [x] Add explicit, user-controlled daily, selected-weekday, and interval habit schedules so the dedicated tracker reflects real planned opportunities rather than only default-daily behavior.
+- [x] Browser-test an interval-based habit from composer to persistence to dedicated tracker, then archive the disposable record.
+- [x] Add focused planner contract coverage that explicit weekday and interval habit schedules are preserved on create.
+- [x] Browser-test every currently visible plus/add control, confirming that it launches a real creation flow or remove any ambiguous affordance.
+- [x] Make archive/remove access comprehensive for all active workspace records, then revalidate its confirmation and consequence copy.

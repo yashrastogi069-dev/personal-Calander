@@ -86,6 +86,35 @@ export async function createCategory(scope: PlannerScope, input: { name: string;
   return (await db.select().from(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, id))).limit(1))[0]!;
 }
 
+export async function updateCategory(scope: PlannerScope, input: { id: string; expectedVersion: number; patch: { name?: string; color?: string; sortOrder?: number } }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Category was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(categories).set({ ...input.patch, version: input.expectedVersion + 1 }).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.id), eq(categories.version, input.expectedVersion)));
+  const updated = (await db.select().from(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+/** Deletes only the category label and detaches it from planner records in this workspace. */
+export async function deleteCategory(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Category was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.transaction(async tx => {
+    await Promise.all([
+      tx.update(tasks).set({ categoryId: null }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.categoryId, input.id))),
+      tx.update(goals).set({ categoryId: null }).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.categoryId, input.id))),
+      tx.update(projects).set({ categoryId: null }).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.categoryId, input.id))),
+      tx.update(habits).set({ categoryId: null }).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.categoryId, input.id))),
+    ]);
+    await tx.delete(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.id), eq(categories.version, input.expectedVersion)));
+  });
+  return { id: input.id, detachedRecords: true, deleted: true } as const;
+}
+
 export async function createGoal(scope: PlannerScope, input: Omit<typeof goals.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
   const id = nanoid();
@@ -93,11 +122,33 @@ export async function createGoal(scope: PlannerScope, input: Omit<typeof goals.$
   return (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, id))).limit(1))[0]!;
 }
 
+export async function archiveGoal(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Goal was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(goals).set({ state: "archived", archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion)));
+  const updated = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
 export async function createProject(scope: PlannerScope, input: Omit<typeof projects.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
   const id = nanoid();
   await db.insert(projects).values({ id, workspaceId: scope.workspaceId, ...input });
   return (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, id))).limit(1))[0]!;
+}
+
+export async function archiveProject(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Project was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(projects).set({ state: "archived", archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id), eq(projects.version, input.expectedVersion)));
+  const updated = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
 }
 
 export async function createTask(scope: PlannerScope, input: Omit<typeof tasks.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
@@ -189,6 +240,17 @@ export async function createHabit(scope: PlannerScope, input: Omit<typeof habits
   const id = nanoid();
   await db.insert(habits).values({ id, workspaceId: scope.workspaceId, ...input });
   return (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, id))).limit(1))[0]!;
+}
+
+export async function archiveHabit(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Habit was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(habits).set({ archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id), eq(habits.version, input.expectedVersion)));
+  const updated = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
 }
 
 export async function upsertHabitCheckIn(scope: PlannerScope, input: { habitId: string; localDate: string; state: "completed" | "skipped" | "missed"; note?: string | null }) {

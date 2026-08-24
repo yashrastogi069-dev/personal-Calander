@@ -65,3 +65,13 @@ The My Browser extension timed out while a fresh public saved-view click-through
 ## Strict overwritten-view reload check
 
 An independent browser session subsequently completed the stricter user-facing saved-view sequence on the public Vercel alias. It first saved **Overwrite reload proof** with **Today / Priority**, then changed the controls to **All active history / Newest** and saved under the same name. After a full page reload, the persisted saved-view chip was present and active when recalled. Directly reading the rendered selects recorded `all` / `created`, visibly labelled **All active history** and **Newest**. The temporary view was then deleted. This proves the actual overwrite → fresh reload → user-facing recall path, not merely API-level persistence.
+
+## Local recurrence and Review-route verification
+
+An independent local browser created a disposable task through the real composer with **Weekly** recurrence, an interval of `2`, and a stop date of `2026-10-31`. The created task appeared in Today; reopening the active task-row editor restored **Weekly**, `2`, and the same stop date. The task was archived after verification and no longer appeared in active planning. The dedicated Review route then opened a weekly review, accepted a reflection, completed it, and displayed the completed reflection in **Recent completed reviews** alongside plan-health and decision-signal context. Desktop and 375px mobile checks remained structurally stable, and the interface-quality detector returned no findings.
+
+## Research-informed habit schedule verification
+
+The composer now shows an explicit **Planned rhythm** selector only for habits, with **Every day**, **Selected weekdays**, and **Every N days** options. The selected-weekday control uses compact pressed-state day chips with clear focus treatment. A disposable Monday–Friday habit persisted into the dedicated tracker; Saturday and Sunday rendered as low-emphasis, non-actionable rest days rather than misleading check-in buttons.
+
+An anchored interval habit with an every-three-days rhythm appeared on August 18, 21, and 24, with August 19, 20, 22, and 23 explicitly marked unscheduled. It was therefore impossible to create an accidental complete/skip record on an intervening day. Both temporary habits were archived through the visible organizer confirmation path, and fresh accessibility searches confirmed that neither remained active. The task-focused main Calendar was not changed by this workflow.

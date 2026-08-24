@@ -1,6 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
+  archiveGoal,
+  archiveHabit,
+  archiveProject,
   bulkSetTaskState,
   clearHabitCheckIn,
   completeReviewSession,
@@ -14,6 +17,7 @@ import {
   ensureCalendarFeed,
   ensureWorkspace,
   deleteSavedView,
+  deleteCategory,
   getDashboard,
   getWorkspaceSnapshot,
   materializeTaskOccurrences,
@@ -22,6 +26,7 @@ import {
   revokeCalendarFeed,
   startReviewSession,
   updateTask,
+  updateCategory,
   updateSavedView,
   updateWorkspace,
   upsertDailyCheckIn,
@@ -65,17 +70,33 @@ export const plannerRouter = router({
       const { workspaceId, timezone, ...category } = input;
       return createCategory({ workspaceId, timezone }, category);
     }),
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ name: z.string().trim().min(1).max(80).optional(), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(), sortOrder: z.number().int().optional() }) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion, patch } = input;
+      try { return await updateCategory({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
+    }),
+    delete: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await deleteCategory({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
+    }),
   }),
   goal: router({
     create: publicProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), categoryId: z.string().nullable().optional(), parentGoalId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("yearly"), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(), progressMode: z.enum(["manual", "task", "measure", "habit"]).default("task"), progressValue: z.number().int().min(0).default(0), targetValue: z.number().int().min(1).default(100), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...goal } = input;
       return createGoal({ workspaceId, timezone }, goal);
     }),
+    archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await archiveGoal({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
+    }),
   }),
   project: router({
     create: publicProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), goalId: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("quarterly"), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...project } = input;
       return createProject({ workspaceId, timezone }, project);
+    }),
+    archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await archiveProject({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
   }),
   task: router({
@@ -84,7 +105,7 @@ export const plannerRouter = router({
       if (task.plannedStartAt && task.plannedEndAt && task.plannedEndAt <= task.plannedStartAt) throw new TRPCError({ code: "BAD_REQUEST", message: "A timeblock must end after it starts." });
       return createTask({ workspaceId, timezone }, task);
     }),
-    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), categoryId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), parentTaskId: z.string().nullable().optional(), sortOrder: z.number().int().optional() }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "A timeblock must end after it starts." }) })).mutation(async ({ input }) => {
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), categoryId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), parentTaskId: z.string().nullable().optional(), sortOrder: z.number().int().optional(), recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(), recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(), recurrenceUntilLocalDate: dateString.nullable().optional() }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "A timeblock must end after it starts." }) })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion, patch } = input;
       try { return await updateTask({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
     }),
@@ -102,6 +123,10 @@ export const plannerRouter = router({
     create: publicProcedure.input(scope.extend({ name: z.string().trim().min(1).max(160), description: z.string().max(10000).nullable().optional(), goalId: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/), frequency: z.enum(["daily", "days_of_week", "times_per_week", "interval"]).default("daily"), schedule: z.record(z.string(), z.unknown()), reminderTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...habit } = input;
       return createHabit({ workspaceId, timezone }, habit);
+    }),
+    archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await archiveHabit({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
     checkIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, state: z.enum(["completed", "skipped", "missed"]), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => upsertHabitCheckIn(input, input)),
     clearCheckIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString })).mutation(async ({ input }) => clearHabitCheckIn(input, input)),
