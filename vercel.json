@@ -3,9 +3,10 @@
   "framework": null,
   "buildCommand": "pnpm build:client",
   "outputDirectory": "dist/public",
-  "functions": {
-    "server.ts": {
-      "includeFiles": "dist/public/**"
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
-  }
+  ]
 }
