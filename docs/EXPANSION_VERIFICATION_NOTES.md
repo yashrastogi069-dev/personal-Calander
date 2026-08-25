@@ -99,3 +99,5 @@ The offline-capture and Today-reschedule enhancement was rendered at 390×844 an
 The local interactive planner loaded the non-sensitive `offline-capture-r6` browser release identifier successfully. Its current isolated workspace was observed only; no task, habit, goal, reminder, calendar, or review record was changed during the release-marker check.
 
 For a bounded UI-only proof, one synthetic offline capture was written to the isolated browser’s local storage and the queue-change event was dispatched. The Today panel visibly announced **“1 capture saved on this device and waiting for a connection.”** No planner API call or server record was made by this probe. The temporary browser-storage fixture is removed immediately after this observation so it cannot be replayed later.
+
+After the `97af787` GitHub `main` synchronization, the public Vercel alias remained reachable and rendered the planner shell after its initial loading state. This was a read-only availability check in the public anonymous workspace; no planner, device, cadence, calendar, or review data was changed.
