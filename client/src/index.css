@@ -692,3 +692,75 @@ html, body { background:#e8ecea; color:#182420; }
   .mobile-more-scrim { transition:opacity 120ms linear; }
   .mobile-planner-nav button, .empty-state-trigger, .top-actions .primary-action, .daily-compass-controls > button, .task-check, .task-row-reschedule button, .task-row-actions .icon-quiet, .mobile-support-group > summary { transition-duration:0ms; }
 }
+
+/* Rhythm Workspace: daily habit action first, trace and calendar second. */
+.habit-rhythm-workspace { background:linear-gradient(160deg, #e9f2ea, #f6f8f6 48%); }
+.habit-route-intro { max-width:38ch; margin:5px 0 0; color:#60736b; font-size:12px; line-height:1.45; }
+.habit-today-deck { margin:0 18px 18px; padding:18px; border:1px solid #b9d1bd; border-radius:14px; background:linear-gradient(135deg, #f8fcf8, #e0f0e2); }
+.habit-today-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:15px; border-bottom:1px solid rgba(58,109,78,.16); }
+.habit-today-heading > div > span { display:block; color:#48775a; font:700 10px "IBM Plex Mono", monospace; letter-spacing:.08em; text-transform:uppercase; }
+.habit-today-heading h3 { margin:5px 0 3px; color:#1d3527; font-size:22px; letter-spacing:-.035em; }
+.habit-today-heading p { max-width:42ch; margin:0; color:#567062; font-size:12px; line-height:1.45; }
+.habit-today-status { display:grid; flex:0 0 auto; width:58px; min-height:58px; place-content:center; gap:2px; border:1px solid #a8c7ae; border-radius:14px; background:#f9fcf9; color:#3a7751; text-align:center; }
+.habit-today-status svg { margin:auto; }
+.habit-today-status span { font:800 13px "IBM Plex Mono", monospace; letter-spacing:-.04em; }
+.habit-today-status.is-complete { border-color:#397b52; background:#397b52; color:#fff; }
+.habit-today-list { display:grid; gap:8px; margin-top:14px; }
+.habit-today-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid #c7dcc9; border-radius:12px; background:rgba(251,254,251,.82); }
+.habit-today-row.is-completed { border-color:#8db89a; background:#f0f8f1; }
+.habit-today-row.is-skipped { border-color:#d1d9d2; background:#f5f7f5; }
+.habit-today-name { display:flex; align-items:center; min-width:0; gap:10px; }
+.habit-today-name > i { width:10px; height:10px; flex:0 0 auto; border-radius:50%; box-shadow:0 0 0 4px rgba(73,126,88,.1); }
+.habit-today-name > div { display:grid; min-width:0; gap:2px; }
+.habit-today-name strong { overflow:hidden; color:#213d2b; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
+.habit-today-name span { color:#667b6c; font-size:11px; }
+.habit-today-actions { display:flex; flex:0 0 auto; gap:7px; }
+.habit-today-actions button { min-height:38px; padding:0 11px; border:1px solid #b6ceb9; border-radius:9px; background:#f8fbf8; color:#315f40; font:750 11px "Onest", sans-serif; transition:transform 140ms var(--ease-out), background 140ms var(--ease-out), border-color 140ms var(--ease-out), color 140ms var(--ease-out); }
+.habit-today-actions button:active { transform:scale(.97); }
+.habit-today-complete { display:inline-flex; align-items:center; gap:6px; border-color:#397b52 !important; background:#397b52 !important; color:#fff !important; }
+.habit-today-complete:hover { background:#2c6842 !important; }
+.habit-today-skip:hover, .habit-today-undo:hover { border-color:#8eac96; background:#e9f2ea; }
+.habit-today-rest { margin:14px 0 0; color:#587162; font-size:12px; line-height:1.5; }
+.habit-trace-section { margin:0 18px 18px; padding-top:4px; }
+.habit-trace-heading { display:flex; align-items:end; justify-content:space-between; gap:16px; padding:0 0 12px; border-bottom:1px solid rgba(58,109,78,.17); }
+.habit-trace-heading h3 { margin:0; color:#294836; font-size:16px; letter-spacing:-.025em; }
+.habit-trace-heading p { margin:4px 0 0; color:#64776b; font-size:11px; }
+.habit-trace-heading > span { max-width:22ch; color:#638072; font:600 9px/1.4 "IBM Plex Mono", monospace; text-align:right; }
+.habit-rhythm-workspace .habit-grid { margin-top:8px; }
+
+@media (max-width:680px) {
+  .habit-rhythm-workspace { overflow:hidden; border-color:#bdd1c0; background:linear-gradient(160deg, #e5f0e6, #f7f9f7 42%); }
+  .habit-rhythm-workspace .panel-heading { align-items:flex-start; padding:20px 18px 14px; }
+  .habit-rhythm-workspace .panel-heading h2 { font-size:28px; letter-spacing:-.052em; }
+  .habit-rhythm-workspace .panel-heading .text-button { min-height:42px; padding:0 11px; font-size:12px; }
+  .habit-route-intro { font-size:13px; }
+  .habit-today-deck { margin:0 12px 18px; padding:16px; border-radius:16px; }
+  .habit-today-heading { gap:10px; padding-bottom:13px; }
+  .habit-today-heading h3 { font-size:20px; }
+  .habit-today-heading p { font-size:12px; }
+  .habit-today-status { width:54px; min-height:54px; border-radius:13px; }
+  .habit-today-row { align-items:flex-start; flex-direction:column; padding:13px; }
+  .habit-today-name strong { font-size:15px; }
+  .habit-today-name span { font-size:12px; }
+  .habit-today-actions { width:100%; }
+  .habit-today-actions button { flex:1; min-height:44px; font-size:12px; }
+  .habit-trace-section { margin:0 15px 18px; }
+  .habit-trace-heading { align-items:flex-start; flex-direction:column; gap:5px; }
+  .habit-trace-heading h3 { font-size:17px; }
+  .habit-trace-heading p { font-size:12px; }
+  .habit-trace-heading > span { max-width:none; font-size:9px; text-align:left; }
+  .habit-rhythm-workspace .habit-grid-days { grid-template-columns:78px 28px repeat(7, minmax(22px, 1fr)); }
+  .habit-rhythm-workspace .habit-line { grid-template-columns:78px 28px minmax(0, 1fr); min-height:64px; }
+  .habit-rhythm-workspace .habit-square { width:26px; height:26px; border-radius:8px; }
+  .habit-rhythm-workspace .habit-actions { grid-column:3 / -1; padding-top:8px; }
+  .habit-rhythm-workspace .habit-primary-action, .habit-rhythm-workspace .habit-skip-action { min-height:38px; font-size:11px; }
+  .habit-rhythm-workspace .habit-feedback { margin:0 18px 18px; font-size:11px; }
+  .habit-calendar-tracker { border-radius:16px; background:linear-gradient(155deg, #edf5ee, #f7f9f7 62%); }
+  .habit-calendar-day { min-height:58px; border-radius:10px; }
+  .habit-day-actions > div { padding:10px; }
+  .habit-day-actions button { min-height:36px; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .habit-today-actions button { transition-duration:0ms; }
+}

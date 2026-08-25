@@ -94,6 +94,12 @@ The Daily Desk now distinguishes commitment, time, direction, rhythm, reflection
 
 Motion is now intentionally limited to feedback and spatial context. Phone navigation, capture, completion, nearby-day controls, expandable tool rows, and the More sheet acknowledge touch with short custom-eased transitions; frequent planning content does not wait through decorative animation. Reduced-motion users receive instant structural changes with essential opacity and color feedback only. All data behavior, desktop layout, connected iPhone controls, and the paused reminder-delivery boundary remain unchanged.
 
+## Habits Rhythm Workspace
+
+Habits now has a visibly distinct phone-first operating surface. At the top of the dedicated route, **Your rhythm today** shows the actual completed-versus-scheduled count and one large state-aware row for each scheduled habit. Complete, Skip, and Undo are direct actions, with explicit state copy; a true rest day is stated rather than treated as a failure. The existing seven-day trace has been retained as a quieter continuity view, and the four-week habit calendar remains the dedicated history, planning, and correction surface.
+
+This redesign changes presentation only. Habit schedules, intentional skips, streak rules, check-in persistence, calendar-day actions, error recovery, the main task calendar boundary, desktop behavior, iPhone controls, and paused reminder automation remain unchanged. An isolated complete/undo verification confirms the new current-day deck stays synchronized with the trace and calendar.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

@@ -164,3 +164,6 @@
 - [x] Define and apply a more expressive premium card-role, color-hierarchy, and state system for the phone Daily Desk without removing planner capabilities.
 - [x] Add restrained, reduced-motion-safe micro-interactions for phone navigation, sheets, capture, completion, rescheduling, and expandable sections.
 - [x] Validate and publish the premium phone polish pass with visual, accessibility, regression, and public-release evidence.
+- [x] Audit the actual phone Habits surface and identify why its tracker, current state, and direct actions are not visually obvious enough.
+- [x] Redesign the dedicated phone Habits experience with a visible rhythm header, larger current-day check-in cards, clear history/calendar hierarchy, and retained complete/skip/undo behavior.
+- [ ] Validate, publish, and publicly verify the Habits redesign with focused tests, responsive renders, and visible user-facing evidence.
