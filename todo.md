@@ -139,7 +139,7 @@
 - [x] Archive the disposable goal and milestone created only in the isolated public-browser workspace after the browser session recovers.
 - [x] Explicitly defer editable reminder cadence controls pending separate user approval; the delivered scheduled rhythm intentionally supports the explicitly approved Auckland daily/weekly cadence plus pause/resume.
 - [x] Repair the project-level Heartbeat callback’s cron-cookie permission rejection and verify a successful scheduled execution audit.
-- [ ] Diagnose and restore the missing installed-PWA device-specific disable/re-enrol controls without changing the active reminder cadence.
+- [x] Diagnose and restore the missing installed-PWA device-specific disable/re-enrol controls without changing the active reminder cadence.
 - [x] Publish and verify the r4 device-control marker on the Vercel alias before requesting the installed-PWA confirmation.
 - [x] Audit every public reminder and device-management option at iPhone width; repair or remove controls that are ambiguous, unavailable, or misaligned with the active Auckland cadence.
-- [ ] Publish and verify the r5 audited reminder-options marker on the Vercel alias before asking the user to reopen the iPhone PWA.
+- [x] Publish and verify the r5 audited reminder-options marker on the Vercel alias before asking the user to reopen the iPhone PWA.

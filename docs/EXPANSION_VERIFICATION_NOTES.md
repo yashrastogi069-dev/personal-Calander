@@ -69,3 +69,7 @@ The isolated records were subsequently archived through the persistence layer us
 ## Public r4 reminder-control inventory
 
 The current public r4 workspace rendered all reminder options in a distinct hierarchy: **Phone reminders** explanatory copy; **This device** state; an enabled **Connect this device** button; and separate **Scheduled rhythm** copy with **Enable daily + weekly** disabled until an exact device subscription exists. The DOM audit confirmed that the only disabled control was cadence activation in the intentionally unconnected isolated workspace. This behavior is internally consistent, but the duplicated connection wording creates unnecessary cognitive load and is being simplified before the next user instruction.
+
+## Installed-iPhone r5 confirmation
+
+The user supplied an installed-iPhone screenshot of the r5 surface. It shows **This iPhone — Connected to this iPhone**, the visible actions **Send test** and **Disconnect this iPhone**, and a separate **Schedule** card with **Daily 11:00 · Sunday 17:00 · New Zealand time** plus **Pause reminders**. The status feedback confirms the same Pacific/Auckland cadence is scheduled. This is user-observed evidence that the consolidated device and cadence actions are visible together in the real installed PWA. No disconnect or new test was invoked during the screenshot check.

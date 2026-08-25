@@ -74,6 +74,8 @@ After the iPhone retry succeeded, the first global job callback revealed a raw c
 
 The r4 device-control visibility release was pushed to GitHub and independently verified on the public alias. The alias served `index-B3gVve0X.js`, which contains the non-sensitive `device-control-r4` marker. The live client therefore includes the separate always-visible **This device** row before the installed-iPhone confirmation is requested.
 
+The subsequent full options audit was published as r5. The public alias served `index-DwwPNaCX.js`, which contains the non-sensitive `reminder-options-r5` marker. The live client now has the simplified two-block reminder interface: **This iPhone** and **Schedule**.
+
 ## Sources
 
 The live checks above were run directly against the public Vercel alias and immutable deployment. The implementation follows Vercel’s documented Function, Express, Vite, and rewrite models. [1] [2] [3] [4]
