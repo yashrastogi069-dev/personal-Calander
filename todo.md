@@ -169,4 +169,4 @@
 - [x] Validate, publish, and publicly verify the Habits redesign with focused tests, responsive renders, and visible user-facing evidence.
 - [x] Diagnose the reported development-preview Vite WebSocket connection failure and React invalid-hook initialization error.
 - [x] Apply the smallest compatible preview/runtime repair without changing planner, habit, device, cadence, or reminder behavior.
-- [ ] Validate the repaired managed preview, full regression suite, and production build; then document and synchronize the fix.
+- [x] Validate the repaired managed preview, full regression suite, and production build; then document and synchronize the fix.
