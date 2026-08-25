@@ -121,3 +121,4 @@
 - [ ] Browser-test the exact-current-device reminder flow: enable, manual test request, pause, disable, re-enable, and document the real-iPhone delivery boundary.
 - [ ] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
 - [ ] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.
+- [ ] Resolve the Vercel alias serving the prior client artifact despite the successful GitHub deployment status, then verify the published reminder-control recovery marker.
