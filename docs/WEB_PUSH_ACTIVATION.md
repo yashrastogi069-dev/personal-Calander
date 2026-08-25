@@ -68,6 +68,10 @@ The supported installed-iPhone path is now active. Open Personal Calander **from
 
 To pause future scheduled sends, tap **Pause reminders**. To resume the same approved cadence later, tap **Enable daily + weekly**. The browser-device action remains separate: use **Disable reminders on this device** only when the installed device should stop receiving pushes. After disabling, re-enable that exact Home Screen PWA device and use the manual test notification before relying on the scheduled cadence again.
 
+### Device connection control
+
+The Phone reminders surface now contains a separate, always-visible **This device** row above Scheduled rhythm. It names the exact current state and presents the next device action in the same place: **Connect this device** when no current subscription is found; **Send test notification** and **Disconnect this device** when the current subscription is active; or a clear blocked/unsupported explanation when iOS cannot complete the action. Scheduled rhythm is deliberately separate so pausing reminders does not silently disconnect the device.
+
 ## References
 
 [1] [MDN: Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)

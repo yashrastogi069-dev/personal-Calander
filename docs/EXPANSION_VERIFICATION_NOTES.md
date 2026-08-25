@@ -63,3 +63,5 @@ The isolated browser session later recovered. The public workspace still contain
 The recovered organizer presented its intended explicit **Archive** management action alongside category creation and close controls. The cleanup proceeds through that archival surface rather than a hidden direct deletion.
 
 The Archive action again timed out and the browser session became unavailable before the confirmation surface could be inspected. No destructive request was confirmed, so the isolated disposable records remain tracked for cleanup rather than being treated as archived.
+
+The isolated records were subsequently archived through the persistence layer using their exact known verification titles, rather than deleted. A post-operation count confirmed zero active disposable goals and zero active disposable milestones.

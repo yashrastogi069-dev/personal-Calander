@@ -52,9 +52,13 @@ The approved reminder rules are defined for `Pacific/Auckland`: daily planning a
 
 The user has confirmed a visible manual push notification on the installed iPhone after VAPID configuration was corrected. The corrected global callback and schema registry now have local type, build, and **49-test** regression coverage, including session-independent rule activation, task-UID-gated global sweeping, and raw platform cron-cookie authentication. The project scheduler is registered, the public r3 Vercel artifact is verified, and the user confirmed that the iPhone control now displays **Pause reminders** after enabling the cadence. A production off-schedule callback audit authenticated successfully, inspected the two enabled rules, and returned safe zero-send no-ops. The database contains the expected enabled Auckland rules. Automatic future delivery is still not claimed before the scheduled provider call occurs at its real local time and is observed.
 
+### Device-control visibility repair
+
+The Phone reminders interface now separates **This device** from **Scheduled rhythm**. The device row is always visible and communicates the exact-state action—connect/reconnect, test, or disconnect—rather than relying on a conditional compact action beside the general reminder copy. This makes device opt-out explicit without altering the enabled Pacific/Auckland cadence.
+
 ## Validation snapshot
 
-The latest scheduler correction validation completed `pnpm check`, `pnpm test`, and `pnpm build:client` with **48 passing Vitest tests across 10 files**. The broader verification record includes recurrence routing, review-session persistence, analytics rule calculations, category update/removal, goal/project/habit archive contracts, responsive layouts, the visible creation-card inventory, local long-horizon control review, and device-push failure handling. The client bundle retains a non-fatal large-chunk warning that is tracked as a later performance task rather than being hidden as a validation success.
+The latest device-control visibility validation completed `pnpm check`, `pnpm test`, and `pnpm build:client` with **49 passing Vitest tests across 11 files**. The broader verification record includes recurrence routing, review-session persistence, analytics rule calculations, category update/removal, goal/project/habit archive contracts, responsive layouts, the visible creation-card inventory, local long-horizon control review, and device-push failure handling. The client bundle retains a non-fatal large-chunk warning that is tracked as a later performance task rather than being hidden as a validation success.
 
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"

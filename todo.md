@@ -136,6 +136,8 @@
 - [x] Diagnose and repair the failed Enable daily + weekly activation path when the device test succeeds but no Pause reminders state appears.
 - [x] Replace Vercel-incompatible per-user Heartbeat job provisioning with one deployed project-level authenticated hourly sweep that evaluates enabled reminder rules and retains per-rule idempotency.
 - [x] Publish and verify a non-sensitive r3 browser release marker tied to the corrected project-level scheduler commit on the Vercel alias.
-- [ ] Archive the disposable goal and milestone created only in the isolated public-browser workspace after the browser session recovers.
+- [x] Archive the disposable goal and milestone created only in the isolated public-browser workspace after the browser session recovers.
 - [x] Explicitly defer editable reminder cadence controls pending separate user approval; the delivered scheduled rhythm intentionally supports the explicitly approved Auckland daily/weekly cadence plus pause/resume.
 - [x] Repair the project-level Heartbeat callback’s cron-cookie permission rejection and verify a successful scheduled execution audit.
+- [ ] Diagnose and restore the missing installed-PWA device-specific disable/re-enrol controls without changing the active reminder cadence.
+- [ ] Publish and verify the r4 device-control marker on the Vercel alias before requesting the installed-PWA confirmation.
