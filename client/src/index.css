@@ -142,6 +142,104 @@ html, body { background:#f6f7f8; color:#1b2422; }
 .review-intro h2 { color:#1b2422; }.review-intro p, .review-steps p { color:#647670; }.review-steps article { border-color:#e2ebe8; }.review-steps span { color:#2f6b5f; }.composer-dialog { border-color:#d6e2de; background:#fff; color:#1b2422; box-shadow:0 20px 55px rgba(34,63,56,.16); }.composer-dialog [data-description] { color:#657772; }.composer-kind { background:#edf3f1; }.composer-kind button { color:#667873; }.composer-kind button.is-active { background:#fff; color:#1e5549; }.field label { color:#425952; }.field input, .field button[role="combobox"] { border-color:#d6e2de; background:#fff; color:#1b2422; }.planner-loading, .planner-error { background:#f6f7f8; }.loading-rail, .loading-top, .loading-columns > div { background:linear-gradient(100deg,#eef3f1,#f8fbfa,#eef3f1); }.planner-error > div { border-color:#dce5e2; background:#fff; }.planner-error p:not(.eyebrow) { color:#657772; }
 @media (max-width:680px) { .planner-rail { background:rgba(255,255,255,.92); }.planner-nav button:hover { background:#eaf4f0; } }
 
+/* Phone-first planner refinement: preserve the desktop rail, but make the six
+   core planning surfaces legible and thumb-reachable on an installed PWA. */
+@media (max-width:680px) {
+  .planner-rail {
+    position:fixed;
+    inset:auto 0 0;
+    z-index:40;
+    height:calc(72px + env(safe-area-inset-bottom));
+    min-height:0;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-top:1px solid #dce5e2;
+    border-bottom:0;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 -10px 28px rgba(35,65,58,.08);
+    backdrop-filter:blur(18px);
+  }
+
+  .brand-lockup { display:none; }
+  .planner-nav {
+    display:grid;
+    grid-template-columns:repeat(6, minmax(0, 1fr));
+    align-items:stretch;
+    gap:4px;
+    width:100%;
+    height:100%;
+    margin:0;
+    overflow:visible;
+  }
+
+  .planner-nav button,
+  .planner-nav button.is-active {
+    width:auto;
+    min-width:0;
+    min-height:52px;
+    padding:4px 2px;
+    justify-content:center;
+    gap:3px;
+    border-radius:10px;
+    font-size:9px;
+    line-height:1;
+    text-align:center;
+  }
+
+  .planner-nav button span {
+    display:block;
+    overflow:hidden;
+    max-width:100%;
+    color:currentColor;
+    font-weight:700;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .planner-nav button svg { width:18px; height:18px; }
+  .planner-nav button.is-active::before { display:none; }
+  .planner-nav i {
+    position:absolute;
+    top:2px;
+    right:2px;
+    min-width:15px;
+    padding:2px 3px;
+    font-size:8px;
+  }
+
+  .planner-main { padding:0 14px calc(100px + env(safe-area-inset-bottom)); }
+  .planner-topbar { gap:12px; padding:18px 0 16px; }
+  .planner-topbar h1 { font-size:26px; }
+  .quick-capture { min-height:44px; padding-block:10px; }
+  .top-actions { gap:6px; }
+  .top-actions > button { min-height:42px; }
+  .top-actions .primary-action { min-height:42px; }
+
+  .panel-heading h2, .timeline-heading h2 { font-size:17px; }
+  .panel-count, .task-row-meta, .horizon-label, .horizon-status { font-size:10px; }
+  .task-row { gap:8px; padding-block:13px; }
+  .task-row-title { font-size:13px; }
+  .task-row-actions .icon-quiet { width:36px; height:36px; }
+  .task-check { width:24px; height:24px; border-radius:7px; }
+  .time-slot { min-height:50px; }
+  .time-slot time { font-size:10px; }
+  .time-block { min-height:34px; align-items:center; font-size:10px; }
+
+  .calendar-matrix {
+    position:relative;
+    scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;
+  }
+  .calendar-matrix::after {
+    content:"Swipe the grid sideways for the full period";
+    display:block;
+    width:max-content;
+    margin:12px auto 0;
+    color:#6d7c77;
+    font:500 10px/1.3 "IBM Plex Mono", monospace;
+  }
+  .matrix-grid { scroll-snap-align:start; }
+}
+
 .calendar-habit-legend { margin:0 0 .8rem; color:#6d7c77; font-size:.75rem; }
 .matrix-habit { display:flex; align-items:center; gap:.35rem; width:100%; min-height:1.45rem; margin-top:.24rem; padding:.18rem .3rem; border:1px solid #d5e3de; border-radius:.3rem; background:#eef6f2; color:#365249; font:inherit; font-size:.68rem; text-align:left; cursor:pointer; }
 .matrix-habit i { width:5px; height:5px; border-radius:50%; flex:0 0 auto; }.matrix-habit span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.matrix-habit.is-completed { border-color:#b5d8ca; background:#dff1e8; color:#1e6653; }.matrix-habit.is-skipped { opacity:.58; text-decoration:line-through; }.matrix-habit:disabled { cursor:default; opacity:.55; }
@@ -213,3 +311,91 @@ html, body { background:#e8ecea; color:#182420; }
 /* The habit calendar is deliberately separate from task scheduling, but shares the same quiet decision-focused palette. */
 .habit-calendar-tracker { padding:18px 20px 20px; border:1px solid #cfdad5; border-radius:14px; background:linear-gradient(150deg, #eaf1ed, #f6f8f6 64%); }.habit-calendar-pager { display:flex; align-items:center; gap:6px; color:#315449; font:600 10px "IBM Plex Mono", monospace; }.habit-calendar-pager button { display:grid; width:28px; height:28px; place-items:center; border:1px solid #c7d7d0; border-radius:7px; background:#f7faf8; color:#315e51; }.habit-calendar-pager button:disabled { opacity:.38; }.habit-calendar-copy { margin:6px 0 14px; color:#64736d; font-size:11px; line-height:1.45; }.habit-calendar-weekdays, .habit-calendar-grid { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:6px; }.habit-calendar-weekdays { margin-bottom:5px; color:#71817b; font:700 8px "IBM Plex Mono", monospace; text-align:center; }.habit-calendar-day { display:grid; min-height:66px; align-content:space-between; gap:4px; padding:7px; border:1px solid #d3ded9; border-radius:9px; background:rgba(250,252,250,.82); color:#315449; text-align:left; }.habit-calendar-day:hover { border-color:#8eac9f; background:#edf4f0; }.habit-calendar-day.is-selected { border-color:#285d52; box-shadow:inset 0 0 0 1px #285d52; }.habit-calendar-day.is-today time { color:#285d52; font-weight:800; }.habit-calendar-day.is-future { opacity:.64; }.habit-calendar-day time { font:600 9px "IBM Plex Mono", monospace; }.habit-calendar-status { color:#557a6d; font:600 9px "IBM Plex Mono", monospace; white-space:nowrap; }.habit-calendar-status b { color:#285d52; }.habit-calendar-status i { margin-left:2px; color:#8a7361; font-style:normal; }.habit-calendar-status.is-empty { color:#aab7b1; }.habit-day-detail { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.5fr); gap:14px; margin-top:14px; padding-top:13px; border-top:1px solid #d3ded9; }.habit-day-detail > div:first-child > span { color:#315449; font:700 10px "IBM Plex Mono", monospace; }.habit-day-detail > div:first-child p { margin:4px 0 0; color:#64736d; font-size:10px; line-height:1.4; }.habit-day-actions { display:grid; gap:6px; }.habit-day-actions > div { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:6px; padding:7px; border:1px solid #d3ded9; border-radius:8px; background:rgba(250,252,250,.76); }.habit-day-actions > div > span { display:flex; align-items:center; min-width:0; gap:6px; overflow-wrap:anywhere; color:#315449; font-size:11px; }.habit-day-actions i { width:7px; height:7px; flex:0 0 auto; border-radius:50%; }.habit-day-actions button { min-height:26px; padding:0 7px; border:1px solid #c7d7d0; border-radius:7px; background:#f7faf8; color:#315e51; font:700 9px "Onest", sans-serif; }.habit-day-actions .habit-complete-button { border-color:#285d52; background:#285d52; color:#fff; }
 @media (max-width:680px) { .habit-calendar-tracker { padding:15px; }.habit-calendar-day { min-height:54px; padding:5px; }.habit-calendar-status { font-size:8px; }.habit-day-detail { grid-template-columns:1fr; }.habit-day-actions > div { grid-template-columns:minmax(0,1fr) auto auto; } }
+
+/* Readability is a functional requirement on a phone: metadata stays compact,
+   while explanatory copy and direct actions gain a clear, touch-safe scale. */
+@media (max-width:680px) {
+  .daily-compass-copy span,
+  .recurrence-control > span,
+  .review-ritual > span,
+  .planning-health span,
+  .calendar-subscription > span,
+  .decision-signals span,
+  .triage-heading span,
+  .occurrence-panel > div:first-child span {
+    font-size:10px;
+  }
+
+  .daily-compass-copy p,
+  .recurrence-control p,
+  .review-ritual p,
+  .planning-health p,
+  .calendar-subscription p,
+  .decision-signals p,
+  .occurrence-panel > div:first-child p,
+  .triage-list p {
+    font-size:11px;
+    line-height:1.45;
+  }
+
+  .daily-compass > input {
+    min-height:40px;
+    height:40px;
+    font-size:12px;
+  }
+  .daily-compass-controls label { font-size:9px; }
+  .daily-compass-controls [role="combobox"] {
+    min-height:38px;
+    height:38px;
+    min-width:60px;
+    font-size:10px;
+  }
+  .daily-compass-controls button,
+  .recurrence-control button,
+  .review-ritual button,
+  .calendar-subscription button,
+  .calendar-feed-actions a,
+  .triage-heading > button,
+  .bulk-actions button,
+  .occurrence-row button {
+    min-height:38px;
+    height:auto;
+    padding-inline:10px;
+    font-size:10px;
+  }
+
+  .planning-health dd { font-size:15px; }
+  .planning-health dt,
+  .decision-signals dt,
+  .occurrence-row small,
+  .triage-controls label,
+  .triage-list small,
+  .triage-list em { font-size:9px; }
+  .decision-signals dd { font-size:12px; }
+  .triage-heading h2 { font-size:15px; }
+  .triage-controls select { min-height:36px; height:36px; font-size:10px; }
+  .triage-list label { min-height:38px; padding-block:9px; }
+  .triage-list strong { font-size:11px; }
+
+  .filter-group button,
+  .calendar-mode-tabs button {
+    min-height:40px;
+    padding-inline:11px;
+    font-size:11px;
+  }
+  .calendar-toolbar p { font-size:12px; line-height:1.45; }
+  .matrix-cell { min-height:106px; }
+  .matrix-cell time, .matrix-task { font-size:10px; }
+
+  .habit-primary-action,
+  .habit-skip-action { min-height:40px; padding-inline:12px; font-size:11px; }
+  .habit-calendar-pager button { width:36px; height:36px; }
+  .habit-calendar-copy { font-size:12px; }
+  .habit-calendar-day { min-height:58px; }
+  .habit-calendar-day time, .habit-calendar-status { font-size:9px; }
+  .habit-day-detail > div:first-child p { font-size:11px; }
+  .habit-day-actions button { min-height:36px; padding-inline:9px; font-size:10px; }
+
+  .review-intro p, .review-steps p { font-size:13px; line-height:1.55; }
+  .review-workbench .review-ritual textarea { min-height:96px; font-size:12px; }
+}

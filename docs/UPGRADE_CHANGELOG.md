@@ -64,6 +64,12 @@ The user confirmed the final installed-iPhone state with the connected-device ac
 
 The latest device-control visibility validation completed `pnpm check`, `pnpm test`, and `pnpm build:client` with **49 passing Vitest tests across 11 files**. The broader verification record includes recurrence routing, review-session persistence, analytics rule calculations, category update/removal, goal/project/habit archive contracts, responsive layouts, the visible creation-card inventory, local long-horizon control review, and device-push failure handling. The client bundle retains a non-fatal large-chunk warning that is tracked as a later performance task rather than being hidden as a validation success.
 
+## Phone-first planner completion pass
+
+The planner now adapts its navigation for an installed iPhone PWA: the desktop rail remains intact while phones receive a labeled, safe-area-aware six-destination bottom bar for Today, Tasks, Calendar, Goals, Habits, and Review. The main canvas reserves that bar’s space, and quick capture plus direct planning controls have more comfortable phone targets. Dense planning, calendar, habit, and review copy has been selectively enlarged without changing their task, goal, habit, calendar, or reminder behavior.
+
+The Calendar keeps its seven-day task grid legible by retaining horizontal phone scrolling and adding an explicit swipe cue; Habits remains the dedicated habit-calendar surface. A route audit confirmed that all core areas expose concrete controls rather than display-only buttons. A shared mobile-navigation contract now guards the six-destination order with focused automated coverage. The release passed TypeScript, a **51-test / 12-file** Vitest suite, the production client build, desktop and iPhone-width rendering checks, and the interface detector. Reminder automation remains deliberately deferred; the existing connected-device and saved-cadence experience was not altered.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

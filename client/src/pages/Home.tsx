@@ -10,6 +10,7 @@ import { getReminderDevicePresentation } from "@/lib/reminderDevicePresentation"
 import { displayLocalDate, getWorkspaceScope, localDateInTimezone, shiftLocalDate, type WorkspaceScope } from "@/lib/workspace";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
+import { type MobilePlannerDestination } from "@shared/mobileNavigation";
 import {
   ArrowDownUp,
   CalendarDays,
@@ -36,7 +37,7 @@ import {
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
-type Surface = "today" | "tasks" | "calendar" | "goals" | "habits" | "review";
+type Surface = MobilePlannerDestination;
 type ComposerKind = "task" | "goal" | "project" | "habit";
 type CalendarMode = "Day" | "Week" | "Month" | "Quarter" | "Year";
 

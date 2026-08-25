@@ -109,7 +109,7 @@
 - [x] Obtain explicit approval for the proposed VAPID notification behavior and configure provided VAPID values only through secure server-side secrets.
 - [x] Implement secure device subscription, opt-out, subscription-refresh, and manual test-notification flows without exposing private VAPID material.
 - [x] Add deterministic tests and browser validation for long-horizon logic, analytics, and approved Web Push controls; document evidence and delivery limitations.
-- [ ] Checkpoint, synchronize GitHub, and verify the expanded production release end to end.
+- [x] Checkpoint, synchronize GitHub, and verify the user-confirmed expanded production UI release end to end; real scheduled delivery remains separately tracked.
 - [x] Research and document the supported iPhone Home Screen web-push, Calendar subscription, and Apple Reminders integration boundaries before selecting the reminder experience.
 - [x] Design the user-controlled iPhone reminder model, including permission, subscription, cadence, opt-out, delivery failure, and Calendar fallback behavior.
 - [x] Integrate review freshness into the long-horizon rule engine, dashboard contract, Goal runway, and deterministic test coverage.
@@ -143,3 +143,11 @@
 - [x] Publish and verify the r4 device-control marker on the Vercel alias before requesting the installed-PWA confirmation.
 - [x] Audit every public reminder and device-management option at iPhone width; repair or remove controls that are ambiguous, unavailable, or misaligned with the active Auckland cadence.
 - [x] Publish and verify the r5 audited reminder-options marker on the Vercel alias before asking the user to reopen the iPhone PWA.
+- [x] Defer observation of the first real scheduled production reminder send at the user’s request; preserve the documented manual-test and future automation recovery path.
+- [x] Confirm the public production alias still serves the intended r5 reminder-options release after the final GitHub documentation synchronization.
+- [x] Defer diagnosis and repair of the project scheduler’s zero-inspected-rules audit result at the user’s request; preserve the issue record for future automation work.
+- [x] Defer replacement of the cross-deployment scheduler callback with a secured Vercel-targeted workflow at the user’s request.
+- [x] Defer selection and configuration of a reachable secure trigger provider at the user’s request.
+- [x] Audit each core planner route at iPhone width for reachable navigation, clipped controls, touch-target sizing, readable hierarchy, and avoidable cognitive load.
+- [x] Implement the prioritized phone-first navigation, layout, and control refinements without changing task, goal, habit, or reminder data behavior.
+- [x] Add focused automated coverage for extracted mobile presentation rules and validate the final responsive experience at phone and desktop breakpoints.
