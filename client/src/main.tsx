@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "offline-capture-r6";
+document.documentElement.dataset.release = "runtime-security-r7";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

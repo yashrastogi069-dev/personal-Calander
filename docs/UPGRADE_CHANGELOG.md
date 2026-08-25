@@ -76,6 +76,12 @@ Quick capture now works through a conservative offline-first path. After the app
 
 Today also gains a deliberate nearby-day planning gesture: swipe a task left or right, or use its accessible previous/next controls, to move its **planned** date by one local day. It does not alter the due date, goal, habit, calendar boundary, connected iPhone, reminder cadence, or paused automation work. The enhancement passed TypeScript, the production build, the interface detector, and a **54-test / 13-file** suite with dedicated offline-queue and router-contract coverage.
 
+## Non-automation reliability closeout
+
+The runtime dependency graph has been brought through a targeted production-security remediation. Compatible updates cover the networking, web framework, storage, ORM, ID, AI-markdown, and tRPC layers; the last vulnerable chart-library transitive is constrained to its patched Lodash release. The final production audit reports **no known vulnerabilities**, while TypeScript, the **54-test / 13-file** suite, fresh phone and desktop renders, and the Vercel-targeted build remain successful.
+
+This completes the currently committed non-automation product and reliability backlog. The remaining roadmap entries—external calendar providers, account migration, shared workspaces, and similar integrations—are not unfinished defects; each requires a separate provider or product decision. Automatic reminder delivery remains explicitly paused, and the connected iPhone/device-cadence experience was not changed.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"
