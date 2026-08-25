@@ -161,3 +161,6 @@
 - [x] Define and document a phone-first visual hierarchy, navigation, type scale, safe-area, and progressive-disclosure redesign that preserves all planner capabilities.
 - [x] Rebuild the phone planner shell and core route surfaces with larger readable controls, clearer card/panel structure, and touch-first interaction affordances without changing planner data behavior.
 - [ ] Validate the redesigned phone experience across all core routes, accessibility states, desktop preservation, automated regression, and public release propagation.
+- [x] Define and apply a more expressive premium card-role, color-hierarchy, and state system for the phone Daily Desk without removing planner capabilities.
+- [x] Add restrained, reduced-motion-safe micro-interactions for phone navigation, sheets, capture, completion, rescheduling, and expandable sections.
+- [ ] Validate and publish the premium phone polish pass with visual, accessibility, regression, and public-release evidence.

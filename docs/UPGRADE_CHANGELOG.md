@@ -88,6 +88,12 @@ The phone planner has been rebuilt as a touch-first **Daily Desk**. Today now be
 
 Phone navigation now uses four direct destinations—Today, Tasks, Calendar, and Goals—plus a fifth **More** sheet for Habits, Review, and category management. It is labeled, safe-area aware, and covered by a shared navigation contract test that guarantees all six planner destinations remain available. Type, controls, task rows, dialogs, calendar modes, goals, habits, review flow, charts, and empty states were redesigned for readable phone use while the desktop rail and two-column workspace remain intact. The connected-iPhone reminder controls and paused automatic-delivery boundary were deliberately preserved. The release passed TypeScript, a **55-test / 13-file** suite, production build, phone and desktop visual review, and final detector-guided cleanup.
 
+## Premium card, color, and motion polish
+
+The Daily Desk now distinguishes commitment, time, direction, rhythm, reflection, and utility surfaces through material tint, border emphasis, elevation, and density rather than a single repeated card style. Primary actions retain deep verdigris authority; the time canvas, goal runway, habit rhythm, capacity reading, and analytics have their own quieter material roles. The result remains calm but makes the hierarchy more immediately legible.
+
+Motion is now intentionally limited to feedback and spatial context. Phone navigation, capture, completion, nearby-day controls, expandable tool rows, and the More sheet acknowledge touch with short custom-eased transitions; frequent planning content does not wait through decorative animation. Reduced-motion users receive instant structural changes with essential opacity and color feedback only. All data behavior, desktop layout, connected iPhone controls, and the paused reminder-delivery boundary remain unchanged.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

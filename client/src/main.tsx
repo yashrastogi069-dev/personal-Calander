@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "phone-daily-desk-r8";
+document.documentElement.dataset.release = "phone-premium-polish-r9";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

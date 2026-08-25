@@ -639,3 +639,56 @@ html, body { background:#e8ecea; color:#182420; }
   .goal-panel .text-button, .habit-panel .text-button { min-height:36px; padding:0 9px; border:1px solid #c5d6cf; border-radius:9px; background:#f9fbf9; font-size:11px; }
   .planning-band { border-color:#c3d4cd; box-shadow:none; }
 }
+
+@media (max-width:680px) {
+  .planner-shell { background:radial-gradient(circle at 95% 0%, rgba(198,240,106,.14), transparent 24rem), linear-gradient(180deg, #eef2ef 0, #e8ecea 22rem, #e2e8e5 100%); }
+  .planner-main { isolation:isolate; }
+  .planner-main::before { content:""; position:absolute; z-index:-1; top:0; right:0; left:0; height:134px; opacity:.58; background:linear-gradient(90deg, transparent 0 92%, rgba(40,93,82,.13) 92% 100%); pointer-events:none; }
+
+  .mobile-planner-nav { gap:6px; }
+  .mobile-planner-nav button { transition:background 140ms var(--ease-out), color 140ms var(--ease-out), box-shadow 140ms var(--ease-out), transform 120ms var(--ease-out); }
+  .mobile-planner-nav button.is-active { box-shadow:inset 0 -2px 0 #285d52, inset 0 0 0 1px rgba(40,93,82,.1); }
+  .mobile-planner-nav button:active { transform:scale(.97); }
+
+  .mobile-more-sheet { animation:none; transform-origin:bottom center; transition:opacity 180ms var(--ease-out), transform 180ms var(--ease-out), filter 180ms var(--ease-out); }
+  .mobile-more-scrim { transition:opacity 160ms var(--ease-out); }
+  @starting-style {
+    .mobile-more-sheet { opacity:0; transform:translateY(10px) scale(.985); filter:blur(2px); }
+    .mobile-more-scrim { opacity:0; }
+  }
+
+  .focus-panel { border-top-color:#8fbcaa; }
+  .focus-panel .empty-state { border-color:#bad7cb; background:linear-gradient(135deg, rgba(252,254,252,.92), rgba(243,250,246,.78)); }
+  .empty-state-trigger, .top-actions .primary-action, .daily-compass-controls > button, .task-check, .task-row-reschedule button, .task-row-actions .icon-quiet, .mobile-support-group > summary { transition:transform 140ms var(--ease-out), background 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out); }
+  .empty-state-trigger:active, .top-actions .primary-action:active, .daily-compass-controls > button:active, .task-check:active, .task-row-reschedule button:active, .task-row-actions .icon-quiet:active, .mobile-support-group > summary:active { transform:scale(.97); }
+
+  .timeline-panel { border-color:#c7d5d2; border-top-color:#a9c3c3; background:linear-gradient(180deg, #e3ebeb, #f8faf8 48%); }
+  .timeline-panel .timeline-heading { border-bottom:1px solid rgba(72,111,108,.1); }
+  .goal-panel { border-top-color:#a7bc9d; }
+  .habit-panel { border-top-color:#9dbd9d; }
+  .analytics-grid { background:#eff4f1; }
+  .distribution-chart { background:#e4eee8; }
+  .goal-panel .empty-state { border-color:#c8d8c3; background:linear-gradient(135deg, #fbfcfa, #edf4eb); }
+  .habit-panel .empty-state { border-color:#c1d8c5; background:linear-gradient(135deg, #f8fbf8, #e5f1e7); }
+  .planning-band { position:relative; overflow:hidden; }
+  .planning-band::after { content:""; position:absolute; top:0; right:18px; width:64px; height:3px; border-radius:99px; background:#285d52; }
+  .mobile-support-group { border-top-color:rgba(40,93,82,.2); }
+  .mobile-support-group[open] > summary { color:#1d4b3f; }
+
+  .top-actions .primary-action { box-shadow:0 10px 20px rgba(28,77,64,.22); }
+  .daily-compass-controls > button { box-shadow:0 7px 14px rgba(28,77,64,.16); }
+}
+
+@media (hover:hover) and (pointer:fine) {
+  @media (max-width:680px) {
+    .mobile-planner-nav button:hover { background:#e0ebe5; color:#204d43; }
+    .mobile-more-destinations button:hover, .mobile-more-utility button:hover { border-color:#9dbfaf; background:#f1f7f3; }
+    .task-row:hover { background:rgba(255,255,255,.48); }
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .mobile-more-sheet { transition:opacity 120ms linear; transform:none; filter:none; }
+  .mobile-more-scrim { transition:opacity 120ms linear; }
+  .mobile-planner-nav button, .empty-state-trigger, .top-actions .primary-action, .daily-compass-controls > button, .task-check, .task-row-reschedule button, .task-row-actions .icon-quiet, .mobile-support-group > summary { transition-duration:0ms; }
+}
