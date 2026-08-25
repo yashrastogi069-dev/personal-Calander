@@ -1,7 +1,5 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { parse as parseCookieHeader } from "cookie";
-import { COOKIE_NAME } from "@shared/const";
 import {
   archiveGoal,
   archiveGoalMilestone,
@@ -45,19 +43,14 @@ import {
   upsertHabitCheckIn,
   upsertPushSubscription,
 } from "../planning";
-import { createHeartbeatJob, updateHeartbeatJob } from "../_core/heartbeat";
 import { invokeLLM } from "../_core/llm";
 import { publicProcedure, router } from "../_core/trpc";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const approvedReminderSpecs = [
-  { type: "daily_plan" as const, schedule: { kind: "daily" as const, timeLocal: "11:00" }, label: "Daily planning at 11:00 Pacific/Auckland" },
-  { type: "weekly_review" as const, schedule: { kind: "weekly" as const, weekday: 0, timeLocal: "17:00" }, label: "Sunday weekly review at 17:00 Pacific/Auckland" },
+  { type: "daily_plan" as const, schedule: { kind: "daily" as const, timeLocal: "11:00" } },
+  { type: "weekly_review" as const, schedule: { kind: "weekly" as const, weekday: 0, timeLocal: "17:00" } },
 ];
-
-function schedulerSessionFromHeaders(headers: { cookie?: string }) {
-  return parseCookieHeader(headers.cookie ?? "")[COOKIE_NAME] ?? "";
-}
 const scope = z.object({ workspaceId: z.string().min(12).max(64), timezone: z.string().min(1).max(64) });
 const lifecycle = z.enum(["not_started", "in_progress", "blocked", "completed", "archived"]);
 const priority = z.enum(["none", "low", "medium", "high", "critical"]);
@@ -191,31 +184,23 @@ export const plannerRouter = router({
   }),
   reminder: router({
     rules: publicProcedure.input(scope).query(async ({ input }) => getReminderRules(input)),
-    activateApproved: publicProcedure.input(scope).mutation(async ({ input, ctx }) => {
-      const sessionToken = schedulerSessionFromHeaders(ctx.req.headers);
-      const activated: Array<{ id: string; taskUid: string }> = [];
+    activateApproved: publicProcedure.input(scope).mutation(async ({ input }) => {
+      const activated: string[] = [];
       try {
         for (const spec of approvedReminderSpecs) {
           const rule = await prepareReminderRule(input, { type: spec.type, timezone: "Pacific/Auckland", schedule: spec.schedule });
-          const job = rule.scheduleCronTaskUid
-            ? await updateHeartbeatJob(rule.scheduleCronTaskUid, { cron: "0 0 * * * *", path: "/api/scheduled/reminder", description: spec.label, enable: true }, sessionToken)
-            : await createHeartbeatJob({ name: `personal-calander-${spec.type}-${rule.id}`, cron: "0 0 * * * *", path: "/api/scheduled/reminder", description: spec.label }, sessionToken);
-          const taskUid = rule.scheduleCronTaskUid ?? (job as { taskUid: string }).taskUid;
-          await setReminderRuleActivation(input, { id: rule.id, enabled: true, scheduleCronTaskUid: taskUid });
-          activated.push({ id: rule.id, taskUid });
+          await setReminderRuleActivation(input, { id: rule.id, enabled: true });
+          activated.push(rule.id);
         }
       } catch (error) {
-        await Promise.all(activated.map(item => updateHeartbeatJob(item.taskUid, { enable: false }, sessionToken).catch(() => undefined)));
-        await Promise.all(activated.map(item => setReminderRuleActivation(input, { id: item.id, enabled: false }).catch(() => undefined)));
+        await Promise.all(activated.map(id => setReminderRuleActivation(input, { id, enabled: false }).catch(() => undefined)));
         throw error;
       }
       return getReminderRules(input);
     }),
-    pauseApproved: publicProcedure.input(scope).mutation(async ({ input, ctx }) => {
-      const sessionToken = schedulerSessionFromHeaders(ctx.req.headers);
+    pauseApproved: publicProcedure.input(scope).mutation(async ({ input }) => {
       const rules = await getReminderRules(input);
       await Promise.all(rules.map(async rule => {
-        if (rule.scheduleCronTaskUid) await updateHeartbeatJob(rule.scheduleCronTaskUid, { enable: false }, sessionToken);
         await setReminderRuleActivation(input, { id: rule.id, enabled: false });
       }));
       return getReminderRules(input);

@@ -341,6 +341,14 @@ export const reminderRules = mysqlTable(
   ]
 );
 
+/** A single project-owned Heartbeat task drives due enabled rules. */
+export const reminderSchedulers = mysqlTable("reminderSchedulers", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }).notNull().unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const integrationConnections = mysqlTable(
   "integrationConnections",
   {

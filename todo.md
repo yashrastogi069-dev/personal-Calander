@@ -127,3 +127,11 @@
 - [ ] Inspect the d310e4b Vercel production artifact and deployment configuration through the connected browser before issuing iPhone retry instructions.
 - [ ] Add and verify a public machine-readable release marker for the repaired reminder-control artifact without additional dashboard interaction.
 - [ ] Add a machine-verifiable public release marker for the repaired reminder artifact and verify that it reaches Vercel production.
+- [ ] Add VITE_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to Vercel Production without exposing their values, then redeploy and verify the repaired push-control bundle retains its guarded enrollment path.
+- [ ] Verify all three VAPID names are present in Vercel Production, then trigger and verify a fresh deployment that incorporates them.
+- [ ] Confirm the deployed browser bundle includes the VAPID public key configuration and the repaired guarded enrollment path without exposing key material.
+- [ ] Complete the installed-iPhone device enrollment, visible test notification, daily 11:00 Pacific/Auckland schedule activation, and Sunday 17:00 Pacific/Auckland weekly-review activation with user-observed evidence.
+- [ ] Verify the exact uppercase VITE_VAPID_PUBLIC_KEY name appears in Vercel Production alongside the private key and subject before redeploying.
+- [ ] Verify the user-activated daily 11:00 and weekly Sunday 17:00 Pacific/Auckland reminder rules are active, device-scoped, and duplicate-safe after the completed visible push test.
+- [ ] Diagnose and repair the failed Enable daily + weekly activation path when the device test succeeds but no Pause reminders state appears.
+- [ ] Replace Vercel-incompatible per-user Heartbeat job provisioning with one deployed project-level authenticated hourly sweep that evaluates enabled reminder rules and retains per-rule idempotency.

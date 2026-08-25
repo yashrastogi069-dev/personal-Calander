@@ -14,6 +14,7 @@ import {
   pushDeliveries,
   pushSubscriptions,
   reminderRules,
+  reminderSchedulers,
   reviewSessions,
   savedViews,
   taskDependencies,
@@ -502,10 +503,10 @@ function scheduledPayload(type: "daily_plan" | "weekly_review", origin: string, 
     : { title: "Weekly review", body: "Open Personal Calander to close the loop before next week begins.", url: origin, tag: `personal-calander-weekly-${subscriptionId}`, kind: "weekly_review" };
 }
 
-export async function dispatchScheduledReminder(taskUid: string, origin: string, now = new Date()) {
-  const db = await requireDb();
-  const rule = (await db.select().from(reminderRules).where(eq(reminderRules.scheduleCronTaskUid, taskUid)).limit(1))[0];
-  if (!rule) return { ok: true, skipped: "orphan" as const, sent: 0 };
+type PlanningDatabase = Awaited<ReturnType<typeof requireDb>>;
+type ReminderRule = typeof reminderRules.$inferSelect;
+
+async function dispatchReminderRule(db: PlanningDatabase, rule: ReminderRule, origin: string, now: Date) {
   if (rule.type !== "daily_plan" && rule.type !== "weekly_review") return { ok: true, skipped: "unsupported_rule" as const, sent: 0 };
   if (!rule.isEnabled || !rule.cronExpression || rule.snoozedUntil && rule.snoozedUntil > now) return { ok: true, skipped: "disabled_or_snoozed" as const, sent: 0 };
   const timing = reminderDueAt(rule.cronExpression, rule.timezone, now);
@@ -543,6 +544,31 @@ export async function dispatchScheduledReminder(taskUid: string, origin: string,
   }
   await db.update(reminderRules).set({ lastTriggeredAt: now }).where(eq(reminderRules.id, rule.id));
   return { ok: true, sent, localDate: timing.localDate, localTime: timing.localTime };
+}
+
+export async function dispatchScheduledReminder(taskUid: string, origin: string, now = new Date()) {
+  const db = await requireDb();
+  const scheduler = (await db.select().from(reminderSchedulers).where(eq(reminderSchedulers.id, "project-reminder-sweep")).limit(1))[0];
+  if (scheduler?.scheduleCronTaskUid === taskUid) return dispatchProjectReminderSweep(db, origin, now);
+
+  // Legacy per-rule Heartbeat callbacks remain restricted to their own rule.
+  // An unknown task UID is a harmless no-op rather than a cross-workspace sweep.
+  const rule = (await db.select().from(reminderRules).where(eq(reminderRules.scheduleCronTaskUid, taskUid)).limit(1))[0];
+  if (!rule) return { ok: true, skipped: "orphan" as const, sent: 0 };
+  return dispatchReminderRule(db, rule, origin, now);
+}
+
+export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin: string, now = new Date()) {
+  const rules = await db.select().from(reminderRules).where(and(eq(reminderRules.isEnabled, 1), inArray(reminderRules.type, ["daily_plan", "weekly_review"])));
+  const results = [];
+  for (const rule of rules) results.push(await dispatchReminderRule(db, rule, origin, now));
+  return {
+    ok: true,
+    scheduler: "project" as const,
+    inspected: rules.length,
+    sent: results.reduce((total, result) => total + result.sent, 0),
+    results,
+  };
 }
 
 export async function startReviewSession(scope: PlannerScope, input: { kind: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"; periodStartLocalDate: string; periodEndLocalDate: string; snapshot?: unknown }) {

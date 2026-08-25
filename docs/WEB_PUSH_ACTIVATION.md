@@ -1,6 +1,6 @@
 # Web Push and iPhone Activation Runbook
 
-**Status:** The application now has an installable manifest, service worker, explicit device opt-in, secure subscription persistence, local/browser plus server-side opt-out, subscription-refresh messaging, audited manual test delivery, and terminal-expiration handling. VAPID values are configured through secure secrets only. **Automatic daily or weekly sends are not enabled**: they require the person’s explicit cadence and local-time approval, an idempotent scheduled outbox, and separate production verification.
+**Status:** The application has an installable manifest, service worker, explicit device opt-in, secure subscription persistence, local/browser plus server-side opt-out, subscription-refresh messaging, audited manual test delivery, and terminal-expiration handling. VAPID values are configured through secure secrets only. The user has confirmed a visible iPhone manual test notification. The approved automatic cadence still requires deployment of the corrected scheduler callback, project-level scheduler creation, and a final on-device activation confirmation.
 
 > **Important:** Browser permission is not delivery. A device must be installed and subscribed, the subscription must be stored, and a server must sign and send a Web Push request before a reminder can reach the phone.
 
@@ -54,7 +54,7 @@ The planner’s daily and weekly reminders are deterministic. The sending job sh
 | **Managed background worker** | A persistent worker processes an outbox and retries failed sends. | Better for high volume, near-real-time events, or robust retry queues; more infrastructure than a personal planner needs initially. | Higher operating cost and setup complexity.
 | **Manual “test reminder” only** | The app sends a user-triggered test notification after subscription. | Proves keys, installation, permission, and delivery without automatic reminders. | Lowest-risk first step; no recurring automation.
 
-The recommended order is **manual test notification first**, then one daily-plan reminder and one weekly-review reminder. Do not enable a high-frequency schedule before those two flows are confirmed on the actual iPhone.
+The recommended order is **manual test notification first**, then one daily-plan reminder and one weekly-review reminder. The deployed scheduler uses one authenticated project-level hourly callback that evaluates enabled rules in their persisted IANA timezones; it does not require the installed anonymous PWA to hold an account session when the person enables the already-approved cadence. Do not enable a high-frequency schedule before those two flows are confirmed on the actual iPhone.
 
 ## 6. Test the full delivery chain
 

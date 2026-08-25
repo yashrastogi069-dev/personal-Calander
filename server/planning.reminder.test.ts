@@ -19,13 +19,16 @@ function queryResult(value: unknown) {
   return Object.assign(promise, { limit: async () => value });
 }
 
-function makeDatabase({ duplicate = false, ruleRow = rule }: { duplicate?: boolean; ruleRow?: typeof rule } = {}) {
+function makeDatabase({ duplicate = false, ruleRow = rule, projectSchedulerTaskUid }: { duplicate?: boolean; ruleRow?: typeof rule; projectSchedulerTaskUid?: string } = {}) {
   const set = vi.fn(() => ({ where: vi.fn(async () => undefined) }));
   const update = vi.fn(() => ({ set }));
   const values = vi.fn(async () => { if (duplicate) throw { code: "ER_DUP_ENTRY" }; });
+  const selections = projectSchedulerTaskUid
+    ? [[{ id: "project-reminder-sweep", scheduleCronTaskUid: projectSchedulerTaskUid }], [ruleRow], [subscription]]
+    : [[], [ruleRow], [subscription]];
   let selection = 0;
   const db = {
-    select: vi.fn(() => ({ from: () => ({ where: () => queryResult(selection++ === 0 ? [ruleRow] : [subscription]) }) })),
+    select: vi.fn(() => ({ from: () => ({ where: () => queryResult(selections[selection++] ?? []) }) })),
     insert: vi.fn(() => ({ values })),
     update,
     transaction: vi.fn(async (callback: (transaction: { update: typeof update }) => Promise<void>) => callback({ update })),
@@ -44,6 +47,18 @@ describe("scheduled reminder delivery", () => {
     await expect(dispatchScheduledReminder("task-uid-1", "https://personal-calander.example.test", new Date("2026-01-04T22:00:00.000Z"))).resolves.toMatchObject({ sent: 1, localDate: "2026-01-05", localTime: "11:00" });
     expect(fake.values).toHaveBeenCalledWith(expect.objectContaining({ reminderRuleId: "rule-daily", idempotencyKey: "rule-daily:device-1:2026-01-05:11:00", kind: "daily_plan", status: "queued" }));
     expect(mocks.sendNotification).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining("A calm planning moment"), expect.objectContaining({ TTL: 1800 }));
+  });
+
+  it("lets only the persisted project scheduler sweep enabled due rules", async () => {
+    const fake = makeDatabase({ projectSchedulerTaskUid: "project-hourly-task" });
+    mocks.getDb.mockResolvedValue(fake.db);
+    mocks.sendNotification.mockResolvedValue({ statusCode: 201 });
+
+    await expect(dispatchScheduledReminder("project-hourly-task", "https://personal-calander.example.test", new Date("2026-01-04T22:00:00.000Z"))).resolves.toMatchObject({
+      scheduler: "project",
+      inspected: 1,
+      sent: 1,
+    });
   });
 
   it("does nothing outside the scheduled local minute", async () => {

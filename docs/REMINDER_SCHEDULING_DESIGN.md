@@ -11,9 +11,9 @@ The user has approved two visible PWA reminders in the `Pacific/Auckland` IANA t
 
 ## Execution model
 
-The platform scheduler uses a **single hourly UTC trigger per enabled rule**, not a fixed UTC wall-clock schedule. On each invocation, the authenticated handler reads the reminder rule by the platform-issued task identifier and evaluates the current instant with `Intl.DateTimeFormat` in the rule’s persisted IANA timezone. This makes the user-facing schedule stable at 11:00 and 17:00 in Auckland even when the corresponding UTC hour changes.
+The platform scheduler uses **one project-owned hourly UTC trigger** for the deployed application, not a fixed UTC wall-clock schedule and not one user-owned task per reminder rule. On each invocation, the authenticated handler first verifies that the platform-issued task identifier matches its durable project-scheduler record. It then evaluates only enabled daily-plan and weekly-review rules with `Intl.DateTimeFormat` in their persisted IANA timezones. This makes the user-facing schedule stable at 11:00 and 17:00 in Auckland even when the corresponding UTC hour changes.
 
-The scheduled callback contains no trusted business input. It authenticates the platform caller, reads the immutable scheduler task identifier supplied by that identity, and loads exactly one reminder rule by its stored `scheduleCronTaskUid`. A missing, paused, disabled, or not-yet-due rule produces a successful no-op response rather than a retryable failure.
+The scheduled callback contains no trusted business input. It authenticates the platform caller and reads the immutable task identifier supplied by that identity. An unknown or historical task identifier is an orphaned successful no-op; it cannot trigger a cross-workspace sweep. A valid project task can inspect enabled rules only, and a paused, disabled, or not-yet-due rule produces a successful no-op response rather than a retryable failure.
 
 ## Idempotency and delivery lifecycle
 
@@ -23,10 +23,10 @@ The server signs the payload with the server-only VAPID credentials, records a s
 
 ## User control and deployment sequence
 
-The reminder rule interface exposes the local timezone, cadence, enabled state, and pause/resume behavior. Changing the local schedule updates the persisted rule and its hourly callback configuration. Disabling a rule pauses its scheduling task; disabling a device removes that browser subscription without changing reminder rules for another device.
+The reminder rule interface exposes the local timezone, cadence, enabled state, and pause/resume behavior. Activating the approved cadence persists and enables the two rules without relying on an anonymous browser session cookie. Pausing disables the two rules; the project-owned hourly trigger remains in place but finds no enabled work. Disabling a device removes that browser subscription without changing reminder rules for another device.
 
-> The callback code and schema migration must be deployed before any scheduling task is created. After the production version is verified, the application will create the two approved hourly callbacks and persist their returned task identifiers. Actual installed-iPhone delivery remains a manual final verification step.
+> The callback code and scheduler-registry migration must be deployed before the single project-owned scheduling task is created and recorded. A prior browser activation attempt failed before creating a task because that design attempted to provision user-owned tasks from an anonymous PWA session. The replacement preserves the approved cadence and removes that fragile dependency. Actual installed-iPhone automatic delivery remains a final verification step.
 
 ## Validation contract
 
-The automated suite covers daily and weekly local-time matching in both Auckland daylight-saving and standard-time periods. Additional service and route tests must cover rule ownership, disabled/no-op behavior, duplicate reservation, provider expiration, and payload safety. Live validation must prove enable, visible manual test, automatic scheduled delivery, pause, and re-enable on the user’s installed PWA.
+The automated suite covers daily and weekly local-time matching in both Auckland daylight-saving and standard-time periods. Additional service and route tests cover project-task ownership, session-independent activation, disabled/no-op behavior, duplicate reservation, provider expiration, and payload safety. Live validation must prove enable, visible manual test, automatic scheduled delivery, pause, and re-enable on the user’s installed PWA.
