@@ -164,6 +164,7 @@ export const tasks = mysqlTable(
     recurrenceRule: json("recurrenceRule"),
     recurrenceAnchor: mysqlEnum("recurrenceAnchor", ["scheduled", "completion"]),
     recurrenceUntilLocalDate: varchar("recurrenceUntilLocalDate", { length: 10 }),
+    clientRequestId: varchar("clientRequestId", { length: 64 }),
     completedAt: timestamp("completedAt"),
     archivedAt: timestamp("archivedAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -177,6 +178,7 @@ export const tasks = mysqlTable(
     index("tasks_parent_idx").on(table.parentTaskId),
     index("tasks_project_idx").on(table.projectId),
     index("tasks_goal_idx").on(table.goalId),
+    uniqueIndex("tasks_workspace_client_request_unique").on(table.workspaceId, table.clientRequestId),
   ]
 );
 

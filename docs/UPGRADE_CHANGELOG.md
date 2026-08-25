@@ -70,6 +70,12 @@ The planner now adapts its navigation for an installed iPhone PWA: the desktop r
 
 The Calendar keeps its seven-day task grid legible by retaining horizontal phone scrolling and adding an explicit swipe cue; Habits remains the dedicated habit-calendar surface. A route audit confirmed that all core areas expose concrete controls rather than display-only buttons. A shared mobile-navigation contract now guards the six-destination order with focused automated coverage. The release passed TypeScript, a **51-test / 12-file** Vitest suite, the production client build, desktop and iPhone-width rendering checks, and the interface detector. Reminder automation remains deliberately deferred; the existing connected-device and saved-cadence experience was not altered.
 
+## Offline capture and focused Today rescheduling
+
+Quick capture now works through a conservative offline-first path. After the app has been opened, its service worker retains the planner shell for an offline return; task API responses are never cached. If a quick task is captured while disconnected, the app clearly keeps it on the current device, displays that pending state in Today, and replays it only once a connection returns. Each replay carries a client capture ID backed by a database uniqueness constraint, so retries after uncertain network failures do not create duplicate tasks.
+
+Today also gains a deliberate nearby-day planning gesture: swipe a task left or right, or use its accessible previous/next controls, to move its **planned** date by one local day. It does not alter the due date, goal, habit, calendar boundary, connected iPhone, reminder cadence, or paused automation work. The enhancement passed TypeScript, the production build, the interface detector, and a **54-test / 13-file** suite with dedicated offline-queue and router-contract coverage.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

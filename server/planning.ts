@@ -190,8 +190,20 @@ export async function archiveProject(scope: PlannerScope, input: { id: string; e
 
 export async function createTask(scope: PlannerScope, input: Omit<typeof tasks.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
+  if (input.clientRequestId) {
+    const existing = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.clientRequestId, input.clientRequestId))).limit(1))[0];
+    if (existing) return existing;
+  }
   const id = nanoid();
-  await db.insert(tasks).values({ id, workspaceId: scope.workspaceId, ...input });
+  try {
+    await db.insert(tasks).values({ id, workspaceId: scope.workspaceId, ...input });
+  } catch (error) {
+    if (input.clientRequestId) {
+      const existing = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.clientRequestId, input.clientRequestId))).limit(1))[0];
+      if (existing) return existing;
+    }
+    throw error;
+  }
   return (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, id))).limit(1))[0]!;
 }
 

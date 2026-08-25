@@ -151,3 +151,6 @@
 - [x] Audit each core planner route at iPhone width for reachable navigation, clipped controls, touch-target sizing, readable hierarchy, and avoidable cognitive load.
 - [x] Implement the prioritized phone-first navigation, layout, and control refinements without changing task, goal, habit, or reminder data behavior.
 - [x] Add focused automated coverage for extracted mobile presentation rules and validate the final responsive experience at phone and desktop breakpoints.
+- [x] Define and implement offline-first quick task capture with durable local retry, duplicate protection, and honest pending/error status.
+- [x] Add a focused Today reschedule gesture that moves one task to a nearby local planning date without changing reminder automation.
+- [x] Add automated coverage and responsive verification for offline capture recovery and the Today reschedule interaction, then document and release the enhancement.

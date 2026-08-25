@@ -27,6 +27,21 @@ describe("planner task API", () => {
     })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("accepts a stable offline capture id and a version-safe nearby-day reschedule through the task contract", async () => {
+    const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-offline-1", version: 1 } as never);
+    const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-offline-1", version: 2, scheduledLocalDate: "2026-08-26" } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
+
+    await expect(caller.planner.task.create({ ...scope, title: "Offline capture", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0, scheduledLocalDate: "2026-08-25", clientRequestId: "capture-000001" })).resolves.toMatchObject({ id: "task-offline-1" });
+    await expect(caller.planner.task.update({ ...scope, id: "task-offline-1", expectedVersion: 1, patch: { scheduledLocalDate: "2026-08-26" } })).resolves.toMatchObject({ version: 2, scheduledLocalDate: "2026-08-26" });
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining(scope), expect.objectContaining({ clientRequestId: "capture-000001", scheduledLocalDate: "2026-08-25" }));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining(scope), expect.objectContaining({ id: "task-offline-1", expectedVersion: 1, patch: { scheduledLocalDate: "2026-08-26" } }));
+    create.mockRestore();
+    update.mockRestore();
+  });
+
   it("validates the habit undo and skipped-state contracts before persistence", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", habitId: "habit-api-check" };

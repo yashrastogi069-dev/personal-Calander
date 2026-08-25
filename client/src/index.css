@@ -399,3 +399,17 @@ html, body { background:#e8ecea; color:#182420; }
   .review-intro p, .review-steps p { font-size:13px; line-height:1.55; }
   .review-workbench .review-ritual textarea { min-height:96px; font-size:12px; }
 }
+
+.task-row.is-reschedulable { grid-template-columns:auto minmax(0,1fr) auto auto auto; touch-action:pan-y; }
+.task-row-reschedule { display:flex; align-items:center; gap:1px; padding-left:2px; border-left:1px solid rgba(198,240,106,.16); }
+.task-row-reschedule button { display:grid; place-items:center; width:28px; height:28px; padding:0; color:#aeb9a8; border:0; border-radius:7px; background:transparent; transition:color 140ms var(--ease-out), background 140ms var(--ease-out), transform 140ms var(--ease-out); }
+.task-row-reschedule button:hover { color:#dff3b0; background:rgba(198,240,106,.1); }.task-row-reschedule button:active { transform:scale(.94); }
+.today-reschedule-hint, .today-reschedule-status { margin:0 20px 12px; color:#83907e; font-size:10px; line-height:1.45; }
+.today-reschedule-status { color:#c6f06a; }
+.offline-capture-indicator { margin:0 20px 12px; padding:8px 10px; color:#d9eab6; border:1px solid rgba(198,240,106,.22); border-radius:8px; background:rgba(198,240,106,.055); font-size:10px; line-height:1.45; }
+@media (max-width:680px) {
+  .task-row.is-reschedulable { gap:7px; padding-block:10px; }
+  .task-row-reschedule button { width:36px; height:36px; }
+  .today-reschedule-hint, .today-reschedule-status { margin-inline:15px; font-size:11px; }
+  .offline-capture-indicator { margin-inline:15px; font-size:11px; }
+}

@@ -1,5 +1,33 @@
-self.addEventListener("install", () => self.skipWaiting());
+const appShellCache = "personal-calander-shell-v1";
+
+self.addEventListener("install", event => {
+  event.waitUntil(caches.open(appShellCache).then(cache => cache.add("/")).catch(() => undefined));
+  self.skipWaiting();
+});
 self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
+
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+
+  if (request.mode === "navigate") {
+    event.respondWith(fetch(request).then(response => {
+      const copy = response.clone();
+      void caches.open(appShellCache).then(cache => cache.put("/", copy));
+      return response;
+    }).catch(async () => (await caches.match("/")) || Response.error()));
+    return;
+  }
+
+  event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
+    if (response.ok) {
+      const copy = response.clone();
+      void caches.open(appShellCache).then(cache => cache.put(request, copy));
+    }
+    return response;
+  })));
+});
 
 self.addEventListener("push", event => {
   let payload = { title: "Personal Calander", body: "You have a planning reminder.", url: "/", kind: "reminder" };

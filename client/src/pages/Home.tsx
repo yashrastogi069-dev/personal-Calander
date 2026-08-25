@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getReminderDevicePresentation } from "@/lib/reminderDevicePresentation";
+import { capturesForWorkspace, createOfflineTaskCapture, isRetryableCaptureError, queueOfflineTaskCapture, removeOfflineTaskCapture } from "@/lib/offlineTaskCapture";
 import { displayLocalDate, getWorkspaceScope, localDateInTimezone, shiftLocalDate, type WorkspaceScope } from "@/lib/workspace";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
@@ -34,8 +35,9 @@ import {
   TimerReset,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import { toast } from "sonner";
 
 type Surface = MobilePlannerDestination;
 type ComposerKind = "task" | "goal" | "project" | "habit";
@@ -49,6 +51,12 @@ const navItems: { id: Surface; label: string; icon: typeof Grid2X2 }[] = [
   { id: "habits", label: "Habits", icon: TimerReset },
   { id: "review", label: "Review", icon: Sparkles },
 ];
+
+const offlineCaptureChangedEvent = "personal-calander:offline-capture-queue-changed";
+
+function announceOfflineCaptureChange() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(offlineCaptureChangedEvent));
+}
 
 const priorityMeta = {
   none: { label: "No priority", className: "text-stone-400" },
@@ -85,7 +93,7 @@ function TaskCheck({ checked, onClick, label }: { checked: boolean; onClick: () 
   return <button className={cn("task-check", checked && "is-checked")} onClick={onClick} aria-label={`${checked ? "Reopen" : "Complete"} ${label}`}><Check size={12} strokeWidth={3} /></button>;
 }
 
-function TaskRow({ task, categoryColor, onToggle, onSchedule }: { task: any; categoryColor?: string; onToggle: (task: any) => void; onSchedule?: (task: any, date: string) => void }) {
+function TaskRow({ task, categoryColor, onToggle, onSchedule, onQuickReschedule }: { task: any; categoryColor?: string; onToggle: (task: any) => void; onSchedule?: (task: any, date: string) => void; onQuickReschedule?: (task: any, amount: number) => void }) {
   const completed = task.state === "completed";
   const priority = priorityMeta[task.priority as keyof typeof priorityMeta] ?? priorityMeta.none;
   const [editorOpen, setEditorOpen] = useState(false);
@@ -97,6 +105,7 @@ function TaskRow({ task, categoryColor, onToggle, onSchedule }: { task: any; cat
   const [recurrenceFrequency, setRecurrenceFrequency] = useState("none");
   const [recurrenceInterval, setRecurrenceInterval] = useState("1");
   const [recurrenceUntil, setRecurrenceUntil] = useState("");
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const scope = useMemo(() => getWorkspaceScope(), []);
   const utils = trpc.useUtils();
   const saveTask = trpc.planner.task.update.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); setEditorOpen(false); } });
@@ -106,10 +115,21 @@ function TaskRow({ task, categoryColor, onToggle, onSchedule }: { task: any; cat
   const submit = (event: FormEvent) => { event.preventDefault(); if (!title.trim()) return; const recurrenceRule = recurrenceFrequency === "none" ? null : { frequency: recurrenceFrequency, interval: Math.max(1, Number(recurrenceInterval) || 1) }; saveTask.mutate({ ...scope, id: task.id, expectedVersion: task.version, patch: { title: title.trim(), dueLocalDate: dueLocalDate || null, scheduledLocalDate: scheduledLocalDate || null, estimateMinutes: estimateMinutes ? Number(estimateMinutes) : null, state, recurrenceRule, recurrenceAnchor: recurrenceRule ? "scheduled" : null, recurrenceUntilLocalDate: recurrenceRule ? recurrenceUntil || null : null } }); };
   const addSubtask = () => { const subtaskTitle = window.prompt(`Add a subtask beneath “${task.title}”`); if (!subtaskTitle?.trim()) return; createSubtask.mutate({ ...scope, title: subtaskTitle.trim(), parentTaskId: task.id, goalId: task.goalId, projectId: task.projectId, categoryId: task.categoryId, state: "not_started", priority: task.priority, horizon: task.horizon, sortOrder: task.sortOrder + 1 }); };
 
-  return <><article className={cn("task-row", completed && "is-complete")} draggable={!completed && Boolean(onSchedule)} onDragStart={event => event.dataTransfer.setData("text/plain", task.id)}>
+  const recordPointerStart = (event: React.PointerEvent<HTMLElement>) => { if (onQuickReschedule) pointerStart.current = { x: event.clientX, y: event.clientY }; };
+  const resolveSwipe = (event: React.PointerEvent<HTMLElement>) => {
+    const start = pointerStart.current;
+    pointerStart.current = null;
+    if (!start || !onQuickReschedule) return;
+    const horizontal = event.clientX - start.x;
+    const vertical = event.clientY - start.y;
+    if (Math.abs(horizontal) < 52 || Math.abs(horizontal) < Math.abs(vertical) * 1.35) return;
+    onQuickReschedule(task, horizontal < 0 ? 1 : -1);
+  };
+  return <><article className={cn("task-row", completed && "is-complete", onQuickReschedule && "is-reschedulable")} draggable={!completed && Boolean(onSchedule)} onDragStart={event => event.dataTransfer.setData("text/plain", task.id)} onPointerDown={recordPointerStart} onPointerUp={resolveSwipe}>
     <TaskCheck checked={completed} label={task.title} onClick={() => onToggle(task)} />
     <div className="task-row-main"><p className="task-row-title">{task.title}</p><div className="task-row-meta">{categoryColor ? <span className="category-dot" style={{ backgroundColor: categoryColor }} /> : null}{task.dueLocalDate ? <span>{task.dueLocalDate}</span> : <span>Unscheduled</span>}{task.estimateMinutes ? <span>{task.estimateMinutes}m</span> : null}{task.state === "blocked" ? <span className="blocked-mark">Blocked</span> : null}</div></div>
     <Tooltip><TooltipTrigger asChild><button className="task-priority" aria-label={`${priority.label} priority`}><Flag size={14} className={priority.className} /></button></TooltipTrigger><TooltipContent>{priority.label} priority</TooltipContent></Tooltip>
+    {onQuickReschedule ? <div className="task-row-reschedule" aria-label={`Move ${task.title} to a nearby day`}><button type="button" aria-label={`Plan ${task.title} for yesterday`} onClick={() => onQuickReschedule(task, -1)}><ChevronLeft size={15} /></button><button type="button" aria-label={`Plan ${task.title} for tomorrow`} onClick={() => onQuickReschedule(task, 1)}><ChevronRight size={15} /></button></div> : null}
     <div className="task-row-actions"><button className="icon-quiet" aria-label={`Add a subtask to ${task.title}`} onClick={addSubtask}><Plus size={15} /></button><button className="icon-quiet" aria-label={`Edit ${task.title}`} onClick={() => setEditorOpen(true)}><MoreHorizontal size={17} /></button></div>
   </article><Dialog open={editorOpen} onOpenChange={setEditorOpen}><DialogContent className="composer-dialog small-dialog"><DialogHeader><DialogTitle>Refine the commitment</DialogTitle><DialogDescription>Dates, time intent, and recurrence each carry a different planning meaning.</DialogDescription></DialogHeader><form className="composer-form" onSubmit={submit}><div className="field"><Label htmlFor={`task-title-${task.id}`}>Task</Label><Input id={`task-title-${task.id}`} value={title} onChange={event => setTitle(event.target.value)} /></div><div className="field"><Label>State</Label><Select value={state} onValueChange={setState}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["not_started", "in_progress", "blocked", "completed", "archived"].map(value => <SelectItem key={value} value={value}>{value.replace("_", " ")}</SelectItem>)}</SelectContent></Select></div><div className="field-grid"><div className="field"><Label htmlFor={`task-due-${task.id}`}>Due date</Label><Input id={`task-due-${task.id}`} type="date" value={dueLocalDate} onChange={event => setDueLocalDate(event.target.value)} /></div><div className="field"><Label htmlFor={`task-plan-${task.id}`}>Planned date</Label><Input id={`task-plan-${task.id}`} type="date" value={scheduledLocalDate} onChange={event => setScheduledLocalDate(event.target.value)} /></div></div><div className="field"><Label htmlFor={`task-estimate-${task.id}`}>Estimate in minutes</Label><Input id={`task-estimate-${task.id}`} type="number" min="0" max="1440" value={estimateMinutes} onChange={event => setEstimateMinutes(event.target.value)} /></div><div className="recurrence-fields"><div className="field"><Label>Repeat</Label><Select value={recurrenceFrequency} onValueChange={setRecurrenceFrequency}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Does not repeat</SelectItem><SelectItem value="daily">Daily</SelectItem><SelectItem value="weekly">Weekly</SelectItem><SelectItem value="monthly">Monthly</SelectItem></SelectContent></Select></div>{recurrenceFrequency !== "none" ? <><div className="field"><Label htmlFor={`task-recurrence-interval-${task.id}`}>Every</Label><Input id={`task-recurrence-interval-${task.id}`} type="number" min="1" max="365" value={recurrenceInterval} onChange={event => setRecurrenceInterval(event.target.value)} /></div><div className="field"><Label htmlFor={`task-recurrence-until-${task.id}`}>Stop after</Label><Input id={`task-recurrence-until-${task.id}`} type="date" value={recurrenceUntil} onChange={event => setRecurrenceUntil(event.target.value)} /></div><p className="recurrence-help">Occurrences use the planned date when set; otherwise, they follow the due date.</p></> : null}</div><div className="composer-submit"><Button type="button" variant="ghost" onClick={() => setEditorOpen(false)}>Cancel</Button><Button type="submit" className="primary-action" disabled={saveTask.isPending}>{saveTask.isPending ? "Saving…" : "Save changes"}</Button></div></form></DialogContent></Dialog></>;
 }
@@ -329,12 +349,27 @@ function OccurrencePanel() {
 
 function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; categories: any[]; onToggle: (task: any) => void; onCompose: () => void }) {
   const categoryColors = new Map(categories.map(category => [category.id, category.color]));
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [rescheduleMessage, setRescheduleMessage] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+  const reschedule = trpc.planner.task.update.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
+  const quickReschedule = (task: any, amount: number) => {
+    const nextDate = shiftLocalDate(localDateInTimezone(scope.timezone), amount);
+    setRescheduleMessage(`Planning “${task.title}” for ${displayLocalDate(nextDate, scope.timezone, { weekday: "short", month: "short", day: "numeric" })}…`);
+    reschedule.mutate({ ...scope, id: task.id, expectedVersion: task.version, patch: { scheduledLocalDate: nextDate } }, {
+      onSuccess: () => setRescheduleMessage(`Planned “${task.title}” for ${displayLocalDate(nextDate, scope.timezone, { weekday: "short", month: "short", day: "numeric" })}.`),
+      onError: error => setRescheduleMessage(error.message),
+    });
+  };
   return (
     <section className="focus-panel" aria-labelledby="focus-heading">
       <div className="panel-heading"><div><span className="eyebrow">Immediate focus</span><h2 id="focus-heading">Today’s commitment</h2></div><span className="panel-count">{tasks.filter(task => task.state !== "completed").length} open</span></div>
       <div className="focus-list">
-        {tasks.length ? tasks.map(task => <TaskRow key={task.id} task={task} categoryColor={categoryColors.get(task.categoryId)} onToggle={onToggle} />) : <EmptyState title="Begin with one honest commitment" detail="Capture a task, then decide whether it belongs in today." action={onCompose} />}
+        {tasks.length ? tasks.map(task => <TaskRow key={task.id} task={task} categoryColor={categoryColors.get(task.categoryId)} onToggle={onToggle} onQuickReschedule={quickReschedule} />) : <EmptyState title="Begin with one honest commitment" detail="Capture a task, then decide whether it belongs in today." action={onCompose} />}
       </div>
+      {tasks.length ? <p className="today-reschedule-hint">Swipe a task left or right to plan it for yesterday or tomorrow.</p> : null}
+      {rescheduleMessage ? <p className="today-reschedule-status" role="status">{rescheduleMessage}</p> : null}
+      <OfflineCaptureIndicator />
       <DailyCompass />
       <TaskTriagePanel />
       <RecurringWorkControl />
@@ -346,6 +381,19 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
       <AICompanion />
     </section>
   );
+}
+
+function OfflineCaptureIndicator() {
+  const scope = useMemo(() => getWorkspaceScope(), []);
+  const [queued, setQueued] = useState(() => capturesForWorkspace(scope.workspaceId).length);
+  useEffect(() => {
+    const refresh = () => setQueued(capturesForWorkspace(scope.workspaceId).length);
+    window.addEventListener(offlineCaptureChangedEvent, refresh);
+    window.addEventListener("online", refresh);
+    return () => { window.removeEventListener(offlineCaptureChangedEvent, refresh); window.removeEventListener("online", refresh); };
+  }, [scope.workspaceId]);
+  if (!queued) return null;
+  return <p className="offline-capture-indicator" role="status">{queued} capture{queued === 1 ? "" : "s"} saved on this device and waiting for a connection.</p>;
 }
 
 function Timeline({ tasks, selectedDate, onDrop, onMoveDay }: { tasks: any[]; selectedDate: string; onDrop: (id: string, localDate: string) => void; onMoveDay: (amount: number) => void }) {
@@ -565,6 +613,7 @@ export default function Home() {
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [quickTitle, setQuickTitle] = useState("");
+  const [offlineCaptureCount, setOfflineCaptureCount] = useState(() => capturesForWorkspace(scope.workspaceId).length);
   const [taskSearch, setTaskSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState<"all" | "today" | "overdue">("all");
   const workspaceEnsured = useRef(false);
@@ -602,12 +651,57 @@ export default function Home() {
   }, []);
   const focusTaskSearch = () => { setSurface("tasks"); window.setTimeout(() => document.querySelector<HTMLInputElement>("[data-task-search]")?.focus(), 0); };
   const invalidatePlan = () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); };
+  const refreshOfflineCaptureCount = useCallback(() => { setOfflineCaptureCount(capturesForWorkspace(scope.workspaceId).length); announceOfflineCaptureChange(); }, [scope.workspaceId]);
+  const replayOfflineCaptures = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    const captures = capturesForWorkspace(scope.workspaceId);
+    if (!captures.length) return;
+    let synced = 0;
+    for (const capture of captures) {
+      try {
+        await createTask.mutateAsync({ workspaceId: capture.workspaceId, timezone: capture.timezone, title: capture.title, scheduledLocalDate: capture.scheduledLocalDate, state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0, clientRequestId: capture.id });
+        removeOfflineTaskCapture(capture.id);
+        synced += 1;
+      } catch (error) {
+        if (!isRetryableCaptureError(error)) toast.error("A saved capture needs attention. Reopen it online and add it from the task composer.");
+        break;
+      }
+    }
+    refreshOfflineCaptureCount();
+    if (synced) {
+      toast.success(`${synced} saved capture${synced === 1 ? "" : "s"} added to Today.`);
+      invalidatePlan();
+    }
+  }, [createTask, invalidatePlan, refreshOfflineCaptureCount, scope.workspaceId]);
+  useEffect(() => {
+    void replayOfflineCaptures();
+    const onOnline = () => { void replayOfflineCaptures(); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [replayOfflineCaptures]);
   const recordHabitCheckIn = (habitId: string, localDate: string, state: "completed" | "skipped") => { setHabitActionError(null); setLastHabitAction({ kind: "checkIn", habitId, localDate, state }); habitCheckIn.mutate({ ...scope, habitId, localDate, state }); };
   const undoHabitCheckIn = (habitId: string, localDate: string) => { setHabitActionError(null); setLastHabitAction({ kind: "clear", habitId, localDate }); clearHabitCheckIn.mutate({ ...scope, habitId, localDate }); };
   const retryHabitAction = () => { if (!lastHabitAction) return; if (lastHabitAction.kind === "checkIn") recordHabitCheckIn(lastHabitAction.habitId, lastHabitAction.localDate, lastHabitAction.state); else undoHabitCheckIn(lastHabitAction.habitId, lastHabitAction.localDate); };
   const toggleTask = (task: any) => updateTask.mutate({ ...scope, id: task.id, expectedVersion: task.version, patch: { state: task.state === "completed" ? "not_started" : "completed" } });
   const scheduleTask = (id: string, date: string) => { const task = activeTasks.find(item => item.id === id); if (task) updateTask.mutate({ ...scope, id: task.id, expectedVersion: task.version, patch: { scheduledLocalDate: date } }); };
-  const createQuickTask = (event: FormEvent) => { event.preventDefault(); if (!quickTitle.trim()) return; createTask.mutate({ ...scope, title: quickTitle.trim(), scheduledLocalDate: today, state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 }); setQuickTitle(""); };
+  const createQuickTask = (event: FormEvent) => {
+    event.preventDefault();
+    const title = quickTitle.trim();
+    if (!title || createTask.isPending) return;
+    const capture = createOfflineTaskCapture({ workspaceId: scope.workspaceId, timezone: scope.timezone, title, scheduledLocalDate: today });
+    setQuickTitle("");
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      if (queueOfflineTaskCapture(capture)) { refreshOfflineCaptureCount(); toast.message("Saved on this device. It will be added to Today when you are online."); }
+      else toast.error("This device could not save the capture locally. Reconnect and try again.");
+      return;
+    }
+    void createTask.mutateAsync({ ...scope, title, scheduledLocalDate: today, state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0, clientRequestId: capture.id })
+      .then(() => toast.success("Added to Today."))
+      .catch(error => {
+        if (isRetryableCaptureError(error) && queueOfflineTaskCapture(capture)) { refreshOfflineCaptureCount(); toast.message("Saved on this device. It will retry when you are online."); return; }
+        toast.error(error instanceof Error ? error.message : "This capture could not be saved. Try again when connected.");
+      });
+  };
   const createFromComposer = (values: { title: string; categoryId: string | null; goalId: string | null; parentGoalId: string | null; goalHorizon: "monthly" | "quarterly" | "yearly"; dueLocalDate: string | null; estimateMinutes: number | null; recurrenceRule: Record<string, unknown> | null; recurrenceUntilLocalDate: string | null; habitFrequency: "daily" | "days_of_week" | "interval" | null; habitSchedule: Record<string, unknown> | null }) => {
     if (composerKind === "task") createTask.mutate({ ...scope, title: values.title, categoryId: values.categoryId, goalId: values.goalId, dueLocalDate: values.dueLocalDate, estimateMinutes: values.estimateMinutes, state: "not_started", priority: "medium", horizon: "weekly", sortOrder: 0, recurrenceRule: values.recurrenceRule, recurrenceAnchor: values.recurrenceRule ? "scheduled" : null, recurrenceUntilLocalDate: values.recurrenceUntilLocalDate });
     if (composerKind === "goal") createGoal.mutate({ ...scope, title: values.title, categoryId: values.categoryId, parentGoalId: values.parentGoalId, dueLocalDate: values.dueLocalDate, state: "not_started", priority: "medium", horizon: values.goalHorizon, progressMode: "task", progressValue: 0, targetValue: 100 });
