@@ -122,3 +122,8 @@
 - [ ] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
 - [ ] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.
 - [ ] Resolve the Vercel alias serving the prior client artifact despite the successful GitHub deployment status, then verify the published reminder-control recovery marker.
+- [ ] Verify the user-confirmed manual Vercel redeploy serves the repaired reminder-control client artifact before issuing iPhone retry instructions.
+- [ ] Verify the immutable `personal-calander-dz1qdn8qw-yashnew869-2746s-projects.vercel.app` production artifact contains the reminder-control repair and reconcile any alias inconsistency.
+- [ ] Inspect the d310e4b Vercel production artifact and deployment configuration through the connected browser before issuing iPhone retry instructions.
+- [ ] Add and verify a public machine-readable release marker for the repaired reminder-control artifact without additional dashboard interaction.
+- [ ] Add a machine-verifiable public release marker for the repaired reminder artifact and verify that it reaches Vercel production.

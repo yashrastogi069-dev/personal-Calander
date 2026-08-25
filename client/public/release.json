@@ -1,0 +1,9 @@
+{
+  "release": "reminder-control-recovery-2026-08-25",
+  "commit": "d310e4b",
+  "features": [
+    "bounded-notification-permission-feedback",
+    "push-subscription-recovery",
+    "home-screen-abort-guidance"
+  ]
+}
