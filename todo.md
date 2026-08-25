@@ -119,3 +119,5 @@
 - [x] Validate and document scheduler retry, duplicate, disabled-device, expired-device, and daylight-saving behavior before creating production schedules.
 - [ ] Browser-test the Horizon Compass and milestone controls interactively, including persisted create/edit behavior and visible analytics states, then document the evidence.
 - [ ] Browser-test the exact-current-device reminder flow: enable, manual test request, pause, disable, re-enable, and document the real-iPhone delivery boundary.
+- [ ] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
+- [ ] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.

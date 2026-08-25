@@ -219,6 +219,7 @@ function BrowserNotificationControl() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => typeof Notification === "undefined" || !navigator.serviceWorker ? "unsupported" : Notification.permission);
   const [message, setMessage] = useState<string | null>(null);
   const [currentEndpoint, setCurrentEndpoint] = useState<string | null>(null);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
   const devices = trpc.planner.notification.devices.useQuery(scope);
   const currentDeviceQuery = trpc.planner.notification.currentDevice.useQuery({ ...scope, endpoint: currentEndpoint ?? "https://placeholder.invalid/personal-calander" }, { enabled: Boolean(currentEndpoint) });
   const enableDevice = trpc.planner.notification.enableDevice.useMutation({ onSuccess: () => { setMessage("This device is ready for visible planning reminders."); utils.planner.notification.devices.invalidate(); utils.planner.notification.currentDevice.invalidate(); } });
@@ -234,17 +235,47 @@ function BrowserNotificationControl() {
     await enableDevice.mutateAsync({ ...scope, subscription: { endpoint: subscription.endpoint, keys: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth }, deviceLabel: "This device", userAgent: navigator.userAgent } });
   };
   const enable = async () => {
-    if (typeof Notification === "undefined" || !navigator.serviceWorker || !import.meta.env.VITE_VAPID_PUBLIC_KEY) { setPermission("unsupported"); return; }
+    if (typeof Notification === "undefined" || !navigator.serviceWorker || !window.PushManager || !import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+      setPermission("unsupported");
+      setMessage("This browser cannot enroll for web push. On iPhone, open the installed Home Screen app in Safari and try again.");
+      return;
+    }
     try {
-      const nextPermission = await Notification.requestPermission();
+      setIsRequestingPermission(true);
+      setMessage("Waiting for the notification permission choice…");
+      const nextPermission: NotificationPermission | "timeout" = await Promise.race([
+        Notification.requestPermission() as Promise<NotificationPermission>,
+        new Promise<"timeout">(resolve => window.setTimeout(() => resolve("timeout"), 8_000)),
+      ]);
+      if (nextPermission === "timeout") {
+        setMessage("No permission response arrived. On iPhone, open the Home Screen app, keep it in front, and tap this button again.");
+        return;
+      }
       setPermission(nextPermission);
-      if (nextPermission !== "granted") return;
+      if (nextPermission === "default") {
+        setMessage("iOS did not show a permission choice. Open Personal Calander from its Home Screen icon, then tap this button again.");
+        return;
+      }
+      if (nextPermission === "denied") {
+        setMessage("Notifications are blocked for this app. Re-enable them in iPhone Settings, then return here and try again.");
+        return;
+      }
       const registration = await navigator.serviceWorker.ready;
-      const existing = await registration.pushManager.getSubscription();
+      let existing: PushSubscription | null = null;
+      try {
+        existing = await registration.pushManager.getSubscription();
+      } catch {
+        setMessage("No current subscription could be read. Requesting a fresh reminder connection now…");
+      }
       const subscription = existing ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKeyToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY) });
       await registerSubscription(subscription.toJSON());
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "This device could not be enabled for reminders.");
+      const failure = error as { name?: string; message?: string };
+      setMessage(failure?.name === "AbortError"
+        ? "This browser could not create a Push API subscription. On iPhone, open Personal Calander from its Home Screen icon (not a normal browser tab), then try again."
+        : failure?.message || "This device could not be enabled for reminders.");
+    } finally {
+      setIsRequestingPermission(false);
     }
   };
   const disable = async () => {
@@ -276,9 +307,9 @@ function BrowserNotificationControl() {
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, []);
-  const copy = permission === "unsupported" ? "This browser does not support the installed-app reminder path." : permission === "denied" ? "Notifications are blocked. Re-enable them in this site’s browser settings before connecting this device." : currentDevice ? "This exact device is registered for visible planning reminders. Send a test before enabling a cadence." : "Enable only on a device where you want planning reminders. You can disconnect it at any time.";
+  const copy = permission === "unsupported" ? "This browser does not support the installed-app reminder path. Use the Home Screen app on iPhone." : permission === "denied" ? "Notifications are blocked. Re-enable them in iPhone Settings, then return to connect this device." : currentDevice ? "This exact device is registered for visible planning reminders. Send a test before enabling a cadence." : "Connect this installed device first. The daily and weekly schedule stays disabled until a device is safely enrolled.";
   const cadenceEnabled = (reminderRules.data ?? []).length === 2 && (reminderRules.data ?? []).every(rule => rule.isEnabled === 1);
-  return <div className="notification-control"><span>Phone reminders</span><p>{copy}</p>{permission !== "granted" || !currentDevice ? <Button type="button" variant="ghost" onClick={enable} disabled={enableDevice.isPending || currentDeviceQuery.isLoading}>{enableDevice.isPending || currentDeviceQuery.isLoading ? "Connecting…" : permission === "denied" ? "Permission blocked" : "Enable reminders on this device"}</Button> : <div className="calendar-feed-actions"><Button type="button" variant="ghost" onClick={() => testDevice.mutate({ ...scope, subscriptionId: currentDevice.id, origin: window.location.origin })} disabled={testDevice.isPending}>{testDevice.isPending ? "Sending…" : "Send test notification"}</Button><Button type="button" variant="ghost" className="danger-action" onClick={disable} disabled={disableDevice.isPending}>Disable this device</Button></div>}<div className="reminder-cadence"><div><b>Scheduled rhythm</b><p>Daily planning at 11:00 and weekly review Sunday at 17:00 in New Zealand time.</p></div>{cadenceEnabled ? <Button type="button" variant="ghost" className="danger-action" onClick={() => pauseCadence.mutate(scope)} disabled={pauseCadence.isPending}>Pause reminders</Button> : <Button type="button" variant="ghost" onClick={() => activateCadence.mutate(scope)} disabled={!currentDevice || activateCadence.isPending}>{activateCadence.isPending ? "Scheduling…" : "Enable daily + weekly"}</Button>}</div>{!currentDevice ? <p className="notification-feedback">Connect this browser first; schedules will then send only to active devices.</p> : null}{devices.data && devices.data.length > 1 ? <p className="notification-feedback">{devices.data.length - 1} other saved device{devices.data.length === 2 ? "" : "s"} remain separate; this control acts only on this browser’s subscription.</p> : null}{message ? <p className="notification-feedback" role="status">{message}</p> : null}{devices.data?.some(device => device.status === "expired") ? <p className="notification-feedback" role="alert">A previous device subscription expired. Enable reminders again on that device.</p> : null}</div>;
+  return <div className="notification-control"><span>Phone reminders</span><p>{copy}</p>{permission !== "granted" || !currentDevice ? <Button type="button" variant="ghost" onClick={enable} disabled={isRequestingPermission || enableDevice.isPending || currentDeviceQuery.isLoading}>{isRequestingPermission || enableDevice.isPending || currentDeviceQuery.isLoading ? "Connecting…" : permission === "denied" ? "Permission blocked" : "Enable reminders on this device"}</Button> : <div className="calendar-feed-actions"><Button type="button" variant="ghost" onClick={() => testDevice.mutate({ ...scope, subscriptionId: currentDevice.id, origin: window.location.origin })} disabled={testDevice.isPending}>{testDevice.isPending ? "Sending…" : "Send test notification"}</Button><Button type="button" variant="ghost" className="danger-action" onClick={disable} disabled={disableDevice.isPending}>Disable this device</Button></div>}<div className="reminder-cadence"><div><b>Scheduled rhythm</b><p>Daily planning at 11:00 and weekly review Sunday at 17:00 in New Zealand time.</p></div>{cadenceEnabled ? <Button type="button" variant="ghost" className="danger-action" onClick={() => pauseCadence.mutate(scope)} disabled={pauseCadence.isPending}>Pause reminders</Button> : <Button type="button" variant="ghost" onClick={() => activateCadence.mutate(scope)} disabled={!currentDevice || activateCadence.isPending}>{activateCadence.isPending ? "Scheduling…" : "Enable daily + weekly"}</Button>}</div>{!currentDevice ? <p className="notification-feedback">Connect this browser first; schedules will then send only to active devices.</p> : null}{devices.data && devices.data.length > 1 ? <p className="notification-feedback">{devices.data.length - 1} other saved device{devices.data.length === 2 ? "" : "s"} remain separate; this control acts only on this browser’s subscription.</p> : null}{message ? <p className="notification-feedback" role="status">{message}</p> : null}{devices.data?.some(device => device.status === "expired") ? <p className="notification-feedback" role="alert">A previous device subscription expired. Enable reminders again on that device.</p> : null}</div>;
 }
 
 function OccurrencePanel() {

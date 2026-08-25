@@ -62,6 +62,12 @@ The public alias returned `200` from `/api/health`, a typed `{ "ok": true }` res
 
 > **Operational sequence.** After modifying a Production environment variable, redeploy the latest production deployment. Vercel injects environment variables into a new deployment build; changing the value alone does not repair an already-running Function.
 
+## Long-horizon and scheduled-reminder release candidate — 2026-08-25
+
+GitHub `main` advanced from `12143e8` to checkpoint commit `5e080b6`. GitHub reported the linked Vercel deployment as successful. The public alias returned `200` with `{ "status": "ok" }` at `/api/health`, and the currently served JavaScript bundle contained the **Scheduled rhythm** marker, confirming that the published client artifact includes the Pacific/Auckland daily and weekly cadence interface even where text extraction returned cached older copy.
+
+The release includes the Vercel-bundled `/api/scheduled/reminder` callback, but the two actual scheduler jobs have deliberately not been created yet. They must be created from the user’s own planner workspace after its installed PWA registers a device subscription; the callback then resolves each persisted reminder rule by the platform-issued task identifier. This maintains workspace and device scope, prevents sending reminders to a guessed anonymous workspace, and avoids claiming actual iPhone delivery before the user can observe it.
+
 ## Sources
 
 The live checks above were run directly against the public Vercel alias and immutable deployment. The implementation follows Vercel’s documented Function, Express, Vite, and rewrite models. [1] [2] [3] [4]
