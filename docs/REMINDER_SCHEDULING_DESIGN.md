@@ -29,6 +29,8 @@ The reminder rule interface exposes the local timezone, cadence, enabled state, 
 
 The first project-owned callback exposed a separate authentication integration issue: Heartbeat supplies a platform-issued cron cookie that is not signed with the app’s local browser-session secret. The callback now resolves an otherwise-unverifiable cookie through the authoritative identity endpoint and accepts it only when it identifies a `cron_` actor with a platform-bound task UID. Normal raw or foreign tokens remain rejected. The repair has a focused regression test; a successful post-repair scheduler audit remains required before automatic provider delivery is claimed.
 
+The post-repair audit completed successfully with HTTP `200`. It authenticated the project scheduler, inspected the two enabled Auckland rules, found neither due at the audit instant, and returned two safe `not_due` no-ops with no push sends. The temporary audit-modified job was then deleted and replaced with a fresh project-owned hourly job; the durable scheduler registry was updated atomically to its new task UID. Automatic provider delivery remains future-observed evidence, but the authenticated callback and safe off-schedule evaluation are now verified in production.
+
 ## Validation contract
 
 The automated suite covers daily and weekly local-time matching in both Auckland daylight-saving and standard-time periods. Additional service and route tests cover project-task ownership, session-independent activation, disabled/no-op behavior, duplicate reservation, provider expiration, and payload safety. Live validation must prove enable, visible manual test, automatic scheduled delivery, pause, and re-enable on the user’s installed PWA.

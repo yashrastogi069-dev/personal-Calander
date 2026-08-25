@@ -57,3 +57,9 @@ The dedicated Goals route also rendered the same persisted 50% milestone state a
 The top-level organizer opened with explicit **Add category**, **Archive**, and **Close** actions. This confirms the cleanup path is available without presenting a hidden destructive action on the Horizon Compass card.
 
 The subsequent attempt to open the archive section timed out, after which the available browser session became unavailable. The disposable goal and milestone remain in the isolated browser workspace until the browser becomes available again; this is tracked as unfinished cleanup rather than being represented as erased.
+
+The isolated browser session later recovered. The public workspace still contained only the disposable long-horizon verification goal and its milestone, and the top-level Categories organizer control was again available for the intended archive cleanup.
+
+The recovered organizer presented its intended explicit **Archive** management action alongside category creation and close controls. The cleanup proceeds through that archival surface rather than a hidden direct deletion.
+
+The Archive action again timed out and the browser session became unavailable before the confirmation surface could be inspected. No destructive request was confirmed, so the isolated disposable records remain tracked for cleanup rather than being treated as archived.

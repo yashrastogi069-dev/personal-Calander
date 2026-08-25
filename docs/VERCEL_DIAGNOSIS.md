@@ -70,6 +70,8 @@ The Vercel Production variables `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, an
 
 The original cadence mutation attempted to create end-user-owned Heartbeat tasks from an anonymous PWA session. That model did not activate the rules. Commit `ce56528` replaces it with one project-owned hourly callback, a durable `reminderSchedulers` task-ID registry, and rule-only enable/pause actions. The source was pushed to GitHub. Although this session’s Vercel dashboard browser is logged out, the public alias was independently verified after the r3 build: it served `index-CbWLcRyw.js`, which contains the non-sensitive `project-scheduler-r3` browser marker. The current Vercel client therefore includes the corrected cadence mutation and is ready for one installed-iPhone retry.
 
+After the iPhone retry succeeded, the first global job callback revealed a raw cron-cookie versus local browser-session mismatch. The callback authentication fallback was added, locally validated with the expanded 49-test suite, and published through the managed deployment. A subsequent project scheduler audit returned HTTP `200`, authenticated the cron identity, inspected the two enabled rules, and produced safe `not_due` zero-send results. The temporary audit schedule was removed and the durable scheduler registry now references a fresh hourly job. The Vercel UI remains the configuration surface; the authenticated callback itself runs on the managed deployed application and uses the same persisted reminder data.
+
 ## Sources
 
 The live checks above were run directly against the public Vercel alias and immutable deployment. The implementation follows Vercel’s documented Function, Express, Vite, and rewrite models. [1] [2] [3] [4]

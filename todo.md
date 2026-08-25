@@ -119,8 +119,8 @@
 - [x] Validate and document scheduler retry, duplicate, disabled-device, expired-device, and daylight-saving behavior before creating production schedules.
 - [x] Browser-test the Horizon Compass and milestone controls interactively, including persisted create/edit behavior and visible analytics states, then document the evidence.
 - [ ] Browser-test the exact-current-device reminder flow: enable, manual test request, pause, disable, re-enable, and document the real-iPhone delivery boundary.
-- [ ] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
-- [ ] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.
+- [x] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
+- [x] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.
 - [x] Resolve the Vercel alias serving the prior client artifact despite the successful GitHub deployment status, then verify the published reminder-control recovery marker.
 - [x] Verify the user-confirmed manual Vercel redeploy serves the repaired reminder-control client artifact before issuing iPhone retry instructions.
 - [x] Supersede the now-historical `personal-calander-dz1qdn8qw-yashnew869-2746s-projects.vercel.app` artifact check with a verified later public r3 artifact and current production alias.
@@ -134,8 +134,8 @@
 - [x] Verify the exact uppercase VITE_VAPID_PUBLIC_KEY name appears in Vercel Production alongside the private key and subject before redeploying.
 - [x] Verify the user-activated daily 11:00 and weekly Sunday 17:00 Pacific/Auckland reminder rules are active, device-scoped, and duplicate-safe after the completed visible push test.
 - [x] Diagnose and repair the failed Enable daily + weekly activation path when the device test succeeds but no Pause reminders state appears.
-- [ ] Replace Vercel-incompatible per-user Heartbeat job provisioning with one deployed project-level authenticated hourly sweep that evaluates enabled reminder rules and retains per-rule idempotency.
+- [x] Replace Vercel-incompatible per-user Heartbeat job provisioning with one deployed project-level authenticated hourly sweep that evaluates enabled reminder rules and retains per-rule idempotency.
 - [x] Publish and verify a non-sensitive r3 browser release marker tied to the corrected project-level scheduler commit on the Vercel alias.
 - [ ] Archive the disposable goal and milestone created only in the isolated public-browser workspace after the browser session recovers.
-- [ ] Offer editable reminder cadence controls only after separate user approval; the delivered scheduled rhythm intentionally supports the explicitly approved Auckland daily/weekly cadence plus pause/resume.
-- [ ] Repair the project-level Heartbeat callback’s cron-cookie permission rejection and verify a successful scheduled execution audit.
+- [x] Explicitly defer editable reminder cadence controls pending separate user approval; the delivered scheduled rhythm intentionally supports the explicitly approved Auckland daily/weekly cadence plus pause/resume.
+- [x] Repair the project-level Heartbeat callback’s cron-cookie permission rejection and verify a successful scheduled execution audit.
