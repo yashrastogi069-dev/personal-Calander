@@ -13,11 +13,43 @@ export type CompactTask = {
 
 export type CompactGoal = {
   id: string;
+  parentGoalId?: string | null;
+  horizon?: string;
   state: "not_started" | "in_progress" | "blocked" | "completed" | "archived";
   progressMode: "manual" | "task" | "measure" | "habit";
   progressValue: number;
   targetValue: number;
+  startLocalDate?: string | null;
   dueLocalDate: string | null;
+};
+
+export type CompactProject = {
+  id: string;
+  goalId: string | null;
+  state: "not_started" | "in_progress" | "blocked" | "completed" | "archived";
+};
+
+export type CompactHabit = {
+  id: string;
+  goalId: string | null;
+  archivedAt: Date | null;
+};
+
+export type CompactMilestone = {
+  id: string;
+  goalId: string;
+  state: "not_started" | "in_progress" | "blocked" | "completed" | "archived";
+  horizon: "monthly" | "quarterly";
+  progressValue: number;
+  targetValue: number;
+  startLocalDate?: string | null;
+  dueLocalDate: string | null;
+};
+
+export type CompactReviewSession = {
+  kind: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+  state: "not_started" | "in_progress" | "completed" | "archived";
+  periodEndLocalDate: string;
 };
 
 export type CompactHabitCheckIn = {
@@ -104,6 +136,135 @@ export function goalProgress(
   return Math.round((complete / supporting.length) * 100);
 }
 
+function daysBetween(from: string, to: string) {
+  return Math.round((new Date(`${to}T12:00:00.000Z`).getTime() - new Date(`${from}T12:00:00.000Z`).getTime()) / 86_400_000);
+}
+
+function normalizedProgress(value: number, target: number) {
+  return Math.max(0, Math.min(100, Math.round((value / Math.max(1, target)) * 100)));
+}
+
+function hierarchyGoalIds(rootGoalId: string, goals: CompactGoal[]) {
+  const childrenByParent = new Map<string, string[]>();
+  for (const goal of goals) {
+    if (!goal.parentGoalId || goal.state === "archived") continue;
+    childrenByParent.set(goal.parentGoalId, [...(childrenByParent.get(goal.parentGoalId) ?? []), goal.id]);
+  }
+  const result = new Set<string>();
+  const pending = [rootGoalId];
+  while (pending.length) {
+    const goalId = pending.pop()!;
+    if (result.has(goalId)) continue;
+    result.add(goalId);
+    pending.push(...(childrenByParent.get(goalId) ?? []));
+  }
+  return result;
+}
+
+function calculatedGoalProgress(
+  goal: CompactGoal,
+  allGoals: CompactGoal[],
+  milestones: CompactMilestone[],
+  tasks: CompactTask[],
+  projectGoalById: Map<string, string | null>,
+  visited = new Set<string>()
+): { progress: number; source: "manual" | "child_goals" | "milestones" | "execution" } {
+  if (goal.progressMode === "manual" || goal.progressMode === "measure") return { progress: normalizedProgress(goal.progressValue, goal.targetValue), source: "manual" };
+  if (visited.has(goal.id)) return { progress: goalProgress(goal, tasks, projectGoalById), source: "execution" };
+  const nextVisited = new Set(visited).add(goal.id);
+  const children = allGoals.filter(candidate => candidate.parentGoalId === goal.id && candidate.state !== "archived");
+  if (children.length) {
+    return { progress: Math.round(children.reduce((total, child) => total + calculatedGoalProgress(child, allGoals, milestones, tasks, projectGoalById, nextVisited).progress, 0) / children.length), source: "child_goals" };
+  }
+  const activeMilestones = milestones.filter(milestone => milestone.goalId === goal.id && milestone.state !== "archived");
+  if (activeMilestones.length) {
+    return { progress: Math.round(activeMilestones.reduce((total, milestone) => total + (milestone.state === "completed" ? 100 : normalizedProgress(milestone.progressValue, milestone.targetValue)), 0) / activeMilestones.length), source: "milestones" };
+  }
+  return { progress: goalProgress(goal, tasks, projectGoalById), source: "execution" };
+}
+
+function reviewFreshness(goal: CompactGoal, reviews: CompactReviewSession[], todayLocalDate: string) {
+  const horizon = goal.horizon === "monthly" || goal.horizon === "quarterly" || goal.horizon === "yearly" ? goal.horizon : null;
+  if (!horizon) return { reviewStatus: "unavailable" as const, lastReviewLocalDate: null, reviewDue: false };
+  const requirement = {
+    monthly: { kinds: ["weekly", "monthly"], cadenceDays: 35 },
+    quarterly: { kinds: ["monthly", "quarterly"], cadenceDays: 100 },
+    yearly: { kinds: ["quarterly", "yearly"], cadenceDays: 190 },
+  }[horizon];
+  const eligible = reviews.filter(review => review.state === "completed" && requirement.kinds.includes(review.kind) && review.periodEndLocalDate <= todayLocalDate).sort((left, right) => right.periodEndLocalDate.localeCompare(left.periodEndLocalDate));
+  const lastReviewLocalDate = eligible[0]?.periodEndLocalDate ?? null;
+  const reviewDue = !lastReviewLocalDate || daysBetween(lastReviewLocalDate, todayLocalDate) > requirement.cadenceDays;
+  return { reviewStatus: reviewDue ? "due" as const : "fresh" as const, lastReviewLocalDate, reviewDue };
+}
+
+export function longHorizonGoalHealth(input: {
+  goals: CompactGoal[];
+  projects: CompactProject[];
+  tasks: CompactTask[];
+  habits: CompactHabit[];
+  milestones: CompactMilestone[];
+  reviewSessions?: CompactReviewSession[];
+  projectGoalById: Map<string, string | null>;
+  todayLocalDate: string;
+}) {
+  const activeGoals = input.goals.filter(goal => goal.state !== "archived");
+  return activeGoals.map(goal => {
+    const hierarchyIds = hierarchyGoalIds(goal.id, activeGoals);
+    const childGoalCount = hierarchyIds.size - 1;
+    const calculated = calculatedGoalProgress(goal, activeGoals, input.milestones, input.tasks, input.projectGoalById);
+    const activeProjects = input.projects.filter(project => project.goalId !== null && hierarchyIds.has(project.goalId) && project.state !== "archived");
+    const activeTasks = input.tasks.filter(task => (task.goalId !== null && hierarchyIds.has(task.goalId)) || (task.projectId ? hierarchyIds.has(input.projectGoalById.get(task.projectId) ?? "") : false)).filter(task => task.state !== "archived");
+    const activeHabits = input.habits.filter(habit => habit.goalId !== null && hierarchyIds.has(habit.goalId) && !habit.archivedAt);
+    const activeMilestones = input.milestones.filter(milestone => hierarchyIds.has(milestone.goalId) && milestone.state !== "archived");
+    const futureMilestones = activeMilestones.filter(milestone => !milestone.dueLocalDate || milestone.dueLocalDate >= input.todayLocalDate);
+    const hasExecutionCoverage = activeProjects.length + activeTasks.length + activeHabits.length > 0;
+    const hasPlanEvidence = hasExecutionCoverage || activeMilestones.length > 0;
+    const hasMilestoneCoverage = activeMilestones.length > 0 || childGoalCount > 0;
+    const review = reviewFreshness(goal, input.reviewSessions ?? [], input.todayLocalDate);
+    const daysUntilDue = goal.dueLocalDate ? daysBetween(input.todayLocalDate, goal.dueLocalDate) : null;
+    const hasPaceBasis = Boolean(goal.startLocalDate && goal.dueLocalDate && daysBetween(goal.startLocalDate!, goal.dueLocalDate!) > 0);
+    const expectedProgress = hasPaceBasis
+      ? Math.max(0, Math.min(100, Math.round((daysBetween(goal.startLocalDate!, input.todayLocalDate) / daysBetween(goal.startLocalDate!, goal.dueLocalDate!)) * 100)))
+      : null;
+    const paceDelta = expectedProgress === null ? null : calculated.progress - expectedProgress;
+    const isCompleted = goal.state === "completed";
+    const isOverdue = Boolean(goal.dueLocalDate && goal.dueLocalDate < input.todayLocalDate && !isCompleted);
+    const paceStatus = paceDelta === null || isCompleted ? "unavailable" : paceDelta < -10 ? "behind" : paceDelta > 10 ? "ahead" : "on_pace";
+    const nextAction = isCompleted
+      ? "none"
+      : !hasPlanEvidence
+        ? "add_execution"
+        : isOverdue || paceStatus === "behind"
+          ? "review_plan"
+          : review.reviewDue
+            ? "review_plan"
+            : goal.dueLocalDate && !hasMilestoneCoverage
+              ? "add_milestone"
+              : "none";
+
+    return {
+      goalId: goal.id,
+      progress: calculated.progress,
+      progressSource: calculated.source,
+      expectedProgress,
+      paceDelta,
+      paceStatus,
+      daysUntilDue,
+      isOverdue,
+      hasExecutionCoverage,
+      hasMilestoneCoverage,
+      childGoalCount,
+      ...review,
+      activeProjectCount: activeProjects.length,
+      activeTaskCount: activeTasks.length,
+      activeHabitCount: activeHabits.length,
+      activeMilestoneCount: activeMilestones.length,
+      futureMilestoneCount: futureMilestones.length,
+      nextAction,
+    } as const;
+  });
+}
+
 export function currentHabitStreak(checkIns: CompactHabitCheckIn[], habitId: string, todayLocalDate: string) {
   const stateByDate = new Map(checkIns.filter(item => item.habitId === habitId).map(item => [item.localDate, item.state]));
   let cursor = todayLocalDate;
@@ -133,6 +294,10 @@ export function currentHabitStreak(checkIns: CompactHabitCheckIn[], habitId: str
 export function dashboardSummary(input: {
   tasks: CompactTask[];
   goals: CompactGoal[];
+  projects?: CompactProject[];
+  habits?: CompactHabit[];
+  milestones?: CompactMilestone[];
+  reviewSessions?: CompactReviewSession[];
   projectGoalById: Map<string, string | null>;
   categoryNames: Map<string, string>;
   habitCheckIns: CompactHabitCheckIn[];
@@ -163,6 +328,17 @@ export function dashboardSummary(input: {
       progress: goalProgress(goal, input.tasks, input.projectGoalById),
       atRisk: Boolean(goal.dueLocalDate && goal.dueLocalDate < input.todayLocalDate && goal.state !== "completed"),
     }));
+
+  const longHorizon = longHorizonGoalHealth({
+    goals: input.goals,
+    projects: input.projects ?? [],
+    tasks: input.tasks,
+    habits: input.habits ?? [],
+    milestones: input.milestones ?? [],
+    reviewSessions: input.reviewSessions ?? [],
+    projectGoalById: input.projectGoalById,
+    todayLocalDate: input.todayLocalDate,
+  });
 
   const completionTrend = localDateSequence(input.rangeStart, input.rangeEnd).map(localDate => ({
     localDate,
@@ -197,6 +373,10 @@ export function dashboardSummary(input: {
       averageBlockedAgeDays,
       estimateCoverage,
       goalsWithVisibleProgress: goalProgressItems.filter(item => item.progress > 0 && item.progress < 100).length,
+      goalsBehindPace: longHorizon.filter(item => item.paceStatus === "behind").length,
+      goalsWithoutExecution: longHorizon.filter(item => item.nextAction === "add_execution").length,
+      overdueLongHorizonGoals: longHorizon.filter(item => item.isOverdue).length,
+      goalsNeedingReview: longHorizon.filter(item => item.reviewDue).length,
     },
     workload: {
       plannedMinutes,
@@ -205,6 +385,7 @@ export function dashboardSummary(input: {
       isOverCapacity: plannedMinutes > input.capacityMinutes,
     },
     goalProgress: goalProgressItems,
+    longHorizon,
     completionTrend,
     categoryDistribution,
     streaks,

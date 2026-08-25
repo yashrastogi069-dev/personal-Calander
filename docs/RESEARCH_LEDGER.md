@@ -51,6 +51,47 @@ This ledger separates external evidence from implementation decisions. It is an 
 10. **Adopt:** Calendar feeds remain revocable capability URLs and will not include sensitive habit telemetry.
 11. **Defer:** Two-way calendar synchronization until an authenticated workspace model, provider OAuth, external event identity, and conflict resolution specification exist.
 
+## Long-horizon goals and decision analytics
+
+| Finding | Evidence | Product implication |
+|---|---|---|
+| Goal-progress monitoring has experimental evidence for improving goal attainment, but it should bridge goals into actions rather than become a passive score. | Harkin et al. synthesized 138 experiments (N=19,951) and found that monitoring interventions increased monitoring and promoted goal attainment; recorded monitoring and reported outcomes were stronger moderators.[12] | Give each monthly, quarterly, and yearly goal a visible progress measure, current pace, dated next commitment, and a review prompt. Do not present an unexplained percentage as insight. |
+| Feedback is not reliably helpful when it is vague, punitive, delayed, or lacks a path to action. | Larson et al. describe actionable feedback as timely, individualized, non-punitive, and customizable; they warn that a large gap without a bridge plan can discourage action.[13] | Analytics must explain the source of a signal and expose one proportional next action, such as planning a linked task, updating a measure, or reviewing a slipping milestone. Avoid red-score dashboards and unsupported forecasts. |
+| Browser push is an opt-in, server-mediated capability. Subscriptions include a private endpoint and encryption material, and service workers can receive subscription-change events. | MDN requires an active service worker and emphasizes CSRF protection plus confidentiality of capability endpoints; Apple requires a user gesture, server storage, and an immediately visible notification for Safari/iOS web push.[9] [10] | The push release must use an explicit enable button, protected server-side upsert/disable endpoints, subscription refresh, a user-triggered test send, and concise visible notification payloads. It must not silently subscribe, send, or schedule reminders. |
+
+## Additional provisional decisions
+
+12. **Adopt:** Model goal health as **progress**, **pace versus elapsed time**, **deadline distance**, **linked-work coverage**, and **next review/commitment**—not one opaque success score.
+13. **Adopt:** Make all long-horizon signals local-date and workspace-derived, with neutral labels such as *needs a next step* or *pace is behind plan* instead of failure language.
+14. **Adopt:** Start live web push with one explicit device enablement and one user-triggered test notification; defer automatic reminder schedules until the user chooses cadence and confirms the delivery semantics.
+
+## Goal hierarchy and action translation
+
+| Finding | Evidence | Product implication |
+|---|---|---|
+| Broad, long-term goals and concrete subordinate goals support different parts of sustained pursuit and are complementary rather than alternatives. | Höchli et al. argue that superordinate goals provide meaning, guidance, and importance for broad long-term challenges, while subordinate goals specify the concrete means; the review recommends combining both levels.[14] | The goal model should explicitly connect **yearly direction → quarterly outcome → monthly milestone → project/task action**. Parent relationships should create a navigable rollup, while lower-level work must retain a concrete next action. |
+| Intentions alone leave a substantial action gap; implementation intentions identify the cue and response that turn a goal into action. | The NIH behavioural research reference describes implementation intentions as *if–then* plans that link a critical cue with a goal-directed response and summarizes a 94-study meta-analysis with a medium-to-large effect on attainment.[15] | A long-horizon goal that has no linked milestone or scheduled next action should be shown as **needs a next step**, with an optional cue/response plan. The system should suggest a small plan, never infer or execute one without confirmation. |
+
+## Additional provisional decisions
+
+15. **Adopt:** Treat yearly goals as directional outcomes, quarterly goals as outcome checkpoints, and monthly goals as measurable milestones; use projects and tasks as the execution layer.
+16. **Adopt:** Compute a rollup only through explicit parent-goal, project-goal, goal-task, and goal-habit links. Never invent contribution weights from category or title similarity.
+17. **Adopt:** Expose a voluntary *next action / cue plan* prompt when a long-horizon goal lacks execution coverage; do not create automatic tasks or reminders.
+
+## iPhone Calendar, Reminders, and web-push boundaries
+
+| Finding | Evidence | Product implication |
+|---|---|---|
+| iCloud Calendar supports a subscription URL that a person can add on iPhone and see across their Apple devices. | Apple Support documents adding a subscription calendar by entering its web address and choosing iCloud; subscriptions can later be removed.[16] | Retain and improve the existing revocable private `.ics` feed as the no-install Calendar integration. It is a read-only planning display, not a two-way sync or reminder writer. |
+| Creating or modifying Apple Reminders is documented through EventKit after permission to the person’s local Calendar/Reminder database. | Apple’s EventKit documentation describes native event/reminder access, including explicit confirmation before modifying Calendar database data.[17] | A website/PWA cannot truthfully claim direct Apple Reminders synchronization. A future companion **native iOS app** could use EventKit after explicit device permission; the current web app will use Web Push and Calendar subscription instead. |
+| An installed iPhone Home Screen web app can receive cross-browser standards-based web push on iOS 16.4+, but subscription must be initiated from a user gesture, stored server-side, and each received push must display visibly. | Apple requires the permission-and-subscribe step from a gesture, server registration of endpoint/encryption keys, a service worker, and immediate visible notifications; invisible pushes can lead Safari to revoke permission.[9] | Make the PWA the reminder channel: a clear device opt-in, visible test push, active opt-out, then user-chosen daily-plan/weekly-review cadence. Do not rely on Apple Reminders or silently send a background wake-up. |
+
+## Additional integration decisions
+
+18. **Adopt:** Offer two complementary iPhone experiences: a read-only private Calendar subscription for time-block visibility and an opt-in Home Screen PWA notification channel for reminders.
+19. **Reject for the web app:** Direct create/update/sync of Apple Reminders. It requires native EventKit access and explicit device authorization, not a browser-only capability.
+20. **Defer:** A native iOS companion with EventKit. It is a separate product surface that requires Apple-native packaging, permission UX, and a conflict specification.
+
 ## Sources
 
 [1]: https://culturedcode.com/things/guide/ "Things: Getting Productive with Things"
@@ -64,3 +105,9 @@ This ledger separates external evidence from implementation decisions. It is an 
 [9]: https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers "Apple: Sending web push notifications in web apps and browsers"
 [10]: https://developer.mozilla.org/en-US/docs/Web/API/Push_API "MDN: Push API"
 [11]: https://www.w3.org/TR/push-api/ "W3C: Push API"
+[12]: https://pubmed.ncbi.nlm.nih.gov/26479070/ "Harkin et al., Does Monitoring Goal Progress Promote Goal Attainment?"
+[13]: https://pmc.ncbi.nlm.nih.gov/articles/PMC3303967/ "Larson et al., Feedback as a Strategy to Change Behavior"
+[14]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6176065/ "Höchli et al., Superordinate Goals and Long-Term Goal Pursuit"
+[15]: https://cancercontrol.cancer.gov/brp/research/constructs/implementation-intentions "NIH: Implementation Intentions"
+[16]: https://support.apple.com/en-us/102301 "Apple Support: Add calendar subscriptions in iCloud"
+[17]: https://developer.apple.com/documentation/eventkit/creating-events-and-reminders "Apple EventKit: Creating events and reminders"

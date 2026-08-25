@@ -1,6 +1,6 @@
 # Web Push and iPhone Activation Runbook
 
-**Status:** The application has an installable manifest, service worker, a user-gesture permission control, and database storage prepared for subscriptions. It does **not** yet subscribe a device or send a reminder. That work becomes safe only after the VAPID values below are supplied as production secrets.
+**Status:** The application now has an installable manifest, service worker, explicit device opt-in, secure subscription persistence, local/browser plus server-side opt-out, subscription-refresh messaging, audited manual test delivery, and terminal-expiration handling. VAPID values are configured through secure secrets only. **Automatic daily or weekly sends are not enabled**: they require the person’s explicit cadence and local-time approval, an idempotent scheduled outbox, and separate production verification.
 
 > **Important:** Browser permission is not delivery. A device must be installed and subscribed, the subscription must be stored, and a server must sign and send a Web Push request before a reminder can reach the phone.
 
@@ -34,11 +34,15 @@ On an iPhone running **iOS 16.4 or newer**, open the public HTTPS site in Safari
 
 In the installed app, tap **Allow notifications on this device**. Permission must be requested from a direct user gesture. The app must then subscribe with the public VAPID key and send the returned endpoint plus encryption keys to the backend. Apple requires user-initiated permission and subscription, and Safari can revoke permission if pushes arrive without immediately presenting a visible notification.[2]
 
-## 4. Complete the remaining implementation after the secrets are available
+## 4. Implemented device and test-delivery flow
 
-The next code increment will use the supplied public key to call `registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`, persist the endpoint, `p256dh`, and `auth` keys in `pushSubscriptions`, and add an opt-out flow that unsubscribes the browser and marks the record disabled. The service worker must also handle `pushsubscriptionchange` so a refreshed or invalidated subscription can be replaced server-side. The server will use the `web-push` Node library with `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` to encrypt and sign each payload.[5]
+The device-control action is a direct user gesture. It requests permission, waits for the registered worker, subscribes with `registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`, and stores the returned endpoint plus `p256dh` and `auth` keys through the workspace-scoped API. The browser only receives `VITE_VAPID_PUBLIC_KEY`; the private key is neither delivered to nor logged by the client.
 
-Each device subscription is a capability URL and must be treated as sensitive. The send path will therefore be workspace-scoped, CSRF-protected, idempotent, rate-limited, and will disable expired endpoints after terminal push responses. MDN specifically cautions that a subscription endpoint is a capability URL and that Push subscription flows need CSRF/XSRF protection.[1]
+The service worker always displays a visible notification and returns the person to the planner after a tap. It handles `pushsubscriptionchange` by creating a replacement subscription where possible and messaging an active client to upsert it. If no client is open, the next opt-in/reconciliation in the app safely restores the subscription; the worker does not store a workspace identifier or attempt an unauthenticated background write.
+
+The backend uses `web-push` with the server-only VAPID details, writes a queued delivery audit record, sends only a short visible test payload, then records its provider outcome. A `404` or `410` response marks just that subscription expired and prompts re-enablement; it does not retry forever. Opt-out first calls `PushSubscription.unsubscribe()` on the current browser and then marks the associated saved device disabled. Each endpoint is a capability URL and is treated as sensitive.[1]
+
+> **iPhone boundary:** The supported web experience is an installed Home Screen PWA for visible Web Push plus the private, revocable read-only Calendar subscription for schedule visibility. This browser app does **not** claim direct Apple Reminders synchronization. Apple’s documented Reminders modifications require native EventKit authorization in a native app; a possible iOS companion remains a future, separately approved integration.
 
 ## 5. Choose how reminders run
 

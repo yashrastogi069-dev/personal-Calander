@@ -1,7 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { parse as parseCookieHeader } from "cookie";
+import { COOKIE_NAME } from "@shared/const";
 import {
   archiveGoal,
+  archiveGoalMilestone,
   archiveHabit,
   archiveProject,
   bulkSetTaskState,
@@ -9,6 +12,7 @@ import {
   completeReviewSession,
   createCategory,
   createGoal,
+  createGoalMilestone,
   createHabit,
   createProject,
   createSavedView,
@@ -18,24 +22,42 @@ import {
   ensureWorkspace,
   deleteSavedView,
   deleteCategory,
+  disablePushSubscription,
   getDashboard,
+  getPushDeviceForEndpoint,
+  getPushDevices,
   getWorkspaceSnapshot,
   materializeTaskOccurrences,
   PlannerConflictError,
+  prepareReminderRule,
+  getReminderRules,
   resolveTaskOccurrence,
   revokeCalendarFeed,
+  sendTestPush,
   startReviewSession,
+  setReminderRuleActivation,
   updateTask,
+  updateGoalMilestone,
   updateCategory,
   updateSavedView,
   updateWorkspace,
   upsertDailyCheckIn,
   upsertHabitCheckIn,
+  upsertPushSubscription,
 } from "../planning";
+import { createHeartbeatJob, updateHeartbeatJob } from "../_core/heartbeat";
 import { invokeLLM } from "../_core/llm";
 import { publicProcedure, router } from "../_core/trpc";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const approvedReminderSpecs = [
+  { type: "daily_plan" as const, schedule: { kind: "daily" as const, timeLocal: "11:00" }, label: "Daily planning at 11:00 Pacific/Auckland" },
+  { type: "weekly_review" as const, schedule: { kind: "weekly" as const, weekday: 0, timeLocal: "17:00" }, label: "Sunday weekly review at 17:00 Pacific/Auckland" },
+];
+
+function schedulerSessionFromHeaders(headers: { cookie?: string }) {
+  return parseCookieHeader(headers.cookie ?? "")[COOKIE_NAME] ?? "";
+}
 const scope = z.object({ workspaceId: z.string().min(12).max(64), timezone: z.string().min(1).max(64) });
 const lifecycle = z.enum(["not_started", "in_progress", "blocked", "completed", "archived"]);
 const priority = z.enum(["none", "low", "medium", "high", "critical"]);
@@ -87,6 +109,20 @@ export const plannerRouter = router({
     archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion } = input;
       try { return await archiveGoal({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
+    }),
+  }),
+  milestone: router({
+    create: publicProcedure.input(scope.extend({ goalId: z.string(), title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), state: lifecycle.default("not_started"), horizon: z.enum(["monthly", "quarterly"]), progressValue: z.number().int().min(0).default(0), targetValue: z.number().int().min(1).default(100), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional(), cue: z.string().trim().min(1).max(280).nullable().optional(), response: z.string().trim().min(1).max(500).nullable().optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...milestone } = input;
+      return createGoalMilestone({ workspaceId, timezone }, milestone);
+    }),
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), state: lifecycle.optional(), horizon: z.enum(["monthly", "quarterly"]).optional(), progressValue: z.number().int().min(0).optional(), targetValue: z.number().int().min(1).optional(), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional(), cue: z.string().trim().min(1).max(280).nullable().optional(), response: z.string().trim().min(1).max(500).nullable().optional() }) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion, patch } = input;
+      try { return await updateGoalMilestone({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
+    }),
+    archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await archiveGoalMilestone({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
   }),
   project: router({
@@ -145,6 +181,45 @@ export const plannerRouter = router({
   calendarFeed: router({
     ensure: publicProcedure.input(scope).mutation(async ({ input }) => ensureCalendarFeed(input)),
     revoke: publicProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => revokeCalendarFeed(input, input)),
+  }),
+  notification: router({
+    devices: publicProcedure.input(scope).query(async ({ input }) => getPushDevices(input)),
+    currentDevice: publicProcedure.input(scope.extend({ endpoint: z.string().url().max(512) })).query(async ({ input }) => getPushDeviceForEndpoint(input, input)),
+    enableDevice: publicProcedure.input(scope.extend({ subscription: z.object({ endpoint: z.string().url().max(512), keys: z.object({ p256dh: z.string().min(1).max(4096), auth: z.string().min(1).max(4096) }), deviceLabel: z.string().trim().max(120).nullable().optional(), userAgent: z.string().max(512).nullable().optional() }) })).mutation(async ({ input }) => upsertPushSubscription(input, input.subscription)),
+    disableDevice: publicProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => disablePushSubscription(input, input)),
+    testDevice: publicProcedure.input(scope.extend({ subscriptionId: z.string(), origin: z.string().url().max(512).refine(value => value.startsWith("https://") || value.startsWith("http://localhost"), { message: "A secure application origin is required." }) })).mutation(async ({ input }) => sendTestPush(input, input)),
+  }),
+  reminder: router({
+    rules: publicProcedure.input(scope).query(async ({ input }) => getReminderRules(input)),
+    activateApproved: publicProcedure.input(scope).mutation(async ({ input, ctx }) => {
+      const sessionToken = schedulerSessionFromHeaders(ctx.req.headers);
+      const activated: Array<{ id: string; taskUid: string }> = [];
+      try {
+        for (const spec of approvedReminderSpecs) {
+          const rule = await prepareReminderRule(input, { type: spec.type, timezone: "Pacific/Auckland", schedule: spec.schedule });
+          const job = rule.scheduleCronTaskUid
+            ? await updateHeartbeatJob(rule.scheduleCronTaskUid, { cron: "0 0 * * * *", path: "/api/scheduled/reminder", description: spec.label, enable: true }, sessionToken)
+            : await createHeartbeatJob({ name: `personal-calander-${spec.type}-${rule.id}`, cron: "0 0 * * * *", path: "/api/scheduled/reminder", description: spec.label }, sessionToken);
+          const taskUid = rule.scheduleCronTaskUid ?? (job as { taskUid: string }).taskUid;
+          await setReminderRuleActivation(input, { id: rule.id, enabled: true, scheduleCronTaskUid: taskUid });
+          activated.push({ id: rule.id, taskUid });
+        }
+      } catch (error) {
+        await Promise.all(activated.map(item => updateHeartbeatJob(item.taskUid, { enable: false }, sessionToken).catch(() => undefined)));
+        await Promise.all(activated.map(item => setReminderRuleActivation(input, { id: item.id, enabled: false }).catch(() => undefined)));
+        throw error;
+      }
+      return getReminderRules(input);
+    }),
+    pauseApproved: publicProcedure.input(scope).mutation(async ({ input, ctx }) => {
+      const sessionToken = schedulerSessionFromHeaders(ctx.req.headers);
+      const rules = await getReminderRules(input);
+      await Promise.all(rules.map(async rule => {
+        if (rule.scheduleCronTaskUid) await updateHeartbeatJob(rule.scheduleCronTaskUid, { enable: false }, sessionToken);
+        await setReminderRuleActivation(input, { id: rule.id, enabled: false });
+      }));
+      return getReminderRules(input);
+    }),
   }),
   review: router({
     start: publicProcedure.input(scope.extend({ kind: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]), periodStartLocalDate: dateString, periodEndLocalDate: dateString, snapshot: z.record(z.string(), z.unknown()).optional() })).mutation(async ({ input }) => startReviewSession(input, input)),

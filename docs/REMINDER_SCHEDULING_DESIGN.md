@@ -1,0 +1,32 @@
+# Pacific/Auckland Reminder Scheduling Design
+
+## Approved behavior
+
+The user has approved two visible PWA reminders in the `Pacific/Auckland` IANA timezone: a **daily planning prompt at 11:00** and a **weekly review prompt every Sunday at 17:00**. `Pacific/Auckland` is retained as an IANA timezone rather than a fixed offset, so New Zealand daylight-saving changes are applied by the runtime’s timezone database.
+
+| Rule | Persisted type | Local schedule | Delivered content |
+| --- | --- | --- | --- |
+| Daily planning | `daily_plan` | Every day at `11:00` | A concise visible prompt to open the planner and choose the next commitment. |
+| Weekly review | `weekly_review` | Sunday at `17:00` | A concise visible prompt to close the planning loop and review the week. |
+
+## Execution model
+
+The platform scheduler uses a **single hourly UTC trigger per enabled rule**, not a fixed UTC wall-clock schedule. On each invocation, the authenticated handler reads the reminder rule by the platform-issued task identifier and evaluates the current instant with `Intl.DateTimeFormat` in the rule’s persisted IANA timezone. This makes the user-facing schedule stable at 11:00 and 17:00 in Auckland even when the corresponding UTC hour changes.
+
+The scheduled callback contains no trusted business input. It authenticates the platform caller, reads the immutable scheduler task identifier supplied by that identity, and loads exactly one reminder rule by its stored `scheduleCronTaskUid`. A missing, paused, disabled, or not-yet-due rule produces a successful no-op response rather than a retryable failure.
+
+## Idempotency and delivery lifecycle
+
+For every due active subscription, the handler computes an idempotency key from the reminder rule, subscription, local date, and local time. It reserves a `pushDeliveries` record with that unique key before provider delivery. A duplicate-key result means another attempt has already reserved or completed that send, so the handler safely skips it. This protects against retry behavior, concurrent triggers, and repeated invocations in the same local reminder minute.
+
+The server signs the payload with the server-only VAPID credentials, records a sent provider status on success, and records a failure or terminal expiration on rejection. A `404` or `410` provider response expires only the affected device subscription. Reminder payloads remain short, visible, and non-sensitive; they do not contain task titles, goal titles, private notes, or an Apple Reminders claim.
+
+## User control and deployment sequence
+
+The reminder rule interface exposes the local timezone, cadence, enabled state, and pause/resume behavior. Changing the local schedule updates the persisted rule and its hourly callback configuration. Disabling a rule pauses its scheduling task; disabling a device removes that browser subscription without changing reminder rules for another device.
+
+> The callback code and schema migration must be deployed before any scheduling task is created. After the production version is verified, the application will create the two approved hourly callbacks and persist their returned task identifiers. Actual installed-iPhone delivery remains a manual final verification step.
+
+## Validation contract
+
+The automated suite covers daily and weekly local-time matching in both Auckland daylight-saving and standard-time periods. Additional service and route tests must cover rule ownership, disabled/no-op behavior, duplicate reservation, provider expiration, and payload safety. Live validation must prove enable, visible manual test, automatic scheduled delivery, pause, and re-enable on the user’s installed PWA.

@@ -102,3 +102,20 @@
 - [x] Resume the embedded-plus repair and complete its exact browser-path verification before the final regression and deployment pass.
 - [x] Complete and record the embedded-control inventory across Tasks, Calendar, Review, and all side surfaces, including an explicit “none present” result where applicable.
 - [x] Re-record the complete embedded-card mapping in both testing and visual verification records, then rerun the exact browser audit before final checkpointing.
+- [x] Audit the present task, goal, project, review, analytics, and push-delivery logic for long-horizon and reliability gaps before expanding behavior.
+- [x] Conduct and preserve direct research on long-horizon goal systems, evidence-based planning analytics, and secure Web Push lifecycle practices.
+- [x] Define a decision model for monthly, quarterly, and yearly goals, including milestones, pace, deadline risk, rollups, and review rules.
+- [x] Implement real-time, planner-derived analytics that turn persisted task, goal, project, habit, and review data into decision-useful signals rather than display-only metrics.
+- [x] Obtain explicit approval for the proposed VAPID notification behavior and configure provided VAPID values only through secure server-side secrets.
+- [x] Implement secure device subscription, opt-out, subscription-refresh, and manual test-notification flows without exposing private VAPID material.
+- [ ] Add deterministic tests and browser validation for long-horizon logic, analytics, and approved Web Push controls; document evidence and delivery limitations.
+- [ ] Checkpoint, synchronize GitHub, and verify the expanded production release end to end.
+- [x] Research and document the supported iPhone Home Screen web-push, Calendar subscription, and Apple Reminders integration boundaries before selecting the reminder experience.
+- [x] Design the user-controlled iPhone reminder model, including permission, subscription, cadence, opt-out, delivery failure, and Calendar fallback behavior.
+- [x] Integrate review freshness into the long-horizon rule engine, dashboard contract, Goal runway, and deterministic test coverage.
+- [x] Reconcile the current browser subscription endpoint to its exact saved device record before test or opt-out actions, then cover multi-device safety with tests and documentation.
+- [ ] Persist two enabled reminder rules for Pacific/Auckland: daily planning at 11:00 and weekly review on Sunday at 17:00, with explicit pause and edit behavior.
+- [x] Implement an authenticated hourly scheduled evaluator that calculates due rules in IANA local time, handles New Zealand daylight saving correctly, and records idempotent per-device deliveries before sending.
+- [x] Validate and document scheduler retry, duplicate, disabled-device, expired-device, and daylight-saving behavior before creating production schedules.
+- [ ] Browser-test the Horizon Compass and milestone controls interactively, including persisted create/edit behavior and visible analytics states, then document the evidence.
+- [ ] Browser-test the exact-current-device reminder flow: enable, manual test request, pause, disable, re-enable, and document the real-iPhone delivery boundary.

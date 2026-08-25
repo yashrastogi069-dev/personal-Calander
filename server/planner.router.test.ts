@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as planning from "./planning";
+import * as heartbeat from "./_core/heartbeat";
 
 function createPublicContext(): TrpcContext {
   return {
@@ -119,5 +120,67 @@ describe("planner task API", () => {
     goal.mockRestore();
     project.mockRestore();
     habit.mockRestore();
+  });
+
+  it("passes a dated monthly milestone through the public router contract", async () => {
+    const create = vi.spyOn(planning, "createGoalMilestone").mockResolvedValue({ id: "milestone-1", goalId: "goal-1", version: 1 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", goalId: "goal-1", title: "August evidence", horizon: "monthly" as const, progressValue: 20, targetValue: 100, dueLocalDate: "2026-08-31", cue: "If it is Friday", response: "Then review the evidence" };
+
+    await expect(caller.planner.milestone.create(input)).resolves.toMatchObject({ id: "milestone-1", goalId: "goal-1" });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: input.workspaceId, timezone: input.timezone }), expect.objectContaining({ goalId: input.goalId, title: input.title, horizon: "monthly", dueLocalDate: input.dueLocalDate, cue: input.cue, response: input.response }));
+    create.mockRestore();
+  });
+
+  it("routes a browser subscription and device opt-out only through the workspace-scoped notification contract", async () => {
+    const enable = vi.spyOn(planning, "upsertPushSubscription").mockResolvedValue({ id: "device-1", status: "active" } as never);
+    const disable = vi.spyOn(planning, "disablePushSubscription").mockResolvedValue({ id: "device-1", status: "disabled" } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+    const subscription = { endpoint: "https://push.example.test/subscription/abc", keys: { p256dh: "public-key", auth: "auth-key" }, deviceLabel: "iPhone home screen", userAgent: "Mozilla/5.0" };
+
+    await expect(caller.planner.notification.enableDevice({ ...scope, subscription })).resolves.toMatchObject({ id: "device-1", status: "active" });
+    await expect(caller.planner.notification.disableDevice({ ...scope, id: "device-1" })).resolves.toMatchObject({ status: "disabled" });
+    expect(enable).toHaveBeenCalledWith(expect.objectContaining(scope), subscription);
+    expect(disable).toHaveBeenCalledWith(expect.objectContaining(scope), expect.objectContaining({ id: "device-1" }));
+    enable.mockRestore();
+    disable.mockRestore();
+  });
+
+  it("resolves the current device by its exact browser endpoint rather than a list position", async () => {
+    const current = vi.spyOn(planning, "getPushDeviceForEndpoint").mockResolvedValue({ id: "device-current", status: "active", deviceLabel: "This device" } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", endpoint: "https://push.example.test/subscription/current" };
+
+    await expect(caller.planner.notification.currentDevice(input)).resolves.toMatchObject({ id: "device-current", status: "active" });
+    expect(current).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: input.workspaceId, timezone: input.timezone }), expect.objectContaining({ endpoint: input.endpoint }));
+    current.mockRestore();
+  });
+
+  it("rejects an unsafe test-notification origin before a push can be sent", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+    await expect(caller.planner.notification.testDevice({ workspaceId: "workspace-api-check", timezone: "UTC", subscriptionId: "device-1", origin: "http://example.test" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("provisions the approved Auckland daily and weekly rules as hourly authenticated callbacks", async () => {
+    const prepare = vi.spyOn(planning, "prepareReminderRule")
+      .mockResolvedValueOnce({ id: "daily-rule", scheduleCronTaskUid: null } as never)
+      .mockResolvedValueOnce({ id: "weekly-rule", scheduleCronTaskUid: null } as never);
+    const activate = vi.spyOn(planning, "setReminderRuleActivation").mockResolvedValue({ id: "rule", isEnabled: 1 } as never);
+    const list = vi.spyOn(planning, "getReminderRules").mockResolvedValue([] as never);
+    const create = vi.spyOn(heartbeat, "createHeartbeatJob")
+      .mockResolvedValueOnce({ taskUid: "daily-task" })
+      .mockResolvedValueOnce({ taskUid: "weekly-task" });
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
+
+    await expect(caller.planner.reminder.activateApproved(scope)).resolves.toEqual([]);
+    expect(prepare).toHaveBeenNthCalledWith(1, scope, expect.objectContaining({ type: "daily_plan", timezone: "Pacific/Auckland", schedule: { kind: "daily", timeLocal: "11:00" } }));
+    expect(prepare).toHaveBeenNthCalledWith(2, scope, expect.objectContaining({ type: "weekly_review", timezone: "Pacific/Auckland", schedule: { kind: "weekly", weekday: 0, timeLocal: "17:00" } }));
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ cron: "0 0 * * * *", path: "/api/scheduled/reminder" }), "");
+    expect(activate).toHaveBeenNthCalledWith(1, scope, { id: "daily-rule", enabled: true, scheduleCronTaskUid: "daily-task" });
+    expect(activate).toHaveBeenNthCalledWith(2, scope, { id: "weekly-rule", enabled: true, scheduleCronTaskUid: "weekly-task" });
+    prepare.mockRestore(); activate.mockRestore(); list.mockRestore(); create.mockRestore();
   });
 });

@@ -2,7 +2,9 @@ import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
+import { sdk } from "./sdk";
 import { buildCalendarFeed } from "../calendarFeed";
+import { dispatchScheduledReminder } from "../planning";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
@@ -27,6 +29,22 @@ export function createPlannerApp() {
       return res.send(feed);
     } catch (error) {
       next(error);
+    }
+  });
+
+  app.post("/api/scheduled/reminder", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron || !user.taskUid) return res.status(403).json({ error: "cron-only" });
+      const forwardedProtocol = req.headers["x-forwarded-proto"];
+      const protocol = typeof forwardedProtocol === "string" ? forwardedProtocol.split(",")[0] : req.protocol;
+      const host = req.get("host");
+      if (!host) return res.status(500).json({ error: "missing-host" });
+      const result = await dispatchScheduledReminder(user.taskUid, `${protocol}://${host}`);
+      return res.json(result);
+    } catch (error) {
+      const details = error instanceof Error ? { message: error.message, stack: error.stack } : { message: String(error) };
+      return res.status(500).json({ error: "scheduled-reminder-failed", details, timestamp: new Date().toISOString() });
     }
   });
 

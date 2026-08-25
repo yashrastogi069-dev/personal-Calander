@@ -1,14 +1,19 @@
 import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import webpush from "web-push";
 import {
   calendarFeeds,
   categories,
   dailyCheckIns,
   externalEvents,
+  goalMilestones,
   goals,
   habitCheckIns,
   habits,
   projects,
+  pushDeliveries,
+  pushSubscriptions,
+  reminderRules,
   reviewSessions,
   savedViews,
   taskDependencies,
@@ -18,6 +23,8 @@ import {
 } from "../drizzle/schema";
 import { getDb } from "./db";
 import { dashboardSummary, recurringLocalDates, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
+import { reminderDueAt, type ReminderSchedule } from "./reminderSchedule";
+import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
 export type PlannerScope = {
   workspaceId: string;
@@ -63,9 +70,10 @@ export async function updateWorkspace(scope: PlannerScope, input: { name?: strin
 export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: string; end: string }) {
   const db = await requireDb();
   const workspace = await ensureWorkspace(scope);
-  const [categoryRows, goalRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows] = await Promise.all([
+  const [categoryRows, goalRows, milestoneRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows] = await Promise.all([
     db.select().from(categories).where(eq(categories.workspaceId, scope.workspaceId)).orderBy(asc(categories.sortOrder), asc(categories.name)),
     db.select().from(goals).where(eq(goals.workspaceId, scope.workspaceId)).orderBy(desc(goals.updatedAt)),
+    db.select().from(goalMilestones).where(eq(goalMilestones.workspaceId, scope.workspaceId)).orderBy(asc(goalMilestones.dueLocalDate), desc(goalMilestones.updatedAt)),
     db.select().from(projects).where(eq(projects.workspaceId, scope.workspaceId)).orderBy(desc(projects.updatedAt)),
     db.select().from(tasks).where(eq(tasks.workspaceId, scope.workspaceId)).orderBy(asc(tasks.sortOrder), desc(tasks.updatedAt)),
     db.select().from(habits).where(eq(habits.workspaceId, scope.workspaceId)).orderBy(desc(habits.updatedAt)),
@@ -76,7 +84,7 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     db.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), gte(taskOccurrences.localDate, range.start), lte(taskOccurrences.localDate, range.end))).orderBy(asc(taskOccurrences.localDate)),
     db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), gte(reviewSessions.periodEndLocalDate, range.start), lte(reviewSessions.periodStartLocalDate, range.end))).orderBy(desc(reviewSessions.createdAt)),
   ]);
-  return { workspace, categories: categoryRows, goals: goalRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows };
+  return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows };
 }
 
 export async function createCategory(scope: PlannerScope, input: { name: string; color: string; sortOrder?: number }) {
@@ -131,6 +139,34 @@ export async function archiveGoal(scope: PlannerScope, input: { id: string; expe
   const updated = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
+}
+
+export async function createGoalMilestone(scope: PlannerScope, input: Omit<typeof goalMilestones.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
+  const db = await requireDb();
+  const goal = (await db.select({ id: goals.id }).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.goalId))).limit(1))[0];
+  if (!goal) throw new Error("A milestone must belong to a goal in this workspace.");
+  const id = nanoid();
+  await db.insert(goalMilestones).values({ id, workspaceId: scope.workspaceId, ...input });
+  return (await db.select().from(goalMilestones).where(and(eq(goalMilestones.workspaceId, scope.workspaceId), eq(goalMilestones.id, id))).limit(1))[0]!;
+}
+
+export async function updateGoalMilestone(scope: PlannerScope, input: { id: string; expectedVersion: number; patch: Partial<typeof goalMilestones.$inferInsert> }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(goalMilestones).where(and(eq(goalMilestones.workspaceId, scope.workspaceId), eq(goalMilestones.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Milestone was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  const patch = { ...input.patch, version: input.expectedVersion + 1 } as Record<string, unknown>;
+  if (patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
+  if (patch.state && patch.state !== "completed") patch.completedAt = null;
+  if (patch.state === "archived") patch.archivedAt = new Date();
+  await db.update(goalMilestones).set(patch).where(and(eq(goalMilestones.workspaceId, scope.workspaceId), eq(goalMilestones.id, input.id), eq(goalMilestones.version, input.expectedVersion)));
+  const updated = (await db.select().from(goalMilestones).where(and(eq(goalMilestones.workspaceId, scope.workspaceId), eq(goalMilestones.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+export async function archiveGoalMilestone(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  return updateGoalMilestone(scope, { id: input.id, expectedVersion: input.expectedVersion, patch: { state: "archived" } });
 }
 
 export async function createProject(scope: PlannerScope, input: Omit<typeof projects.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
@@ -323,6 +359,192 @@ export async function revokeCalendarFeed(scope: PlannerScope, input: { id: strin
   return { success: true } as const;
 }
 
+type BrowserPushSubscription = {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  deviceLabel?: string | null;
+  userAgent?: string | null;
+};
+
+function safePushDevice(subscription: typeof pushSubscriptions.$inferSelect) {
+  return {
+    id: subscription.id,
+    deviceLabel: subscription.deviceLabel,
+    status: subscription.status,
+    failureReason: subscription.failureReason,
+    lastSeenAt: subscription.lastSeenAt,
+    lastTestedAt: subscription.lastTestedAt,
+    lastSentAt: subscription.lastSentAt,
+    createdAt: subscription.createdAt,
+  };
+}
+
+function requirePushConfiguration() {
+  const configuration = getVapidConfigurationFromEnvironment();
+  const validation = validateVapidConfiguration(configuration);
+  if (!validation.valid) throw new Error(`Web Push is unavailable: ${validation.reason}`);
+  webpush.setVapidDetails(configuration.subject, configuration.publicKey, configuration.privateKey);
+  return configuration;
+}
+
+export async function upsertPushSubscription(scope: PlannerScope, input: BrowserPushSubscription) {
+  if (!/^https:\/\//.test(input.endpoint) || !input.keys?.p256dh || !input.keys?.auth) throw new Error("The browser returned an invalid push subscription.");
+  const db = await requireDb();
+  const id = nanoid();
+  const now = new Date();
+  await db.insert(pushSubscriptions).values({
+    id,
+    workspaceId: scope.workspaceId,
+    endpoint: input.endpoint,
+    p256dh: input.keys.p256dh,
+    auth: input.keys.auth,
+    deviceLabel: input.deviceLabel?.trim().slice(0, 120) || null,
+    userAgent: input.userAgent?.slice(0, 512) || null,
+    status: "active",
+    failureReason: null,
+    lastSeenAt: now,
+  }).onDuplicateKeyUpdate({ set: {
+    workspaceId: scope.workspaceId,
+    p256dh: input.keys.p256dh,
+    auth: input.keys.auth,
+    deviceLabel: input.deviceLabel?.trim().slice(0, 120) || null,
+    userAgent: input.userAgent?.slice(0, 512) || null,
+    status: "active",
+    failureReason: null,
+    lastSeenAt: now,
+  } });
+  const stored = (await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.workspaceId, scope.workspaceId), eq(pushSubscriptions.endpoint, input.endpoint))).limit(1))[0]!;
+  return safePushDevice(stored);
+}
+
+export async function getPushDevices(scope: PlannerScope) {
+  const db = await requireDb();
+  const devices = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.workspaceId, scope.workspaceId)).orderBy(desc(pushSubscriptions.updatedAt));
+  return devices.map(safePushDevice);
+}
+
+export async function getPushDeviceForEndpoint(scope: PlannerScope, input: { endpoint: string }) {
+  const db = await requireDb();
+  const device = (await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.workspaceId, scope.workspaceId), eq(pushSubscriptions.endpoint, input.endpoint))).limit(1))[0];
+  return device ? safePushDevice(device) : null;
+}
+
+export async function disablePushSubscription(scope: PlannerScope, input: { id: string }) {
+  const db = await requireDb();
+  await db.update(pushSubscriptions).set({ status: "disabled", failureReason: null }).where(and(eq(pushSubscriptions.workspaceId, scope.workspaceId), eq(pushSubscriptions.id, input.id)));
+  return { id: input.id, disabled: true } as const;
+}
+
+export async function sendTestPush(scope: PlannerScope, input: { subscriptionId: string; origin: string }) {
+  const db = await requireDb();
+  requirePushConfiguration();
+  const subscription = (await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.workspaceId, scope.workspaceId), eq(pushSubscriptions.id, input.subscriptionId), eq(pushSubscriptions.status, "active"))).limit(1))[0];
+  if (!subscription) throw new Error("An active notification device was not found.");
+  const deliveryId = nanoid();
+  const title = "Personal Calander is ready";
+  await db.insert(pushDeliveries).values({ id: deliveryId, workspaceId: scope.workspaceId, subscriptionId: subscription.id, kind: "test", title, status: "queued" });
+  const payload = JSON.stringify({ title, body: "This is your visible test notification. You can control reminders in Personal Calander.", url: input.origin, tag: `personal-calander-test-${subscription.id}`, kind: "test" });
+  try {
+    const result = await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, payload, { TTL: 300, urgency: "normal", topic: `pc-test-${subscription.id.slice(0, 16)}` });
+    const now = new Date();
+    await db.transaction(async tx => {
+      await tx.update(pushDeliveries).set({ status: "sent", providerStatusCode: result.statusCode, sentAt: now }).where(eq(pushDeliveries.id, deliveryId));
+      await tx.update(pushSubscriptions).set({ lastTestedAt: now, lastSentAt: now, lastSeenAt: now, failureReason: null }).where(eq(pushSubscriptions.id, subscription.id));
+    });
+    return { id: deliveryId, status: "sent" as const };
+  } catch (error) {
+    const failure = error as { statusCode?: number; body?: string; message?: string };
+    const expired = failure.statusCode === 404 || failure.statusCode === 410;
+    const reason = (failure.body || failure.message || "The push service rejected the test delivery.").slice(0, 1000);
+    await db.transaction(async tx => {
+      await tx.update(pushDeliveries).set({ status: expired ? "expired" : "failed", providerStatusCode: failure.statusCode ?? null, failureReason: reason }).where(eq(pushDeliveries.id, deliveryId));
+      await tx.update(pushSubscriptions).set({ status: expired ? "expired" : "active", failureReason: reason }).where(eq(pushSubscriptions.id, subscription.id));
+    });
+    throw new Error(expired ? "This device subscription expired. Enable reminders again on this device." : "The test notification was not accepted. Check the device permission and try again.");
+  }
+}
+
+export async function prepareReminderRule(scope: PlannerScope, input: { type: "daily_plan" | "weekly_review"; timezone: string; schedule: ReminderSchedule }) {
+  const db = await requireDb();
+  const cronExpression = input.schedule.kind === "daily" ? `daily@${input.schedule.timeLocal}` : `weekly@${input.schedule.weekday}@${input.schedule.timeLocal}`;
+  const existing = (await db.select().from(reminderRules).where(and(eq(reminderRules.workspaceId, scope.workspaceId), eq(reminderRules.type, input.type))).limit(1))[0];
+  if (existing) {
+    await db.update(reminderRules).set({ timezone: input.timezone, cronExpression, isEnabled: 0, lastTriggeredAt: null, version: existing.version + 1 }).where(and(eq(reminderRules.id, existing.id), eq(reminderRules.version, existing.version)));
+    return (await db.select().from(reminderRules).where(eq(reminderRules.id, existing.id)).limit(1))[0]!;
+  }
+  const id = nanoid();
+  await db.insert(reminderRules).values({ id, workspaceId: scope.workspaceId, targetType: input.type === "daily_plan" ? "daily_plan" : "review", type: input.type, cronExpression, timezone: input.timezone, isEnabled: 0 });
+  return (await db.select().from(reminderRules).where(eq(reminderRules.id, id)).limit(1))[0]!;
+}
+
+export async function getReminderRules(scope: PlannerScope) {
+  const db = await requireDb();
+  return db.select().from(reminderRules).where(and(eq(reminderRules.workspaceId, scope.workspaceId), inArray(reminderRules.type, ["daily_plan", "weekly_review"]))).orderBy(asc(reminderRules.type));
+}
+
+export async function setReminderRuleActivation(scope: PlannerScope, input: { id: string; enabled: boolean; scheduleCronTaskUid?: string | null }) {
+  const db = await requireDb();
+  const rule = (await db.select().from(reminderRules).where(and(eq(reminderRules.workspaceId, scope.workspaceId), eq(reminderRules.id, input.id))).limit(1))[0];
+  if (!rule) throw new Error("Reminder rule was not found.");
+  await db.update(reminderRules).set({ isEnabled: input.enabled ? 1 : 0, scheduleCronTaskUid: input.scheduleCronTaskUid === undefined ? rule.scheduleCronTaskUid : input.scheduleCronTaskUid, version: rule.version + 1 }).where(and(eq(reminderRules.id, rule.id), eq(reminderRules.version, rule.version)));
+  const updated = (await db.select().from(reminderRules).where(eq(reminderRules.id, rule.id)).limit(1))[0]!;
+  if (updated.version === rule.version) throw new PlannerConflictError(rule);
+  return updated;
+}
+
+function isDuplicateDelivery(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ER_DUP_ENTRY";
+}
+
+function scheduledPayload(type: "daily_plan" | "weekly_review", origin: string, subscriptionId: string) {
+  return type === "daily_plan"
+    ? { title: "A calm planning moment", body: "Open Personal Calander and choose one honest commitment for today.", url: origin, tag: `personal-calander-daily-${subscriptionId}`, kind: "daily_plan" }
+    : { title: "Weekly review", body: "Open Personal Calander to close the loop before next week begins.", url: origin, tag: `personal-calander-weekly-${subscriptionId}`, kind: "weekly_review" };
+}
+
+export async function dispatchScheduledReminder(taskUid: string, origin: string, now = new Date()) {
+  const db = await requireDb();
+  const rule = (await db.select().from(reminderRules).where(eq(reminderRules.scheduleCronTaskUid, taskUid)).limit(1))[0];
+  if (!rule) return { ok: true, skipped: "orphan" as const, sent: 0 };
+  if (rule.type !== "daily_plan" && rule.type !== "weekly_review") return { ok: true, skipped: "unsupported_rule" as const, sent: 0 };
+  if (!rule.isEnabled || !rule.cronExpression || rule.snoozedUntil && rule.snoozedUntil > now) return { ok: true, skipped: "disabled_or_snoozed" as const, sent: 0 };
+  const timing = reminderDueAt(rule.cronExpression, rule.timezone, now);
+  if (!timing.due) return { ok: true, skipped: "not_due" as const, sent: 0 };
+  const subscriptions = await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.workspaceId, rule.workspaceId), eq(pushSubscriptions.status, "active")));
+  if (!subscriptions.length) return { ok: true, skipped: "no_active_devices" as const, sent: 0 };
+  requirePushConfiguration();
+  let sent = 0;
+  for (const subscription of subscriptions) {
+    const idempotencyKey = `${rule.id}:${subscription.id}:${timing.localDate}:${timing.localTime}`;
+    const deliveryId = nanoid();
+    try {
+      await db.insert(pushDeliveries).values({ id: deliveryId, workspaceId: rule.workspaceId, subscriptionId: subscription.id, reminderRuleId: rule.id, idempotencyKey, kind: rule.type, title: scheduledPayload(rule.type, origin, subscription.id).title, status: "queued" });
+    } catch (error) {
+      if (isDuplicateDelivery(error)) continue;
+      throw error;
+    }
+    const payload = JSON.stringify(scheduledPayload(rule.type, origin, subscription.id));
+    try {
+      const result = await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, payload, { TTL: 1_800, urgency: "normal", topic: `pc-${rule.type}-${subscription.id.slice(0, 16)}` });
+      await db.transaction(async tx => {
+        await tx.update(pushDeliveries).set({ status: "sent", providerStatusCode: result.statusCode, sentAt: now }).where(eq(pushDeliveries.id, deliveryId));
+        await tx.update(pushSubscriptions).set({ lastSentAt: now, lastSeenAt: now, failureReason: null }).where(eq(pushSubscriptions.id, subscription.id));
+      });
+      sent += 1;
+    } catch (error) {
+      const failure = error as { statusCode?: number; body?: string; message?: string };
+      const expired = failure.statusCode === 404 || failure.statusCode === 410;
+      const reason = (failure.body || failure.message || "The push service rejected the scheduled delivery.").slice(0, 1000);
+      await db.transaction(async tx => {
+        await tx.update(pushDeliveries).set({ status: expired ? "expired" : "failed", providerStatusCode: failure.statusCode ?? null, failureReason: reason }).where(eq(pushDeliveries.id, deliveryId));
+        await tx.update(pushSubscriptions).set({ status: expired ? "expired" : "active", failureReason: reason }).where(eq(pushSubscriptions.id, subscription.id));
+      });
+    }
+  }
+  await db.update(reminderRules).set({ lastTriggeredAt: now }).where(eq(reminderRules.id, rule.id));
+  return { ok: true, sent, localDate: timing.localDate, localTime: timing.localTime };
+}
+
 export async function startReviewSession(scope: PlannerScope, input: { kind: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"; periodStartLocalDate: string; periodEndLocalDate: string; snapshot?: unknown }) {
   const db = await requireDb();
   const id = nanoid();
@@ -348,6 +570,10 @@ export async function getDashboard(scope: PlannerScope, input: { todayLocalDate:
   const summary = dashboardSummary({
     tasks: snapshot.tasks,
     goals: snapshot.goals,
+    projects: snapshot.projects,
+    habits: snapshot.habits,
+    milestones: snapshot.milestones,
+    reviewSessions: snapshot.reviewSessions,
     projectGoalById,
     categoryNames,
     habitCheckIns: snapshot.habitCheckIns,

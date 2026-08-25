@@ -87,6 +87,34 @@ export const goals = mysqlTable(
   ]
 );
 
+export const goalMilestones = mysqlTable(
+  "goalMilestones",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    goalId: varchar("goalId", { length: 64 }).notNull(),
+    title: varchar("title", { length: 280 }).notNull(),
+    description: text("description"),
+    state: mysqlEnum("state", lifecycleStates).notNull().default("not_started"),
+    horizon: mysqlEnum("horizon", ["monthly", "quarterly"]).notNull(),
+    progressValue: int("progressValue").notNull().default(0),
+    targetValue: int("targetValue").notNull().default(100),
+    startLocalDate: varchar("startLocalDate", { length: 10 }),
+    dueLocalDate: varchar("dueLocalDate", { length: 10 }),
+    cue: varchar("cue", { length: 280 }),
+    response: varchar("response", { length: 500 }),
+    completedAt: timestamp("completedAt"),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("goal_milestones_workspace_goal_idx").on(table.workspaceId, table.goalId),
+    index("goal_milestones_workspace_due_idx").on(table.workspaceId, table.dueLocalDate),
+  ]
+);
+
 export const projects = mysqlTable(
   "projects",
   {
@@ -377,12 +405,41 @@ export const pushSubscriptions = mysqlTable(
     endpoint: varchar("endpoint", { length: 512 }).notNull(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
+    deviceLabel: varchar("deviceLabel", { length: 120 }),
+    userAgent: varchar("userAgent", { length: 512 }),
     status: mysqlEnum("status", ["active", "disabled", "expired"]).notNull().default("active"),
     failureReason: text("failureReason"),
+    lastSeenAt: timestamp("lastSeenAt"),
+    lastTestedAt: timestamp("lastTestedAt"),
+    lastSentAt: timestamp("lastSentAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   table => [index("push_subscriptions_workspace_status_idx").on(table.workspaceId, table.status), uniqueIndex("push_subscriptions_endpoint_unique").on(table.endpoint)]
+);
+
+export const pushDeliveries = mysqlTable(
+  "pushDeliveries",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    subscriptionId: varchar("subscriptionId", { length: 64 }).notNull(),
+    reminderRuleId: varchar("reminderRuleId", { length: 64 }),
+    idempotencyKey: varchar("idempotencyKey", { length: 255 }),
+    kind: mysqlEnum("kind", ["test", "daily_plan", "weekly_review", "at_risk"]).notNull(),
+    title: varchar("title", { length: 160 }).notNull(),
+    status: mysqlEnum("status", ["queued", "sent", "failed", "expired"]).notNull().default("queued"),
+    providerStatusCode: int("providerStatusCode"),
+    failureReason: text("failureReason"),
+    sentAt: timestamp("sentAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    index("push_deliveries_workspace_created_idx").on(table.workspaceId, table.createdAt),
+    index("push_deliveries_subscription_idx").on(table.subscriptionId),
+    uniqueIndex("push_deliveries_idempotency_unique").on(table.idempotencyKey),
+  ]
 );
 
 export const aiDrafts = mysqlTable(
@@ -407,8 +464,11 @@ export type InsertUser = typeof users.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
+export type GoalMilestone = typeof goalMilestones.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TaskOccurrence = typeof taskOccurrences.$inferSelect;
 export type Habit = typeof habits.$inferSelect;
 export type HabitCheckIn = typeof habitCheckIns.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type PushDelivery = typeof pushDeliveries.$inferSelect;
