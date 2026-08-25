@@ -41,7 +41,7 @@
 - [x] Implement advanced analytics for focus, consistency, capacity, carryover, completion trends, and goal health.
 - [x] Implement user-controlled iPhone-calendar connectivity and phone-notification readiness with documented activation requirements.
 - [x] Test upgraded workflows, integration boundaries, browser permissions, responsive layouts, accessibility, and error recovery.
-- [ ] Update documentation, tests, checkpoint history, and the public GitHub repository for the completed upgrade.
+- [x] Update documentation, tests, checkpoint history, and the public GitHub repository for the completed upgrade.
 - [x] Diagnose the habit tracker’s failed tick/untick flow across UI events, mutation payloads, persistence, cache refresh, timezone handling, and streak calculations.
 - [x] Implement and browser-test reliable habit check-in, undo, skipped state, error recovery, and persisted streak updates.
 - [x] Browser-test the habit Skip today transition, persisted rendering, and streak behavior after a refresh, then restore the user’s original state.
@@ -82,7 +82,7 @@
 - [x] Add clear, safe removal/archive workflows for user-created tasks, goals, projects, habits, categories, and saved views, including consequences and confirmation where needed.
 - [x] Strengthen calendar-to-habit interactions and validate scheduled-habit visibility plus persisted complete/undo behavior through the calendar surface.
 - [x] Prepare the real web-push implementation plan and user-facing VAPID credential activation instructions without fabricating credentials or claiming delivery.
-- [ ] Checkpoint, push, and verify this completed interaction release on GitHub and the public Vercel alias.
+- [x] Checkpoint, push, and verify this completed interaction release on GitHub and the public Vercel alias.
 - [x] Keep the main Calendar task-focused and provide a dedicated calendar-style habit tracker in the Habits section with direct complete, skip, and undo actions.
 - [x] Research proven personal planning, habit, review, and calendar practices across established tools and primary sources; preserve findings and citations in the repository.
 - [x] Convert research findings into explicit product decisions covering capture, categorization, lifecycle, scheduling, habit accountability, review, privacy, and push-delivery boundaries.
@@ -95,7 +95,7 @@
 - [x] Make archive/remove access comprehensive for all active workspace records, then revalidate its confirmation and consequence copy.
 - [x] Audit every embedded plus/empty-state entry control in the focus, goals, habits, calendar, review, and side-surface panels; wire each to the correct creation flow or remove it.
 - [x] Browser-test the exact “Begin with one honest commitment” and all remaining embedded plus actions, documenting the creation type each opens.
-- [ ] Checkpoint, push, and verify the corrected embedded-action release on GitHub and the public Vercel alias.
+- [x] Checkpoint, push, and verify the corrected embedded-action release on GitHub and the public Vercel alias.
 - [x] Run and document a complete current-release regression: compiler, automated suite, production build, embedded-plus browser paths, public health/tRPC/snapshot, and rendered Vercel root.
 - [x] Update the durable release record with the corrected embedded-plus behavior, verification evidence, final GitHub revision, and Vercel alias target.
 - [x] Checkpoint and push every current local change to the public GitHub main branch, then confirm the remote revision matches.
