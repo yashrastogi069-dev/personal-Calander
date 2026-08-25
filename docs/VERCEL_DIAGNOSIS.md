@@ -54,6 +54,12 @@ The validated interaction release was pushed to GitHub `main` at revision `83eb7
 
 The public alias is therefore serving the current functional interaction release rather than a stale shell. Live Web Push remains intentionally inactive: no VAPID values, device subscriptions, sender, or scheduled delivery process have been configured.
 
+## Embedded plus-card release verification — 2026-08-25
+
+GitHub `main` was updated to corrected functional revision `8e2cd0efbec186664c02cc6ae057d3a25fc5bb1a`. Vercel deployed it as production deployment `dpl_EwdcLMKwNnjzmLBvfngqEvLVEGPt` at `https://personal-calander-cl4fvim9d-yashnew869-2746s-projects.vercel.app` and assigned `https://personal-calander.vercel.app` as an alias.
+
+The public alias returned `200` from `/api/health`, a typed `{ "ok": true }` response from `system.health`, and a database-backed anonymous planner snapshot. After hydration, the public root rendered the usable planner rather than its loading skeleton. Its **Begin with one honest commitment** card appeared as a single accessible button with the `Create: Begin with one honest commitment` label, demonstrating that the repaired full-card creation affordance reached the public deployment.
+
 > **Operational sequence.** After modifying a Production environment variable, redeploy the latest production deployment. Vercel injects environment variables into a new deployment build; changing the value alone does not repair an already-running Function.
 
 ## Sources
