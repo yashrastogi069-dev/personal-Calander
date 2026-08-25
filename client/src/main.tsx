@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "push-recovery-entry-r2";
+document.documentElement.dataset.release = "project-scheduler-r3";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

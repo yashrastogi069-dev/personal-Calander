@@ -117,21 +117,23 @@
 - [ ] Persist two enabled reminder rules for Pacific/Auckland: daily planning at 11:00 and weekly review on Sunday at 17:00, with explicit pause and edit behavior.
 - [x] Implement an authenticated hourly scheduled evaluator that calculates due rules in IANA local time, handles New Zealand daylight saving correctly, and records idempotent per-device deliveries before sending.
 - [x] Validate and document scheduler retry, duplicate, disabled-device, expired-device, and daylight-saving behavior before creating production schedules.
-- [ ] Browser-test the Horizon Compass and milestone controls interactively, including persisted create/edit behavior and visible analytics states, then document the evidence.
+- [x] Browser-test the Horizon Compass and milestone controls interactively, including persisted create/edit behavior and visible analytics states, then document the evidence.
 - [ ] Browser-test the exact-current-device reminder flow: enable, manual test request, pause, disable, re-enable, and document the real-iPhone delivery boundary.
 - [ ] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
 - [ ] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.
-- [ ] Resolve the Vercel alias serving the prior client artifact despite the successful GitHub deployment status, then verify the published reminder-control recovery marker.
-- [ ] Verify the user-confirmed manual Vercel redeploy serves the repaired reminder-control client artifact before issuing iPhone retry instructions.
-- [ ] Verify the immutable `personal-calander-dz1qdn8qw-yashnew869-2746s-projects.vercel.app` production artifact contains the reminder-control repair and reconcile any alias inconsistency.
-- [ ] Inspect the d310e4b Vercel production artifact and deployment configuration through the connected browser before issuing iPhone retry instructions.
-- [ ] Add and verify a public machine-readable release marker for the repaired reminder-control artifact without additional dashboard interaction.
-- [ ] Add a machine-verifiable public release marker for the repaired reminder artifact and verify that it reaches Vercel production.
-- [ ] Add VITE_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to Vercel Production without exposing their values, then redeploy and verify the repaired push-control bundle retains its guarded enrollment path.
-- [ ] Verify all three VAPID names are present in Vercel Production, then trigger and verify a fresh deployment that incorporates them.
-- [ ] Confirm the deployed browser bundle includes the VAPID public key configuration and the repaired guarded enrollment path without exposing key material.
+- [x] Resolve the Vercel alias serving the prior client artifact despite the successful GitHub deployment status, then verify the published reminder-control recovery marker.
+- [x] Verify the user-confirmed manual Vercel redeploy serves the repaired reminder-control client artifact before issuing iPhone retry instructions.
+- [x] Verify the immutable `personal-calander-dz1qdn8qw-yashnew869-2746s-projects.vercel.app` production artifact contains the reminder-control repair and reconcile any alias inconsistency.
+- [x] Inspect the d310e4b Vercel production artifact and deployment configuration through the connected browser before issuing iPhone retry instructions.
+- [x] Add and verify a public machine-readable release marker for the repaired reminder-control artifact without additional dashboard interaction.
+- [x] Add a machine-verifiable public release marker for the repaired reminder artifact and verify that it reaches Vercel production.
+- [x] Add VITE_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to Vercel Production without exposing their values, then redeploy and verify the repaired push-control bundle retains its guarded enrollment path.
+- [x] Verify all three VAPID names are present in Vercel Production, then trigger and verify a fresh deployment that incorporates them.
+- [x] Confirm the deployed browser bundle includes the VAPID public key configuration and the repaired guarded enrollment path without exposing key material.
 - [ ] Complete the installed-iPhone device enrollment, visible test notification, daily 11:00 Pacific/Auckland schedule activation, and Sunday 17:00 Pacific/Auckland weekly-review activation with user-observed evidence.
-- [ ] Verify the exact uppercase VITE_VAPID_PUBLIC_KEY name appears in Vercel Production alongside the private key and subject before redeploying.
+- [x] Verify the exact uppercase VITE_VAPID_PUBLIC_KEY name appears in Vercel Production alongside the private key and subject before redeploying.
 - [ ] Verify the user-activated daily 11:00 and weekly Sunday 17:00 Pacific/Auckland reminder rules are active, device-scoped, and duplicate-safe after the completed visible push test.
 - [ ] Diagnose and repair the failed Enable daily + weekly activation path when the device test succeeds but no Pause reminders state appears.
 - [ ] Replace Vercel-incompatible per-user Heartbeat job provisioning with one deployed project-level authenticated hourly sweep that evaluates enabled reminder rules and retains per-rule idempotency.
+- [ ] Publish and verify a non-sensitive r3 browser release marker tied to the corrected project-level scheduler commit on the Vercel alias.
+- [ ] Archive the disposable goal and milestone created only in the isolated public-browser workspace after the browser session recovers.

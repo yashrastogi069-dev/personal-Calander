@@ -25,3 +25,35 @@ The Today view exposes **Phone reminders**, a device-enrollment action, and the 
 The first reminder-control audit found a concrete failure mode: the isolated browser granted notification permission but `PushManager.getSubscription()` returned `AbortError: Error retrieving push subscription.` The previous client surfaced that raw message and left the schedule action disabled, which could reasonably look like an inert control.
 
 The enrollment flow now displays a pending state during the permission request, reports a bounded recovery message if a browser leaves that request unresolved, treats an unreadable existing subscription as an opportunity to request a fresh subscription, and translates `AbortError` into an explicit Home Screen recovery instruction. The isolated browser repeated the abort path and displayed: **“This browser could not create a Push API subscription. On iPhone, open Personal Calander from its Home Screen icon (not a normal browser tab), then try again.”** The automatic cadence remains correctly disabled until a device is safely enrolled. This confirms clear behavior and recovery guidance, but it does not substitute for a successful installed-iPhone subscription or delivery test.
+
+## Production reachability and scheduler correction — 25 August 2026
+
+The public Vercel alias rendered the planner successfully after the scheduler correction was committed. The server-side correction uses a durable project-owned scheduler record rather than requesting per-user Heartbeat creation from an anonymous installed PWA. The GitHub commit was pushed successfully; an attempt to inspect Vercel’s deployment dashboard from the available browser reached Vercel’s login page, so dashboard-based commit-state confirmation remains unavailable in this session. This limitation does not affect the reachable public app or the separately published project callback, but final Vercel server-artifact verification still requires a logged-in dashboard session or a public behavior check.
+
+An isolated browser workspace on the public alias remained empty and was therefore suitable for disposable long-horizon verification. Its rendered Goal runway exposed a live **Plan goal** control rather than a display-only affordance. The user’s personal iPhone workspace was not accessed or altered.
+
+Opening the control presented a real dialog with a goal title, explicit **Yearly direction** horizon selector, parent-goal selector, start and due-date fields, and Create/Cancel controls. The next isolated step is to create, edit, inspect, and archive one disposable goal/milestone; no user data will be used.
+
+The isolated dialog accepted the disposable title and a valid `2026-08-25` to `2026-12-31` date span, then submitted through its live **Create goal** control. The subsequent browser step will inspect the persisted Goal runway before adding a disposable milestone.
+
+The persisted Goal runway card rendered the disposable yearly goal with `0%` execution/runway signals, a valid `128d left` pace display, explicit zero linked evidence, an explainable next action, and **No milestones yet**. The card exposed a live **Add milestone** action, confirming that the Horizon Compass state derives from persisted goal data rather than a display-only mock.
+
+The real milestone dialog bound the disposable parent goal and exposed a proof title, explicit monthly/quarterly horizon selector, dated progress value/target fields, optional if–then cue and response, plus Create/Cancel actions. The isolated check will create one quarterly milestone and then edit it to demonstrate persistence.
+
+The opened horizon selector exposed **Monthly** and **Quarterly** options, with Monthly selected by default. The verification will intentionally select Quarterly rather than relying on the default.
+
+The isolated flow selected **Quarterly** and accepted the evidence title, due date `2026-09-30`, `25/100` measure, and explicit Friday cue/response. These values are ready for submission through the live **Create milestone** action.
+
+The live Create mutation persisted **Quarterly evidence checkpoint**, and the Goal runway rendered it with the explicit `quarterly · 2026-09-30` metadata. The verification proceeds to edit the persisted milestone before archiving all disposable records.
+
+The persisted milestone card is itself a real keyboard-reachable button. Activating it opened the milestone edit surface, rather than a display-only details view.
+
+The edit dialog restored the persisted quarterly title, date, `25/100` values, and if–then evidence. The isolated test changed the progress measure to `50` and will now save, reload, confirm that value, and archive the temporary goal.
+
+After saving and reloading the public planner, the Horizon Compass showed **50% milestones** for the disposable yearly goal and retained the quarterly evidence card. This confirms persisted create → edit → fresh snapshot behavior, including the visible analytics source. Cleanup of the disposable records remains the final browser step.
+
+The dedicated Goals route also rendered the same persisted 50% milestone state after navigation. The goal card itself has no inline archive affordance; the verified milestone card opens edit, and archive is intentionally managed through the existing organizer/confirmation workflow rather than an ambiguous inline destructive control. The isolated records must be removed through that dedicated lifecycle surface.
+
+The top-level organizer opened with explicit **Add category**, **Archive**, and **Close** actions. This confirms the cleanup path is available without presenting a hidden destructive action on the Horizon Compass card.
+
+The subsequent attempt to open the archive section timed out, after which the available browser session became unavailable. The disposable goal and milestone remain in the isolated browser workspace until the browser becomes available again; this is tracked as unfinished cleanup rather than being represented as erased.
