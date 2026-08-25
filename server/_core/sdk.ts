@@ -1,5 +1,5 @@
 import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS, decodeOAuthState } from "@shared/const";
-import { ForbiddenError } from "@shared/_core/errors";
+import { ForbiddenError, HttpError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { IncomingHttpHeaders } from "node:http";
@@ -257,6 +257,17 @@ class SDKServer {
     } as GetUserInfoWithJwtResponse;
   }
 
+  private async authenticateCronToken(
+    sessionToken: string
+  ): Promise<AuthenticatedUser | null> {
+    const userInfo = await this.getUserInfoWithJwt(sessionToken);
+    if (!userInfo.openId.startsWith(CRON_OPEN_ID_PREFIX)) return null;
+    if (!userInfo.taskUid) {
+      throw ForbiddenError("Cron session missing task_uid");
+    }
+    return buildCronUser(userInfo);
+  }
+
   async authenticateRequest(req: RequestWithHeaders): Promise<AuthenticatedUser> {
     // 1. Prefer the session cookie (regular OAuth login).
     const cookies = this.parseCookies(req.headers.cookie);
@@ -274,17 +285,28 @@ class SDKServer {
 
     const session = await this.verifySession(sessionToken);
 
+    // Heartbeat supplies a platform-issued cron cookie, which is intentionally
+    // not signed with this app's local JWT secret. Resolve it through the
+    // authoritative identity endpoint before treating it as an invalid browser
+    // session. A normal foreign/raw token is never accepted: only cron_ actors
+    // with a platform-bound task UID can enter this branch.
+    if (!session && sessionToken) {
+      try {
+        const cronUser = await this.authenticateCronToken(sessionToken);
+        if (cronUser) return cronUser;
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+      }
+    }
+
     if (!session) {
       throw ForbiddenError("Invalid session cookie");
     }
 
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
-      const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-      const taskUid = userInfo.taskUid ?? null;
-      if (!taskUid) {
-        throw ForbiddenError("Cron session missing task_uid");
-      }
-      return buildCronUser(userInfo);
+      const cronUser = await this.authenticateCronToken(sessionToken ?? "");
+      if (cronUser) return cronUser;
+      throw ForbiddenError("Cron session identity was not recognized");
     }
 
     const sessionUserId = session.openId;

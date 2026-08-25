@@ -27,6 +27,8 @@ The reminder rule interface exposes the local timezone, cadence, enabled state, 
 
 > The callback code and scheduler-registry migration must be deployed before the single project-owned scheduling task is created and recorded. A prior browser activation attempt failed before creating a task because that design attempted to provision user-owned tasks from an anonymous PWA session. The replacement preserves the approved cadence and removes that fragile dependency. Actual installed-iPhone automatic delivery remains a final verification step.
 
+The first project-owned callback exposed a separate authentication integration issue: Heartbeat supplies a platform-issued cron cookie that is not signed with the app’s local browser-session secret. The callback now resolves an otherwise-unverifiable cookie through the authoritative identity endpoint and accepts it only when it identifies a `cron_` actor with a platform-bound task UID. Normal raw or foreign tokens remain rejected. The repair has a focused regression test; a successful post-repair scheduler audit remains required before automatic provider delivery is claimed.
+
 ## Validation contract
 
 The automated suite covers daily and weekly local-time matching in both Auckland daylight-saving and standard-time periods. Additional service and route tests cover project-task ownership, session-independent activation, disabled/no-op behavior, duplicate reservation, provider expiration, and payload safety. Live validation must prove enable, visible manual test, automatic scheduled delivery, pause, and re-enable on the user’s installed PWA.

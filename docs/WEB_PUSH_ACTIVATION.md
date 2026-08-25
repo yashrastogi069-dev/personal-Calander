@@ -1,6 +1,6 @@
 # Web Push and iPhone Activation Runbook
 
-**Status:** The application has an installable manifest, service worker, explicit device opt-in, secure subscription persistence, local/browser plus server-side opt-out, subscription-refresh messaging, audited manual test delivery, and terminal-expiration handling. VAPID values are configured through secure secrets only. The user has confirmed a visible iPhone manual test notification. The approved automatic cadence still requires deployment of the corrected scheduler callback, project-level scheduler creation, and a final on-device activation confirmation.
+**Status:** The application has an installable manifest, service worker, explicit device opt-in, secure subscription persistence, local/browser plus server-side opt-out, subscription-refresh messaging, audited manual test delivery, and terminal-expiration handling. VAPID values are configured through secure secrets only. The user has confirmed both a visible iPhone manual test notification and the corrected **Pause reminders** state after enabling the approved cadence. Server persistence confirms one enabled `daily@11:00` rule and one enabled `weekly@0@17:00` rule in `Pacific/Auckland`. The next actual scheduled provider delivery remains future-observed evidence rather than a result this runbook claims in advance.
 
 > **Important:** Browser permission is not delivery. A device must be installed and subscribed, the subscription must be stored, and a server must sign and send a Web Push request before a reminder can reach the phone.
 
@@ -61,6 +61,12 @@ The recommended order is **manual test notification first**, then one daily-plan
 Use this exact order after deployment: first confirm the manifest and service worker are present; install to the iPhone Home Screen; grant permission inside the installed app; create a subscription; press **Send test notification**; lock the phone; and verify a visible notification. Then test opt-out, revoke the device permission in iOS Settings, simulate or observe a subscription refresh, and verify that a rejected or expired endpoint is marked disabled rather than retried forever.
 
 Apple’s push service returns status codes that should control recovery: `201` means accepted; `410` means the device token expired; `403` often indicates a VAPID authentication error; `413` means the payload is too large; and `429` requires backoff.[2]
+
+## 7. Current activation checklist
+
+The supported installed-iPhone path is now active. Open Personal Calander **from its Home Screen icon**, go to **Today**, and confirm that the Scheduled rhythm control reads **Pause reminders**. That state means the saved daily `11:00` and weekly Sunday `17:00` Pacific/Auckland rules are enabled; it is not a claim that a future notification has already been delivered.
+
+To pause future scheduled sends, tap **Pause reminders**. To resume the same approved cadence later, tap **Enable daily + weekly**. The browser-device action remains separate: use **Disable reminders on this device** only when the installed device should stop receiving pushes. After disabling, re-enable that exact Home Screen PWA device and use the manual test notification before relying on the scheduled cadence again.
 
 ## References
 
