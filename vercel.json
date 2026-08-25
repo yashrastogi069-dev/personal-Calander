@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "rm -rf dist && pnpm build:client",
+  "buildCommand": "rm -rf dist node_modules/.vite && pnpm build:client",
   "outputDirectory": "dist/public",
   "functions": {
     "api/trpc/[...path].mjs": {
