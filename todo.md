@@ -93,9 +93,12 @@
 - [x] Add focused planner contract coverage that explicit weekday and interval habit schedules are preserved on create.
 - [x] Browser-test every currently visible plus/add control, confirming that it launches a real creation flow or remove any ambiguous affordance.
 - [x] Make archive/remove access comprehensive for all active workspace records, then revalidate its confirmation and consequence copy.
-- [ ] Audit every embedded plus/empty-state entry control in the focus, goals, habits, calendar, review, and side-surface panels; wire each to the correct creation flow or remove it.
-- [ ] Browser-test the exact “Begin with one honest commitment” and all remaining embedded plus actions, documenting the creation type each opens.
+- [x] Audit every embedded plus/empty-state entry control in the focus, goals, habits, calendar, review, and side-surface panels; wire each to the correct creation flow or remove it.
+- [x] Browser-test the exact “Begin with one honest commitment” and all remaining embedded plus actions, documenting the creation type each opens.
 - [ ] Checkpoint, push, and verify the corrected embedded-action release on GitHub and the public Vercel alias.
 - [ ] Run and document a complete current-release regression: compiler, automated suite, production build, embedded-plus browser paths, public health/tRPC/snapshot, and rendered Vercel root.
 - [ ] Update the durable release record with the corrected embedded-plus behavior, verification evidence, final GitHub revision, and Vercel alias target.
 - [x] Checkpoint and push every current local change to the public GitHub main branch, then confirm the remote revision matches.
+- [x] Resume the embedded-plus repair and complete its exact browser-path verification before the final regression and deployment pass.
+- [x] Complete and record the embedded-control inventory across Tasks, Calendar, Review, and all side surfaces, including an explicit “none present” result where applicable.
+- [x] Re-record the complete embedded-card mapping in both testing and visual verification records, then rerun the exact browser audit before final checkpointing.

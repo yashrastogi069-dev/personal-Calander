@@ -79,3 +79,9 @@ An anchored interval habit with an every-three-days rhythm appeared on August 18
 ## Keyboard and integration-boundary verification
 
 The task composer’s recurrence selector took keyboard focus, opened with `Enter`, and closed with `Escape`. The **Begin review** action likewise took direct keyboard focus. A disposable daily habit verified the selected-date Habit Calendar’s primary **Complete** action and true undo by keyboard alone; it was then archived. The iPhone Calendar control generated a private read-only subscription link in an isolated workspace and visibly exposed copy, open, and revoke affordances. Notification permission was checked only in an isolated browser context: the UI correctly distinguishes permission readiness from message delivery and still states that VAPID-backed delivery is not active.
+
+## Embedded plus-card repair
+
+The previously confusing plus-led empty cards now behave as complete, semantic buttons. Their plus mark, card body, and action label share one task, goal, project, or habit creation path. Desktop and phone-sized inspections show the full-card target retains the planner’s low-glare spacing and hierarchy while making the control visibly actionable. The browser exercised all five embedded card flows and confirmed the correct composer type each time.
+
+The follow-up inventory also tested the Tasks empty-state card, which opens the task composer, and confirmed that Calendar and Review render no embedded empty-state plus cards. No unresponsive plus-led empty-state control remains in the current planner surfaces.
