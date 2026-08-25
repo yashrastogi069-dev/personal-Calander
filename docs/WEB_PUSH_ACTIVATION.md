@@ -76,6 +76,8 @@ The Phone reminders surface now contains a separate, always-visible **This devic
 
 The mobile surface was then reduced to the two decisions that are real and safe. **This iPhone** provides exactly one applicable device action: **Connect this iPhone** when it is unconnected, or **Send test** plus **Disconnect this iPhone** when the exact current subscription is active. **Schedule** shows the approved daily 11:00 and Sunday 17:00 New Zealand-time cadence and provides either **Enable reminders** or **Pause reminders**. When the iPhone is not connected, the schedule button is visibly disabled and says **Connect iPhone first**. No extra device-management option is implied or hidden.
 
+The user’s final installed-iPhone confirmation shows the connected state, both device actions, the active **Pause reminders** control, and the scheduled Pacific/Auckland status message together. The optional disconnect/re-enrol test was deliberately not invoked because it would temporarily disturb a working connected device; it is a future recovery procedure, not a requirement for the active cadence.
+
 ## References
 
 [1] [MDN: Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)

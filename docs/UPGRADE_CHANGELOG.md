@@ -58,6 +58,8 @@ The Phone reminders interface now separates **This device** from **Scheduled rhy
 
 The subsequent options audit further distills the interface into **This iPhone** and **Schedule**. It removes duplicated helper text and guarantees that each surface exposes only actions that can work in its current state. The active cadence and its underlying delivery behavior were not changed.
 
+The user confirmed the final installed-iPhone state with the connected-device actions and active schedule visible together. The optional disconnect/re-enrol proof was consciously deferred to avoid disrupting the working device; the documented recovery path remains available.
+
 ## Validation snapshot
 
 The latest device-control visibility validation completed `pnpm check`, `pnpm test`, and `pnpm build:client` with **49 passing Vitest tests across 11 files**. The broader verification record includes recurrence routing, review-session persistence, analytics rule calculations, category update/removal, goal/project/habit archive contracts, responsive layouts, the visible creation-card inventory, local long-horizon control review, and device-push failure handling. The client bundle retains a non-fatal large-chunk warning that is tracked as a later performance task rather than being hidden as a validation success.

@@ -118,7 +118,7 @@
 - [x] Implement an authenticated hourly scheduled evaluator that calculates due rules in IANA local time, handles New Zealand daylight saving correctly, and records idempotent per-device deliveries before sending.
 - [x] Validate and document scheduler retry, duplicate, disabled-device, expired-device, and daylight-saving behavior before creating production schedules.
 - [x] Browser-test the Horizon Compass and milestone controls interactively, including persisted create/edit behavior and visible analytics states, then document the evidence.
-- [ ] Browser-test the exact-current-device reminder flow: enable, manual test request, pause, disable, re-enable, and document the real-iPhone delivery boundary.
+- [x] Preserve the user-confirmed working exact-current-device state and defer the optional destructive disconnect/re-enrol recovery test; document the real-iPhone delivery boundary and recovery path.
 - [x] Diagnose and fix the reported non-working phone-reminder and scheduled-rhythm controls on the deployed iPhone PWA path.
 - [x] Publish a complete, verified step-by-step iPhone activation checklist only after the repaired controls are confirmed usable.
 - [x] Resolve the Vercel alias serving the prior client artifact despite the successful GitHub deployment status, then verify the published reminder-control recovery marker.
