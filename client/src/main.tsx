@@ -8,6 +8,8 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
+document.documentElement.dataset.release = "push-recovery-entry-r2";
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(error => console.warn("[PWA] Service worker registration skipped", error));
