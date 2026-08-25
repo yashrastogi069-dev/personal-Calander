@@ -158,3 +158,6 @@
 - [x] Remediate verified production dependency audit findings with compatible direct-package updates, then run full regression and rebuild validation.
 - [x] Fix only verified non-automation defects or reliability gaps found by the closeout audit, with focused tests and no unapproved external-provider integration.
 - [x] Publish the closeout evidence, clearly separating completed core product work from future extensions that require provider, account, or collaboration decisions.
+- [x] Define and document a phone-first visual hierarchy, navigation, type scale, safe-area, and progressive-disclosure redesign that preserves all planner capabilities.
+- [x] Rebuild the phone planner shell and core route surfaces with larger readable controls, clearer card/panel structure, and touch-first interaction affordances without changing planner data behavior.
+- [ ] Validate the redesigned phone experience across all core routes, accessibility states, desktop preservation, automated regression, and public release propagation.

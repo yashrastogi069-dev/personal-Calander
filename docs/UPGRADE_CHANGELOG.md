@@ -82,6 +82,12 @@ The runtime dependency graph has been brought through a targeted production-secu
 
 This completes the currently committed non-automation product and reliability backlog. The remaining roadmap entries—external calendar providers, account migration, shared workspaces, and similar integrations—are not unfinished defects; each requires a separate provider or product decision. Automatic reminder delivery remains explicitly paused, and the connected iPhone/device-cadence experience was not changed.
 
+## Daily Desk phone redesign
+
+The phone planner has been rebuilt as a touch-first **Daily Desk**. Today now begins with a confident route/date heading, a large capture deck, a full-width immediate-focus surface, and an intentionally ordered planning signal. Supporting work is no longer a long equal-weight stack: Plan tools and Connected tools are calm expandable sections that retain every existing action without competing with the next decision.
+
+Phone navigation now uses four direct destinations—Today, Tasks, Calendar, and Goals—plus a fifth **More** sheet for Habits, Review, and category management. It is labeled, safe-area aware, and covered by a shared navigation contract test that guarantees all six planner destinations remain available. Type, controls, task rows, dialogs, calendar modes, goals, habits, review flow, charts, and empty states were redesigned for readable phone use while the desktop rail and two-column workspace remain intact. The connected-iPhone reminder controls and paused automatic-delivery boundary were deliberately preserved. The release passed TypeScript, a **55-test / 13-file** suite, production build, phone and desktop visual review, and final detector-guided cleanup.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"
