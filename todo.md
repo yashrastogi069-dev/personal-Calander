@@ -157,4 +157,4 @@
 - [x] Complete a bounded non-automation source, workflow, and production-readiness audit; preserve automatic reminder delivery as paused.
 - [x] Remediate verified production dependency audit findings with compatible direct-package updates, then run full regression and rebuild validation.
 - [x] Fix only verified non-automation defects or reliability gaps found by the closeout audit, with focused tests and no unapproved external-provider integration.
-- [ ] Publish the closeout evidence, clearly separating completed core product work from future extensions that require provider, account, or collaboration decisions.
+- [x] Publish the closeout evidence, clearly separating completed core product work from future extensions that require provider, account, or collaboration decisions.
