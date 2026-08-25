@@ -72,6 +72,10 @@ To pause future scheduled sends, tap **Pause reminders**. To resume the same app
 
 The Phone reminders surface now contains a separate, always-visible **This device** row above Scheduled rhythm. It names the exact current state and presents the next device action in the same place: **Connect this device** when no current subscription is found; **Send test notification** and **Disconnect this device** when the current subscription is active; or a clear blocked/unsupported explanation when iOS cannot complete the action. Scheduled rhythm is deliberately separate so pausing reminders does not silently disconnect the device.
 
+### Audited current options
+
+The mobile surface was then reduced to the two decisions that are real and safe. **This iPhone** provides exactly one applicable device action: **Connect this iPhone** when it is unconnected, or **Send test** plus **Disconnect this iPhone** when the exact current subscription is active. **Schedule** shows the approved daily 11:00 and Sunday 17:00 New Zealand-time cadence and provides either **Enable reminders** or **Pause reminders**. When the iPhone is not connected, the schedule button is visibly disabled and says **Connect iPhone first**. No extra device-management option is implied or hidden.
+
 ## References
 
 [1] [MDN: Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)

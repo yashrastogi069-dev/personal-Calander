@@ -5,7 +5,7 @@ describe("getReminderDevicePresentation", () => {
   it("keeps the exact-device disconnect action visible when a current subscription is active", () => {
     expect(getReminderDevicePresentation("granted", true)).toMatchObject({
       action: "disconnect",
-      actionLabel: "Disconnect this device",
+      actionLabel: "Disconnect this iPhone",
       isBlocked: false,
     });
   });
@@ -13,7 +13,7 @@ describe("getReminderDevicePresentation", () => {
   it("offers a visible reconnect action when no current subscription is found", () => {
     expect(getReminderDevicePresentation("granted", false)).toMatchObject({
       action: "connect",
-      actionLabel: "Connect this device",
+      actionLabel: "Connect this iPhone",
       isBlocked: false,
     });
   });

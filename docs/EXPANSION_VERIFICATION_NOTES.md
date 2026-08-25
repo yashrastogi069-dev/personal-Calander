@@ -65,3 +65,7 @@ The recovered organizer presented its intended explicit **Archive** management a
 The Archive action again timed out and the browser session became unavailable before the confirmation surface could be inspected. No destructive request was confirmed, so the isolated disposable records remain tracked for cleanup rather than being treated as archived.
 
 The isolated records were subsequently archived through the persistence layer using their exact known verification titles, rather than deleted. A post-operation count confirmed zero active disposable goals and zero active disposable milestones.
+
+## Public r4 reminder-control inventory
+
+The current public r4 workspace rendered all reminder options in a distinct hierarchy: **Phone reminders** explanatory copy; **This device** state; an enabled **Connect this device** button; and separate **Scheduled rhythm** copy with **Enable daily + weekly** disabled until an exact device subscription exists. The DOM audit confirmed that the only disabled control was cadence activation in the intentionally unconnected isolated workspace. This behavior is internally consistent, but the duplicated connection wording creates unnecessary cognitive load and is being simplified before the next user instruction.

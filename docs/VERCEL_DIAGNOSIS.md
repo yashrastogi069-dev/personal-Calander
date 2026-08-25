@@ -72,6 +72,8 @@ The original cadence mutation attempted to create end-user-owned Heartbeat tasks
 
 After the iPhone retry succeeded, the first global job callback revealed a raw cron-cookie versus local browser-session mismatch. The callback authentication fallback was added, locally validated with the expanded 49-test suite, and published through the managed deployment. A subsequent project scheduler audit returned HTTP `200`, authenticated the cron identity, inspected the two enabled rules, and produced safe `not_due` zero-send results. The temporary audit schedule was removed and the durable scheduler registry now references a fresh hourly job. The Vercel UI remains the configuration surface; the authenticated callback itself runs on the managed deployed application and uses the same persisted reminder data.
 
+The r4 device-control visibility release was pushed to GitHub and independently verified on the public alias. The alias served `index-B3gVve0X.js`, which contains the non-sensitive `device-control-r4` marker. The live client therefore includes the separate always-visible **This device** row before the installed-iPhone confirmation is requested.
+
 ## Sources
 
 The live checks above were run directly against the public Vercel alias and immutable deployment. The implementation follows Vercel’s documented Function, Express, Vite, and rewrite models. [1] [2] [3] [4]

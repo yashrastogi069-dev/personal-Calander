@@ -13,8 +13,8 @@ export function getReminderDevicePresentation(
 ): ReminderDevicePresentation {
   if (hasCurrentDevice) {
     return {
-      status: "This exact device is connected. Test or disconnect it here; Scheduled rhythm is managed separately below.",
-      actionLabel: "Disconnect this device",
+      status: "Connected to this iPhone.",
+      actionLabel: "Disconnect this iPhone",
       action: "disconnect",
       isBlocked: false,
     };
@@ -22,7 +22,7 @@ export function getReminderDevicePresentation(
 
   if (permission === "denied") {
     return {
-      status: "Notification permission is blocked for this app. Re-enable it in iPhone Settings before reconnecting this device.",
+      status: "Notifications are blocked in iPhone Settings.",
       actionLabel: "Permission blocked",
       action: "connect",
       isBlocked: true,
@@ -31,7 +31,7 @@ export function getReminderDevicePresentation(
 
   if (permission === "unsupported") {
     return {
-      status: "This browser cannot manage the installed-app reminder connection. Open Personal Calander from its iPhone Home Screen icon.",
+      status: "Open Personal Calander from its Home Screen icon.",
       actionLabel: "Open the Home Screen app",
       action: "connect",
       isBlocked: true,
@@ -39,8 +39,8 @@ export function getReminderDevicePresentation(
   }
 
   return {
-    status: "This exact device is not connected. Connect or reconnect it here before using scheduled reminders.",
-    actionLabel: "Connect this device",
+    status: "Not connected to this iPhone.",
+    actionLabel: "Connect this iPhone",
     action: "connect",
     isBlocked: false,
   };
