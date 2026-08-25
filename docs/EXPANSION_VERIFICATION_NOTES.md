@@ -135,3 +135,9 @@ A separate true 390×844 phone-viewport inspection confirmed the intended 4+More
 After GitHub main advanced to the Habits checkpoint, the public Vercel alias was reachable and rendered the planner shell in an isolated anonymous workspace. This was a read-only availability check; the release-marker result is recorded separately before the redesign is claimed as publicly propagated.
 
 After a refresh, the public alias exposed the non-sensitive browser identifier **`habits-rhythm-r10`**. This confirms that the GitHub-synchronized Habits Rhythm Workspace release propagated to the public Vercel deployment. The public workspace remained unmodified; no task, goal, habit, Calendar subscription, device, cadence, or reminder control was accessed or changed during release verification.
+
+## Managed preview runtime repair
+
+The reported `/?from_webdev=1` failure was reproduced as two preview-only issues: Vite attempted an HMR socket to its local development port through the external preview proxy, and the React root failed in the tRPC provider with an invalid-hook error. A separate entry-module fault also showed Vite returning HTML for a randomized `/src/main.tsx?v=…` source URL. The source rewrite was removed, and the managed preview now serves the freshly built static client bundle rather than a proxy-hostile Vite client. This leaves Vite available for explicit local debugging without making the user-facing managed preview depend on an external WebSocket tunnel.
+
+After the stable-preview server restart, an iPhone-sized preview rendered the complete Today surface with its fixed navigation. The external `?from_webdev=1` route then rendered the full planner, including task, goals, and Habits controls. Browser inspection found a mounted root and neither `@vite/client` nor Vite source-module resources. No planner record, device state, cadence rule, or reminder setting was changed while verifying the repair.

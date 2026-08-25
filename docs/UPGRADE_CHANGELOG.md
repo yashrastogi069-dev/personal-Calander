@@ -100,6 +100,10 @@ Habits now has a visibly distinct phone-first operating surface. At the top of t
 
 This redesign changes presentation only. Habit schedules, intentional skips, streak rules, check-in persistence, calendar-day actions, error recovery, the main task calendar boundary, desktop behavior, iPhone controls, and paused reminder automation remain unchanged. An isolated complete/undo verification confirms the new current-day deck stays synchronized with the trace and calendar.
 
+## Managed preview stability repair
+
+The managed Preview now serves a freshly built static planner bundle instead of relying on a Vite HMR client through the external preview proxy. This removes the preview-only WebSocket failure and React/tRPC invalid-hook failure that could leave `?from_webdev=1` blank. The full planner now mounts normally in the managed preview; Vite remains available only for explicit local debugging. No end-user planning, habits, iPhone, cadence, or reminder behavior changed.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

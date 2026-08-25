@@ -1,17 +1,13 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import { type Server } from "http";
-import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
+import { createManagedPreviewViteServerOptions } from "./vitePreviewConfig";
 
 export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true as const,
-  };
+  const serverOptions = createManagedPreviewViteServerOptions(server);
 
   const vite = await createViteServer({
     ...viteConfig,
@@ -32,12 +28,10 @@ export async function setupVite(app: Express, server: Server) {
         "index.html"
       );
 
-      // always reload the index.html file from disk incase it changes
+      // Always read index.html from disk so markup changes are available on reload.
+      // Vite owns source-module cache invalidation; adding an arbitrary query here
+      // prevents its transform pipeline from resolving the React entry module.
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {

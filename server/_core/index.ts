@@ -3,6 +3,7 @@ import { createServer } from "http";
 import net from "net";
 import { createPlannerApp } from "./app";
 import { serveStatic, setupVite } from "./vite";
+import { shouldUseViteDevelopmentServer } from "./vitePreviewConfig";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -26,8 +27,11 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = createPlannerApp();
   const server = createServer(app);
-  // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
+  // The managed preview serves the current production bundle by default. Its
+  // external proxy cannot reliably transport Vite's direct HMR socket, and a
+  // static bundle avoids a second client runtime. Local Vite debugging remains
+  // available by explicitly omitting MANUS_STABLE_PREVIEW.
+  if (shouldUseViteDevelopmentServer()) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
