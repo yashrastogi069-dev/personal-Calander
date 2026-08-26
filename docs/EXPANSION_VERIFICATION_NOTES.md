@@ -177,3 +177,5 @@ After checkpoint `80e90276` was synchronized to GitHub `main`, the public Vercel
 ## Calendar name and task-lane color refinement — local evidence
 
 The rebuilt local application reports **Personal Calendar** in both the document title and the rendered brand lockup. The populated Tasks board renders a deep slate-blue To do lane, a separate dark-teal In progress lane, and the retained forest Completed lane; readable task text, state counts, native Move to controls, empty states, and the Archived work panel were preserved. The true 390×844 capture retained the phone Daily Desk structure without overflow. TypeScript, the 71-test suite, production build, source spelling scan, and detector pass completed before release propagation.
+
+After checkpoint `83c71ca2` was synchronized to GitHub `main`, the first public read correctly showed the prior `planner-scale-r16` artifact. A cache-busting refresh then loaded **Personal Calendar** and returned the non-sensitive public release marker **`calendar-colors-r17`**. This was a read-only check in an empty anonymous workspace; no planner record, Calendar feed, device, cadence, or reminder data was changed.

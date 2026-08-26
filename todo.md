@@ -190,4 +190,4 @@
 - [x] Hard-test high-volume, archive/restore, stale-write, recovery, filtering, mobile, and regression scenarios; document and publicly verify the scale-hardened release.
 - [x] Correct visible product spelling from “Calander” to “Calendar” while preserving existing routes, data, and integrations.
 - [x] Refine only the To do and In progress dark task-lane colors into distinct non-brown tones, preserving the Completed forest treatment.
-- [ ] Revalidate the spelling and lane-color update across TypeScript, tests, production build, desktop/mobile rendering, GitHub, and the public Vercel marker.
+- [x] Revalidate the spelling and lane-color update across TypeScript, tests, production build, desktop/mobile rendering, GitHub, and the public Vercel marker.
