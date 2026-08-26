@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "flow-clarity-r18";
+document.documentElement.dataset.release = "capacity-risk-r19";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

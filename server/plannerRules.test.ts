@@ -101,6 +101,7 @@ describe("planning rules", () => {
     });
     expect(summary.counts.today).toBe(1);
     expect(summary.workload.isOverCapacity).toBe(true);
+    expect(summary.workload).toMatchObject({ plannedMinutes: 480, remainingMinutes: -120, reservedMinutes: 0, deadlineOnlyMinutes: 0, unestimatedCount: 0, deadlineRiskCount: 0 });
   });
 
   it("surfaces carryover, blocked work, and focus completion as planning-health signals", () => {

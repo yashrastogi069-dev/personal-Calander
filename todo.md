@@ -198,3 +198,10 @@
 - [x] Make the Habit/Task/Goal/Project distinctions operational in creation and planning flow, preserving the task-focused main Calendar and separate Habit rhythm/calendar.
 - [x] Rename and clarify deadline, planning, focus-time, and calendar-reservation inputs with connected validation and decision guidance.
 - [x] Validate the approved improvements across desktop, phone, error, lifecycle, regression, GitHub, and public-release scenarios.
+- [x] Audit capacity calculations, deadline signals, project/task links, existing creation paths, and responsive constraints for the next planning upgrade.
+- [x] Define testable real-time daily capacity, deadline-risk, and guided project-breakdown rules with explicit missing-data and high-volume safeguards.
+- [x] Implement a compact real-time daily capacity forecast using persisted task estimates, planned work, deadlines, and workspace capacity.
+- [x] Add a clear deadline-risk filter and explainable task risk signals without fabricating predictions where data is incomplete.
+- [x] Add a guided, confirmation-first project-to-task breakdown flow that creates only reviewed, explicit tasks linked to the selected project.
+- [ ] Validate capacity, risk, breakdown, failure, high-volume, desktop, phone, GitHub, and public-release behavior end to end.
+- [x] Prevent task-editor field synchronization from overwriting a just-selected lifecycle state before the user saves it.

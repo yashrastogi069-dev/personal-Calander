@@ -136,6 +136,12 @@ The planner now explains the difference between a **Goal** (a measurable outcome
 
 Empty task calendars now offer a contained decision surface rather than a bare blank space: choose an existing task to reserve time or keep the day open. It creates nothing automatically and does not place habits on the task calendar. Secondary labels have higher contrast and a more readable size. Core creation and editing forms now retain local, actionable errors; a blank task title remains in the editor with a recovery message, while an invalid reservation explains that its end must follow its start. The release passes TypeScript, a **74-test / 18-file** suite, production build, desktop/390px review, and the final interface detector.
 
+## Daily capacity, deadline risk, and reviewed project breakdown
+
+Today now includes a compact real-time **Daily capacity** forecast derived only from unfinished work that is planned for today or due today. It reports known planned minutes against the workspace capacity, remaining or over-capacity minutes, Reserved time, Deadline-only work, and an explicit unestimated-task count instead of guessing duration. Deadline risk is an explainable filter—not a predictive score—and includes only overdue work, work due today, or work due within two days without a plan on or before its deadline.
+
+Projects now offer **Break down**, a confirmation-first dialog for manually reviewed linked tasks. Opening it creates nothing. The user can add up to five titled rows, choose optional Focus time and Plan for values, then explicitly create the shown count of linked tasks. Each row has a stable request ID so retrying an in-dialog partial failure is duplicate-safe. A late verification safeguard also prevents the task editor from resetting a just-selected lifecycle state when equivalent derived task objects rerender.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

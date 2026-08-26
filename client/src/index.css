@@ -941,3 +941,57 @@ html, body { background:#e8ecea; color:#182420; }
   .timeline-empty-actions button { min-height:40px; font-size:12px; }
   .timeline-feedback { right:15px; bottom:12px; left:53px; align-items:flex-start; font-size:11px; }
 }
+
+/* R19: compact, explainable planning support stays actionable without promising predictions. */
+.capacity-forecast { display:grid; gap:13px; padding:18px 20px; border:1px solid #b9d3c6; border-radius:15px; background:linear-gradient(135deg,#eff8f3,#f9fcfa 68%); box-shadow:0 9px 20px rgba(23,68,49,.06); }
+.capacity-forecast.is-over-capacity { border-color:#d5aa94; background:linear-gradient(135deg,#fff6ef,#fbfaf8 68%); }
+.capacity-forecast-main { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; }
+.capacity-forecast h2 { margin:0; color:#1d4d40; font-size:19px; letter-spacing:-.032em; }
+.capacity-forecast p { max-width:58ch; margin:5px 0 0; color:#4e6b61; font-size:12px; line-height:1.45; }
+.capacity-forecast-main > strong { display:block; flex:0 0 auto; color:#1f5f4b; font:800 24px/1 "Onest", sans-serif; letter-spacing:-.045em; text-align:right; white-space:nowrap; }
+.capacity-forecast-main > strong small { color:#5d796d; font:600 11px/1.2 "IBM Plex Mono", monospace; letter-spacing:-.025em; }
+.capacity-forecast dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:0; }
+.capacity-forecast dl div { min-width:0; padding:8px 10px; border:1px solid rgba(62,112,88,.16); border-radius:9px; background:rgba(255,255,255,.62); }
+.capacity-forecast dt { color:#58756a; font:700 9px/1.2 "IBM Plex Mono", monospace; letter-spacing:.05em; text-transform:uppercase; }
+.capacity-forecast dd { margin:4px 0 0; color:#245641; font-size:13px; font-weight:750; }
+.capacity-risk-link { justify-self:start; min-height:35px; padding:0 10px; color:#285c49; border:1px solid #9bc3ad; border-radius:8px; background:#fafffb; font-size:11px; font-weight:750; transition:background 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 150ms var(--ease-out); }
+.capacity-risk-link:hover { border-color:#629c7b; background:#e4f3e8; }
+.capacity-risk-link:active { transform:scale(.98); }
+.deadline-risk-mark { color:#96503e !important; font-weight:750; }
+.task-lane .deadline-risk-mark { color:#ffd5c7 !important; }
+.project-row-actions { display:flex; align-items:center; flex:0 0 auto; gap:9px; }
+.project-row-actions .text-button { min-height:32px; padding:0 9px; color:#285b49; border:1px solid #a7c8b3; border-radius:8px; background:#f8fcf9; font-size:11px; font-weight:750; }
+.project-row-actions .text-button:hover { border-color:#609778; background:#e4f1e6; }
+.breakdown-dialog { max-width:720px; }
+.project-breakdown-form { gap:14px; }
+.project-breakdown-summary { padding:11px 12px; color:#48685c; border:1px solid #c9ddd2; border-radius:10px; background:#f2f9f4; }
+.project-breakdown-summary span { display:block; color:#59766a; font:700 9px "IBM Plex Mono", monospace; letter-spacing:.06em; text-transform:uppercase; }
+.project-breakdown-summary strong { display:block; margin-top:3px; color:#205442; font-size:13px; }
+.project-breakdown-summary p { margin:5px 0 0; font-size:11px; line-height:1.42; }
+.breakdown-rows { display:grid; gap:9px; }
+.breakdown-row { display:grid; grid-template-columns:minmax(0,1fr) 118px 142px auto; align-items:end; gap:9px; padding:11px; border:1px solid #d1e1d8; border-radius:11px; background:#fbfdfb; }
+.breakdown-row .field { gap:5px; }
+.breakdown-row .field label { font-size:11px; }
+.breakdown-remove, .breakdown-add { min-height:34px; color:#315d4c; border:1px solid #b5cfbf; border-radius:8px; background:#fff; font-size:11px; font-weight:750; }
+.breakdown-remove { padding:0 8px; }
+.breakdown-add { justify-self:start; padding:0 11px; }
+.breakdown-remove:hover, .breakdown-add:hover { border-color:#6b9d7f; background:#eaf4ed; }
+
+@media (max-width:680px) {
+  .capacity-forecast { padding:16px; border-radius:14px; }
+  .capacity-forecast-main { gap:10px; }
+  .capacity-forecast h2 { font-size:20px; }
+  .capacity-forecast p { font-size:12px; }
+  .capacity-forecast-main > strong { font-size:21px; }
+  .capacity-forecast dl { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .capacity-forecast dl div { padding:8px; }
+  .capacity-forecast dd { font-size:12px; }
+  .capacity-risk-link { width:100%; min-height:40px; font-size:12px; }
+  .project-row { align-items:flex-start; }
+  .project-row-actions { flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+  .project-row-actions .text-button { min-height:38px; }
+  .breakdown-row { grid-template-columns:1fr 1fr; gap:10px; }
+  .breakdown-row .field:first-child { grid-column:1 / -1; }
+  .breakdown-remove { min-height:38px; }
+  .breakdown-add { min-height:40px; }
+}
