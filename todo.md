@@ -182,4 +182,4 @@
 - [x] Define a replacement task-first layout system with deliberate density, non-generic component forms, a stronger typography hierarchy, and a phone/desktop structural contract.
 - [x] Rebuild the shell and Today experience around real planning workflows rather than color and card variations, then show a visibly different prototype.
 - [x] Extend the replacement visual system across all core routes while preserving every existing behavior and accessibility contract.
-- [ ] Validate and publish the replacement authored redesign with responsive evidence, tests, build, documentation, GitHub synchronization, and public marker verification.
+- [x] Validate and publish the replacement authored redesign with responsive evidence, tests, build, documentation, GitHub synchronization, and public marker verification.
