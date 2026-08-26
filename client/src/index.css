@@ -823,3 +823,40 @@ html, body { background:#e8ecea; color:#182420; }
 @media (prefers-reduced-motion:reduce) {
   .habit-today-actions button { transition-duration:0ms; }
 }
+
+/* Deliberately dark task-state surfaces: work state is the exception to the calm
+   workspace canvas, not a faint accent lost inside it. */
+.task-lane-grid { overflow:hidden; border:0; background:#101714; box-shadow:0 14px 28px rgba(20,37,30,.11); }
+.task-lane { --lane-text:#fffdf8; --lane-muted:rgba(255,253,248,.72); --lane-control:rgba(255,253,248,.1); --lane-control-border:rgba(255,253,248,.22); --lane-row:rgba(255,253,248,.07); --lane-row-hover:rgba(255,253,248,.12); color:var(--lane-text); background:linear-gradient(155deg,var(--lane-surface),var(--lane-depth)) !important; }
+.task-lane-todo { --lane-surface:#315448; --lane-depth:#1b342c; --lane-accent:#c4db9a; --lane-ink:#eff7dd; --lane-ring:rgba(196,219,154,.2); --lane-outline:rgba(239,247,221,.72); }
+.task-lane-in_progress { --lane-surface:#25584c; --lane-depth:#14392f; --lane-accent:#a5d6c3; --lane-ink:#e1f5eb; --lane-ring:rgba(165,214,195,.2); --lane-outline:rgba(225,245,235,.72); }
+.task-lane-completed { --lane-surface:#1d4b3d; --lane-depth:#102f27; --lane-accent:#91ceb0; --lane-ink:#dcf4e7; --lane-ring:rgba(145,206,176,.19); --lane-outline:rgba(220,244,231,.72); }
+.task-lane + .task-lane { border-left:1px solid rgba(255,255,255,.14); }
+.task-lane.is-drop-target { background:linear-gradient(155deg,color-mix(in srgb,var(--lane-surface) 84%,#fff),var(--lane-depth)) !important; box-shadow:inset 0 0 0 2px var(--lane-outline); }
+.task-lane-header { border-bottom:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.09); }
+.task-lane-header h3 { color:var(--lane-text); }
+.task-lane-header > span { color:var(--lane-text); border:1px solid var(--lane-control-border); background:var(--lane-control); }
+.task-lane-marker { background:var(--lane-accent); box-shadow:0 0 0 4px var(--lane-ring); }
+.task-lane-description { color:var(--lane-muted); }
+.task-lane-task > .task-row, .task-lane-task > .task-row:first-child { color:var(--lane-text); border-color:rgba(255,255,255,.17); background:var(--lane-row) !important; box-shadow:none; }
+.task-lane-task > .task-row:hover { background:var(--lane-row-hover) !important; }
+.task-lane .task-row-title { color:var(--lane-text) !important; }
+.task-lane .task-row-meta { color:var(--lane-muted) !important; }
+.task-lane .task-check { color:var(--lane-text); border-color:rgba(255,255,255,.54); background:rgba(0,0,0,.12); }
+.task-lane .task-check:hover { border-color:#fff; background:rgba(255,255,255,.12); }
+.task-lane .task-check.is-checked { color:var(--lane-depth); border-color:#fff; background:#fff; }
+.task-lane .task-row-actions .icon-quiet, .task-lane .task-row-reschedule button { color:var(--lane-text); border:1px solid var(--lane-control-border); background:var(--lane-control); }
+.task-lane .task-row-actions .icon-quiet:hover, .task-lane .task-row-reschedule button:hover { color:#fff; border-color:rgba(255,255,255,.58); background:rgba(255,255,255,.17); }
+.task-lane .task-row-reschedule { border-color:rgba(255,255,255,.17); }
+.task-lane .task-row-reschedule::before { color:var(--lane-muted); }
+.task-drag-handle { color:rgba(255,255,255,.58); }
+.task-lane-select { color:var(--lane-muted); border-color:rgba(255,255,255,.17); background:rgba(0,0,0,.14); }
+.task-lane-select select { color:var(--lane-text); border-color:var(--lane-control-border); background:rgba(0,0,0,.18); }
+.task-lane-select select option { color:#17201d; background:#fff; }
+.task-lane-empty { color:var(--lane-muted); border-color:rgba(255,255,255,.25); background:rgba(0,0,0,.11); }
+.task-lane-empty button { color:var(--lane-text); border-color:var(--lane-control-border); background:var(--lane-control); }
+.task-lane-empty button:hover { background:rgba(255,255,255,.18); }
+@media (max-width:680px) {
+  .task-lane, .task-lane + .task-lane { border:1px solid rgba(255,255,255,.2); }
+  .task-lane-grid { gap:12px; box-shadow:none; background:transparent; }
+}

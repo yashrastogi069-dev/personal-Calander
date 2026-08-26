@@ -179,3 +179,6 @@
 - [x] Give To do, In progress, and Completed lanes distinct premium, accessible color roles and optimize their stacked phone presentation without losing movement controls.
 - [x] Add focused tests and browser evidence for companion drafting, task-board error paths, keyboard/touch movement, and 390px phone composition; then release and publicly verify the complete update.
 - [x] Deepen the three lane colors to premium amber, ink-blue, and forest roles while retaining verified text, focus, drag-target, and phone readability.
+- [ ] Replace the still-light task-lane surfaces with deliberately darker bronze, navy, and forest backgrounds, then verify high-contrast desktop and phone controls and public propagation.
+- [ ] Make task drag-and-drop state changes optimistic and visually immediate, with version-safe persistence and clear rollback recovery on failure.
+- [ ] Recalibrate task-lane colors from divergent bronze/navy/forest surfaces to a coherent dark green-family system that fits the existing workspace.
