@@ -21,3 +21,5 @@ The breakdown flow is intentionally deterministic. It does not infer a project p
 ## Verification Evidence
 
 Local browser validation confirmed the no-write opening path, blank-row recovery, optional estimate and Plan for fields, explicit two-row linked creation, and archive cleanup of the isolated verification project/tasks. The deadline-risk control reached a safe empty result in the current workspace without a mutation. The compact forecast accurately rendered zero known load against the 360-minute workspace capacity after cleanup. A final editor-state safeguard reseeds local form state only when a task’s persisted id/version changes, preventing equivalent derived objects from overwriting a selected lifecycle state before save. TypeScript, the final **77-test / 20-file** suite, Vercel-targeted production build, and detector completed successfully before publication.
+
+The published client was then verified read-only at the public Vercel alias after GitHub `main` reached `895c1dd35e9d299da3c4faea91a4eed6c1e2fd8a`. A cache-busted production read exposed **Deadline risk**, the Daily capacity summary, and public marker **`capacity-risk-r19`**.

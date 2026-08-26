@@ -203,5 +203,5 @@
 - [x] Implement a compact real-time daily capacity forecast using persisted task estimates, planned work, deadlines, and workspace capacity.
 - [x] Add a clear deadline-risk filter and explainable task risk signals without fabricating predictions where data is incomplete.
 - [x] Add a guided, confirmation-first project-to-task breakdown flow that creates only reviewed, explicit tasks linked to the selected project.
-- [ ] Validate capacity, risk, breakdown, failure, high-volume, desktop, phone, GitHub, and public-release behavior end to end.
+- [x] Validate capacity, risk, breakdown, failure, high-volume, desktop, phone, GitHub, and public-release behavior end to end.
 - [x] Prevent task-editor field synchronization from overwriting a just-selected lifecycle state before the user saves it.
