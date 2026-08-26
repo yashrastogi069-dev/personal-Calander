@@ -104,18 +104,6 @@ This redesign changes presentation only. Habit schedules, intentional skips, str
 
 The managed Preview now serves a freshly built static planner bundle instead of relying on a Vite HMR client through the external preview proxy. This removes the preview-only WebSocket failure and React/tRPC invalid-hook failure that could leave `?from_webdev=1` blank. The full planner now mounts normally in the managed preview; Vite remains available only for explicit local debugging. No end-user planning, habits, iPhone, cadence, or reminder behavior changed.
 
-## Mineral Workbench redesign
-
-Personal Calander now uses a more decisive planning-studio visual system. The interface replaces its repeated pale-card presentation with mineral paper and graphite structure, copper actions for commitments, a distinct blue time field, and evergreen goal/habit continuity. Today prioritizes the current decision, capture, daily signal, supporting tools, time, direction, rhythm, capacity, and evidence in that order. Tasks is now an open inventory workbench; Calendar is a temporal field; Goals is a strategy map; Habits is a rhythm ledger; and Review is a finite closeout ritual.
-
-This release preserves all working planner behavior. Task and goal lifecycle, categories, task-only Calendar semantics, dedicated habit calendar, offline capture/replay, PWA/device controls, private iCalendar, confirmation-first AI drafting, and the paused automatic-reminder boundary remain unchanged.
-
-## Attention Field authored workspace
-
-The visual system has been rebuilt again around how a person actually plans: choose work, set conditions, then place it in time. The new **Attention Field** makes these three jobs separate and legible on desktop through a task field, compact daily-control sidecar, and temporal edge. On phones, those jobs become a stage-based vertical sequence with the existing safe-area navigation. The task inventory now uses a restrained document-like measure rather than expanding into empty dashboard canvas; Calendar retains a full-width time field because time is the job of that route.
-
-The new system uses purposeful cool-paper surfaces, ink structure, one cobalt command signal, Manrope decision type, and DM Mono only for dates and measurements. Decision text, action ratios, focus rings, selection, scrollbars, and reduced-motion behavior were tuned as part of the system, not as isolated polish. This release intentionally retains all planner data and operating behavior, including the dedicated Habits tracker, existing iPhone controls, and the paused automatic-reminder boundary.
-
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

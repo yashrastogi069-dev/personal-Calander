@@ -146,7 +146,7 @@ function DailyCompass() {
   const [mood, setMood] = useState("3");
   const checkIn = trpc.planner.dailyCheckIn.upsert.useMutation();
   const submit = (event: FormEvent) => { event.preventDefault(); checkIn.mutate({ ...scope, localDate: today, intention: intention.trim() || null, energy: Number(energy), mood: Number(mood) }); };
-  return <form className="daily-compass" onSubmit={submit}><div className="daily-compass-copy"><span>Daily check-in</span><p>Record your plan conditions before you add more work.</p></div><Input value={intention} onChange={event => setIntention(event.target.value)} placeholder="What matters today?" aria-label="Daily intention" /><div className="daily-compass-controls"><label>Energy<Select value={energy} onValueChange={setEnergy}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4, 5].map(value => <SelectItem key={value} value={String(value)}>{value}/5</SelectItem>)}</SelectContent></Select></label><label>Mood<Select value={mood} onValueChange={setMood}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4, 5].map(value => <SelectItem key={value} value={String(value)}>{value}/5</SelectItem>)}</SelectContent></Select></label><Button type="submit" variant="ghost" disabled={checkIn.isPending}>{checkIn.isPending ? "Saving" : "Save"}</Button></div></form>;
+  return <form className="daily-compass" onSubmit={submit}><div className="daily-compass-copy"><span>Daily signal</span><p>Set the conditions, not just the list.</p></div><Input value={intention} onChange={event => setIntention(event.target.value)} placeholder="One sentence for today" aria-label="Daily intention" /><div className="daily-compass-controls"><label>Energy<Select value={energy} onValueChange={setEnergy}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4, 5].map(value => <SelectItem key={value} value={String(value)}>{value}/5</SelectItem>)}</SelectContent></Select></label><label>Mood<Select value={mood} onValueChange={setMood}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[1, 2, 3, 4, 5].map(value => <SelectItem key={value} value={String(value)}>{value}/5</SelectItem>)}</SelectContent></Select></label><Button type="submit" variant="ghost" disabled={checkIn.isPending}>{checkIn.isPending ? "Saving" : "Check in"}</Button></div></form>;
 }
 
 function RecurringWorkControl() {
@@ -352,7 +352,7 @@ function OccurrencePanel() {
 }
 
 function ResponsiveSupportGroup({ title, detail, children, className }: { title: string; detail: string; children: React.ReactNode; className?: string }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window === "undefined" || !window.matchMedia("(max-width: 680px)").matches);
   return <details className={cn("mobile-support-group", className)} open={open} onToggle={event => setOpen(event.currentTarget.open)}><summary><span>{title}</span><small>{detail}</small><ChevronRight size={18} aria-hidden="true" /></summary><div className="mobile-support-content">{children}</div></details>;
 }
 
@@ -371,23 +371,19 @@ function FocusPanel({ tasks, categories, onToggle, onCompose }: { tasks: any[]; 
     });
   };
   return (
-    <>
-      <section className="focus-primary" aria-labelledby="focus-heading">
-        <div className="panel-heading"><div><h2 id="focus-heading">Planned today</h2></div><span className="panel-count">{tasks.filter(task => task.state !== "completed").length} open</span></div>
-        <div className="focus-list">
-          {tasks.length ? tasks.map(task => <TaskRow key={task.id} task={task} categoryColor={categoryColors.get(task.categoryId)} onToggle={onToggle} onQuickReschedule={quickReschedule} />) : <EmptyState title="No work planned yet" detail="Add a task, or move an existing task into today." action={onCompose} actionLabel="Add task" />}
-        </div>
-        {tasks.length ? <p className="today-reschedule-hint">Swipe left or right to move a task one day.</p> : null}
-        {rescheduleMessage ? <p className="today-reschedule-status" role="status">{rescheduleMessage}</p> : null}
-        <OfflineCaptureIndicator />
-      </section>
-      <aside className="focus-sidecar" aria-label="Daily planning controls">
-        <DailyCompass />
-        <ResponsiveSupportGroup title="Plan controls" detail="Triage, recurring work, and plan health"><TaskTriagePanel /><RecurringWorkControl /><OccurrencePanel /><PlanningHealthStrip /><DecisionSignals /></ResponsiveSupportGroup>
-        <ResponsiveSupportGroup title="Connections" detail="Calendar and this iPhone" className="mobile-connection-group"><CalendarSubscriptionControl /><BrowserNotificationControl /></ResponsiveSupportGroup>
-        <AICompanion />
-      </aside>
-    </>
+    <section className="focus-panel" aria-labelledby="focus-heading">
+      <div className="panel-heading"><div><span className="eyebrow">Immediate focus</span><h2 id="focus-heading">Today’s commitment</h2></div><span className="panel-count">{tasks.filter(task => task.state !== "completed").length} open</span></div>
+      <div className="focus-list">
+        {tasks.length ? tasks.map(task => <TaskRow key={task.id} task={task} categoryColor={categoryColors.get(task.categoryId)} onToggle={onToggle} onQuickReschedule={quickReschedule} />) : <EmptyState title="Begin with one honest commitment" detail="Capture a task, then decide whether it belongs in today." action={onCompose} />}
+      </div>
+      {tasks.length ? <p className="today-reschedule-hint">Swipe a task left or right to plan it for yesterday or tomorrow.</p> : null}
+      {rescheduleMessage ? <p className="today-reschedule-status" role="status">{rescheduleMessage}</p> : null}
+      <OfflineCaptureIndicator />
+      <DailyCompass />
+      <ResponsiveSupportGroup title="Plan tools" detail="Triage, recurring work, and plan health"><TaskTriagePanel /><RecurringWorkControl /><OccurrencePanel /><PlanningHealthStrip /><DecisionSignals /></ResponsiveSupportGroup>
+      <ResponsiveSupportGroup title="Connected tools" detail="Calendar and this iPhone" className="mobile-connection-group"><CalendarSubscriptionControl /><BrowserNotificationControl /></ResponsiveSupportGroup>
+      <AICompanion />
+    </section>
   );
 }
 
