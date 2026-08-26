@@ -174,7 +174,7 @@
 - [x] Research and define a more distinctive premium operating-system design direction, including color/material roles, type scale, layout ratios, control hierarchy, motion, and useful planning artifacts.
 - [x] Rebuild the core planner shell, navigation, action system, Today surface, and high-value planning artifacts without removing any working task, goal, habit, calendar, review, device, or reminder capability.
 - [x] Redesign Tasks, Calendar, Goals, Habits, Review, and responsive states so they are structurally cohesive but purposefully distinct.
-- [ ] Validate interaction behavior, accessibility, desktop/phone rendering, tests, build, documentation, GitHub synchronization, and public release evidence for the major redesign.
+- [x] Validate interaction behavior, accessibility, desktop/phone rendering, tests, build, documentation, GitHub synchronization, and public release evidence for the major redesign.
 - [x] Produce a complete evidence-backed experience audit covering Today, Tasks, Calendar, Goals, Habits, Review, capture, categories, offline recovery, and phone/device utility flows.
 - [x] Research multiple leading productivity, planning, habit, and calendar products; translate their proven patterns into an explicit, non-copying design rationale for Personal Calander.
 - [x] Create and show iterative desktop and phone previews for each major redesign batch so the visual difference is directly reviewable before final publication.

@@ -145,3 +145,7 @@ After the stable-preview server restart, an iPhone-sized preview rendered the co
 ## Mineral Workbench local evidence
 
 The research-led overhaul was verified in the managed stable preview with no data mutations. Today was captured at desktop and 390px phone widths after rebuilding the static artifact; Tasks, Calendar, Goals, Habits, and Review were opened individually at desktop width. The new non-sensitive local release marker is **`mineral-workbench-r11`**. All previously verified planner actions remained visible and accessible; the dedicated Calendar/Habits separation, connected-device utility boundary, and paused automatic reminders were preserved.
+
+After GitHub `main` advanced to the Mineral Workbench checkpoint, the public Vercel alias was reachable and rendered the full anonymous planner shell. Its first non-sensitive marker check still returned **`habits-rhythm-r10`**, so the alias was serving the prior artifact at that moment. This was a read-only propagation check; no public planner, Calendar, device, cadence, or reminder state was accessed or changed.
+
+After a refresh, the public alias returned the non-sensitive identifier **`mineral-workbench-r11`**. This confirms the GitHub-synchronized Mineral Workbench release propagated to the public Vercel deployment. The public workspace remained unmodified during the check; no planner, Calendar, device, cadence, or reminder operation occurred.
