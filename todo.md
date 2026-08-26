@@ -170,3 +170,4 @@
 - [x] Diagnose the reported development-preview Vite WebSocket connection failure and React invalid-hook initialization error.
 - [x] Apply the smallest compatible preview/runtime repair without changing planner, habit, device, cadence, or reminder behavior.
 - [x] Validate the repaired managed preview, full regression suite, and production build; then document and synchronize the fix.
+- [x] Verify the restored green Premium Daily Desk release at desktop and phone widths, then synchronize and confirm the public artifact without changing planner data.
