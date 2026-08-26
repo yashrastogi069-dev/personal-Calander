@@ -130,6 +130,12 @@ Calendar day cells continue to show at most three tasks, but no longer hide addi
 
 The product’s visible name is now consistently **Personal Calendar**, including the page title, application shell, PWA manifest, install surfaces, copy, and generated calendar-facing labels. Existing planner routes, private calendar feeds, data records, and GitHub repository identifiers remain unchanged. The Tasks board retains its approved dark treatment, but To do is now deep slate-blue and In progress dark teal; Completed remains forest green. No brown surface is used. TypeScript, all 71 tests, the production build, a source spelling scan, desktop populated-board inspection, and a 390×844 phone capture pass.
 
+## Clear planning choices and recoverable scheduling
+
+The planner now explains the difference between a **Goal** (a measurable outcome), **Project** (finite work advancing a goal), and **Habit** (repeated behavior with a cadence and completion rule) at the moment users choose what to create. Task scheduling now uses plain operational terms: **Deadline**, **Plan for**, **Focus time needed**, and **Reserve time**. A planned date does not reserve calendar time; only a task reservation does. The main Calendar remains task/time-block focused, while Habits continues to own repeated-behavior tracking and its separate calendar.
+
+Empty task calendars now offer a contained decision surface rather than a bare blank space: choose an existing task to reserve time or keep the day open. It creates nothing automatically and does not place habits on the task calendar. Secondary labels have higher contrast and a more readable size. Core creation and editing forms now retain local, actionable errors; a blank task title remains in the editor with a recovery message, while an invalid reservation explains that its end must follow its start. The release passes TypeScript, a **74-test / 18-file** suite, production build, desktop/390px review, and the final interface detector.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

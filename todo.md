@@ -191,3 +191,10 @@
 - [x] Correct visible product spelling from “Calander” to “Calendar” while preserving existing routes, data, and integrations.
 - [x] Refine only the To do and In progress dark task-lane colors into distinct non-brown tones, preserving the Completed forest treatment.
 - [x] Revalidate the spelling and lane-color update across TypeScript, tests, production build, desktop/mobile rendering, GitHub, and the public Vercel marker.
+- [x] Audit the current planner for secondary-label legibility, empty canvas behavior, local actionable errors, habit/task separation, entity-definition clarity, and task scheduling terminology.
+- [x] Present a concrete guided-action-surface proposal for approval before replacing any empty canvas or changing its workflow.
+- [x] Increase secondary-label contrast and type size without reducing information density or breaking phone composition.
+- [x] Make failure states local, specific, and recoverable across active planner interactions, with tests for changed error paths.
+- [x] Make the Habit/Task/Goal/Project distinctions operational in creation and planning flow, preserving the task-focused main Calendar and separate Habit rhythm/calendar.
+- [x] Rename and clarify deadline, planning, focus-time, and calendar-reservation inputs with connected validation and decision guidance.
+- [ ] Validate the approved improvements across desktop, phone, error, lifecycle, regression, GitHub, and public-release scenarios.

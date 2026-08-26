@@ -892,3 +892,52 @@ html, body { background:#e8ecea; color:#182420; }
   .task-archive-panel li button { min-height:38px; padding:0 11px; }
   .matrix-overflow { min-height:28px; padding:4px 6px; font-size:10px; }
 }
+
+/* R18: decisions, secondary information, and recovery must remain legible in real planning conditions. */
+.top-date, .eyebrow { color:#49645b; font-size:11px; font-weight:600; letter-spacing:.045em; }
+.workspace-pill small, .task-row-meta, .panel-count, .time-slot time, .capacity-meter small, .habit-grid-days, .habit-streak, .matrix-cell time, .project-row span:not(.state-pill), .task-archive-panel small { color:#536d64; font-size:10px; }
+.task-row-meta { flex-wrap:wrap; column-gap:8px; row-gap:3px; }
+.task-row-meta, .habit-grid-days, .habit-streak, .matrix-cell time, .task-archive-panel small { font-weight:600; }
+.field label { color:#284b42; font-size:12px; font-weight:700; }
+.field-guidance { margin:0; color:#4f6960; font-size:11px; line-height:1.42; }
+.composer-object-definition { display:grid; gap:4px; padding:11px 12px; color:#416158; border:1px solid #c9ddd5; border-radius:10px; background:linear-gradient(125deg,#edf7f2,#fafdfb); }
+.composer-object-definition strong { color:#1f5145; font-size:12px; letter-spacing:-.012em; }
+.composer-object-definition span { font-size:11px; line-height:1.42; }
+.composer-kind { align-items:stretch; }
+.composer-kind button { display:grid; gap:2px; min-height:48px; padding:7px 5px; text-align:left; }
+.composer-kind button b { color:inherit; font-size:11px; line-height:1.1; text-transform:none; }
+.composer-kind button span { color:#5b746b; font-size:9px; line-height:1.15; text-transform:none; }
+.composer-kind button.is-active span { color:#2f6658; }
+.time-reservation-fields { display:grid; gap:9px; margin:0; padding:12px; border:1px solid #bad8cd; border-radius:10px; background:#f4faf7; }
+.time-reservation-fields legend { padding:0 4px; color:#1f5145; font-size:12px; font-weight:800; }
+.time-reservation-fields > p { margin:0; color:#4b675e; font-size:11px; line-height:1.42; }
+.form-error, .timeline-feedback { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; padding:10px 11px; color:#8f332f; border:1px solid #e1aaa5; border-radius:9px; background:#fff3f1; font-size:12px; font-weight:650; line-height:1.4; }
+.form-error { display:block; }
+.timeline-empty.timeline-empty-guided { top:50%; display:grid; gap:11px; padding:14px; color:#31584d; border-style:solid; border-color:#a9cfbf; background:linear-gradient(135deg,#edf8f3,#f9fcfa); text-align:left; transform:translateY(-50%); }
+.timeline-empty-guided strong { display:block; color:#1d4f43; font-size:13px; }
+.timeline-empty-guided p { max-width:52ch; margin:4px 0 0; color:#4d6b62; font-size:11px; line-height:1.45; }
+.timeline-empty-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.timeline-empty-actions button, .timeline-feedback button { min-height:34px; padding:0 10px; color:#fff; border:1px solid #2f6b5f; border-radius:8px; background:#2f6b5f; font-size:11px; font-weight:750; transition:background 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 150ms var(--ease-out); }
+.timeline-empty-actions button:hover, .timeline-feedback button:hover { border-color:#245b50; background:#245b50; }
+.timeline-empty-actions .timeline-empty-dismiss { color:#315e51; border-color:#b6d3c7; background:#fff; }
+.timeline-empty-actions .timeline-empty-dismiss:hover { color:#214f42; border-color:#82b49f; background:#f1f8f4; }
+.timeline-empty-actions button:active, .timeline-feedback button:active { transform:scale(.98); }
+.timeline-feedback { position:absolute; right:20px; bottom:14px; left:58px; z-index:2; box-shadow:0 8px 18px rgba(93,40,35,.1); }
+.timeline-feedback button { flex:none; min-height:30px; color:#8f332f; border-color:#d59089; background:#fff; }
+.timeline-feedback button:hover { color:#6d2522; border-color:#ba6860; background:#ffe7e4; }
+
+@media (max-width:680px) {
+  .top-date, .eyebrow { font-size:11px; }
+  .field label { font-size:12px; }
+  .field-guidance, .composer-object-definition span, .time-reservation-fields > p { font-size:12px; }
+  .composer-object-definition, .time-reservation-fields { padding:12px; }
+  .composer-kind button { min-height:52px; padding:7px 4px; }
+  .composer-kind button b { font-size:11px; }
+  .composer-kind button span { font-size:9px; }
+  .timeline-empty.timeline-empty-guided { right:15px; left:53px; padding:13px; }
+  .timeline-empty-guided strong { font-size:14px; }
+  .timeline-empty-guided p { font-size:12px; }
+  .timeline-empty-actions { display:grid; grid-template-columns:1fr; }
+  .timeline-empty-actions button { min-height:40px; font-size:12px; }
+  .timeline-feedback { right:15px; bottom:12px; left:53px; align-items:flex-start; font-size:11px; }
+}

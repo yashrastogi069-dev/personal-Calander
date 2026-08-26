@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "calendar-colors-r17";
+document.documentElement.dataset.release = "flow-clarity-r18";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

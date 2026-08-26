@@ -43,7 +43,7 @@ describe("planner task API", () => {
       sortOrder: 0,
       plannedStartAt: new Date("2026-08-24T11:00:00.000Z"),
       plannedEndAt: new Date("2026-08-24T10:00:00.000Z"),
-    })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    })).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Reserved time must end after it starts." });
   });
 
   it("accepts a stable offline capture id and a version-safe nearby-day reschedule through the task contract", async () => {
