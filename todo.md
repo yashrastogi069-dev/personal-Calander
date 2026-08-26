@@ -197,4 +197,4 @@
 - [x] Make failure states local, specific, and recoverable across active planner interactions, with tests for changed error paths.
 - [x] Make the Habit/Task/Goal/Project distinctions operational in creation and planning flow, preserving the task-focused main Calendar and separate Habit rhythm/calendar.
 - [x] Rename and clarify deadline, planning, focus-time, and calendar-reservation inputs with connected validation and decision guidance.
-- [ ] Validate the approved improvements across desktop, phone, error, lifecycle, regression, GitHub, and public-release scenarios.
+- [x] Validate the approved improvements across desktop, phone, error, lifecycle, regression, GitHub, and public-release scenarios.
