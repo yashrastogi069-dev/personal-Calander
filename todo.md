@@ -178,3 +178,8 @@
 - [x] Produce a complete evidence-backed experience audit covering Today, Tasks, Calendar, Goals, Habits, Review, capture, categories, offline recovery, and phone/device utility flows.
 - [x] Research multiple leading productivity, planning, habit, and calendar products; translate their proven patterns into an explicit, non-copying design rationale for Personal Calander.
 - [x] Create and show iterative desktop and phone previews for each major redesign batch so the visual difference is directly reviewable before final publication.
+- [x] Conduct a failure-focused design audit of the current Mineral Workbench for AI-like repetition, weak composition, empty-space imbalance, typography, control ratios, and inappropriate component patterns.
+- [x] Define a replacement task-first layout system with deliberate density, non-generic component forms, a stronger typography hierarchy, and a phone/desktop structural contract.
+- [x] Rebuild the shell and Today experience around real planning workflows rather than color and card variations, then show a visibly different prototype.
+- [x] Extend the replacement visual system across all core routes while preserving every existing behavior and accessibility contract.
+- [ ] Validate and publish the replacement authored redesign with responsive evidence, tests, build, documentation, GitHub synchronization, and public marker verification.

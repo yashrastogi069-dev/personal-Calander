@@ -110,6 +110,12 @@ Personal Calander now uses a more decisive planning-studio visual system. The in
 
 This release preserves all working planner behavior. Task and goal lifecycle, categories, task-only Calendar semantics, dedicated habit calendar, offline capture/replay, PWA/device controls, private iCalendar, confirmation-first AI drafting, and the paused automatic-reminder boundary remain unchanged.
 
+## Attention Field authored workspace
+
+The visual system has been rebuilt again around how a person actually plans: choose work, set conditions, then place it in time. The new **Attention Field** makes these three jobs separate and legible on desktop through a task field, compact daily-control sidecar, and temporal edge. On phones, those jobs become a stage-based vertical sequence with the existing safe-area navigation. The task inventory now uses a restrained document-like measure rather than expanding into empty dashboard canvas; Calendar retains a full-width time field because time is the job of that route.
+
+The new system uses purposeful cool-paper surfaces, ink structure, one cobalt command signal, Manrope decision type, and DM Mono only for dates and measurements. Decision text, action ratios, focus rings, selection, scrollbars, and reduced-motion behavior were tuned as part of the system, not as isolated polish. This release intentionally retains all planner data and operating behavior, including the dedicated Habits tracker, existing iPhone controls, and the paused automatic-reminder boundary.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

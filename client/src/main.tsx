@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "mineral-workbench-r11";
+document.documentElement.dataset.release = "attention-field-r12";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

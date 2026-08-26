@@ -149,3 +149,9 @@ The research-led overhaul was verified in the managed stable preview with no dat
 After GitHub `main` advanced to the Mineral Workbench checkpoint, the public Vercel alias was reachable and rendered the full anonymous planner shell. Its first non-sensitive marker check still returned **`habits-rhythm-r10`**, so the alias was serving the prior artifact at that moment. This was a read-only propagation check; no public planner, Calendar, device, cadence, or reminder state was accessed or changed.
 
 After a refresh, the public alias returned the non-sensitive identifier **`mineral-workbench-r11`**. This confirms the GitHub-synchronized Mineral Workbench release propagated to the public Vercel deployment. The public workspace remained unmodified during the check; no planner, Calendar, device, cadence, or reminder operation occurred.
+
+## Attention Field local implementation evidence
+
+The replacement authored workspace was inspected in the managed stable preview without creating or changing planner data. Today now renders Planned today, the Daily check-in / planning controls sidecar, and the blue time field as independent work zones. The focus field was explicitly refined to avoid a fixed-height empty canvas when no tasks are scheduled. Tasks was reopened with search, filters, completion, priority, subtask, edit, and drag-to-plan controls intact; Calendar was reopened with its Day/Week/Month/Quarter/Year modes and task-only time field intact.
+
+A dedicated 390×844 browser session verified the mobile layout and fixed safe-area navigation. Its rendered tree exposed all five direct phone controls, the quick-capture input, the New command, and the full vertical planner content with no measured horizontal overflow. The new non-sensitive local marker is **`attention-field-r12`**. No task, goal, habit, Calendar link, device, cadence, or reminder setting was accessed or mutated in this visual review; public propagation remains the final release check.
