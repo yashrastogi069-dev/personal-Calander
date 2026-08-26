@@ -123,6 +123,16 @@ describe("planner task API", () => {
     update.mockRestore();
   });
 
+  it("returns a recoverable conflict when a stale task version is used for a restore or lane move", async () => {
+    const update = vi.spyOn(planning, "updateTask").mockRejectedValue(new planning.PlannerConflictError({ id: "task-stale-1", version: 9, state: "archived" }));
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", id: "task-stale-1", expectedVersion: 8, patch: { state: "not_started" as const } };
+
+    await expect(caller.planner.task.update(input)).rejects.toMatchObject({ code: "CONFLICT", message: "This item changed elsewhere. Refresh before applying your edit." });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: input.workspaceId, timezone: input.timezone }), expect.objectContaining({ id: input.id, expectedVersion: input.expectedVersion, patch: input.patch }));
+    update.mockRestore();
+  });
+
   it("passes category edits and safe detachment deletion through the public router contract", async () => {
     const update = vi.spyOn(planning, "updateCategory").mockResolvedValue({ id: "category-1", name: "Deep work", color: "#285D52", version: 2 } as never);
     const remove = vi.spyOn(planning, "deleteCategory").mockResolvedValue({ id: "category-1", detachedRecords: true, deleted: true });
@@ -153,6 +163,26 @@ describe("planner task API", () => {
     goal.mockRestore();
     project.mockRestore();
     habit.mockRestore();
+  });
+
+  it("routes restore through version-safe entity contracts and preserves the 100-task bulk archive boundary", async () => {
+    const goal = vi.spyOn(planning, "restoreGoal").mockResolvedValue({ id: "goal-restore-1", state: "not_started", completedAt: null, archivedAt: null, version: 3 } as never);
+    const project = vi.spyOn(planning, "restoreProject").mockResolvedValue({ id: "project-restore-1", state: "not_started", completedAt: null, archivedAt: null, version: 3 } as never);
+    const habit = vi.spyOn(planning, "restoreHabit").mockResolvedValue({ id: "habit-restore-1", archivedAt: null, version: 3 } as never);
+    const bulk = vi.spyOn(planning, "bulkSetTaskState").mockResolvedValue([{ id: "task-restore-1", state: "archived", version: 3 }] as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC", expectedVersion: 2 };
+
+    await expect(caller.planner.goal.restore({ ...scope, id: "goal-restore-1" })).resolves.toMatchObject({ state: "not_started", archivedAt: null });
+    await expect(caller.planner.project.restore({ ...scope, id: "project-restore-1" })).resolves.toMatchObject({ state: "not_started", archivedAt: null });
+    await expect(caller.planner.habit.restore({ ...scope, id: "habit-restore-1" })).resolves.toMatchObject({ archivedAt: null });
+    await expect(caller.planner.task.bulkSetState({ workspaceId: scope.workspaceId, timezone: scope.timezone, ids: ["task-restore-1"], state: "archived" })).resolves.toHaveLength(1);
+    await expect(caller.planner.task.bulkSetState({ workspaceId: scope.workspaceId, timezone: scope.timezone, ids: Array.from({ length: 101 }, (_, index) => `task-${index}`), state: "archived" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(goal).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: scope.workspaceId }), expect.objectContaining({ id: "goal-restore-1", expectedVersion: scope.expectedVersion }));
+    expect(project).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: scope.workspaceId }), expect.objectContaining({ id: "project-restore-1", expectedVersion: scope.expectedVersion }));
+    expect(habit).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: scope.workspaceId }), expect.objectContaining({ id: "habit-restore-1", expectedVersion: scope.expectedVersion }));
+    expect(bulk).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: scope.workspaceId, timezone: scope.timezone }), { ids: ["task-restore-1"], state: "archived" });
+    goal.mockRestore(); project.mockRestore(); habit.mockRestore(); bulk.mockRestore();
   });
 
   it("passes a dated monthly milestone through the public router contract", async () => {

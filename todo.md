@@ -179,6 +179,12 @@
 - [x] Give To do, In progress, and Completed lanes distinct premium, accessible color roles and optimize their stacked phone presentation without losing movement controls.
 - [x] Add focused tests and browser evidence for companion drafting, task-board error paths, keyboard/touch movement, and 390px phone composition; then release and publicly verify the complete update.
 - [x] Deepen the three lane colors to premium amber, ink-blue, and forest roles while retaining verified text, focus, drag-target, and phone readability.
-- [ ] Replace the still-light task-lane surfaces with deliberately darker bronze, navy, and forest backgrounds, then verify high-contrast desktop and phone controls and public propagation.
-- [ ] Make task drag-and-drop state changes optimistic and visually immediate, with version-safe persistence and clear rollback recovery on failure.
-- [ ] Recalibrate task-lane colors from divergent bronze/navy/forest surfaces to a coherent dark green-family system that fits the existing workspace.
+- [x] Superseded by the approved deep leaf-green, teal-green, and forest lane system; all lane controls are high-contrast on desktop and phone.
+- [x] Make task drag-and-drop state changes optimistic and visually immediate, with version-safe persistence and clear rollback recovery on failure.
+- [x] Recalibrate task-lane colors from divergent bronze/navy/forest surfaces to a coherent dark green-family system that fits the existing workspace.
+- [x] Superseded by the latest approved leaf-green To do, teal-green In progress, and forest Completed treatment with no brown surfaces.
+- [x] Audit high-volume task completion, archive/delete semantics, completed-history access, lifecycle recovery, and long-term usability; implement the highest-value actionable safeguards with tests.
+- [x] Audit tasks, goals, projects, habits, Calendar, recurring occurrences, reviews, categories, devices, and saved views for high-volume, lifecycle, destructive, conflict, offline, and phone-performance risks.
+- [x] Implement explicit task completed-history and archive restoration workflows, bounded rendering, and bulk safeguards so 50–500 tasks remain manageable without losing evidence.
+- [x] Apply only proven equivalent safeguards to other planner entities, with clear consequence copy and no decorative controls.
+- [x] Hard-test high-volume, archive/restore, stale-write, recovery, filtering, mobile, and regression scenarios; document and publicly verify the scale-hardened release.

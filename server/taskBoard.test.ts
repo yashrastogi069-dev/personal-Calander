@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { laneForTaskState, stateForTaskLane, taskBoardLanes } from "../shared/taskBoard";
+import { activeLanePreviewLimit, completedLanePreviewLimit, laneForTaskState, stateForTaskLane, taskBoardLanes, visibleTasksForLane } from "../shared/taskBoard";
 
 describe("task board lifecycle mapping", () => {
   it("keeps unfinished and blocked work in the To do lane without losing its blocked state", () => {
@@ -16,5 +16,21 @@ describe("task board lifecycle mapping", () => {
 
   it("defines exactly the three user-facing workflow lanes", () => {
     expect(taskBoardLanes.map(lane => lane.id)).toEqual(["todo", "in_progress", "completed"]);
+  });
+
+  it("keeps a 50-task completed history bounded until the user explicitly expands it", () => {
+    const completed = Array.from({ length: 50 }, (_, index) => `done-${index}`);
+    const preview = visibleTasksForLane(completed, "completed", false);
+    expect(preview.items).toHaveLength(completedLanePreviewLimit);
+    expect(preview.hiddenCount).toBe(50 - completedLanePreviewLimit);
+    expect(visibleTasksForLane(completed, "completed", true)).toMatchObject({ items: completed, hiddenCount: 0 });
+  });
+
+  it("keeps 50 active tasks scannable and lets an explicit expansion or search reveal the complete result set", () => {
+    const active = Array.from({ length: 50 }, (_, index) => `active-${index}`);
+    const preview = visibleTasksForLane(active, "todo", false);
+    expect(preview.items).toHaveLength(activeLanePreviewLimit);
+    expect(preview.hiddenCount).toBe(50 - activeLanePreviewLimit);
+    expect(visibleTasksForLane(active, "todo", true)).toMatchObject({ items: active, hiddenCount: 0 });
   });
 });

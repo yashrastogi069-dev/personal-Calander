@@ -31,6 +31,9 @@ import {
   getReminderRules,
   resolveTaskOccurrence,
   revokeCalendarFeed,
+  restoreGoal,
+  restoreHabit,
+  restoreProject,
   sendTestPush,
   startReviewSession,
   setReminderRuleActivation,
@@ -122,6 +125,10 @@ export const plannerRouter = router({
       const { workspaceId, timezone, id, expectedVersion } = input;
       try { return await archiveGoal({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
+    restore: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await restoreGoal({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
+    }),
   }),
   milestone: router({
     create: publicProcedure.input(scope.extend({ goalId: z.string(), title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), state: lifecycle.default("not_started"), horizon: z.enum(["monthly", "quarterly"]), progressValue: z.number().int().min(0).default(0), targetValue: z.number().int().min(1).default(100), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional(), cue: z.string().trim().min(1).max(280).nullable().optional(), response: z.string().trim().min(1).max(500).nullable().optional() })).mutation(async ({ input }) => {
@@ -145,6 +152,10 @@ export const plannerRouter = router({
     archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion } = input;
       try { return await archiveProject({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
+    }),
+    restore: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await restoreProject({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
   }),
   task: router({
@@ -175,6 +186,10 @@ export const plannerRouter = router({
     archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion } = input;
       try { return await archiveHabit({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
+    }),
+    restore: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion } = input;
+      try { return await restoreHabit({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
     checkIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, state: z.enum(["completed", "skipped", "missed"]), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => upsertHabitCheckIn(input, input)),
     clearCheckIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString })).mutation(async ({ input }) => clearHabitCheckIn(input, input)),

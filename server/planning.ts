@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import webpush from "web-push";
 import {
@@ -142,6 +142,18 @@ export async function archiveGoal(scope: PlannerScope, input: { id: string; expe
   return updated;
 }
 
+/** Restores an archived goal as unfinished work while preserving every linked history record. */
+export async function restoreGoal(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Goal was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(goals).set({ state: "not_started", completedAt: null, archivedAt: null, version: input.expectedVersion + 1 }).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion)));
+  const updated = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
 export async function createGoalMilestone(scope: PlannerScope, input: Omit<typeof goalMilestones.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
   const goal = (await db.select({ id: goals.id }).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.goalId))).limit(1))[0];
@@ -183,6 +195,18 @@ export async function archiveProject(scope: PlannerScope, input: { id: string; e
   if (!existing) throw new Error("Project was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(projects).set({ state: "archived", archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id), eq(projects.version, input.expectedVersion)));
+  const updated = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+/** Restores an archived project as unfinished work while retaining linked task history. */
+export async function restoreProject(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Project was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(projects).set({ state: "not_started", completedAt: null, archivedAt: null, version: input.expectedVersion + 1 }).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id), eq(projects.version, input.expectedVersion)));
   const updated = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
@@ -254,6 +278,7 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
   if (patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
   if (patch.state && patch.state !== "completed") patch.completedAt = null;
   if (patch.state === "archived") patch.archivedAt = new Date();
+  if (patch.state && patch.state !== "archived") patch.archivedAt = null;
   await db.update(tasks).set(patch).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id), eq(tasks.version, input.expectedVersion)));
   const updated = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
@@ -263,9 +288,13 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
 export async function bulkSetTaskState(scope: PlannerScope, input: { ids: string[]; state: "not_started" | "in_progress" | "blocked" | "completed" | "archived" }) {
   if (!input.ids.length) return [];
   const db = await requireDb();
-  const patch: Record<string, unknown> = { state: input.state };
-  if (input.state === "completed") patch.completedAt = new Date();
-  if (input.state === "archived") patch.archivedAt = new Date();
+  const now = new Date();
+  const patch: Record<string, unknown> = {
+    state: input.state,
+    completedAt: input.state === "completed" ? now : null,
+    archivedAt: input.state === "archived" ? now : null,
+    version: sql`${tasks.version} + 1`,
+  };
   await db.update(tasks).set(patch).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, input.ids)));
   return db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, input.ids)));
 }
@@ -297,6 +326,18 @@ export async function archiveHabit(scope: PlannerScope, input: { id: string; exp
   if (!existing) throw new Error("Habit was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(habits).set({ archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id), eq(habits.version, input.expectedVersion)));
+  const updated = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+/** Restores an archived habit without deleting its historical check-ins. */
+export async function restoreHabit(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Habit was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(habits).set({ archivedAt: null, version: input.expectedVersion + 1 }).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id), eq(habits.version, input.expectedVersion)));
   const updated = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;

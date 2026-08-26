@@ -120,6 +120,12 @@ The task lanes now carry deeper state roles within the same green workspace fami
 
 Moving a task now updates the visible lane and count **immediately**, before the version-safe persistence request returns. The server result is then merged into the workspace cache. If that request fails, the temporary move is removed, the task returns to its prior lane, and the interface names the recovery. This removes the prior disabled waiting period that made drag-and-drop feel delayed while keeping the server as the source of truth.
 
+## Planner-scale history and recovery
+
+Tasks now remain manageable at high volume without silently discarding evidence. To do and In progress preview 24 items; Completed previews 12; each lane has an explicit expansion action, while a task search reveals every match. Completed work can be archived in bounded batches and appears in a dedicated Archived work panel with explicit Restore actions. Task restoration returns work to To do and clears its completed/archive timestamps. The organizer also now restores archived Goals, Projects, and Habits with workspace-scoped version checks; linked planning history and habit check-ins are preserved.
+
+Calendar day cells continue to show at most three tasks, but no longer hide additional work without an exit: a compact **View N more in Tasks** action routes to the searchable Tasks workspace. The release adds high-volume, batch-boundary, restore-metadata, and stale-write contract coverage. It passes TypeScript, the production build, and **71 tests across 17 files**; the retained large-client-chunk warning is unchanged and non-fatal.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

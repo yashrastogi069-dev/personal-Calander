@@ -10,13 +10,19 @@ The Tasks route is a persistent work-state view rather than a decorative dashboa
 | **In progress** | `in_progress` | Work currently being carried. |
 | **Completed** | `completed` | Finished work retained as visible planning evidence. |
 
-Archived tasks remain excluded from active planning and are not restored by board movement.
+Archived tasks remain excluded from active planning. They can be restored explicitly from **Archived work** or the workspace organizer; a board move never restores them silently.
 
 ## Interaction contract
 
 A pointer user can drag any task card from one lane to another. The target lane is visibly highlighted during drag, and the standard version-safe task update persists the mapped state. A keyboard or touch user can make the same state change through the native **Move to** control on every card. This alternate control is intentional: browser drag-and-drop is not reliable enough on touch devices to be the only path.
 
-Each state transition provides a visible success or recovery message. A failed update does not optimistically hide the task; the board refetches through the existing workspace snapshot after a successful mutation. Completing or reopening through the existing check control uses the same state mapping, so Today, Calendar, analytics, goals, and the three lanes remain consistent.
+Each state transition provides a visible success or recovery message. Lane movement is **optimistic**: the card and lane count move immediately while the version-safe update persists in the background. A successful response merges the current server record into the workspace snapshot; a failed response removes the optimistic state and shows recovery guidance, leaving the last confirmed planner state intact. Completing or reopening through the existing check control uses the same state mapping, so Today, Calendar, analytics, goals, and the three lanes remain consistent.
+
+## Scale and recovery contract
+
+The board is deliberately not an unbounded history feed. To do and In progress each preview the first **24** matching tasks; Completed previews the most recent **12**. A visible **Show more** control expands only the lane the planner chooses, while an active text search reveals all matching results so a record cannot be hidden behind a default preview cap. Completed work can be archived in server-safe batches of at most 100 records per request. Archiving preserves the record instead of deleting it; an Archived work panel supports search, bounded history browsing, and explicit restore to To do.
+
+Restoring a task clears `archivedAt` and `completedAt`, returns it to `not_started`, and increments its version. Equivalent recovery actions exist for archived Goals, Projects, and Habits in **Categories → Organize planning**. Goal and Project restoration returns unfinished work with completion/archive timestamps cleared; Habit restoration clears only its archive timestamp and retains check-in history. No permanent task, goal, project, or habit delete control is introduced by this workflow.
 
 ## Functional-control audit scope
 
@@ -26,7 +32,7 @@ The broader planner’s already-verified actions continue to use their existing 
 
 ## Lane color roles
 
-The three lanes are intentionally distinct without turning individual task cards into a rainbow. **To do** uses a deep amber/bronze role for work awaiting a first move. **In progress** uses ink-blue for active carrying. **Completed** uses dark forest green for retained evidence. The same role controls the lane marker, count, drag target, and mobile outline; task content stays on a quiet high-contrast surface. At phone width the lanes stack into separately bounded work zones, while the native **Move to** control remains available inside every card.
+The three lanes are intentionally distinct without turning individual task cards into a rainbow. **To do** uses deep leaf green, **In progress** uses deep teal green, and **Completed** uses dark forest green. The same role controls the lane marker, count, drag target, and mobile outline; task content stays on a quiet high-contrast surface. At phone width the lanes stack into separately bounded work zones, while the native **Move to** control remains available inside every card.
 
 ## Optional Companion reliability boundary
 

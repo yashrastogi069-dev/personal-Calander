@@ -8,7 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
-document.documentElement.dataset.release = "smooth-green-lanes-r15";
+document.documentElement.dataset.release = "planner-scale-r16";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
