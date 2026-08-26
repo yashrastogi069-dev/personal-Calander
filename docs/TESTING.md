@@ -128,6 +128,14 @@ The managed preview previously attempted to load the Vite development client thr
 
 The managed preview now builds and serves the same current static client bundle used by the verified deployment, avoiding the proxy-hostile Vite runtime altogether. Vite remains available only as an explicit local debugging mode. A fresh 390×844 managed-preview render mounted the full planner, and a browser inspection confirmed a populated root with neither `/@vite/client` nor Vite source-module resources. TypeScript, `pnpm build:client`, and the full suite pass with **60 tests across 14 files**, including five focused preview-configuration cases. Planner, habit, device, cadence, and reminder behavior were not changed.
 
+## Optional Companion repair and deeper task lanes
+
+The Companion failure was reproduced with a real safe planning note. The previous request used `max_tokens` with `gpt-5-mini`, and the provider returned no readable message content. The corrected server request uses `max_completion_tokens`; a fresh browser submission returned a real reviewable task proposal with title, summary, priority, horizon, and suggested date. The proposal was discarded rather than confirmed, so the validation created no planner record.
+
+The server now validates three hard paths: a readable structured model response; unusable/empty model content; and a rejected provider call. The latter two return a disclosed Safe starting draft based on the user’s own note, with a retry path. A new helper regression asserts that the actual request payload contains `max_completion_tokens`, bringing the suite to **65 passing tests across 16 files**. The form visibly guards empty input, pending submission, provider fallback, discard, confirmation failure, and confirmation-pending states.
+
+The Tasks view was re-inspected with the deeper amber To do, ink-blue In progress, and forest Completed roles. At 390×844, the five bottom-navigation targets remain 69px wide; the Task header, capture field, filters, lane region, and stacked board remain within the 390px viewport. Existing desktop task actions remain present. TypeScript, the production build, and the final interface detector pass; the build retains only the pre-existing non-fatal large-client-chunk advisory.
+
 ## Persistent three-lane Tasks board
 
 The Tasks route now groups the filtered active task set into persisted **To do**, **In progress**, and **Completed** lanes. A pure shared mapping test verifies that each visible lane resolves to the correct stored state, while `blocked` work remains in To do with its existing explicit label. This adds three focused tests and brings the complete suite to **63 passing tests across 15 files**.

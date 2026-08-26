@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { vi } from "vitest";
+vi.mock("./_core/llm", () => ({ invokeLLM: vi.fn() }));
+import { invokeLLM } from "./_core/llm";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as planning from "./planning";
@@ -12,6 +15,22 @@ function createPublicContext(): TrpcContext {
 }
 
 describe("planner task API", () => {
+  it("returns a model draft when readable and a disclosed safe fallback when the companion model response is unusable", async () => {
+    const draft = vi.mocked(invokeLLM);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", todayLocalDate: "2026-08-26", thought: "Prepare a project status note tomorrow." };
+    draft.mockResolvedValueOnce({ choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify({ kind: "task", title: "Prepare project status note", summary: "Draft a concise update.", priority: "medium", horizon: "weekly", suggestedDueLocalDate: "2026-08-27" }) }, finish_reason: "stop" }] } as never);
+    await expect(caller.planner.ai.draft(input)).resolves.toMatchObject({ source: "model", title: "Prepare project status note", suggestedDueLocalDate: "2026-08-27" });
+    expect(draft).toHaveBeenCalledWith(expect.objectContaining({ model: "gpt-5-mini", maxCompletionTokens: 520 }));
+
+    draft.mockResolvedValueOnce({ choices: [{ index: 0, message: { role: "assistant", content: null }, finish_reason: "length" }] } as never);
+    await expect(caller.planner.ai.draft(input)).resolves.toMatchObject({ source: "fallback", kind: "task", title: "Prepare a project status note tomorrow", priority: "medium", horizon: "weekly" });
+
+    draft.mockRejectedValueOnce(new Error("provider unavailable"));
+    await expect(caller.planner.ai.draft(input)).resolves.toMatchObject({ source: "fallback", title: "Prepare a project status note tomorrow" });
+    draft.mockReset();
+  });
+
   it("rejects a timeblock whose end precedes its start before attempting persistence", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     await expect(caller.planner.task.create({

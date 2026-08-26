@@ -110,6 +110,12 @@ Tasks now offers a real three-lane workflow: **To do**, **In progress**, and **C
 
 The Task surface was reviewed for decorative controls. The priority flag now cycles and saves the next priority, then confirms the result; it is no longer passive. Completion, edit, subtask, search, filtering, task creation, and lane movement are all connected to real operations and return explicit success or recovery feedback. Existing controls outside Tasks retain their verified persistence contracts, and prerequisite-bound actions remain visibly disabled with clear guidance instead of appearing active without an outcome. The release passes TypeScript, the production build, the interface detector, and **63 tests across 15 files**.
 
+## Companion reliability and deeper task states
+
+The Optional Companion now uses the GPT-compatible completion-token request parameter, which resolves the earlier unreadable-response failure. A submitted note produces a reviewable draft; it never writes to the plan until **Confirm draft** is selected. Empty notes are explained rather than silently ignored, pending requests are explicit, and a provider failure or malformed response produces a clearly labeled Safe starting draft from the user’s own note. The user can discard it or retry the model, preserving an honest boundary between deterministic recovery and model output.
+
+The task lanes now carry deeper state roles: **amber/bronze** for To do, **ink-blue** for In progress, and **forest green** for Completed. These colors are applied to lane-level state, counts, drop targets, and mobile outlines while task content remains calm and readable. At phone width, the lanes stack into distinct, touch-safe work zones without removing the native **Move to** control. The full validation suite now passes with **65 tests across 16 files**.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

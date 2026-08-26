@@ -64,6 +64,25 @@ const aiDraft = z.object({
   suggestedDueLocalDate: dateString.nullable(),
 });
 
+const fallbackAiDraft = (thought: string) => {
+  const firstClause = thought
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/, "");
+  const title = firstClause.length <= 120
+    ? firstClause
+    : `${firstClause.slice(0, 117).trimEnd()}…`;
+  return {
+    kind: "task" as const,
+    title,
+    summary: "A safe starting draft based on your note. Review it before you add it to your plan.",
+    priority: "medium" as const,
+    horizon: "weekly" as const,
+    suggestedDueLocalDate: null,
+    source: "fallback" as const,
+  };
+};
+
 function plannerError(error: unknown): never {
   if (error instanceof PlannerConflictError) {
     throw new TRPCError({ code: "CONFLICT", message: error.message, cause: error.current });
@@ -215,37 +234,42 @@ export const plannerRouter = router({
   }),
   ai: router({
     draft: publicProcedure.input(scope.extend({ thought: z.string().trim().min(3).max(4000), todayLocalDate: dateString })).mutation(async ({ input }) => {
-      const result = await invokeLLM({
-        model: "gpt-5-mini",
-        maxTokens: 450,
-        messages: [
-          { role: "system", content: "You turn a personal planning thought into one cautious draft. Do not claim to know facts not supplied. Prefer a task unless the thought is clearly an outcome that spans multiple actions. Suggest a due date only when the thought gives a clear timeframe; otherwise return null. This is a draft for a person to confirm, never an action." },
-          { role: "user", content: `Today is ${input.todayLocalDate}. Thought: ${input.thought}` },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "planning_draft",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                kind: { type: "string", enum: ["task", "goal"] },
-                title: { type: "string" },
-                summary: { type: "string" },
-                priority: { type: "string", enum: ["none", "low", "medium", "high", "critical"] },
-                horizon: { type: "string", enum: ["daily", "weekly", "monthly", "quarterly", "yearly", "someday"] },
-                suggestedDueLocalDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+      try {
+        const result = await invokeLLM({
+          model: "gpt-5-mini",
+          maxCompletionTokens: 520,
+          messages: [
+            { role: "system", content: "You turn a personal planning thought into one cautious draft. Do not claim to know facts not supplied. Prefer a task unless the thought is clearly an outcome that spans multiple actions. Suggest a due date only when the thought gives a clear timeframe; otherwise return null. This is a draft for a person to confirm, never an action." },
+            { role: "user", content: `Today is ${input.todayLocalDate}. Thought: ${input.thought}` },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "planning_draft",
+              strict: true,
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  kind: { type: "string", enum: ["task", "goal"] },
+                  title: { type: "string" },
+                  summary: { type: "string" },
+                  priority: { type: "string", enum: ["none", "low", "medium", "high", "critical"] },
+                  horizon: { type: "string", enum: ["daily", "weekly", "monthly", "quarterly", "yearly", "someday"] },
+                  suggestedDueLocalDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+                },
+                required: ["kind", "title", "summary", "priority", "horizon", "suggestedDueLocalDate"],
               },
-              required: ["kind", "title", "summary", "priority", "horizon", "suggestedDueLocalDate"],
             },
           },
-        },
-      });
-      const content = result.choices[0]?.message.content;
-      if (typeof content !== "string") throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The planning draft did not return readable content. Try again." });
-      try { return aiDraft.parse(JSON.parse(content)); } catch { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The planning draft could not be validated. Try again." }); }
+        });
+        const content = result.choices[0]?.message.content;
+        if (typeof content !== "string") throw new Error("model returned no text content");
+        return { ...aiDraft.parse(JSON.parse(content)), source: "model" as const };
+      } catch (error) {
+        console.warn("[AI Companion] Model draft unavailable; returning a disclosed safe fallback.", error instanceof Error ? error.message : error);
+        return fallbackAiDraft(input.thought);
+      }
     }),
   }),
   dashboard: publicProcedure.input(scope.extend({ todayLocalDate: dateString, rangeStart: dateString, rangeEnd: dateString })).query(async ({ input }) => getDashboard(input, input)),

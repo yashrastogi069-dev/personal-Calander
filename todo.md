@@ -175,3 +175,7 @@
 - [x] Add a persistent three-lane Tasks board for To do, In progress, and Completed work, mapped to existing lifecycle state rules.
 - [x] Implement accessible pointer and keyboard task movement between lanes with clear success, failure, and undo-safe feedback.
 - [ ] Repair or remove any audited inert task-surface controls, then verify responsive behavior, regression coverage, documentation, GitHub sync, and public propagation.
+- [ ] Diagnose and repair the Optional Companion input-to-draft-to-confirmation workflow, including empty, pending, malformed-response, and provider-failure handling.
+- [ ] Give To do, In progress, and Completed lanes distinct premium, accessible color roles and optimize their stacked phone presentation without losing movement controls.
+- [ ] Add focused tests and browser evidence for companion drafting, task-board error paths, keyboard/touch movement, and 390px phone composition; then release and publicly verify the complete update.
+- [ ] Deepen the three lane colors to premium amber, ink-blue, and forest roles while retaining verified text, focus, drag-target, and phone readability.
