@@ -210,4 +210,4 @@
 - [x] Replace remaining vast empty planning canvases with progressive, actionable stages that reveal only the next useful action until real data exists.
 - [x] Increase the effective contrast and readable size of secondary labels in the rendered incumbent interface, then verify against the user-visible surface.
 - [x] Make the task-versus-habit boundary operational in the primary flow, with explicit next actions that route work to the correct tracker or calendar.
-- [ ] Revalidate the repaired R18/R19 experience in the browser at desktop and phone widths, then synchronize and publicly verify the release.
+- [x] Revalidate the repaired R18/R19 experience in the browser at desktop and phone widths, then synchronize and publicly verify the release.
