@@ -104,6 +104,12 @@ This redesign changes presentation only. Habit schedules, intentional skips, str
 
 The managed Preview now serves a freshly built static planner bundle instead of relying on a Vite HMR client through the external preview proxy. This removes the preview-only WebSocket failure and React/tRPC invalid-hook failure that could leave `?from_webdev=1` blank. The full planner now mounts normally in the managed preview; Vite remains available only for explicit local debugging. No end-user planning, habits, iPhone, cadence, or reminder behavior changed.
 
+## Functional Tasks board and control audit
+
+Tasks now offers a real three-lane workflow: **To do**, **In progress**, and **Completed**. Each task keeps its state in the existing version-safe planner contract, so movement remains synchronized with Today, Calendar, goal progress, and analytics. On desktop, a task card can be moved into another lane through native drag-and-drop. Every card also contains a native **Move to** control, making the same transition usable from a keyboard or touch device. Empty lanes clearly state their state instead of hiding the workflow.
+
+The Task surface was reviewed for decorative controls. The priority flag now cycles and saves the next priority, then confirms the result; it is no longer passive. Completion, edit, subtask, search, filtering, task creation, and lane movement are all connected to real operations and return explicit success or recovery feedback. Existing controls outside Tasks retain their verified persistence contracts, and prerequisite-bound actions remain visibly disabled with clear guidance instead of appearing active without an outcome. The release passes TypeScript, the production build, the interface detector, and **63 tests across 15 files**.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"

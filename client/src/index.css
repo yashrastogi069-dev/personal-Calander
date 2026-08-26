@@ -142,6 +142,61 @@ html, body { background:#f6f7f8; color:#1b2422; }
 .review-intro h2 { color:#1b2422; }.review-intro p, .review-steps p { color:#647670; }.review-steps article { border-color:#e2ebe8; }.review-steps span { color:#2f6b5f; }.composer-dialog { border-color:#d6e2de; background:#fff; color:#1b2422; box-shadow:0 20px 55px rgba(34,63,56,.16); }.composer-dialog [data-description] { color:#657772; }.composer-kind { background:#edf3f1; }.composer-kind button { color:#667873; }.composer-kind button.is-active { background:#fff; color:#1e5549; }.field label { color:#425952; }.field input, .field button[role="combobox"] { border-color:#d6e2de; background:#fff; color:#1b2422; }.planner-loading, .planner-error { background:#f6f7f8; }.loading-rail, .loading-top, .loading-columns > div { background:linear-gradient(100deg,#eef3f1,#f8fbfa,#eef3f1); }.planner-error > div { border-color:#dce5e2; background:#fff; }.planner-error p:not(.eyebrow) { color:#657772; }
 @media (max-width:680px) { .planner-rail { background:rgba(255,255,255,.92); }.planner-nav button:hover { background:#eaf4f0; } }
 
+/* Persistent task lifecycle board: state is visible, draggable, and also operable without a pointer. */
+.task-board { padding:22px 20px 24px; }
+.task-board-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.task-board-heading h2 { margin:0; color:#1b2422; font-size:18px; letter-spacing:-.03em; }
+.task-board-heading p { max-width:58ch; margin:6px 0 0; color:#667873; font-size:11px; line-height:1.5; }
+.task-board-heading > span { flex:none; padding:5px 8px; color:#426359; border:1px solid #d2e3dd; border-radius:999px; background:#f3f9f6; font:600 10px/1 "IBM Plex Mono", monospace; }
+.task-lane-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; border:1px solid #dce7e3; border-radius:14px; background:#fbfcfc; }
+.task-lane { min-width:0; background:linear-gradient(180deg,rgba(245,250,248,.82),rgba(255,255,255,.94) 44%); transition:background 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+.task-lane + .task-lane { border-left:1px solid #dce7e3; }
+.task-lane.is-drop-target { background:linear-gradient(180deg,#e6f4ee,#f9fcfb 48%); box-shadow:inset 0 0 0 2px rgba(47,107,95,.28); }
+.task-lane-header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 15px 8px; }
+.task-lane-header > div { display:flex; align-items:center; gap:8px; min-width:0; }
+.task-lane-header h3 { margin:0; color:#26443d; font-size:13px; letter-spacing:-.018em; }
+.task-lane-header > span { display:grid; place-items:center; min-width:22px; height:22px; padding:0 6px; color:#45645a; border-radius:999px; background:#eaf3ef; font:600 10px/1 "IBM Plex Mono", monospace; }
+.task-lane-marker { width:8px; height:8px; border-radius:50%; background:#82aa9c; box-shadow:0 0 0 4px rgba(130,170,156,.13); }
+.task-lane-in_progress .task-lane-marker { background:#6fa6be; box-shadow:0 0 0 4px rgba(111,166,190,.13); }
+.task-lane-completed .task-lane-marker { background:#2f6b5f; box-shadow:0 0 0 4px rgba(47,107,95,.13); }
+.task-lane-description { min-height:34px; margin:0; padding:0 15px 12px; color:#71827d; font-size:10px; line-height:1.45; }
+.task-lane-list { min-height:240px; padding:0 10px 12px; }
+.task-lane-task { position:relative; margin-bottom:10px; border-radius:11px; cursor:grab; transition:opacity 140ms var(--ease-out), transform 160ms var(--ease-out), filter 160ms var(--ease-out); }
+.task-lane-task:active { cursor:grabbing; }
+.task-lane-task.is-dragging { opacity:.42; transform:scale(.985); filter:blur(.3px); }
+.task-lane-task.is-moving { opacity:.56; pointer-events:none; }
+.task-lane-task > .task-row { padding:12px 9px 12px 30px; border:1px solid #dce7e3; border-radius:11px 11px 0 0; background:#fff; box-shadow:0 5px 14px rgba(33,63,55,.045); }
+.task-lane-task > .task-row:first-child { border-top:1px solid #dce7e3; }
+.task-lane-task > .task-row:hover { background:#fff; }
+.task-drag-handle { position:absolute; z-index:1; top:17px; left:7px; color:#93a49f; pointer-events:none; }
+.task-lane-select { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px 8px 30px; color:#70817c; border:1px solid #dce7e3; border-top:0; border-radius:0 0 11px 11px; background:#f8fbfa; font-size:9px; }
+.task-lane-select select { min-width:102px; min-height:27px; padding:3px 22px 3px 7px; color:#31564b; border:1px solid #cfdfd9; border-radius:6px; background:#fff; font-size:10px; }
+.task-lane-select select:disabled { opacity:.62; cursor:wait; }
+.task-lane-empty { display:grid; place-items:center; min-height:148px; padding:18px; color:#81918c; border:1px dashed #cbdcd6; border-radius:10px; background:rgba(255,255,255,.54); font-size:10px; line-height:1.45; text-align:center; }
+.task-lane-empty button { padding:7px 9px; color:#286251; border:1px solid #acd0c3; border-radius:7px; background:#eff8f4; font-size:10px; font-weight:700; transition:transform 140ms var(--ease-out), background 140ms var(--ease-out); }
+.task-lane-empty button:hover { background:#e2f3eb; }.task-lane-empty button:active { transform:scale(.97); }
+
+@media (max-width: 860px) {
+  .task-lane-grid { grid-template-columns:1fr; }
+  .task-lane + .task-lane { border-top:1px solid #dce7e3; border-left:0; }
+  .task-lane-list { min-height:0; }
+  .task-lane-empty { min-height:92px; }
+}
+
+@media (max-width: 680px) {
+  .task-board { padding:17px 12px 18px; }
+  .task-board-heading { margin-bottom:14px; }
+  .task-board-heading h2 { font-size:17px; }
+  .task-board-heading p { max-width:28ch; font-size:11px; }
+  .task-board-heading > span { padding:4px 6px; font-size:9px; }
+  .task-lane-header { padding:14px 12px 6px; }
+  .task-lane-description { min-height:0; padding:0 12px 10px; }
+  .task-lane-list { padding:0 8px 10px; }
+  .task-lane-task > .task-row { min-height:64px; padding-right:6px; }
+  .task-lane-select { min-height:38px; padding-left:30px; font-size:10px; }
+  .task-lane-select select { min-height:30px; font-size:11px; }
+}
+
 /* Phone-first planner refinement: preserve the desktop rail, but make the six
    core planning surfaces legible and thumb-reachable on an installed PWA. */
 @media (max-width:680px) {

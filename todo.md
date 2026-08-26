@@ -171,3 +171,7 @@
 - [x] Apply the smallest compatible preview/runtime repair without changing planner, habit, device, cadence, or reminder behavior.
 - [x] Validate the repaired managed preview, full regression suite, and production build; then document and synchronize the fix.
 - [x] Verify the restored green Premium Daily Desk release at desktop and phone widths, then synchronize and confirm the public artifact without changing planner data.
+- [x] Inventory every visible interactive control and classify it as working, intentionally prerequisite-gated with clear guidance, or requiring repair/removal.
+- [x] Add a persistent three-lane Tasks board for To do, In progress, and Completed work, mapped to existing lifecycle state rules.
+- [x] Implement accessible pointer and keyboard task movement between lanes with clear success, failure, and undo-safe feedback.
+- [ ] Repair or remove any audited inert task-surface controls, then verify responsive behavior, regression coverage, documentation, GitHub sync, and public propagation.
