@@ -995,3 +995,50 @@ html, body { background:#e8ecea; color:#182420; }
   .breakdown-remove { min-height:38px; }
   .breakdown-add { min-height:40px; }
 }
+
+/* R20: make the next action obvious before a plan has data, rather than preserving oversized empty canvases. */
+.focus-panel[data-entry-stage="capture"], .goal-panel:has(.empty-state), .habit-panel:has(.empty-state), .timeline-panel:has(.timeline-empty-guided) { min-height:0; }
+.focus-panel[data-entry-stage="capture"] .focus-list { padding-bottom:14px; }
+.first-task-next-step { margin:0 20px 18px; padding-top:13px; color:#456158; border-top:1px solid rgba(40,93,82,.16); font-size:12px; line-height:1.5; }
+.timeline-panel:has(.timeline-empty-guided) .timeline-scroller { display:grid; min-height:186px; max-height:none; place-items:center; padding:0 20px 18px; }
+.timeline-panel:has(.timeline-empty-guided) .time-slot { display:none; }
+.timeline-panel:has(.timeline-empty-guided) .timeline-empty.timeline-empty-guided { position:static; width:100%; max-width:540px; transform:none; }
+.timeline-empty-actions .timeline-habit-link { color:#285c49; border-color:#9bc3ad; background:#fafffb; }
+.timeline-empty-actions .timeline-habit-link:hover { border-color:#629c7b; background:#e4f3e8; }
+.calendar-task-legend { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 20px 14px; color:#4d675e; font-size:12px; line-height:1.45; }
+.calendar-task-legend button { flex:0 0 auto; min-height:36px; padding:0 10px; color:#285c49; border:1px solid #9bc3ad; border-radius:8px; background:#fafffb; font-size:11px; font-weight:750; }
+.calendar-task-legend button:hover { border-color:#629c7b; background:#e4f3e8; }
+
+/* The creation dialog is a compact first-action surface; the sticky action stays reachable while optional fields scroll. */
+.composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) { width:min(100% - 2rem, 34rem); max-height:min(42rem, calc(100dvh - 2rem)); overflow-y:auto; overscroll-behavior:contain; }
+.composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .composer-form { gap:12px; padding-bottom:4px; }
+.composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .composer-submit { position:sticky; z-index:2; bottom:-1px; margin-top:2px; padding:12px 0 2px; background:#f6f8f6; box-shadow:0 -10px 16px rgba(246,248,246,.9); }
+.composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .time-reservation-fields, .composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .recurrence-fields, .composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .habit-schedule-fields { padding:10px; }
+.composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .field-guidance, .composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .composer-object-definition span { color:#36574d; font-size:12px; }
+
+/* Secondary information now survives real-world daylight conditions without becoming body-copy weight. */
+.panel-count, .task-row-meta, .workspace-pill small, .project-row span:not(.state-pill), .timeline-empty-guided p, .habit-route-intro, .calendar-task-legend { color:#405e54; font-size:12px; font-weight:600; }
+.capacity-forecast dt { color:#466a5e; font-size:10px; }
+
+@media (max-width:680px) {
+  .first-task-next-step { margin:0 18px 18px; font-size:13px; }
+  .timeline-panel:has(.timeline-empty-guided) .timeline-scroller { min-height:214px; padding:0 15px 16px; }
+  .calendar-task-legend { align-items:flex-start; flex-direction:column; margin:0 16px 14px; font-size:13px; }
+  .calendar-task-legend button { width:100%; min-height:42px; font-size:12px; }
+  .composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) { width:calc(100% - 1.25rem); max-height:calc(100dvh - 1.25rem); }
+  .composer-dialog:not(.breakdown-dialog):not(.category-manager-dialog) .composer-submit { padding-top:12px; }
+}
+
+.quick-create-dialog { width:min(100% - 2rem, 31rem) !important; max-height:calc(100dvh - 2rem); }
+.quick-create-form { gap:13px !important; }
+.quick-create-intent { display:grid; gap:4px; padding:10px 11px; color:#3e6256; border:1px solid #c7ddd4; border-radius:10px; background:#eef6f2; }
+.quick-create-intent strong { color:#1f5145; font-size:12px; }
+.quick-create-intent span, .quick-create-habit-note { color:#42635a; font-size:12px; line-height:1.45; }
+.quick-create-habit-note { margin:0; padding:10px 11px; border:1px solid #c7ddd4; border-radius:10px; background:#eef6f2; }
+.quick-create-dialog .composer-kind button { min-height:43px; }
+.quick-create-dialog .field input, .quick-create-dialog .field button[role="combobox"] { min-height:40px; height:40px; }
+.quick-create-dialog .composer-submit { margin-top:0; }
+@media (max-width:680px) {
+  .quick-create-dialog { width:calc(100% - 1.25rem) !important; }
+  .quick-create-dialog .field input, .quick-create-dialog .field button[role="combobox"] { min-height:46px; height:46px; }
+}

@@ -142,6 +142,12 @@ Today now includes a compact real-time **Daily capacity** forecast derived only 
 
 Projects now offer **Break down**, a confirmation-first dialog for manually reviewed linked tasks. Opening it creates nothing. The user can add up to five titled rows, choose optional Focus time and Plan for values, then explicitly create the shown count of linked tasks. Each row has a stable request ID so retrying an in-dialog partial failure is duplicate-safe. A late verification safeguard also prevents the task editor from resetting a just-selected lifecycle state when equivalent derived task objects rerender.
 
+## Compact creation and progressive first-run flow
+
+The top-bar **New** action now opens a compact, task-first creation form. Creating a task requires only a name; Deadline and Focus time needed remain optional and visible beside the primary action. Goal, Project, and Habit remain intentional choices rather than hidden complexity. Project creation loads active goals for an optional relationship and explains that **Break down** adds reviewed linked tasks after the project exists. A real disposable task was created through this flow and safely archived after the check.
+
+Empty planning surfaces now lead with the next useful action. Today reduces an empty commitment state to capture guidance, while the task time canvas avoids a long blank hourly grid and offers three working choices: choose a task to reserve time, open the dedicated Habit tracker, or keep the day open. Daily capacity is now always visible with a **Review deadline risk** action, including when risk is zero. Secondary labels and guidance have stronger contrast and a readable size across desktop and phone layouts. The revised release passes TypeScript, **79 tests across 21 files**, production build, a desktop browser check, and a 390×844 phone review.
+
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"
 [7]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Self-monitoring safety evidence"
