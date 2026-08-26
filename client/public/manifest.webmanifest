@@ -1,6 +1,6 @@
 {
-  "name": "Personal Calander",
-  "short_name": "Calander",
+  "name": "Personal Calendar",
+  "short_name": "Calendar",
   "description": "A calm personal operating system for goals, tasks, habits, reviews, and opt-in reminders.",
   "start_url": "/",
   "display": "standalone",

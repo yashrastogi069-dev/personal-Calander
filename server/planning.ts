@@ -495,9 +495,9 @@ export async function sendTestPush(scope: PlannerScope, input: { subscriptionId:
   const subscription = (await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.workspaceId, scope.workspaceId), eq(pushSubscriptions.id, input.subscriptionId), eq(pushSubscriptions.status, "active"))).limit(1))[0];
   if (!subscription) throw new Error("An active notification device was not found.");
   const deliveryId = nanoid();
-  const title = "Personal Calander is ready";
+  const title = "Personal Calendar is ready";
   await db.insert(pushDeliveries).values({ id: deliveryId, workspaceId: scope.workspaceId, subscriptionId: subscription.id, kind: "test", title, status: "queued" });
-  const payload = JSON.stringify({ title, body: "This is your visible test notification. You can control reminders in Personal Calander.", url: input.origin, tag: `personal-calander-test-${subscription.id}`, kind: "test" });
+  const payload = JSON.stringify({ title, body: "This is your visible test notification. You can control reminders in Personal Calendar.", url: input.origin, tag: `personal-calander-test-${subscription.id}`, kind: "test" });
   try {
     const result = await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, payload, { TTL: 300, urgency: "normal", topic: `pc-test-${subscription.id.slice(0, 16)}` });
     const now = new Date();
@@ -552,8 +552,8 @@ function isDuplicateDelivery(error: unknown) {
 
 function scheduledPayload(type: "daily_plan" | "weekly_review", origin: string, subscriptionId: string) {
   return type === "daily_plan"
-    ? { title: "A calm planning moment", body: "Open Personal Calander and choose one honest commitment for today.", url: origin, tag: `personal-calander-daily-${subscriptionId}`, kind: "daily_plan" }
-    : { title: "Weekly review", body: "Open Personal Calander to close the loop before next week begins.", url: origin, tag: `personal-calander-weekly-${subscriptionId}`, kind: "weekly_review" };
+    ? { title: "A calm planning moment", body: "Open Personal Calendar and choose one honest commitment for today.", url: origin, tag: `personal-calander-daily-${subscriptionId}`, kind: "daily_plan" }
+    : { title: "Weekly review", body: "Open Personal Calendar to close the loop before next week begins.", url: origin, tag: `personal-calander-weekly-${subscriptionId}`, kind: "weekly_review" };
 }
 
 type PlanningDatabase = Awaited<ReturnType<typeof requireDb>>;

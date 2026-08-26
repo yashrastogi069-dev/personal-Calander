@@ -9,7 +9,7 @@ describe("scheduled callback authentication", () => {
     const lookup = vi.spyOn(sdk, "getUserInfoWithJwt").mockResolvedValue({
       openId: "cron_project_reminder_sweep",
       projectId: "project-1",
-      name: "Personal Calander reminder sweep",
+      name: "Personal Calendar reminder sweep",
       taskUid: "task-uid-1",
     });
 

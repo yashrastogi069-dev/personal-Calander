@@ -1,4 +1,4 @@
-# Personal Calander Design System
+# Personal Calendar Design System
 
 > **Scope:** This is the source of truth for the core planning workspace. The interface is an operational planning studio, not an event product, a marketing page, or a generic card dashboard.
 

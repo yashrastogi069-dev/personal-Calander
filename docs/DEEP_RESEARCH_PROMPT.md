@@ -1,12 +1,12 @@
-# Deep Research Prompt: Personal Calander Product Hardening
+# Deep Research Prompt: Personal Calendar Product Hardening
 
 ## Objective
 
-Research the highest-confidence product, workflow, and architecture patterns for evolving **Personal Calander** into a genuinely useful personal operating system. The aim is to distinguish proven practices from feature accumulation, then recommend an evidence-based implementation sequence that improves day-to-day planning, habit accountability, lifecycle safety, review quality, integrations, and privacy.
+Research the highest-confidence product, workflow, and architecture patterns for evolving **Personal Calendar** into a genuinely useful personal operating system. The aim is to distinguish proven practices from feature accumulation, then recommend an evidence-based implementation sequence that improves day-to-day planning, habit accountability, lifecycle safety, review quality, integrations, and privacy.
 
 ## Context
 
-You are researching for a polished, single-user personal planning web application called **Personal Calander**. It uses React 19, TypeScript, Vite, Tailwind, Express, tRPC, Drizzle, and MySQL/TiDB. The live product is intentionally anonymous for now: an opaque browser workspace ID scopes records but is not account-grade authentication. It currently supports tasks, goals, projects, habits, task dependencies/subtasks, categories with colors, safe archival, task calendars, a separate habit calendar/tracker, recurring tasks, daily signals, weekly reviews, analytics, an iCalendar subscription feed, and browser-notification readiness. The public app is deployed on Vercel; GitHub is the source of truth.
+You are researching for a polished, single-user personal planning web application called **Personal Calendar**. It uses React 19, TypeScript, Vite, Tailwind, Express, tRPC, Drizzle, and MySQL/TiDB. The live product is intentionally anonymous for now: an opaque browser workspace ID scopes records but is not account-grade authentication. It currently supports tasks, goals, projects, habits, task dependencies/subtasks, categories with colors, safe archival, task calendars, a separate habit calendar/tracker, recurring tasks, daily signals, weekly reviews, analytics, an iCalendar subscription feed, and browser-notification readiness. The public app is deployed on Vercel; GitHub is the source of truth.
 
 The product deliberately treats calendar subscription as **read-only**, not iCloud/Google two-way sync. Browser notification permission is not yet actual delivery: no VAPID keys, subscription persistence, delivery sender, or scheduled reminder service has been activated. The design requirement is premium, calm, low-glare, and operationally useful—never a cluttered feature wall or fake action surface.
 

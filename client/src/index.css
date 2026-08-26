@@ -828,8 +828,8 @@ html, body { background:#e8ecea; color:#182420; }
    workspace canvas, not a faint accent lost inside it. */
 .task-lane-grid { overflow:hidden; border:0; background:#101714; box-shadow:0 14px 28px rgba(20,37,30,.11); }
 .task-lane { --lane-text:#fffdf8; --lane-muted:rgba(255,253,248,.72); --lane-control:rgba(255,253,248,.1); --lane-control-border:rgba(255,253,248,.22); --lane-row:rgba(255,253,248,.07); --lane-row-hover:rgba(255,253,248,.12); color:var(--lane-text); background:linear-gradient(155deg,var(--lane-surface),var(--lane-depth)) !important; }
-.task-lane-todo { --lane-surface:#315448; --lane-depth:#1b342c; --lane-accent:#c4db9a; --lane-ink:#eff7dd; --lane-ring:rgba(196,219,154,.2); --lane-outline:rgba(239,247,221,.72); }
-.task-lane-in_progress { --lane-surface:#25584c; --lane-depth:#14392f; --lane-accent:#a5d6c3; --lane-ink:#e1f5eb; --lane-ring:rgba(165,214,195,.2); --lane-outline:rgba(225,245,235,.72); }
+.task-lane-todo { --lane-surface:#2a405d; --lane-depth:#15283f; --lane-accent:#a9c7e6; --lane-ink:#edf5ff; --lane-ring:rgba(169,199,230,.2); --lane-outline:rgba(237,245,255,.72); }
+.task-lane-in_progress { --lane-surface:#155b59; --lane-depth:#0b393b; --lane-accent:#9adbd3; --lane-ink:#e0faf5; --lane-ring:rgba(154,219,211,.2); --lane-outline:rgba(224,250,245,.72); }
 .task-lane-completed { --lane-surface:#1d4b3d; --lane-depth:#102f27; --lane-accent:#91ceb0; --lane-ink:#dcf4e7; --lane-ring:rgba(145,206,176,.19); --lane-outline:rgba(220,244,231,.72); }
 .task-lane + .task-lane { border-left:1px solid rgba(255,255,255,.14); }
 .task-lane.is-drop-target { background:linear-gradient(155deg,color-mix(in srgb,var(--lane-surface) 84%,#fff),var(--lane-depth)) !important; box-shadow:inset 0 0 0 2px var(--lane-outline); }

@@ -2,7 +2,7 @@
 
 ## Product premise
 
-Personal Calander is a focused personal operating workspace. It separates intent (**goals and projects**) from commitment (**tasks and scheduled work**) while still letting a person see the full picture from a daily focus view through annual planning.
+Personal Calendar is a focused personal operating workspace. It separates intent (**goals and projects**) from commitment (**tasks and scheduled work**) while still letting a person see the full picture from a daily focus view through annual planning.
 
 ## Core outcomes
 

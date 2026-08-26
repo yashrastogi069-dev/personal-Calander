@@ -2,7 +2,7 @@
 
 ## Boundary and ownership model
 
-Personal Calander is implemented as a browser-scoped planning workspace backed by a full-stack application. A cryptographically random `workspaceId` is generated once in the browser and stored locally. Every API request carries it, and every persisted planning record is constrained by it. This gives a person a separate, opaque guest workspace without requiring sign-in.
+Personal Calendar is implemented as a browser-scoped planning workspace backed by a full-stack application. A cryptographically random `workspaceId` is generated once in the browser and stored locally. Every API request carries it, and every persisted planning record is constrained by it. This gives a person a separate, opaque guest workspace without requiring sign-in.
 
 This is deliberately an **anonymous isolation boundary**, not account-grade identity. Clearing browser storage loses the capability to access that guest workspace, and an authenticated release will replace the browser capability with a server-verified user/workspace membership check. The schema keeps the workspace foreign key on every personal record so this upgrade changes access control rather than the data model.
 

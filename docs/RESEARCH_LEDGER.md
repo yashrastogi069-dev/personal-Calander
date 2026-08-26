@@ -1,4 +1,4 @@
-# Research Ledger: Personal Calander Product Decisions
+# Research Ledger: Personal Calendar Product Decisions
 
 This ledger separates external evidence from implementation decisions. It is an evolving research record, not a claim that every source is independent research; vendor guidance is treated as documented product practice and evaluated critically.
 

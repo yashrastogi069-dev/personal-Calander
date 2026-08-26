@@ -12,7 +12,7 @@ The primary user is the workspace owner, using one board to coordinate personal 
 
 ## Product Purpose
 
-Personal Calander makes comprehensive planning feel low-friction. It supports an equal balance between a prioritized task list and time-based calendar planning, then makes the result understandable through goal progress, workload, habit, and completion visualizations.
+Personal Calendar makes comprehensive planning feel low-friction. It supports an equal balance between a prioritized task list and time-based calendar planning, then makes the result understandable through goal progress, workload, habit, and completion visualizations.
 
 ## Positioning
 

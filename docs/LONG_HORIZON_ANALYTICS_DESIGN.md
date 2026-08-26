@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This design expands Personal Calander from a collection of dated records into a personal planning system that connects **yearly direction**, **quarterly outcomes**, **monthly milestones**, and **weekly/daily execution**. It intentionally avoids an opaque productivity score. Every signal must be derived from persisted workspace data, explain its source, and offer a proportional next action.
+This design expands Personal Calendar from a collection of dated records into a personal planning system that connects **yearly direction**, **quarterly outcomes**, **monthly milestones**, and **weekly/daily execution**. It intentionally avoids an opaque productivity score. Every signal must be derived from persisted workspace data, explain its source, and offer a proportional next action.
 
 > **Product boundary:** A signal is a decision aid, not a prediction, diagnosis, or judgement of the user. The application must never infer commitment, fabricate progress, or create work/reminders without confirmation.
 

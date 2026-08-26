@@ -32,7 +32,7 @@ The broader planner’s already-verified actions continue to use their existing 
 
 ## Lane color roles
 
-The three lanes are intentionally distinct without turning individual task cards into a rainbow. **To do** uses deep leaf green, **In progress** uses deep teal green, and **Completed** uses dark forest green. The same role controls the lane marker, count, drag target, and mobile outline; task content stays on a quiet high-contrast surface. At phone width the lanes stack into separately bounded work zones, while the native **Move to** control remains available inside every card.
+The three lanes are intentionally distinct without turning individual task cards into a rainbow. **To do** uses deep slate-blue, **In progress** uses dark teal, and **Completed** retains dark forest green. The same role controls the lane marker, count, drag target, and mobile outline; task content stays on a quiet high-contrast surface. At phone width the lanes stack into separately bounded work zones, while the native **Move to** control remains available inside every card.
 
 ## Optional Companion reliability boundary
 

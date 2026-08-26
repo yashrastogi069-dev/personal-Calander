@@ -24,13 +24,13 @@ VAPID’s public and private keys authenticate the application server. The brows
 
 ## 2. Add the values to Vercel
 
-When the keys are available, supply them through the project’s secure secret-entry prompt. They will then be added to **Vercel → the Personal Calander project → Settings → Environment Variables** for **Production** and **Preview** without recording the private key in the repository. Add `VITE_VAPID_PUBLIC_KEY` before the build because Vite embeds `VITE_` variables at build time. Add the private key and subject as server-only values. Then redeploy the newest GitHub commit.
+When the keys are available, supply them through the project’s secure secret-entry prompt. They will then be added to **Vercel → the Personal Calendar project → Settings → Environment Variables** for **Production** and **Preview** without recording the private key in the repository. Add `VITE_VAPID_PUBLIC_KEY` before the build because Vite embeds `VITE_` variables at build time. Add the private key and subject as server-only values. Then redeploy the newest GitHub commit.
 
 The planner also needs its production database connection as `DATABASE_URL`. It must point to the same type of MySQL-compatible database used in development and include TLS parameters required by that provider. Do not run the local global migration command against production because this project’s baseline database history was created manually; apply only reviewed, targeted SQL migrations.
 
 ## 3. Install the app on iPhone before asking for permission
 
-On an iPhone running **iOS 16.4 or newer**, open the public HTTPS site in Safari, tap **Share**, choose **Add to Home Screen**, and open the new Personal Calander icon from the Home Screen. The manifest must remain reachable and its `display` mode must remain `standalone`. Apple supports Web Push for Home Screen web apps using the web standards; an Apple Developer Program membership is not required.[2] [3]
+On an iPhone running **iOS 16.4 or newer**, open the public HTTPS site in Safari, tap **Share**, choose **Add to Home Screen**, and open the new Personal Calendar icon from the Home Screen. The manifest must remain reachable and its `display` mode must remain `standalone`. Apple supports Web Push for Home Screen web apps using the web standards; an Apple Developer Program membership is not required.[2] [3]
 
 In the installed app, tap **Allow notifications on this device**. Permission must be requested from a direct user gesture. The app must then subscribe with the public VAPID key and send the returned endpoint plus encryption keys to the backend. Apple requires user-initiated permission and subscription, and Safari can revoke permission if pushes arrive without immediately presenting a visible notification.[2]
 
@@ -64,7 +64,7 @@ Apple’s push service returns status codes that should control recovery: `201` 
 
 ## 7. Current activation checklist
 
-The supported installed-iPhone path is now active. Open Personal Calander **from its Home Screen icon**, go to **Today**, and confirm that the Scheduled rhythm control reads **Pause reminders**. That state means the saved daily `11:00` and weekly Sunday `17:00` Pacific/Auckland rules are enabled; it is not a claim that a future notification has already been delivered.
+The supported installed-iPhone path is now active. Open Personal Calendar **from its Home Screen icon**, go to **Today**, and confirm that the Scheduled rhythm control reads **Pause reminders**. That state means the saved daily `11:00` and weekly Sunday `17:00` Pacific/Auckland rules are enabled; it is not a claim that a future notification has already been delivered.
 
 To pause future scheduled sends, tap **Pause reminders**. To resume the same approved cadence later, tap **Enable daily + weekly**. The browser-device action remains separate: use **Disable reminders on this device** only when the installed device should stop receiving pushes. After disabling, re-enable that exact Home Screen PWA device and use the manual test notification before relying on the scheduled cadence again.
 

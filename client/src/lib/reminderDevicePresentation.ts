@@ -31,7 +31,7 @@ export function getReminderDevicePresentation(
 
   if (permission === "unsupported") {
     return {
-      status: "Open Personal Calander from its Home Screen icon.",
+      status: "Open Personal Calendar from its Home Screen icon.",
       actionLabel: "Open the Home Screen app",
       action: "connect",
       isBlocked: true,

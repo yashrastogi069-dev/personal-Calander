@@ -28,9 +28,9 @@ export async function buildCalendarFeed(token: string) {
       `DTSTART;VALUE=DATE:${dateValue(localDate)}`,
       `DTEND;VALUE=DATE:${dateValue(endDate)}`,
       `SUMMARY:${escapeIcs(task.title)}`,
-      `DESCRIPTION:${escapeIcs(`Personal Calander task · ${task.priority} priority · ${task.state.replace("_", " ")}`)}`,
+      `DESCRIPTION:${escapeIcs(`Personal Calendar task · ${task.priority} priority · ${task.state.replace("_", " ")}`)}`,
       "END:VEVENT",
     ].join("\r\n");
   });
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Personal Calander//Planning Feed//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${escapeIcs(feed.name)}`, ...events, "END:VCALENDAR", ""].join("\r\n");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Personal Calendar//Planning Feed//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${escapeIcs(feed.name)}`, ...events, "END:VCALENDAR", ""].join("\r\n");
 }

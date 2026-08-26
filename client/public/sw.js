@@ -30,7 +30,7 @@ self.addEventListener("fetch", event => {
 });
 
 self.addEventListener("push", event => {
-  let payload = { title: "Personal Calander", body: "You have a planning reminder.", url: "/", kind: "reminder" };
+  let payload = { title: "Personal Calendar", body: "You have a planning reminder.", url: "/", kind: "reminder" };
   try { payload = { ...payload, ...event.data?.json() }; } catch { /* use the safe default */ }
   event.waitUntil(self.registration.showNotification(payload.title, {
     body: payload.body,

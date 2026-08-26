@@ -1,4 +1,4 @@
-# Personal Calander Upgrade Changelog
+# Personal Calendar Upgrade Changelog
 
 ## Verified reliability and interaction work
 
@@ -114,7 +114,7 @@ The Task surface was reviewed for decorative controls. The priority flag now cyc
 
 The Optional Companion now uses the GPT-compatible completion-token request parameter, which resolves the earlier unreadable-response failure. A submitted note produces a reviewable draft; it never writes to the plan until **Confirm draft** is selected. Empty notes are explained rather than silently ignored, pending requests are explicit, and a provider failure or malformed response produces a clearly labeled Safe starting draft from the user’s own note. The user can discard it or retry the model, preserving an honest boundary between deterministic recovery and model output.
 
-The task lanes now carry deeper state roles within the same green workspace family: **leaf green** for To do, **teal green** for In progress, and **forest green** for Completed. These colors are applied to lane-level state, counts, drop targets, and mobile outlines while task content remains calm and readable. At phone width, the lanes stack into distinct, touch-safe work zones without removing the native **Move to** control. The full validation suite now passes with **65 tests across 16 files**.
+The task lanes now carry deeper state roles without using brown surfaces: **deep slate-blue** for To do, **dark teal** for In progress, and **forest green** for Completed. These colors are applied to lane-level state, counts, drop targets, and mobile outlines while task content remains calm and readable. At phone width, the lanes stack into distinct, touch-safe work zones without removing the native **Move to** control. The full validation suite now passes with **65 tests across 16 files**.
 
 ## Immediate task movement
 
@@ -125,6 +125,10 @@ Moving a task now updates the visible lane and count **immediately**, before the
 Tasks now remain manageable at high volume without silently discarding evidence. To do and In progress preview 24 items; Completed previews 12; each lane has an explicit expansion action, while a task search reveals every match. Completed work can be archived in bounded batches and appears in a dedicated Archived work panel with explicit Restore actions. Task restoration returns work to To do and clears its completed/archive timestamps. The organizer also now restores archived Goals, Projects, and Habits with workspace-scoped version checks; linked planning history and habit check-ins are preserved.
 
 Calendar day cells continue to show at most three tasks, but no longer hide additional work without an exit: a compact **View N more in Tasks** action routes to the searchable Tasks workspace. The release adds high-volume, batch-boundary, restore-metadata, and stale-write contract coverage. It passes TypeScript, the production build, and **71 tests across 17 files**; the retained large-client-chunk warning is unchanged and non-fatal.
+
+## Calendar naming and task-lane refinement
+
+The product’s visible name is now consistently **Personal Calendar**, including the page title, application shell, PWA manifest, install surfaces, copy, and generated calendar-facing labels. Existing planner routes, private calendar feeds, data records, and GitHub repository identifiers remain unchanged. The Tasks board retains its approved dark treatment, but To do is now deep slate-blue and In progress dark teal; Completed remains forest green. No brown surface is used. TypeScript, all 71 tests, the production build, a source spelling scan, desktop populated-board inspection, and a 390×844 phone capture pass.
 
 [5]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Habit tracking research ledger"
 [6]: ./RESEARCH_LEDGER.md#habit-tracking-and-tracker-safety "Time-to-form-a-habit evidence"

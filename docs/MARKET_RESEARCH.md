@@ -6,7 +6,7 @@ This research examined established products for four personal-planning problems:
 
 ## Findings from planning tools
 
-| Market pattern | Evidence | Product decision for Personal Calander |
+| Market pattern | Evidence | Product decision for Personal Calendar |
 | --- | --- | --- |
 | Saved, composable views reduce retrieval friction | Todoist defines filters as reusable views that can combine task name, date, project, label, priority, and creation date; it also supports list, board, and calendar renderings of a view. [1] | Saved views will store structured filters, sort order, grouping, and a preferred layout. The first release offers approachable filter controls rather than exposing a query language as a requirement. |
 | Calendar is a planning surface, not merely a deadline list | Todoist supports creating from a calendar date, dragging unscheduled work into a date, rescheduling by drag-and-drop, changing the displayed coloring dimension, and viewing future recurring occurrences in calendar form. [2] | The calendar will expose actionable tasks separately from goals, retain an unscheduled backlog, support drag-to-schedule, and let color represent category while status is communicated with shape and labels. |

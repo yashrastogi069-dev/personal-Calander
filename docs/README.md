@@ -1,6 +1,6 @@
 # Documentation Index
 
-This directory is the project memory for **Personal Calander**. Product behavior, design choices, data rules, and verification evidence are kept here so subsequent development work can be reasoned about rather than rediscovered.
+This directory is the project memory for **Personal Calendar**. Product behavior, design choices, data rules, and verification evidence are kept here so subsequent development work can be reasoned about rather than rediscovered.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
