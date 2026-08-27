@@ -594,6 +594,36 @@ export async function getHabitPracticeEvidence(scope: PlannerScope, input: { end
   return { startLocalDate, endLocalDate: input.endLocalDate, habits: habitRows, checkIns: checkInRows };
 }
 
+export async function createPlanningTemplate(scope: PlannerScope, input: { kind: "task" | "project" | "daily_plan"; name: string; description?: string | null; payload: unknown }) {
+  const db = await requireDb();
+  const id = nanoid();
+  await db.insert(planningTemplates).values({ id, workspaceId: scope.workspaceId, ...input });
+  return (await db.select().from(planningTemplates).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, id))).limit(1))[0]!;
+}
+
+export async function updatePlanningTemplate(scope: PlannerScope, input: { id: string; expectedVersion: number; patch: { name?: string; description?: string | null; payload?: unknown } }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(planningTemplates).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Planning template was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(planningTemplates).set({ ...input.patch, version: existing.version + 1 }).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, input.id), eq(planningTemplates.version, input.expectedVersion)));
+  const updated = (await db.select().from(planningTemplates).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+/** Template archive retains configuration history and never changes any task, project, or plan. */
+export async function archivePlanningTemplate(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(planningTemplates).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Planning template was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await db.update(planningTemplates).set({ archivedAt: new Date(), version: existing.version + 1 }).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, input.id), eq(planningTemplates.version, input.expectedVersion)));
+  const updated = (await db.select().from(planningTemplates).where(and(eq(planningTemplates.workspaceId, scope.workspaceId), eq(planningTemplates.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
 export async function upsertDailyCheckIn(scope: PlannerScope, input: { localDate: string; intention?: string | null; reflection?: string | null; energy?: number | null; mood?: number | null }) {
   const db = await requireDb();
   const id = nanoid();

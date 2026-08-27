@@ -241,4 +241,21 @@ describe("planner task API", () => {
     expect(activate).toHaveBeenNthCalledWith(2, scope, { id: "weekly-rule", enabled: true });
     prepare.mockRestore(); activate.mockRestore(); list.mockRestore();
   });
+
+  it("keeps task starting points review-first and version-safe through the planning-template contract", async () => {
+    const create = vi.spyOn(planning, "createPlanningTemplate").mockResolvedValue({ id: "template-1", kind: "task", name: "Admin follow-up", version: 1 } as never);
+    const update = vi.spyOn(planning, "updatePlanningTemplate").mockResolvedValue({ id: "template-1", name: "Revised follow-up", version: 2 } as never);
+    const archive = vi.spyOn(planning, "archivePlanningTemplate").mockResolvedValue({ id: "template-1", archivedAt: new Date(), version: 3 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+    const payload = { title: "Follow up", priority: "medium", estimateMinutes: 20 };
+
+    await expect(caller.planner.planningTemplate.create({ ...scope, kind: "task", name: "Admin follow-up", description: "A reviewed default", payload })).resolves.toMatchObject({ id: "template-1", kind: "task" });
+    await expect(caller.planner.planningTemplate.update({ ...scope, id: "template-1", expectedVersion: 1, patch: { name: "Revised follow-up" } })).resolves.toMatchObject({ version: 2 });
+    await expect(caller.planner.planningTemplate.archive({ ...scope, id: "template-1", expectedVersion: 2 })).resolves.toMatchObject({ version: 3 });
+    expect(create).toHaveBeenCalledWith(scope, expect.objectContaining({ kind: "task", name: "Admin follow-up", payload }));
+    expect(update).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "template-1", expectedVersion: 1, patch: { name: "Revised follow-up" } }));
+    expect(archive).toHaveBeenCalledWith(scope, { id: "template-1", expectedVersion: 2 });
+    create.mockRestore(); update.mockRestore(); archive.mockRestore();
+  });
 });

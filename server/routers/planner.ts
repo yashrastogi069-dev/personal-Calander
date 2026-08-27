@@ -4,6 +4,7 @@ import {
   archiveGoal,
   archiveGoalMilestone,
   archiveHabit,
+  archivePlanningTemplate,
   archiveProject,
   addDailyPlanItem,
   bulkSetTaskState,
@@ -16,6 +17,7 @@ import {
   createGoal,
   createGoalMilestone,
   createHabit,
+  createPlanningTemplate,
   createProject,
   createSavedView,
   createTask,
@@ -48,6 +50,7 @@ import {
   updateTask,
   updateDailyPlanItem,
   updateGoalMilestone,
+  updatePlanningTemplate,
   updateWeeklyObjective,
   updateCategory,
   updateSavedView,
@@ -284,6 +287,20 @@ export const plannerRouter = router({
     carryForward: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), nextWeekStartLocalDate: dateString })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...objective } = input;
       try { return await carryForwardWeeklyObjective({ workspaceId, timezone }, objective); } catch (error) { return plannerError(error); }
+    }),
+  }),
+  planningTemplate: router({
+    create: publicProcedure.input(scope.extend({ kind: z.enum(["task", "project", "daily_plan"]), name: z.string().trim().min(1).max(120), description: z.string().max(1000).nullable().optional(), payload: z.record(z.string(), z.unknown()) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...template } = input;
+      return createPlanningTemplate({ workspaceId, timezone }, template);
+    }),
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), payload: z.record(z.string(), z.unknown()).optional() }) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...template } = input;
+      try { return await updatePlanningTemplate({ workspaceId, timezone }, template); } catch (error) { return plannerError(error); }
+    }),
+    archive: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...template } = input;
+      try { return await archivePlanningTemplate({ workspaceId, timezone }, template); } catch (error) { return plannerError(error); }
     }),
   }),
   savedView: router({

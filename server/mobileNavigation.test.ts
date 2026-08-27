@@ -12,6 +12,7 @@ describe("mobile planner navigation contract", () => {
   it("keeps every core planner surface present exactly once and in a stable thumb-bar order", () => {
     expect(mobilePlannerDestinations.map(destination => destination.id)).toEqual([
       "today",
+      "capture",
       "plan",
       "tasks",
       "calendar",
@@ -19,6 +20,7 @@ describe("mobile planner navigation contract", () => {
       "projects",
       "habits",
       "focus",
+      "connections",
       "review",
     ]);
     expect(hasCompleteMobilePlannerNavigation(mobilePlannerDestinations)).toBe(true);
@@ -27,11 +29,11 @@ describe("mobile planner navigation contract", () => {
   it("uses four direct destinations and preserves the remaining planning surfaces in More", () => {
     expect(mobilePrimaryPlannerDestinations.map(destination => destination.id)).toEqual([
       "today",
+      "capture",
       "plan",
       "tasks",
-      "calendar",
     ]);
-    expect(mobileMorePlannerDestinations.map(destination => destination.id)).toEqual(["goals", "projects", "habits", "focus", "review"]);
+    expect(mobileMorePlannerDestinations.map(destination => destination.id)).toEqual(["calendar", "goals", "projects", "habits", "focus", "connections", "review"]);
     expect(hasCompletePhoneNavigationPattern(mobilePrimaryPlannerDestinations, mobileMorePlannerDestinations)).toBe(true);
   });
 

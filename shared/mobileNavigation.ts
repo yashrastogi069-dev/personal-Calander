@@ -1,5 +1,6 @@
 export const mobilePlannerDestinations = [
   { id: "today", label: "Today" },
+  { id: "capture", label: "Capture" },
   { id: "plan", label: "Plan" },
   { id: "tasks", label: "Tasks" },
   { id: "calendar", label: "Calendar" },
@@ -7,6 +8,7 @@ export const mobilePlannerDestinations = [
   { id: "projects", label: "Projects" },
   { id: "habits", label: "Habits" },
   { id: "focus", label: "Focus" },
+  { id: "connections", label: "Connections" },
   { id: "review", label: "Review" },
 ] as const;
 
