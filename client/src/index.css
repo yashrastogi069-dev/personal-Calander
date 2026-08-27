@@ -88,6 +88,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .workspace-pill strong, .workspace-pill small { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .workspace-pill strong { color:#d9dcd4; font-size:11px; font-weight:600; }.workspace-pill small { color:#6f766e; margin-top:2px; font:9px "IBM Plex Mono", monospace; }
 .planner-main { min-width:0; padding:0 34px 48px; overflow:hidden; }
+.destination-loading { display:grid; place-items:center; align-content:center; gap:14px; min-height:320px; margin-top:30px; border:1px solid rgba(198,240,106,.16); border-radius:16px; background:linear-gradient(135deg, rgba(198,240,106,.055), transparent 44%), #131614; color:#aeb7ab; text-align:center; }
+.destination-loading span { display:block; width:48px; height:3px; overflow:hidden; border-radius:999px; background:#2b332d; }
+.destination-loading span::after { content:""; display:block; width:58%; height:100%; border-radius:inherit; background:#c6f06a; transform:translateX(-78%); }
+.destination-loading p { margin:0; font-size:13px; font-weight:600; }
+@media (prefers-reduced-motion: no-preference) { .destination-loading span::after { animation:destination-load 720ms var(--ease-out) infinite alternate; } }
+@keyframes destination-load { to { transform:translateX(74%); } }
 .planner-topbar { min-height:108px; display:grid; grid-template-columns:minmax(190px,1fr) minmax(280px,420px) auto; align-items:center; gap:24px; border-bottom:1px solid var(--border); }
 .top-date, .eyebrow { margin:0 0 4px; color:#87927f; font:500 10px/1.2 "IBM Plex Mono", monospace; letter-spacing:.06em; text-transform:uppercase; }
 .planner-topbar h1 { margin:0; font-size:31px; line-height:.95; letter-spacing:-.045em; font-weight:800; }

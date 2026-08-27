@@ -243,3 +243,4 @@
 - [x] Expand factual analytics with weekly planned-versus-completed focus time, carryover trend, category/goal allocation, and accessible review history.
 - [ ] Apply a status-semantic design-system pass: every non-neutral status must pair color with an understandable text label or icon.
 - [ ] Apply a restrained visual/theming/motion pass using purpose-built dark panels, readable scroll states, and only deliberate performance-safe animations.
+- [x] Split Plan, Capture, Search, Projects, Habits, Focus, Connections, and Insights into on-demand destination chunks; verify direct-route loading and reduce the initial client asset from 1.61 MB / 392.84 kB gzip to 1.39 MB / 367.14 kB gzip.

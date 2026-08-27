@@ -81,3 +81,13 @@ The rebuilt `/?surface=plan` and `/?surface=review` destinations were inspected 
 | Guided Plan | Capacity, available work, approval-required scheduling assistance, and weekly-objective links remain visible without an overloaded primary dashboard. | Pass |
 | Review empty state | The Review route presents a clear **Begin review** action plus health and decision evidence when no saved review history exists. | Pass |
 | Source integrity | No browser mutation was made; the review-history data and planning records remained unchanged during verification. | Pass |
+
+## 2026-08-27 — Lazy destination and bundle recheck
+
+The modular Plan, Focus, Projects, Habits, Capture, Connections, and Insights destinations were opened directly after applying lazy loading.
+
+| Check | Observed result | Status |
+|---|---|---|
+| Direct destinations | Every checked destination loaded its intended workspace rather than its loading fallback or an error state. | Pass |
+| Initial client weight | The primary production JavaScript asset reduced from 1.61 MB / 392.84 kB gzip to 1.04 MB / 292.26 kB gzip; dedicated workspaces are emitted as separate chunks. | Pass |
+| Outstanding performance boundary | The initial asset is still above the 500 kB advisory threshold because legacy Home/dashboard dependencies remain shared. Further Home decomposition is tracked; the warning is not considered resolved. | Tracked |
