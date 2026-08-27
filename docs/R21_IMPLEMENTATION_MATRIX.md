@@ -1,0 +1,23 @@
+# R21 Implementation Matrix
+
+| Requirement area | Delivered implementation | Evidence and boundary |
+|---|---|---|
+| Planning settings and capacity | Workspace hours, breaks, daily capacity, shutdown preference, and dated availability exceptions feed availability and forecast calculations. | `planningAvailability.ts`, `planning.ts`, Plan workspace, focused tests and daily-plan acceptance. |
+| Guided daily planning and shutdown | Persisted commitments, ordering, capacity fit, re-entry, resolution choices, reflection, close guard, and history. | Plan workspace; daily-plan ordering/resolution tests; isolated browser acceptance and cleanup. |
+| Weekly objectives and reviews | Goal/project-linked weekly objectives, carry-forward, review evidence, all-period history, and Insights refresh. | Planner router/services, Review and Insights destinations, review-history tests. |
+| Task, project, and dependency execution | Lifecycle board, task-to-project selector, subtasks, project execution, dependency add/remove, Waiting/Ready status, and blocked-completion recovery. | TaskBoard and Project Execution workspace; router/lifecycle/dependency tests; isolated browser acceptance. |
+| Habit discipline | Separate cadence-based tracker with complete, clear, skip, historical correction, calendar-style board, and factual practice metrics. | Habit workspace and schedule/consistency tests; isolated browser acceptance. |
+| Capture, templates, search, and saved views | Deterministic editable natural-language capture, review-first templates, workspace search, and shareable destination/filter state. | Capture, Search, and task URL-state modules; contract and browser checks. |
+| Scheduling assistance | Manual, flexible, pinned semantics; availability-aware proposals, approval, undo, and change history. | `scheduling.ts`, availability rules, Plan workspace, scheduling tests. |
+| Task execution calendar | Dedicated lazy task-owned calendar with inbox drag/drop, move, 15-minute resize, completion projection, keyboard commands, and no Habit blocks. | Calendar execution workspace; reservation, keyboard, desktop, phone, and disposable-data acceptance records. |
+| External calendar context | Server-only Google ICS configuration readiness, bounded pure parser, clear unavailable/invalid states, and existing read-only busy-event model. | `icsOverlay.ts`, Connections workspace, parser tests. A real refresh requires an approved secret configuration and explicit future activation; there is no client feed URL, fetch, OAuth start, polling, or external write. |
+| Rollover | Reviewable manual prior-day reservation clearing, persisted counter, immutable audit evidence, and server guard against today/future rollover. | Migration `0012_nice_morph.sql`, `morningRollover.ts`, Calendar UI, test and cleaned browser acceptance. |
+| Cross-device and offline continuity | Account-backed workspace boundary, version conflicts, offline capture retry/deduplication, browser-device readiness, and recovery documentation. | Existing workspace/capture/device contracts and focused coverage. |
+| Modular performance | Plan, Capture, Search, Projects, Habits, Focus, Connections, Insights, and Calendar execution use direct destinations/on-demand chunks. | Production entry remains explicitly tracked at approximately 1.399 MB / 367.76 kB gzip; the remaining legacy Home shell is a known follow-up rather than hidden debt. |
+| Accessibility and visual system | Native controls, local actionable errors, status text/icons, visible focus, reduced-motion handling, themed browser surfaces, mobile cards, and low-glare task calendar. | Full 128-test suite; desktop and 390px evidence; R21 visual validation record. |
+| Automation and reminders | Existing approved Auckland cadence remains untouched in this work. No new cron, timer, external sync, or device mutation was introduced. | Explicitly deferred for separate authorization and deployment prerequisites. |
+| Branch safety and backup | Every R21 checkpoint is saved and pushed only to `dev/personal-calendar-workbench`; protected `main` is verified unchanged. | Latest pre-final-sync protected SHA: `782776d7f2a85a52e48a3464989b9ffdbe74c21f`. Source archive is refreshed after each coherent branch checkpoint. |
+
+## Completion rule
+
+This matrix treats a capability as delivered only when it has a real data contract and interface, test coverage where practical, and recorded desktop/phone or browser evidence. The only deliberately deferred actions are those requiring the user’s real external ICS source or a separate automated/external authorization. Their UI and safety boundaries are present, but no secret, external connection, reminder cadence, or planner record is silently altered.
