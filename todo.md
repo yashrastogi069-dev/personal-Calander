@@ -247,3 +247,12 @@
 - [x] Browser-test an isolated daily plan from creation through commitment, guarded close, deliberate reschedule, closed reflection, archive behavior, and targeted cleanup.
 - [x] Browser-test a task-linked focus session through start, pause, resume, explicit estimate adjustment, factual evidence, archive behavior, and targeted cleanup.
 - [x] Browser-test an isolated daily habit through complete, clear correction, intentional skip, archive behavior, and targeted cleanup.
+- [x] Repair the browser-discovered missing task-to-project assignment control so reviewed project task creation and dependency acceptance can complete through a supported UI path.
+- [x] Browser-test an isolated project through creation, explicit task links, hard dependency add/remove, blocked-completion recovery, completed sequence, and scoped cleanup.
+- [x] Ensure a blocked task-completion attempt shows the dependency recovery text in a persistent, accessible local error surface rather than relying on an ephemeral notification or console entry.
+- [ ] Research and design a safe task-to-time-block execution model that keeps drag, move, resize, and completion behavior bidirectionally consistent without duplicating state.
+- [ ] Add a task inbox-to-day-grid drag workflow that creates an explicit, linked calendar reservation and supports moving and bounded resizing through the existing task record.
+- [ ] Add a user-controlled, read-only external-calendar overlay model sourced from validated ICS feed URLs supplied through secure configuration, with no OAuth dependency and clear unavailable/error states.
+- [ ] Implement accessible keyboard-first planner commands for new task, today navigation, date/grid selection, and reviewable next-free-slot reservation without intercepting text-entry shortcuts.
+- [ ] Implement explicit morning rollover for unfinished prior-day reserved work, returning it to unreserved planned work with a persisted reschedule count and no hidden task-state change.
+- [ ] Validate linked calendar, external-overlay, keyboard, and rollover workflows across errors, conflicts, mobile/desktop accessibility, automated tests, disposable browser data, targeted cleanup, and development-branch-only synchronization.

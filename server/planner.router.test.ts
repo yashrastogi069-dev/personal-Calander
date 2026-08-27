@@ -138,6 +138,20 @@ describe("planner task API", () => {
     create.mockRestore(); update.mockRestore();
   });
 
+  it("passes explicit task-to-project assignment and clearing through the version-safe task contracts", async () => {
+    const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-project-1", projectId: "project-1", version: 1 } as never);
+    const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-project-1", projectId: null, version: 2 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+
+    await expect(caller.planner.task.create({ ...scope, title: "Deliberately linked work", projectId: "project-1", state: "not_started", priority: "medium", horizon: "weekly", sortOrder: 0 })).resolves.toMatchObject({ projectId: "project-1" });
+    await expect(caller.planner.task.update({ ...scope, id: "task-project-1", expectedVersion: 1, patch: { projectId: null } })).resolves.toMatchObject({ projectId: null, version: 2 });
+
+    expect(create).toHaveBeenCalledWith(scope, expect.objectContaining({ title: "Deliberately linked work", projectId: "project-1" }));
+    expect(update).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "task-project-1", expectedVersion: 1, patch: { projectId: null } }));
+    create.mockRestore(); update.mockRestore();
+  });
+
   it("returns a recoverable conflict when a stale task version is used for a restore or lane move", async () => {
     const update = vi.spyOn(planning, "updateTask").mockRejectedValue(new planning.PlannerConflictError({ id: "task-stale-1", version: 9, state: "archived" }));
     const caller = appRouter.createCaller(createPublicContext());

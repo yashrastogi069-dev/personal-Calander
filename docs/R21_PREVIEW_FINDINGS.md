@@ -127,3 +127,81 @@ A daily disposable habit named **“R21 QA cleanup — habit acceptance”** was
 | Correction removal | `Undo completed` removed the recorded completion and restored the available `Complete` and `Skip` choices without backfilling data. | Pass |
 | Intentional skip | `Skip` produced the distinct labels `Intentionally skipped` and `0 of 1 habits complete · 1 intentionally skipped`; the tracker exposed `Clear skip`. | Pass |
 | Cleanup | The lifecycle manager confirmed the named habit before archive. After confirmation, the active Habits surface showed its guided empty state rather than the test habit. The named habit and its test-only check-in were then removed in the targeted cleanup. | Pass |
+
+## 2026-08-27 — Project and dependency acceptance preflight
+
+After cleanup, the dedicated Habits workspace again rendered its factual empty state. A new, separately named disposable Project creation run has been opened from the shared compact creator for the next acceptance sequence. The Project entry correctly identifies it as “Finite work that advances a goal,” and the resulting dialog repeats that finite-work boundary. No project, task, dependency, or external integration has been created during this preflight step. A changed accessibility reference was refreshed without mutation.
+
+The Project form exposes a named project field, an optional deadline, and an optional “Goal this project advances” selector. Its guidance explicitly prevents fabricated links: it instructs the user to create the project first, then use `Break down` to add reviewed linked tasks.
+
+The isolated project named **“R21 QA cleanup — project acceptance”** was then created with a September 3 deadline and no goal link. The next checks will create only separately named disposable child tasks and dependency rows, then remove every test row through the existing archive flow followed by targeted cleanup.
+
+The dedicated Project Execution destination selected the named project, surfaced the explicit `not started` state and a factual `0 of 0` task completion count, and rendered separate Ready next, Waiting, and Completed lanes with truthful empty states. It also introduced the dependency workflow as explicit sequencing before it becomes a blocker.
+
+The empty-project sequencing panel offers explicit Task, Depends on, and Link type selectors plus a gated `Add link` action; it correctly has no selectable task or prerequisite until project tasks exist. The dedicated execution page has no in-place `Break down` action at this stage, so the acceptance run will use the existing task creation and explicit project-link workflow instead of inventing a new path.
+
+With the named project selected, the shared compact creator correctly opened the Task form. The next action will create a separately named task and explicitly link it to the project before a second task is created; no dependency has been added yet.
+
+The first disposable task, **“R21 QA cleanup — prerequisite task,”** was created with a 10-minute estimate. It remains unlinked until the next explicit editor action; no project relationship or dependency was inferred automatically.
+
+The filtered Tasks board returned exactly the named prerequisite task in the To do lane with direct Edit and Add a subtask controls. The next interaction will use Edit to set its project link deliberately.
+
+The task editor opened from that filtered row. The next verification step will identify its existing Project selector and save only the link to the named disposable project.
+
+The browser exposed a missing Project selector in that editor, which prevented an existing task from entering Project Execution. The repair adds the same explicit, clearable project assignment to all task editors, backed by the existing version-safe task update contract. The focused tRPC suite now includes project assignment and clearing coverage (**25 planner-router tests passed**) and TypeScript passes. A fresh browser load returned the named prerequisite task; an outdated accessibility reference was refreshed without mutation before continuing.
+
+The named prerequisite task editor reopened successfully after the repair. The next interaction will confirm that its Project selector exposes the disposable project, then save that specific relationship.
+
+The editor remained open after a direct guidance-text lookup did not yield a match, and a fresh accessibility snapshot confirmed the active dialog. No task relationship changed during this non-mutating browser retry.
+
+The first post-edit browser dialog was serving a stale client artifact, so the managed preview was restarted. The restart completed with the current split-client build and the server listening on port 3000; a fresh task-board load again showed exactly the named prerequisite task. No planner data changed during preview recovery.
+
+From the restarted preview, the named prerequisite task editor opened successfully again. The following detailed dialog inspection will establish whether the repaired project-selection field is present before selecting any record.
+
+The restarted task editor now states that project selection is deliberate and exposes a Project combobox initialized to `No project`. The selector opened without side effects; the next action will choose only **“R21 QA cleanup — project acceptance”** from its option list.
+
+The Project selector listed only `No project` and the named disposable project. The named project was selected; the task has not been saved yet, so the next action will confirm and persist this explicit relationship.
+
+`Save changes` persisted the named prerequisite task’s project assignment through the repaired version-safe editor flow. The next verification will open Project Execution and confirm that the task appears in the Ready next lane.
+
+Project Execution selected the named project and showed task completion as `0 of 1`. The named 10-minute prerequisite task appeared in the Ready next lane, confirming the repaired project relationship is persisted and used by the execution view.
+
+The project remains selected with the prerequisite task ready. A second, separately named dependent task is now staged in the shared compact Task creator; it will be explicitly linked to the same project before any dependency is created.
+
+The second disposable task, **“R21 QA cleanup — dependent task,”** was created with a 10-minute estimate. It is not yet assigned to a project and has no prerequisite; both relationships will be set explicitly in the next steps.
+
+The filtered Tasks board returned exactly the named dependent task in the To do lane. Its editor will next assign the same disposable project through the repaired Project selector, after which the Project Execution dependency controls can be used.
+
+The dependent task editor opened successfully and is ready for the same deliberate, clearable Project assignment. No dependency has been created yet.
+
+The dependent task editor displays the repaired Project selector and the same assignment guidance. The selector opened without mutation; the next action will select the uniquely named disposable project and save this deliberate relationship.
+
+The selector offered only `No project` and the shared disposable project; the shared project was selected for the dependent task. It has not been saved yet, and no prerequisite link exists until the editor save and subsequent Project Execution action.
+
+The dependent task’s selected project assignment was saved, and Project Execution was reopened to configure sequencing. Both disposable tasks are now deliberately linked to the same named project; no dependency has been added yet.
+
+Project Execution now shows `0 of 2` tasks and both named tasks in Ready next. Its explicit sequencing control presents Task, Depends on, and Link type selectors plus an `Add link` action, with `Hard prerequisite` selected by default. The next steps will set the dependent task to depend on the prerequisite task and confirm the enforcement path.
+
+The sequencing panel explicitly selected **dependent task** as Task, **prerequisite task** as Depends on, and `Hard prerequisite` as Link type. `Add link` was invoked. The next verification will confirm the dependent task moves to Waiting and cannot be completed until its prerequisite is resolved.
+
+The new hard link moved the dependent task from Ready next to the Project Execution **Waiting** lane and displayed `Waiting for R21 QA cleanup — prerequisite task`. The filtered Tasks board still exposes its completion control, which will now be used to verify the server-side prerequisite guard and recovery message.
+
+The visible completion control for the dependent task was invoked while its prerequisite remained unfinished. The task stayed in the To do lane and the browser registered the expected failed mutation path; the next inspection will capture its actionable local error text before resolving and removing the isolated test data.
+
+The repeated completion attempt continued to leave the dependent task unresolved, confirming server enforcement. The exact server message is `Complete every hard prerequisite before finishing this task.` However, the ephemeral notification was not discoverable through the controlled accessibility query while the failed mutation was recorded by the browser console. This is tracked as a local-recovery visibility hardening item before this acceptance run can be considered fully complete.
+
+The board-recovery hardening was implemented with a persistent `role="alert"` surface and a tested message normalizer. After a clean preview restart, the named dependent task remained in the To do lane with its completion control available. The next immediate completion attempt will confirm the recovery message is now accessible and persists locally.
+
+The repaired flow was verified end to end: attempting to complete the dependent task produced the accessible alert **“Complete every hard prerequisite before finishing this task. The task remains unchanged.”** The dependent task stayed in To do, so the visible error names both the blocked condition and the recovery. The remaining dependency acceptance steps will resolve the prerequisite, confirm the dependent task can then be completed, remove the link, and clean up the disposable records.
+
+The named prerequisite task was then completed through the visible Tasks-board control. The next step will verify that the dependent task is now unblocked, complete it, remove its dependency link, and clean all disposable project records.
+
+After the prerequisite was completed, the dependent task remained available in its filtered To do result and its visible completion control was invoked successfully. This verifies that the hard link blocks only while the prerequisite is unfinished. The final project-acceptance steps will remove the explicit link and clean all three named disposable records.
+
+Project Execution then reported `2 of 2` completed tasks. The dependent task’s visible `Hard: R21 QA cleanup — prerequisite task` link control, which contains the removal action, was invoked successfully. The final cleanup will remove only the two named tasks, the named project, and any remaining test-only dependency data.
+
+After the link removal was invoked, a targeted cleanup removed the two named task rows, the named Project Execution record, and any test-only occurrences, daily-plan items, focus sessions, schedule proposals, weekly objectives, and dependencies attached to those exact task or project IDs. The scoped verification returned `remaining_tasks: 0`, `remaining_projects: 0`, and `remaining_dependencies: 0`. The isolated project/dependency acceptance data is fully cleaned up.
+
+After a browser reload, Project Execution returned to its factual empty state: `Create a project to group a finite body of work, then link its tasks here.` The named disposable project and its tasks are no longer visible in active project work.
+
+The repaired Tasks and Project Execution surfaces were also captured after cleanup at both 1280×720 desktop and 390×844 phone widths. The desktop board retains its three distinct task lanes and the Project Execution empty state retains its direct `Open task workbench` action. On phone, the task filters, lane controls, and archive recovery state stack without clipping; Project Execution’s explanation and action remain readable and comfortably tappable. No test record was recreated for this visual-only verification.
