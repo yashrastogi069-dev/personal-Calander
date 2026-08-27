@@ -71,3 +71,13 @@ The task board was loaded directly with `/?surface=tasks&taskQ=plan&taskFilter=d
 | Restored filter state | The typed `plan` query and **Deadline risk** selection render immediately after direct navigation. | Pass |
 | Empty-state behavior | The board reports zero matching work without hiding the three task lifecycle lanes or archived-work recovery surface. | Pass |
 | Phone layout | Search and filter controls stack before the dark task lanes; all labels stay legible with no horizontal clipping. | Pass |
+
+## 2026-08-27 — Plan and Review recheck
+
+The rebuilt `/?surface=plan` and `/?surface=review` destinations were inspected at desktop width after adding the bounded review-history contract and scoped record-link safeguards.
+
+| Check | Observed result | Status |
+|---|---|---|
+| Guided Plan | Capacity, available work, approval-required scheduling assistance, and weekly-objective links remain visible without an overloaded primary dashboard. | Pass |
+| Review empty state | The Review route presents a clear **Begin review** action plus health and decision evidence when no saved review history exists. | Pass |
+| Source integrity | No browser mutation was made; the review-history data and planning records remained unchanged during verification. | Pass |

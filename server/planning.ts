@@ -55,6 +55,21 @@ async function requireDb() {
   return db;
 }
 
+async function assertScopedRecordLinks(db: Awaited<ReturnType<typeof requireDb>>, scope: PlannerScope, input: { goalId?: string | null; projectId?: string | null; categoryId?: string | null; parentTaskId?: string | null; taskId?: string }) {
+  const [goal, project, category, parentTask] = await Promise.all([
+    input.goalId ? db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.goalId))).limit(1) : Promise.resolve([]),
+    input.projectId ? db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.projectId))).limit(1) : Promise.resolve([]),
+    input.categoryId ? db.select().from(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.categoryId))).limit(1) : Promise.resolve([]),
+    input.parentTaskId ? db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.parentTaskId))).limit(1) : Promise.resolve([]),
+  ]);
+  if (input.goalId && !goal[0]) throw new Error("Select a goal from this workspace or clear the goal link.");
+  if (input.projectId && !project[0]) throw new Error("Select a project from this workspace or clear the project link.");
+  if (input.categoryId && !category[0]) throw new Error("Select a category from this workspace or clear the category link.");
+  if (input.parentTaskId && !parentTask[0]) throw new Error("Select a parent task from this workspace or clear the subtask link.");
+  if (input.parentTaskId && input.taskId === input.parentTaskId) throw new Error("A task cannot be its own parent.");
+  if (goal[0] && project[0]?.goalId && project[0].goalId !== goal[0].id) throw new Error("The selected project is linked to a different goal. Align the goal and project links before saving.");
+}
+
 export async function ensureWorkspace(scope: PlannerScope) {
   const db = await requireDb();
   const current = await db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1);
@@ -202,6 +217,7 @@ export async function deleteCategory(scope: PlannerScope, input: { id: string; e
 
 export async function createGoal(scope: PlannerScope, input: Omit<typeof goals.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
+  await assertScopedRecordLinks(db, scope, { categoryId: input.categoryId });
   const id = nanoid();
   await db.insert(goals).values({ id, workspaceId: scope.workspaceId, ...input });
   return (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, id))).limit(1))[0]!;
@@ -260,6 +276,7 @@ export async function archiveGoalMilestone(scope: PlannerScope, input: { id: str
 
 export async function createProject(scope: PlannerScope, input: Omit<typeof projects.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
+  await assertScopedRecordLinks(db, scope, { goalId: input.goalId, categoryId: input.categoryId });
   const id = nanoid();
   await db.insert(projects).values({ id, workspaceId: scope.workspaceId, ...input });
   return (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, id))).limit(1))[0]!;
@@ -294,6 +311,7 @@ export async function createTask(scope: PlannerScope, input: Omit<typeof tasks.$
     const existing = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.clientRequestId, input.clientRequestId))).limit(1))[0];
     if (existing) return existing;
   }
+  await assertScopedRecordLinks(db, scope, { goalId: input.goalId, projectId: input.projectId, categoryId: input.categoryId, parentTaskId: input.parentTaskId });
   const id = nanoid();
   try {
     await db.insert(tasks).values({ id, workspaceId: scope.workspaceId, ...input });
@@ -350,6 +368,13 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
   const existing = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Task was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await assertScopedRecordLinks(db, scope, {
+    goalId: input.patch.goalId === undefined ? existing.goalId : input.patch.goalId,
+    projectId: input.patch.projectId === undefined ? existing.projectId : input.patch.projectId,
+    categoryId: input.patch.categoryId === undefined ? existing.categoryId : input.patch.categoryId,
+    parentTaskId: input.patch.parentTaskId === undefined ? existing.parentTaskId : input.patch.parentTaskId,
+    taskId: existing.id,
+  });
   if (input.patch.state === "completed" && existing.state !== "completed") {
     const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, input.id)));
     const prerequisites = edges.length ? await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, edges.map(edge => edge.dependsOnTaskId)))) : [];
@@ -536,14 +561,7 @@ export async function closeDailyPlan(scope: PlannerScope, input: { id: string; e
 
 export async function createWeeklyObjective(scope: PlannerScope, input: { weekStartLocalDate: string; title: string; description?: string | null; goalId?: string | null; projectId?: string | null }) {
   const db = await requireDb();
-  if (input.goalId) {
-    const goal = (await db.select({ id: goals.id }).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.goalId))).limit(1))[0];
-    if (!goal) throw new Error("Select a goal from this workspace or leave the goal link empty.");
-  }
-  if (input.projectId) {
-    const project = (await db.select({ id: projects.id }).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.projectId))).limit(1))[0];
-    if (!project) throw new Error("Select a project from this workspace or leave the project link empty.");
-  }
+  await assertScopedRecordLinks(db, scope, { goalId: input.goalId, projectId: input.projectId });
   const id = nanoid();
   await db.insert(weeklyObjectives).values({ id, workspaceId: scope.workspaceId, ...input, state: "active" });
   return (await db.select().from(weeklyObjectives).where(and(eq(weeklyObjectives.workspaceId, scope.workspaceId), eq(weeklyObjectives.id, id))).limit(1))[0]!;
@@ -554,6 +572,10 @@ export async function updateWeeklyObjective(scope: PlannerScope, input: { id: st
   const existing = (await db.select().from(weeklyObjectives).where(and(eq(weeklyObjectives.workspaceId, scope.workspaceId), eq(weeklyObjectives.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Weekly objective was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await assertScopedRecordLinks(db, scope, {
+    goalId: input.patch.goalId === undefined ? existing.goalId : input.patch.goalId,
+    projectId: input.patch.projectId === undefined ? existing.projectId : input.patch.projectId,
+  });
   const patch: Record<string, unknown> = { ...input.patch, version: input.expectedVersion + 1 };
   if (input.patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
   if (input.patch.state && input.patch.state !== "completed") patch.completedAt = null;
@@ -581,6 +603,7 @@ export async function carryForwardWeeklyObjective(scope: PlannerScope, input: { 
 
 export async function createHabit(scope: PlannerScope, input: Omit<typeof habits.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "archivedAt">) {
   const db = await requireDb();
+  await assertScopedRecordLinks(db, scope, { goalId: input.goalId, categoryId: input.categoryId });
   const id = nanoid();
   await db.insert(habits).values({ id, workspaceId: scope.workspaceId, ...input });
   return (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, id))).limit(1))[0]!;

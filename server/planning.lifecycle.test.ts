@@ -46,4 +46,24 @@ describe("planner task lifecycle persistence", () => {
     await expect(bulkSetTaskState(scope, { ids: ["task-archive-1"], state: "archived" })).resolves.toHaveLength(1);
     expect(archived.set).toHaveBeenCalledWith(expect.objectContaining({ state: "archived", completedAt: null, archivedAt: expect.any(Date), version: expect.anything() }));
   });
+
+  it("rejects a task that tries to become its own parent before issuing an update", async () => {
+    const existing = { id: "task-self-parent", workspaceId: scope.workspaceId, state: "not_started", version: 2, goalId: null, projectId: null, categoryId: null, parentTaskId: null };
+    const update = vi.fn();
+    const select = vi.fn().mockReturnValueOnce(selection(existing)).mockReturnValueOnce(selection(existing));
+    mockedGetDb.mockResolvedValue({ select, update } as never);
+
+    await expect(updateTask(scope, { id: existing.id, expectedVersion: existing.version, patch: { parentTaskId: existing.id } })).rejects.toThrow("cannot be its own parent");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a task goal link that contradicts its selected project goal before issuing an update", async () => {
+    const existing = { id: "task-link-mismatch", workspaceId: scope.workspaceId, state: "not_started", version: 2, goalId: "goal-1", projectId: "project-1", categoryId: null, parentTaskId: null };
+    const update = vi.fn();
+    const select = vi.fn().mockReturnValueOnce(selection(existing)).mockReturnValueOnce(selection({ id: "goal-1" })).mockReturnValueOnce(selection({ id: "project-1", goalId: "goal-2" }));
+    mockedGetDb.mockResolvedValue({ select, update } as never);
+
+    await expect(updateTask(scope, { id: existing.id, expectedVersion: existing.version, patch: { title: "Keep links coherent" } })).rejects.toThrow("linked to a different goal");
+    expect(update).not.toHaveBeenCalled();
+  });
 });

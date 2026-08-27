@@ -5,6 +5,8 @@ import { invokeLLM } from "./_core/llm";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as planning from "./planning";
+import * as focus from "./focus";
+import * as scheduling from "./scheduling";
 
 function createPublicContext(): TrpcContext {
   return {
@@ -300,5 +302,69 @@ describe("planner task API", () => {
     await expect(caller.planner.review.history(input)).resolves.toMatchObject([{ id: "review-history-1", kind: "monthly" }]);
     expect(history).toHaveBeenCalledWith({ workspaceId: input.workspaceId, timezone: input.timezone }, { limit: input.limit });
     history.mockRestore();
+  });
+
+  it("routes availability, guided daily planning, shutdown resolution, and weekly objectives through their scoped version-safe contracts", async () => {
+    const availability = vi.spyOn(planning, "upsertPlanningAvailabilityException").mockResolvedValue({ id: "availability-1", version: 1 } as never);
+    const startPlan = vi.spyOn(planning, "upsertDailyPlan").mockResolvedValue({ id: "daily-plan-1", state: "active", version: 1 } as never);
+    const addItem = vi.spyOn(planning, "addDailyPlanItem").mockResolvedValue({ id: "daily-item-1", state: "committed", version: 1 } as never);
+    const resolveItem = vi.spyOn(planning, "resolveDailyPlanItem").mockResolvedValue({ id: "daily-item-1", state: "rescheduled", version: 2 } as never);
+    const closePlan = vi.spyOn(planning, "closeDailyPlan").mockResolvedValue({ id: "daily-plan-1", state: "closed", version: 2 } as never);
+    const createObjective = vi.spyOn(planning, "createWeeklyObjective").mockResolvedValue({ id: "objective-1", state: "active", version: 1 } as never);
+    const updateObjective = vi.spyOn(planning, "updateWeeklyObjective").mockResolvedValue({ id: "objective-1", state: "completed", version: 2 } as never);
+    const carryObjective = vi.spyOn(planning, "carryForwardWeeklyObjective").mockResolvedValue({ id: "objective-2", state: "active", version: 1 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
+
+    await expect(caller.planner.availability.upsert({ ...scope, localDate: "2026-08-27", workdayStartsAt: "09:00", workdayEndsAt: "16:00", breakMinutes: 30 })).resolves.toMatchObject({ id: "availability-1" });
+    await expect(caller.planner.dailyPlan.upsert({ ...scope, localDate: "2026-08-27", state: "active", intention: "Finish one meaningful commitment" })).resolves.toMatchObject({ id: "daily-plan-1" });
+    await expect(caller.planner.dailyPlan.addItem({ ...scope, dailyPlanId: "daily-plan-1", taskId: "task-1" })).resolves.toMatchObject({ id: "daily-item-1" });
+    await expect(caller.planner.dailyPlan.resolveItem({ ...scope, id: "daily-item-1", expectedVersion: 1, taskExpectedVersion: 4, state: "rescheduled", resolvedToLocalDate: "2026-08-28" })).resolves.toMatchObject({ state: "rescheduled" });
+    await expect(caller.planner.dailyPlan.close({ ...scope, id: "daily-plan-1", expectedVersion: 1, reflection: "Carry less tomorrow" })).resolves.toMatchObject({ state: "closed" });
+    await expect(caller.planner.weeklyObjective.create({ ...scope, weekStartLocalDate: "2026-08-24", title: "Finish the foundation", projectId: "project-1" })).resolves.toMatchObject({ id: "objective-1" });
+    await expect(caller.planner.weeklyObjective.update({ ...scope, id: "objective-1", expectedVersion: 1, patch: { state: "completed", evidence: "All core paths checked" } })).resolves.toMatchObject({ state: "completed" });
+    await expect(caller.planner.weeklyObjective.carryForward({ ...scope, id: "objective-1", expectedVersion: 1, nextWeekStartLocalDate: "2026-08-31" })).resolves.toMatchObject({ id: "objective-2" });
+
+    expect(availability).toHaveBeenCalledWith(scope, expect.objectContaining({ localDate: "2026-08-27", workdayStartsAt: "09:00", workdayEndsAt: "16:00", breakMinutes: 30 }));
+    expect(startPlan).toHaveBeenCalledWith(expect.objectContaining(scope), expect.objectContaining({ localDate: "2026-08-27", state: "active" }));
+    expect(addItem).toHaveBeenCalledWith(expect.objectContaining(scope), { dailyPlanId: "daily-plan-1", taskId: "task-1" });
+    expect(resolveItem).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "daily-item-1", taskExpectedVersion: 4, state: "rescheduled" }));
+    expect(closePlan).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "daily-plan-1", reflection: "Carry less tomorrow" }));
+    expect(createObjective).toHaveBeenCalledWith(expect.objectContaining(scope), expect.objectContaining({ title: "Finish the foundation", projectId: "project-1" }));
+    expect(updateObjective).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "objective-1", patch: { state: "completed", evidence: "All core paths checked" } }));
+    expect(carryObjective).toHaveBeenCalledWith(scope, { id: "objective-1", expectedVersion: 1, nextWeekStartLocalDate: "2026-08-31" });
+    availability.mockRestore(); startPlan.mockRestore(); addItem.mockRestore(); resolveItem.mockRestore(); closePlan.mockRestore(); createObjective.mockRestore(); updateObjective.mockRestore(); carryObjective.mockRestore();
+  });
+
+  it("routes focus lifecycle and review-first scheduling proposals through scoped version-safe contracts", async () => {
+    const startFocus = vi.spyOn(focus, "startFocusSession").mockResolvedValue({ id: "focus-1", state: "active", version: 1 } as never);
+    const pauseFocus = vi.spyOn(focus, "pauseFocusSession").mockResolvedValue({ id: "focus-1", state: "paused", version: 2 } as never);
+    const resumeFocus = vi.spyOn(focus, "resumeFocusSession").mockResolvedValue({ id: "focus-1", state: "active", version: 3 } as never);
+    const finishFocus = vi.spyOn(focus, "finishFocusSession").mockResolvedValue({ id: "focus-1", state: "completed", outcome: "adjust_estimate", version: 4 } as never);
+    const createProposal = vi.spyOn(scheduling, "createScheduleProposal").mockResolvedValue({ id: "proposal-1", state: "proposed", version: 1 } as never);
+    const approveProposal = vi.spyOn(scheduling, "approveScheduleProposal").mockResolvedValue({ id: "proposal-1", state: "approved", version: 2 } as never);
+    const dismissProposal = vi.spyOn(scheduling, "dismissScheduleProposal").mockResolvedValue({ id: "proposal-2", state: "dismissed", version: 2 } as never);
+    const undoProposal = vi.spyOn(scheduling, "undoScheduleProposal").mockResolvedValue({ id: "proposal-1", state: "undone", version: 3 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
+
+    await expect(caller.planner.focus.start({ ...scope, taskId: "task-1", targetMinutes: 25 })).resolves.toMatchObject({ state: "active" });
+    await expect(caller.planner.focus.pause({ ...scope, id: "focus-1", expectedVersion: 1 })).resolves.toMatchObject({ state: "paused" });
+    await expect(caller.planner.focus.resume({ ...scope, id: "focus-1", expectedVersion: 2 })).resolves.toMatchObject({ state: "active" });
+    await expect(caller.planner.focus.finish({ ...scope, id: "focus-1", expectedVersion: 3, outcome: "adjust_estimate", adjustedEstimateMinutes: 45, taskExpectedVersion: 7 })).resolves.toMatchObject({ outcome: "adjust_estimate" });
+    await expect(caller.planner.scheduleProposal.create({ ...scope, taskId: "task-1", localDate: "2026-08-27" })).resolves.toMatchObject({ state: "proposed" });
+    await expect(caller.planner.scheduleProposal.approve({ ...scope, id: "proposal-1", expectedVersion: 1, taskExpectedVersion: 7 })).resolves.toMatchObject({ state: "approved" });
+    await expect(caller.planner.scheduleProposal.dismiss({ ...scope, id: "proposal-2", expectedVersion: 1 })).resolves.toMatchObject({ state: "dismissed" });
+    await expect(caller.planner.scheduleProposal.undo({ ...scope, id: "proposal-1", expectedVersion: 2, taskExpectedVersion: 8 })).resolves.toMatchObject({ state: "undone" });
+
+    expect(startFocus).toHaveBeenCalledWith(scope, { taskId: "task-1", targetMinutes: 25 });
+    expect(pauseFocus).toHaveBeenCalledWith(scope, { id: "focus-1", expectedVersion: 1 });
+    expect(resumeFocus).toHaveBeenCalledWith(scope, { id: "focus-1", expectedVersion: 2 });
+    expect(finishFocus).toHaveBeenCalledWith(scope, expect.objectContaining({ outcome: "adjust_estimate", adjustedEstimateMinutes: 45, taskExpectedVersion: 7 }));
+    expect(createProposal).toHaveBeenCalledWith(scope, { taskId: "task-1", localDate: "2026-08-27" });
+    expect(approveProposal).toHaveBeenCalledWith(scope, { id: "proposal-1", expectedVersion: 1, taskExpectedVersion: 7 });
+    expect(dismissProposal).toHaveBeenCalledWith(scope, { id: "proposal-2", expectedVersion: 1 });
+    expect(undoProposal).toHaveBeenCalledWith(scope, { id: "proposal-1", expectedVersion: 2, taskExpectedVersion: 8 });
+    startFocus.mockRestore(); pauseFocus.mockRestore(); resumeFocus.mockRestore(); finishFocus.mockRestore(); createProposal.mockRestore(); approveProposal.mockRestore(); dismissProposal.mockRestore(); undoProposal.mockRestore();
   });
 });

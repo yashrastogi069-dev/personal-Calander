@@ -266,8 +266,14 @@ export const plannerRouter = router({
     upsert: publicProcedure.input(scope.extend({ localDate: dateString, intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), energy: z.number().int().min(1).max(5).nullable().optional(), mood: z.number().int().min(1).max(5).nullable().optional() })).mutation(async ({ input }) => upsertDailyCheckIn(input, input)),
   }),
   dailyPlan: router({
-    upsert: publicProcedure.input(scope.extend({ localDate: dateString, expectedVersion: z.number().int().positive().optional(), intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), state: z.enum(["draft", "active", "closed", "archived"]).optional() })).mutation(async ({ input }) => upsertDailyPlan(input, input)),
-    addItem: publicProcedure.input(scope.extend({ dailyPlanId: z.string(), taskId: z.string() })).mutation(async ({ input }) => addDailyPlanItem(input, input)),
+    upsert: publicProcedure.input(scope.extend({ localDate: dateString, expectedVersion: z.number().int().positive().optional(), intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), state: z.enum(["draft", "active", "closed", "archived"]).optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...plan } = input;
+      try { return await upsertDailyPlan({ workspaceId, timezone }, plan); } catch (error) { return plannerError(error); }
+    }),
+    addItem: publicProcedure.input(scope.extend({ dailyPlanId: z.string(), taskId: z.string() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...item } = input;
+      try { return await addDailyPlanItem({ workspaceId, timezone }, item); } catch (error) { return plannerError(error); }
+    }),
     updateItem: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), state: z.enum(["committed", "done", "rescheduled", "deferred", "wont_do", "archived"]).optional(), resolvedToLocalDate: dateString.nullable().optional(), note: z.string().max(1000).nullable().optional(), position: z.number().int().min(0).max(200).optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...item } = input;
       try { return await updateDailyPlanItem({ workspaceId, timezone }, item); } catch (error) { return plannerError(error); }
@@ -286,7 +292,10 @@ export const plannerRouter = router({
     }),
   }),
   weeklyObjective: router({
-    create: publicProcedure.input(scope.extend({ weekStartLocalDate: dateString, title: z.string().trim().min(1).max(280), description: z.string().max(5000).nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional() })).mutation(async ({ input }) => createWeeklyObjective(input, input)),
+    create: publicProcedure.input(scope.extend({ weekStartLocalDate: dateString, title: z.string().trim().min(1).max(280), description: z.string().max(5000).nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...objective } = input;
+      try { return await createWeeklyObjective({ workspaceId, timezone }, objective); } catch (error) { return plannerError(error); }
+    }),
     update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(5000).nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), state: z.enum(["active", "completed", "continued", "adjusted", "archived"]).optional(), evidence: z.string().max(5000).nullable().optional() }) })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...objective } = input;
       try { return await updateWeeklyObjective({ workspaceId, timezone }, objective); } catch (error) { return plannerError(error); }
