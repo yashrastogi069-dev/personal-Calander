@@ -211,5 +211,5 @@
 - [x] Increase the effective contrast and readable size of secondary labels in the rendered incumbent interface, then verify against the user-visible surface.
 - [x] Make the task-versus-habit boundary operational in the primary flow, with explicit next actions that route work to the correct tracker or calendar.
 - [x] Revalidate the repaired R18/R19 experience in the browser at desktop and phone widths, then synchronize and publicly verify the release.
-- [ ] Inspect the newly created GitHub branch without altering current work, then provide a separately hosted preview of that branch.
-- [ ] Create and use an isolated GitHub development branch for future changes; do not merge or push changes to main unless the user explicitly requests it.
+- [x] Inspect the newly created GitHub branch without altering current work, then provide a separately hosted preview of that branch. Superseded at the user's request because the external branch was not available.
+- [x] Create and use an isolated GitHub development branch for future changes; do not merge or push changes to main unless the user explicitly requests it.
