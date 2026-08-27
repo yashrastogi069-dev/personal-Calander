@@ -33,6 +33,10 @@ export const workspaces = mysqlTable("workspaces", {
   weekStartsOn: int("weekStartsOn").notNull().default(1),
   dailyCapacityMinutes: int("dailyCapacityMinutes").notNull().default(360),
   planningDayStartsAt: varchar("planningDayStartsAt", { length: 5 }).notNull().default("06:00"),
+  workdayStartsAt: varchar("workdayStartsAt", { length: 5 }).notNull().default("09:00"),
+  workdayEndsAt: varchar("workdayEndsAt", { length: 5 }).notNull().default("17:00"),
+  defaultBreakMinutes: int("defaultBreakMinutes").notNull().default(30),
+  preferredShutdownAt: varchar("preferredShutdownAt", { length: 5 }).notNull().default("17:30"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   version: int("version").notNull().default(1),
@@ -161,6 +165,9 @@ export const tasks = mysqlTable(
     plannedEndAt: timestamp("plannedEndAt"),
     estimateMinutes: int("estimateMinutes"),
     sortOrder: int("sortOrder").notNull().default(0),
+    scheduleMode: mysqlEnum("scheduleMode", ["manual", "flexible", "pinned"]).notNull().default("manual"),
+    outcome: mysqlEnum("outcome", ["none", "wont_do"]).notNull().default("none"),
+    outcomeAt: timestamp("outcomeAt"),
     recurrenceRule: json("recurrenceRule"),
     recurrenceAnchor: mysqlEnum("recurrenceAnchor", ["scheduled", "completion"]),
     recurrenceUntilLocalDate: varchar("recurrenceUntilLocalDate", { length: 10 }),
@@ -282,6 +289,165 @@ export const dailyCheckIns = mysqlTable(
     version: int("version").notNull().default(1),
   },
   table => [uniqueIndex("daily_checkin_unique").on(table.workspaceId, table.localDate)]
+);
+
+/** A deliberate, reopenable daily commitment list; opening this record never moves a task. */
+export const dailyPlans = mysqlTable(
+  "dailyPlans",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    state: mysqlEnum("state", ["draft", "active", "closed", "archived"]).notNull().default("draft"),
+    intention: text("intention"),
+    reflection: text("reflection"),
+    startedAt: timestamp("startedAt"),
+    closedAt: timestamp("closedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    uniqueIndex("daily_plans_workspace_date_unique").on(table.workspaceId, table.localDate),
+    index("daily_plans_workspace_state_idx").on(table.workspaceId, table.state),
+  ]
+);
+
+/** Each committed task has an explicit daily outcome without replacing task lifecycle history. */
+export const dailyPlanItems = mysqlTable(
+  "dailyPlanItems",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    dailyPlanId: varchar("dailyPlanId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    position: int("position").notNull().default(0),
+    state: mysqlEnum("state", ["committed", "done", "rescheduled", "deferred", "wont_do", "archived"]).notNull().default("committed"),
+    resolvedToLocalDate: varchar("resolvedToLocalDate", { length: 10 }),
+    note: text("note"),
+    resolvedAt: timestamp("resolvedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    uniqueIndex("daily_plan_item_unique").on(table.dailyPlanId, table.taskId),
+    index("daily_plan_items_workspace_plan_idx").on(table.workspaceId, table.dailyPlanId),
+  ]
+);
+
+/** Outcome-level weekly intent is distinct from the daily commitment list. */
+export const weeklyObjectives = mysqlTable(
+  "weeklyObjectives",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    weekStartLocalDate: varchar("weekStartLocalDate", { length: 10 }).notNull(),
+    goalId: varchar("goalId", { length: 64 }),
+    projectId: varchar("projectId", { length: 64 }),
+    title: varchar("title", { length: 280 }).notNull(),
+    description: text("description"),
+    state: mysqlEnum("state", ["active", "completed", "continued", "adjusted", "archived"]).notNull().default("active"),
+    evidence: text("evidence"),
+    carriedForwardFromId: varchar("carriedForwardFromId", { length: 64 }),
+    completedAt: timestamp("completedAt"),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("weekly_objectives_workspace_week_idx").on(table.workspaceId, table.weekStartLocalDate),
+    index("weekly_objectives_goal_idx").on(table.goalId),
+    index("weekly_objectives_project_idx").on(table.projectId),
+  ]
+);
+
+/** Actual focus time is attributed to a task rather than inferred from a reservation. */
+export const focusSessions = mysqlTable(
+  "focusSessions",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }),
+    state: mysqlEnum("state", ["active", "paused", "completed", "abandoned"]).notNull().default("active"),
+    startedAt: timestamp("startedAt").notNull(),
+    pausedAt: timestamp("pausedAt"),
+    endedAt: timestamp("endedAt"),
+    targetMinutes: int("targetMinutes").notNull().default(25),
+    activeSeconds: int("activeSeconds").notNull().default(0),
+    note: text("note"),
+    outcome: mysqlEnum("outcome", ["done", "continue", "adjust_estimate", "stopped"]).notNull().default("continue"),
+    adjustedEstimateMinutes: int("adjustedEstimateMinutes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("focus_sessions_workspace_started_idx").on(table.workspaceId, table.startedAt),
+    index("focus_sessions_task_idx").on(table.taskId),
+  ]
+);
+
+/** Review-first reusable personal configurations; applying one is a separate explicit action. */
+export const planningTemplates = mysqlTable(
+  "planningTemplates",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    kind: mysqlEnum("kind", ["task", "project", "daily_plan"]).notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    description: text("description"),
+    payload: json("payload").notNull(),
+    archivedAt: timestamp("archivedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [index("planning_templates_workspace_kind_idx").on(table.workspaceId, table.kind)]
+);
+
+/** Suggestions change a task reservation only after explicit user approval and remain undoable. */
+export const scheduleProposals = mysqlTable(
+  "scheduleProposals",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    state: mysqlEnum("state", ["proposed", "approved", "dismissed", "undone"]).notNull().default("proposed"),
+    proposedStartAt: timestamp("proposedStartAt").notNull(),
+    proposedEndAt: timestamp("proposedEndAt").notNull(),
+    previousStartAt: timestamp("previousStartAt"),
+    previousEndAt: timestamp("previousEndAt"),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [
+    index("schedule_proposals_workspace_date_idx").on(table.workspaceId, table.localDate),
+    index("schedule_proposals_task_idx").on(table.taskId),
+  ]
+);
+
+/** A day-specific exception overrides normal availability without modifying the workspace default. */
+export const planningAvailabilityExceptions = mysqlTable(
+  "planningAvailabilityExceptions",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    isUnavailable: int("isUnavailable").notNull().default(0),
+    workdayStartsAt: varchar("workdayStartsAt", { length: 5 }),
+    workdayEndsAt: varchar("workdayEndsAt", { length: 5 }),
+    breakMinutes: int("breakMinutes"),
+    note: varchar("note", { length: 500 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    version: int("version").notNull().default(1),
+  },
+  table => [uniqueIndex("planning_availability_exception_workspace_date_unique").on(table.workspaceId, table.localDate)]
 );
 
 export const savedViews = mysqlTable(

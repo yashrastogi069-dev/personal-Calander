@@ -213,3 +213,25 @@
 - [x] Revalidate the repaired R18/R19 experience in the browser at desktop and phone widths, then synchronize and publicly verify the release.
 - [x] Inspect the newly created GitHub branch without altering current work, then provide a separately hosted preview of that branch. Superseded at the user's request because the external branch was not available.
 - [x] Create and use an isolated GitHub development branch for future changes; do not merge or push changes to main unless the user explicitly requests it.
+- [ ] Create a source-of-truth implementation matrix covering every supplied roadmap and new-capability requirement, with an explicit delivery boundary for credential-dependent external integrations.
+- [ ] Add personal planning settings for work hours, breaks, shutdown preference, daily capacity, and day-specific availability exceptions.
+- [ ] Build a persisted Guided Daily Plan workflow with commitment selection, capacity fit, task ordering, re-entry, and deliberate daily plan history.
+- [ ] Build a Daily Shutdown workflow with done, reschedule, defer, won’t-do, archive, reflection, and close-day safeguards.
+- [ ] Add weekly objectives with goal/project linkage, carry-forward, evidence, outcome review, and a dedicated planning surface.
+- [ ] Improve workload and at-risk guidance with work-hour availability, busy-event readiness, free-time calculations, transparent reasons, and safe corrective choices.
+- [ ] Add a task-linked focus timer with pause/resume, outcome actions, actual duration, optional note, and estimate-accuracy analytics.
+- [ ] Add factual habit discipline analytics: overview, monthly accessible consistency board, historical correction, long-term practice view, and schedule-aware calculations.
+- [ ] Add dependency management with visible blocked/blocked-by relations, safe removal, completion safeguards, and risk-aware next-action ordering.
+- [ ] Add a project execution view with next action, milestones, workload, dependency state, risk explanation, and reviewed breakdown continuity.
+- [ ] Add deterministic natural-language task parsing for dates, times, durations, priority, recurrence, and visibly editable parsed results.
+- [ ] Add review-first personal templates and reusable personalized views without automatic task creation or hidden dates.
+- [ ] Upgrade the calendar into a task execution canvas with all-day work, unscheduled triage, resize-safe reservations, in-calendar completion, and explicit habit separation.
+- [ ] Establish calendar-integration readiness with a read-only Google Calendar policy, connection/status/recovery surfaces, and no external write until credentials and consent are available.
+- [ ] Establish controlled scheduling-assistance foundations: flexible/pinned task semantics, free-slot proposals, explanations, approval, undo, and change history without silent replanning.
+- [ ] Extend reminders and recurring-task controls with item-level configuration, timezone/status clarity, occurrences, exceptions, and safe degradation while preserving the existing active cadence.
+- [ ] Improve cross-device readiness through account-backed workspace migration design, conflict visibility, offline continuity boundaries, and data-recovery guidance.
+- [ ] Modularize the primary planner implementation into dedicated feature modules while preserving tested behavior and limiting client rendering/bundle regressions.
+- [ ] Revalidate the branch implementation across schema migrations, high-volume/error paths, accessibility, desktop, iPhone, automated tests, branch preview, and GitHub development-branch synchronization only.
+- [x] Provide an up-to-date, secret-safe source-code archive from the development branch for the user’s backup.
+- [ ] Add dedicated, coherent planner destinations as capability depth requires, keeping primary daily execution clear on desktop and iPhone.
+- [ ] Defer all automated external actions until the final delivery phase while continuing to implement the non-automated planning workflows now.

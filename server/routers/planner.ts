@@ -5,8 +5,12 @@ import {
   archiveGoalMilestone,
   archiveHabit,
   archiveProject,
+  addDailyPlanItem,
   bulkSetTaskState,
+  carryForwardWeeklyObjective,
+  clearPlanningAvailabilityException,
   clearHabitCheckIn,
+  closeDailyPlan,
   completeReviewSession,
   createCategory,
   createGoal,
@@ -16,6 +20,7 @@ import {
   createSavedView,
   createTask,
   createTaskDependency,
+  createWeeklyObjective,
   ensureCalendarFeed,
   ensureWorkspace,
   deleteSavedView,
@@ -34,14 +39,20 @@ import {
   restoreGoal,
   restoreHabit,
   restoreProject,
+  resolveDailyPlanItem,
+  removeTaskDependency,
   sendTestPush,
   startReviewSession,
   setReminderRuleActivation,
   updateTask,
+  updateDailyPlanItem,
   updateGoalMilestone,
+  updateWeeklyObjective,
   updateCategory,
   updateSavedView,
   updateWorkspace,
+  upsertDailyPlan,
+  upsertPlanningAvailabilityException,
   upsertDailyCheckIn,
   upsertHabitCheckIn,
   upsertPushSubscription,
@@ -96,11 +107,21 @@ function plannerError(error: unknown): never {
 export const plannerRouter = router({
   workspace: router({
     ensure: publicProcedure.input(scope).mutation(async ({ input }) => ensureWorkspace(input)),
-    update: publicProcedure.input(scope.extend({ expectedVersion: z.number().int().positive(), name: z.string().trim().min(1).max(120).optional(), timezone: z.string().min(1).max(64).optional(), weekStartsOn: z.number().int().min(0).max(6).optional(), dailyCapacityMinutes: z.number().int().min(30).max(1440).optional(), planningDayStartsAt: z.string().regex(/^\d{2}:\d{2}$/).optional() })).mutation(async ({ input }) => {
+    update: publicProcedure.input(scope.extend({ expectedVersion: z.number().int().positive(), name: z.string().trim().min(1).max(120).optional(), timezone: z.string().min(1).max(64).optional(), weekStartsOn: z.number().int().min(0).max(6).optional(), dailyCapacityMinutes: z.number().int().min(30).max(1440).optional(), planningDayStartsAt: z.string().regex(/^\d{2}:\d{2}$/).optional(), workdayStartsAt: z.string().regex(/^\d{2}:\d{2}$/).optional(), workdayEndsAt: z.string().regex(/^\d{2}:\d{2}$/).optional(), defaultBreakMinutes: z.number().int().min(0).max(240).optional(), preferredShutdownAt: z.string().regex(/^\d{2}:\d{2}$/).optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...patch } = input;
       try { return await updateWorkspace({ workspaceId, timezone: timezone ?? "UTC" }, patch); } catch (error) { return plannerError(error); }
     }),
     snapshot: publicProcedure.input(scope.extend({ start: dateString, end: dateString })).query(async ({ input }) => getWorkspaceSnapshot(input, { start: input.start, end: input.end })),
+  }),
+  availability: router({
+    upsert: publicProcedure.input(scope.extend({ localDate: dateString, expectedVersion: z.number().int().positive().optional(), isUnavailable: z.boolean().optional(), workdayStartsAt: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(), workdayEndsAt: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(), breakMinutes: z.number().int().min(0).max(240).nullable().optional(), note: z.string().trim().max(500).nullable().optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...exception } = input;
+      try { return await upsertPlanningAvailabilityException({ workspaceId, timezone }, exception); } catch (error) { return plannerError(error); }
+    }),
+    clear: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...exception } = input;
+      try { return await clearPlanningAvailabilityException({ workspaceId, timezone }, exception); } catch (error) { return plannerError(error); }
+    }),
   }),
   category: router({
     create: publicProcedure.input(scope.extend({ name: z.string().trim().min(1).max(80), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/), sortOrder: z.number().int().optional() })).mutation(async ({ input }) => {
@@ -170,6 +191,7 @@ export const plannerRouter = router({
     }),
     bulkSetState: publicProcedure.input(scope.extend({ ids: z.array(z.string()).min(1).max(100), state: lifecycle })).mutation(async ({ input }) => bulkSetTaskState(input, { ids: input.ids, state: input.state })),
     addDependency: publicProcedure.input(scope.extend({ taskId: z.string(), dependsOnTaskId: z.string(), dependencyType: z.enum(["hard", "soft"]).default("hard") })).mutation(async ({ input }) => createTaskDependency(input, input)),
+    removeDependency: publicProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => removeTaskDependency(input, input)),
   }),
   occurrence: router({
     materialize: publicProcedure.input(scope.extend({ start: dateString, end: dateString })).mutation(async ({ input }) => materializeTaskOccurrences(input, input)),
@@ -196,6 +218,33 @@ export const plannerRouter = router({
   }),
   dailyCheckIn: router({
     upsert: publicProcedure.input(scope.extend({ localDate: dateString, intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), energy: z.number().int().min(1).max(5).nullable().optional(), mood: z.number().int().min(1).max(5).nullable().optional() })).mutation(async ({ input }) => upsertDailyCheckIn(input, input)),
+  }),
+  dailyPlan: router({
+    upsert: publicProcedure.input(scope.extend({ localDate: dateString, expectedVersion: z.number().int().positive().optional(), intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), state: z.enum(["draft", "active", "closed", "archived"]).optional() })).mutation(async ({ input }) => upsertDailyPlan(input, input)),
+    addItem: publicProcedure.input(scope.extend({ dailyPlanId: z.string(), taskId: z.string() })).mutation(async ({ input }) => addDailyPlanItem(input, input)),
+    updateItem: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), state: z.enum(["committed", "done", "rescheduled", "deferred", "wont_do", "archived"]).optional(), resolvedToLocalDate: dateString.nullable().optional(), note: z.string().max(1000).nullable().optional(), position: z.number().int().min(0).max(200).optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...item } = input;
+      try { return await updateDailyPlanItem({ workspaceId, timezone }, item); } catch (error) { return plannerError(error); }
+    }),
+    resolveItem: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), taskExpectedVersion: z.number().int().positive(), state: z.enum(["done", "rescheduled", "deferred", "wont_do", "archived"]), resolvedToLocalDate: dateString.nullable().optional(), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...item } = input;
+      try { return await resolveDailyPlanItem({ workspaceId, timezone }, item); } catch (error) { return plannerError(error); }
+    }),
+    close: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), reflection: z.string().max(5000).nullable().optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...plan } = input;
+      try { return await closeDailyPlan({ workspaceId, timezone }, plan); } catch (error) { return plannerError(error); }
+    }),
+  }),
+  weeklyObjective: router({
+    create: publicProcedure.input(scope.extend({ weekStartLocalDate: dateString, title: z.string().trim().min(1).max(280), description: z.string().max(5000).nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional() })).mutation(async ({ input }) => createWeeklyObjective(input, input)),
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(5000).nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), state: z.enum(["active", "completed", "continued", "adjusted", "archived"]).optional(), evidence: z.string().max(5000).nullable().optional() }) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...objective } = input;
+      try { return await updateWeeklyObjective({ workspaceId, timezone }, objective); } catch (error) { return plannerError(error); }
+    }),
+    carryForward: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), nextWeekStartLocalDate: dateString })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...objective } = input;
+      try { return await carryForwardWeeklyObjective({ workspaceId, timezone }, objective); } catch (error) { return plannerError(error); }
+    }),
   }),
   savedView: router({
     create: publicProcedure.input(scope.extend({ name: z.string().trim().min(1).max(120), viewType: z.enum(["tasks", "goals", "projects", "calendar", "habits"]), configuration: z.record(z.string(), z.unknown()), isPinned: z.number().int().min(0).max(1).optional() })).mutation(async ({ input }) => createSavedView(input, input)),

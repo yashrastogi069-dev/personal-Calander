@@ -1042,3 +1042,146 @@ html, body { background:#e8ecea; color:#182420; }
   .quick-create-dialog { width:calc(100% - 1.25rem) !important; }
   .quick-create-dialog .field input, .quick-create-dialog .field button[role="combobox"] { min-height:46px; height:46px; }
 }
+
+/* R21: the Plan workspace is a daily control room, not another task list. */
+.plan-workspace { display:grid; gap:22px; width:min(100%, 1280px); margin:0 auto; padding:4px 0 36px; }
+.plan-workspace-header { display:flex; align-items:end; justify-content:space-between; gap:20px; padding:8px 2px 18px; border-bottom:1px solid rgba(35,79,66,.2); }
+.plan-workspace-header h2 { margin:0; color:#173f35; font:760 clamp(28px,3vw,42px)/1.03 "Onest", sans-serif; letter-spacing:-.045em; }
+.plan-workspace-header p { max-width:62ch; margin:7px 0 0; color:#436257; font-size:14px; line-height:1.52; }
+.plan-workspace-header > span { flex:0 0 auto; padding-bottom:3px; color:#426258; font:700 11px/1.3 "IBM Plex Mono", monospace; letter-spacing:.02em; text-transform:uppercase; }
+.plan-inline-error { display:flex; align-items:flex-start; gap:9px; padding:12px 14px; color:#733a2d; border:1px solid #e2b8aa; border-radius:12px; background:#fff7f4; font-size:13px; font-weight:650; line-height:1.45; }
+.plan-inline-error svg { flex:0 0 auto; margin-top:1px; }
+.plan-inline-error button { display:grid; flex:0 0 auto; width:28px; height:28px; margin:-4px -5px -4px auto; place-items:center; color:#733a2d; border:0; border-radius:7px; background:transparent; }
+.plan-inline-error button:hover { background:#ffe8e0; }
+.plan-workspace-grid { display:grid; grid-template-columns:minmax(0,1.38fr) minmax(300px,.62fr); gap:18px; align-items:start; }
+.daily-plan-panel, .plan-context-panel, .plan-candidate-panel, .weekly-objectives-panel { border:1px solid rgba(44,90,75,.22); border-radius:14px; background:#fdfefd; }
+.daily-plan-panel { min-height:360px; padding:20px; }
+.plan-context-panel { display:grid; gap:17px; padding:20px; background:#eef6f1; }
+.plan-section-heading { display:flex; align-items:start; justify-content:space-between; gap:16px; }
+.plan-section-heading > div > span { display:block; margin-bottom:6px; color:#42685b; font:750 10px/1.1 "IBM Plex Mono", monospace; letter-spacing:.075em; text-transform:uppercase; }
+.plan-section-heading h3 { margin:0; color:#1a493d; font:760 20px/1.1 "Onest", sans-serif; letter-spacing:-.028em; }
+.plan-section-heading em { flex:0 0 auto; padding:5px 8px; color:#2c5e4d; border:1px solid #afd0bc; border-radius:999px; background:#f7fcf8; font:700 11px/1.2 "IBM Plex Mono", monospace; font-style:normal; }
+.plan-start { display:grid; gap:11px; max-width:560px; padding-top:34px; }
+.plan-start p, .plan-empty-copy, .weekly-objectives-panel > p { margin:0; color:#446359; font-size:13px; line-height:1.5; }
+.plan-start .primary-action { width:max-content; margin-top:2px; }
+.plan-intention { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; margin:20px 0 14px; padding:10px 0; border-top:1px solid rgba(44,90,75,.14); border-bottom:1px solid rgba(44,90,75,.14); }
+.plan-intention label { white-space:nowrap; }
+.plan-intention input { min-height:36px; }
+.plan-intention button, .plan-link, .plan-commitment-actions button, .weekly-objective-list button { color:#2c5c4c; border:0; background:transparent; font-size:12px; font-weight:750; }
+.plan-intention button:hover, .plan-link:hover, .plan-commitment-actions button:hover, .weekly-objective-list button:hover { color:#0f4638; text-decoration:underline; text-underline-offset:3px; }
+.plan-commitment-list { display:grid; gap:1px; }
+.plan-commitment { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 0; border-bottom:1px solid rgba(44,90,75,.12); }
+.plan-commitment:last-child { border-bottom:0; }
+.plan-commitment.is-resolved { opacity:.7; }
+.plan-commitment-copy { display:flex; min-width:0; gap:10px; }
+.plan-commitment-position { display:grid; flex:0 0 auto; width:22px; height:22px; place-items:center; color:#346251; border:1px solid #b7d1c1; border-radius:50%; background:#f6fbf7; font:700 10px/1 "IBM Plex Mono", monospace; }
+.plan-commitment-copy strong, .plan-commitment-copy span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.plan-commitment-copy strong { color:#224d40; font-size:14px; }
+.plan-commitment-copy div > span { margin-top:4px; color:#4a6a5f; font-size:12px; font-weight:600; }
+.plan-commitment-actions { display:flex; flex-wrap:wrap; align-items:start; justify-content:flex-end; gap:2px 7px; max-width:290px; }
+.plan-commitment-actions button { display:inline-flex; align-items:center; min-height:24px; gap:4px; white-space:nowrap; }
+.plan-commitment-actions button:disabled { color:#92a69d; text-decoration:none; }
+.plan-outcome { align-self:start; padding:4px 7px; color:#45675a; border:1px solid #c6dbce; border-radius:999px; background:#f5faf6; font:700 10px/1.2 "IBM Plex Mono", monospace; text-transform:capitalize; }
+.plan-reschedule-row { display:grid; grid-column:1 / -1; grid-template-columns:auto 148px auto; align-items:center; gap:8px; padding:8px 0 0 32px; }
+.plan-reschedule-row input { min-height:34px; }
+.plan-reschedule-row .button { min-height:34px; }
+.plan-shutdown { display:grid; gap:9px; margin-top:18px; padding:15px; border-radius:11px; background:#e5f0e9; }
+.plan-shutdown > div { display:flex; align-items:center; gap:9px; color:#285644; }
+.plan-shutdown > div > span { display:grid; gap:2px; }
+.plan-shutdown b { font-size:13px; }
+.plan-shutdown small { color:#496a5d; font-size:12px; font-weight:600; }
+.plan-shutdown .button { width:max-content; min-height:38px; }
+.plan-closed-note { display:flex; align-items:center; gap:7px; margin:22px 0 0; padding:12px; color:#2b604c; border:1px solid #bcd8c6; border-radius:10px; background:#f0f8f2; font-size:13px; font-weight:700; }
+.plan-capacity-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.plan-capacity-grid div { padding:9px 0; border-bottom:1px solid rgba(42,89,72,.16); }
+.plan-capacity-grid span, .plan-capacity-grid strong { display:block; }
+.plan-capacity-grid span { color:#4b6a5e; font-size:11px; font-weight:650; }
+.plan-capacity-grid strong { margin-top:3px; color:#225443; font:800 16px/1 "Onest", sans-serif; letter-spacing:-.02em; }
+.plan-context-panel > p { margin:0; color:#416357; font-size:12px; font-weight:600; line-height:1.55; }
+.plan-link { display:inline-flex; align-items:center; gap:2px; width:max-content; padding:0; }
+.planning-settings { border-top:1px solid rgba(42,89,72,.18); }
+.planning-settings summary { display:flex; align-items:center; gap:7px; min-height:42px; cursor:pointer; color:#285744; list-style:none; font-size:12px; font-weight:750; }
+.planning-settings summary::-webkit-details-marker { display:none; }
+.planning-settings summary > span { display:inline-flex; align-items:center; gap:6px; }
+.planning-settings summary small { margin-left:auto; color:#527265; font-size:11px; font-weight:600; }
+.planning-settings summary > svg { transition:transform 180ms var(--ease-out); }
+.planning-settings[open] summary > svg { transform:rotate(90deg); }
+.planning-settings-form { display:grid; gap:12px; padding:4px 0 2px; }
+.planning-settings-form .field { gap:5px; }
+.planning-settings-form .field label, .weekly-objective-form .field label, .plan-start label, .plan-intention label, .plan-reschedule-row label, .plan-shutdown label { color:#3d6254; font-size:11px; font-weight:750; }
+.planning-settings-form .field-guidance { color:#4d6b60; font-size:11px; line-height:1.4; }
+.planning-settings-actions { display:flex; justify-content:flex-end; }
+.planning-settings-actions .button { min-height:36px; }
+.day-availability { border-top:1px solid rgba(42,89,72,.18); }
+.day-availability summary { display:flex; align-items:center; gap:7px; min-height:42px; cursor:pointer; color:#285744; list-style:none; font-size:12px; font-weight:750; }
+.day-availability summary::-webkit-details-marker { display:none; }
+.day-availability summary > span { display:inline-flex; align-items:center; gap:6px; }
+.day-availability summary small { margin-left:auto; color:#527265; font-size:11px; font-weight:600; }
+.day-availability summary > svg { transition:transform 180ms var(--ease-out); }
+.day-availability[open] summary > svg { transform:rotate(90deg); }
+.day-availability-form { display:grid; gap:10px; padding:4px 0 2px; }
+.day-availability-form .field { gap:5px; }
+.day-unavailable-toggle { display:flex; align-items:center; gap:8px; color:#315c4d; font-size:12px; font-weight:700; }
+.day-unavailable-toggle input { width:16px; height:16px; accent-color:#256049; }
+.day-availability-actions { display:flex; flex-wrap:wrap; gap:7px; }
+.day-availability-actions .button { min-height:36px; }
+.plan-candidate-panel, .weekly-objectives-panel { display:grid; gap:15px; padding:20px; }
+.plan-candidate-panel > .input { max-width:420px; min-height:38px; }
+.plan-candidate-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px 22px; }
+.plan-candidate-list article { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; padding:11px 0; border-bottom:1px solid rgba(44,90,75,.12); }
+.plan-candidate-list article > div { min-width:0; }
+.plan-candidate-list strong, .plan-candidate-list span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.plan-candidate-list strong { color:#254f42; font-size:13px; }
+.plan-candidate-list span { margin-top:3px; color:#527064; font-size:11px; font-weight:600; }
+.plan-candidate-list .button { flex:0 0 auto; min-height:32px; color:#2c5e4d; border:1px solid #b1d0bd; background:#f9fdf9; font-size:11px; }
+.weekly-objective-form { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr) auto; align-items:end; gap:12px; padding:15px 0 3px; border-top:1px solid rgba(44,90,75,.12); }
+.weekly-objective-form .field-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.weekly-objective-form select { width:100%; height:38px; padding:0 9px; color:#254f42; border:1px solid #c7dbcf; border-radius:8px; background:#fff; font-size:12px; font-weight:650; }
+.weekly-objective-form .button { min-height:38px; white-space:nowrap; }
+.weekly-objective-list { display:grid; border-top:1px solid rgba(44,90,75,.12); }
+.weekly-objective-list article { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid rgba(44,90,75,.12); }
+.weekly-objective-list article > div:first-child { display:flex; min-width:0; align-items:start; gap:9px; color:#2c5e4d; }
+.weekly-objective-list strong, .weekly-objective-list small { display:block; }
+.weekly-objective-list strong { color:#244e41; font-size:13px; }
+.weekly-objective-list small { margin-top:3px; color:#527064; font-size:11px; font-weight:650; text-transform:capitalize; }
+.weekly-objective-list article > div:last-child { display:flex; flex:0 0 auto; gap:5px; }
+.weekly-objective-list button:disabled { color:#95aaa1; text-decoration:none; }
+
+@media (max-width:980px) {
+  .plan-workspace-grid { grid-template-columns:1fr; }
+  .plan-context-panel { grid-template-columns:minmax(0,1fr) minmax(220px,.75fr); align-items:start; }
+  .plan-context-panel > .plan-section-heading, .plan-context-panel > p, .plan-context-panel > .plan-link, .plan-context-panel > .planning-settings { grid-column:1 / -1; }
+  .planning-settings-form { max-width:620px; }
+  .weekly-objective-form { grid-template-columns:1fr auto; }
+  .weekly-objective-form > .field-grid { grid-column:1 / -1; }
+}
+@media (max-width:680px) {
+  .plan-workspace { gap:15px; padding:0 0 20px; }
+  .plan-workspace-header { align-items:start; flex-direction:column; gap:7px; padding:0 1px 13px; }
+  .plan-workspace-header h2 { font-size:30px; }
+  .plan-workspace-header p { font-size:13px; }
+  .daily-plan-panel, .plan-context-panel, .plan-candidate-panel, .weekly-objectives-panel { padding:16px; border-radius:13px; }
+  .daily-plan-panel { min-height:0; }
+  .plan-intention { grid-template-columns:1fr auto; }
+  .plan-intention label { grid-column:1 / -1; }
+  .plan-commitment { grid-template-columns:1fr; }
+  .plan-commitment-actions { justify-content:flex-start; max-width:none; margin-left:32px; }
+  .plan-reschedule-row { grid-template-columns:1fr auto; padding-left:32px; }
+  .plan-reschedule-row label { grid-column:1 / -1; }
+  .plan-context-panel { grid-template-columns:1fr; }
+  .plan-capacity-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+  .plan-capacity-grid div { min-width:0; }
+  .plan-capacity-grid span { font-size:10px; }
+  .plan-capacity-grid strong { font-size:14px; }
+  .planning-settings summary { min-height:46px; }
+  .planning-settings summary small { display:none; }
+  .day-availability summary { min-height:46px; }
+  .day-availability summary small { display:none; }
+  .day-availability-actions .button { min-height:42px; }
+  .plan-candidate-list { grid-template-columns:1fr; }
+  .weekly-objective-form { grid-template-columns:1fr; }
+  .weekly-objective-form > .field-grid { grid-template-columns:1fr; }
+  .weekly-objective-form .button { width:100%; min-height:43px; }
+  .weekly-objective-list article { align-items:flex-start; flex-direction:column; }
+  .weekly-objective-list article > div:last-child { margin-left:26px; }
+}

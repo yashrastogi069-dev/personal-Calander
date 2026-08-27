@@ -57,6 +57,20 @@
       "when": 1787661026433,
       "tag": "0007_tired_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787846222075,
+      "tag": "0008_ordinary_wilson_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1787847168282,
+      "tag": "0009_brief_thunderbolt_ross",
+      "breakpoints": true
     }
   ]
 }

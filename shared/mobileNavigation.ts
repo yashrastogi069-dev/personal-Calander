@@ -1,5 +1,6 @@
 export const mobilePlannerDestinations = [
   { id: "today", label: "Today" },
+  { id: "plan", label: "Plan" },
   { id: "tasks", label: "Tasks" },
   { id: "calendar", label: "Calendar" },
   { id: "goals", label: "Goals" },
