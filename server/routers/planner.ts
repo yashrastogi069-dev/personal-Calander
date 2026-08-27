@@ -34,12 +34,14 @@ import {
   getPushDeviceForEndpoint,
   getPushDevices,
   getWorkspaceSnapshot,
+  getMorningRolloverPreview,
   materializeTaskOccurrences,
   moveDailyPlanItem,
   PlannerConflictError,
   prepareReminderRule,
   getReminderRules,
   resolveTaskOccurrence,
+  applyMorningRollover,
   reserveTask,
   revokeCalendarFeed,
   restoreGoal,
@@ -238,6 +240,14 @@ export const plannerRouter = router({
     reserve: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), localDate: dateString, plannedStartAt: z.date(), plannedEndAt: z.date() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...reservation } = input;
       try { return await reserveTask({ workspaceId, timezone }, reservation); } catch (error) { return plannerError(error); }
+    }),
+    rolloverPreview: publicProcedure.input(scope.extend({ fromLocalDate: dateString })).query(async ({ input }) => {
+      const { workspaceId, timezone, ...rollover } = input;
+      try { return await getMorningRolloverPreview({ workspaceId, timezone }, rollover); } catch (error) { return plannerError(error); }
+    }),
+    applyRollover: publicProcedure.input(scope.extend({ fromLocalDate: dateString, tasks: z.array(z.object({ id: z.string(), expectedVersion: z.number().int().positive() })).max(100) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...rollover } = input;
+      try { return await applyMorningRollover({ workspaceId, timezone }, rollover); } catch (error) { return plannerError(error); }
     }),
     bulkSetState: publicProcedure.input(scope.extend({ ids: z.array(z.string()).min(1).max(100), state: lifecycle })).mutation(async ({ input }) => bulkSetTaskState(input, { ids: input.ids, state: input.state })),
     addDependency: publicProcedure.input(scope.extend({ taskId: z.string(), dependsOnTaskId: z.string(), dependencyType: z.enum(["hard", "soft"]).default("hard") })).mutation(async ({ input }) => createTaskDependency(input, input)),

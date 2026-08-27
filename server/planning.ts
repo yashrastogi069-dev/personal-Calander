@@ -25,6 +25,7 @@ import {
   savedViews,
   taskDependencies,
   taskOccurrences,
+  taskReservationRollovers,
   tasks,
   planningTemplates,
   weeklyObjectives,
@@ -37,6 +38,7 @@ import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
 import { reorderCommittedDailyPlanItems } from "../shared/dailyPlanOrdering";
 import { reservationConflictMessage, validateTaskReservation, validateTaskReservationWindow } from "../shared/taskReservation";
 import { secureIcsOverlayReadiness } from "../shared/icsOverlay";
+import { morningRolloverPreview } from "../shared/morningRollover";
 import { reminderDueAt, type ReminderSchedule } from "./reminderSchedule";
 import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
@@ -430,6 +432,55 @@ export async function reserveTask(scope: PlannerScope, input: { id: string; expe
   const updated = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
+}
+
+function currentLocalDate(timezone: string, now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(value => value.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function assertCompletedRolloverDay(scope: PlannerScope, fromLocalDate: string) {
+  if (fromLocalDate >= currentLocalDate(scope.timezone)) throw new Error("Choose a completed local planning day before applying morning rollover. Today and future reservations stay unchanged.");
+}
+
+/** Returns only tasks that could be manually returned to unreserved work; it makes no change. */
+export async function getMorningRolloverPreview(scope: PlannerScope, input: { fromLocalDate: string }) {
+  assertCompletedRolloverDay(scope, input.fromLocalDate);
+  const db = await requireDb();
+  const [workspaceTasks, previous] = await Promise.all([
+    db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.scheduledLocalDate, input.fromLocalDate))),
+    db.select({ taskId: taskReservationRollovers.taskId }).from(taskReservationRollovers).where(and(eq(taskReservationRollovers.workspaceId, scope.workspaceId), eq(taskReservationRollovers.fromLocalDate, input.fromLocalDate))),
+  ]);
+  return { fromLocalDate: input.fromLocalDate, candidates: morningRolloverPreview(workspaceTasks, input.fromLocalDate, previous.map(item => item.taskId)) };
+}
+
+/** Idempotently clears only reservation fields after a user reviews the prior-day candidate list. */
+export async function applyMorningRollover(scope: PlannerScope, input: { fromLocalDate: string; tasks: Array<{ id: string; expectedVersion: number }> }) {
+  assertCompletedRolloverDay(scope, input.fromLocalDate);
+  if (input.tasks.length > 100) throw new Error("Review at most 100 rollover items at a time.");
+  const db = await requireDb();
+  let applied = 0;
+  let alreadyApplied = 0;
+  await db.transaction(async tx => {
+    for (const requested of input.tasks) {
+      const [task, existingAudit] = await Promise.all([
+        tx.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, requested.id))).limit(1),
+        tx.select().from(taskReservationRollovers).where(and(eq(taskReservationRollovers.workspaceId, scope.workspaceId), eq(taskReservationRollovers.taskId, requested.id), eq(taskReservationRollovers.fromLocalDate, input.fromLocalDate))).limit(1),
+      ]);
+      if (existingAudit[0]) { alreadyApplied += 1; continue; }
+      const current = task[0];
+      if (!current) throw new Error("A rollover task was not found in this workspace.");
+      if (current.version !== requested.expectedVersion) throw new PlannerConflictError(current);
+      if (!morningRolloverPreview([current], input.fromLocalDate, []).length) throw new Error("This task no longer has an unfinished reservation for the selected completed day. Refresh the review before applying it.");
+      await tx.insert(taskReservationRollovers).values({ id: nanoid(), workspaceId: scope.workspaceId, taskId: current.id, fromLocalDate: input.fromLocalDate, priorPlannedStartAt: current.plannedStartAt!, priorPlannedEndAt: current.plannedEndAt! });
+      await tx.update(tasks).set({ plannedStartAt: null, plannedEndAt: null, rescheduleCount: sql`${tasks.rescheduleCount} + 1`, version: current.version + 1 }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, current.id), eq(tasks.version, current.version)));
+      const updated = (await tx.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, current.id))).limit(1))[0];
+      if (!updated || updated.version !== current.version + 1 || updated.plannedStartAt || updated.plannedEndAt) throw new PlannerConflictError(updated ?? current);
+      applied += 1;
+    }
+  });
+  return { fromLocalDate: input.fromLocalDate, applied, alreadyApplied };
 }
 
 export async function bulkSetTaskState(scope: PlannerScope, input: { ids: string[]; state: "not_started" | "in_progress" | "blocked" | "completed" | "archived" }) {

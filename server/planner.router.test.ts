@@ -73,6 +73,21 @@ describe("planner task API", () => {
     reserve.mockRestore();
   });
 
+  it("keeps morning rollover review and apply explicitly scoped, dated, and version-safe", async () => {
+    const preview = vi.spyOn(planning, "getMorningRolloverPreview").mockResolvedValue({ fromLocalDate: "2026-08-26", candidates: [{ id: "task-rollover-1", expectedVersion: 4, rescheduleCount: 1, plannedStartAt: new Date("2026-08-26T09:00:00.000Z"), plannedEndAt: new Date("2026-08-26T09:30:00.000Z") }] } as never);
+    const apply = vi.spyOn(planning, "applyMorningRollover").mockResolvedValue({ fromLocalDate: "2026-08-26", applied: 1, alreadyApplied: 0 });
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland", fromLocalDate: "2026-08-26" };
+
+    await expect(caller.planner.task.rolloverPreview(scope)).resolves.toMatchObject({ fromLocalDate: scope.fromLocalDate, candidates: [{ id: "task-rollover-1", expectedVersion: 4 }] });
+    await expect(caller.planner.task.applyRollover({ ...scope, tasks: [{ id: "task-rollover-1", expectedVersion: 4 }] })).resolves.toEqual({ fromLocalDate: scope.fromLocalDate, applied: 1, alreadyApplied: 0 });
+    await expect(caller.planner.task.applyRollover({ ...scope, tasks: Array.from({ length: 101 }, (_, index) => ({ id: `task-${index}`, expectedVersion: 1 })) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    expect(preview).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: scope.workspaceId, timezone: scope.timezone }), { fromLocalDate: scope.fromLocalDate });
+    expect(apply).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: scope.workspaceId, timezone: scope.timezone }), { fromLocalDate: scope.fromLocalDate, tasks: [{ id: "task-rollover-1", expectedVersion: 4 }] });
+    preview.mockRestore(); apply.mockRestore();
+  });
+
   it("validates the habit undo and skipped-state contracts before persistence", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", habitId: "habit-api-check" };

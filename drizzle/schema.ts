@@ -171,6 +171,7 @@ export const tasks = mysqlTable(
     recurrenceRule: json("recurrenceRule"),
     recurrenceAnchor: mysqlEnum("recurrenceAnchor", ["scheduled", "completion"]),
     recurrenceUntilLocalDate: varchar("recurrenceUntilLocalDate", { length: 10 }),
+    rescheduleCount: int("rescheduleCount").notNull().default(0),
     clientRequestId: varchar("clientRequestId", { length: 64 }),
     completedAt: timestamp("completedAt"),
     archivedAt: timestamp("archivedAt"),
@@ -182,10 +183,29 @@ export const tasks = mysqlTable(
     index("tasks_workspace_state_idx").on(table.workspaceId, table.state),
     index("tasks_workspace_due_idx").on(table.workspaceId, table.dueLocalDate),
     index("tasks_workspace_schedule_idx").on(table.workspaceId, table.scheduledLocalDate),
+    index("tasks_workspace_reschedule_idx").on(table.workspaceId, table.rescheduleCount),
     index("tasks_parent_idx").on(table.parentTaskId),
     index("tasks_project_idx").on(table.projectId),
     index("tasks_goal_idx").on(table.goalId),
     uniqueIndex("tasks_workspace_client_request_unique").on(table.workspaceId, table.clientRequestId),
+  ]
+);
+
+/** Immutable per-task evidence that a completed planning day was manually rolled over. */
+export const taskReservationRollovers = mysqlTable(
+  "taskReservationRollovers",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    fromLocalDate: varchar("fromLocalDate", { length: 10 }).notNull(),
+    priorPlannedStartAt: timestamp("priorPlannedStartAt").notNull(),
+    priorPlannedEndAt: timestamp("priorPlannedEndAt").notNull(),
+    appliedAt: timestamp("appliedAt").defaultNow().notNull(),
+  },
+  table => [
+    index("task_rollovers_workspace_date_idx").on(table.workspaceId, table.fromLocalDate),
+    uniqueIndex("task_rollover_task_date_unique").on(table.taskId, table.fromLocalDate),
   ]
 );
 
