@@ -89,5 +89,41 @@ The modular Plan, Focus, Projects, Habits, Capture, Connections, and Insights de
 | Check | Observed result | Status |
 |---|---|---|
 | Direct destinations | Every checked destination loaded its intended workspace rather than its loading fallback or an error state. | Pass |
-| Initial client weight | The primary production JavaScript asset reduced from 1.61 MB / 392.84 kB gzip to 1.04 MB / 292.26 kB gzip; dedicated workspaces are emitted as separate chunks. | Pass |
+| Initial client weight | The standard production build reduced the primary JavaScript asset from 1.61 MB / 392.84 kB gzip to 1.39 MB / 367.14 kB gzip; the stable-preview profile emitted a 1.04 MB / 292.26 kB primary asset. Dedicated workspaces are emitted as separate chunks. | Pass |
 | Outstanding performance boundary | The initial asset is still above the 500 kB advisory threshold because legacy Home/dashboard dependencies remain shared. Further Home decomposition is tracked; the warning is not considered resolved. | Tracked |
+
+## 2026-08-27 — Isolated Guided Daily Plan acceptance run
+
+A single disposable task named **“R21 QA cleanup — daily plan acceptance”** was created through the compact New flow, with a deadline and a 25-minute estimate. It was used solely to validate the daily-planning workflow, then archived. No unrelated planner record, integration, device, or reminder configuration was changed.
+
+| Step | Observed result | Status |
+|---|---|---|
+| Create and plan | The named task appeared as available work, an intention was saved, and the task could be explicitly committed to the newly active plan. | Pass |
+| Close-day guard | Selecting `Resolve 1 to close` with one open commitment showed the local message: “Resolve 1 remaining commitment before closing the day.” The plan did not close. | Pass |
+| Deliberate outcome | Reschedule exposed a `Plan for` date seeded to the next local day. Confirming it set the commitment state to `rescheduled` and updated the task’s planning day. | Pass |
+| Successful shutdown | After resolution, the reflection was saved and `Close today` showed “Closed deliberately. Reflection remains in today’s plan history.” | Pass |
+| Cleanup | The test task was first moved to the archived lifecycle state. After the archive behavior was observed, the named task and test-only daily plan rows were removed in a targeted cleanup; a scoped count confirmed zero matching tasks and plans remained. | Pass |
+
+## 2026-08-27 — Isolated Focus lifecycle acceptance run
+
+A separate disposable task named **“R21 QA cleanup — focus acceptance”** began with a 25-minute estimate. The task-linked focus session was started, paused, resumed, explicitly finished by revising the estimate to 30 minutes, and then archived. This was a limited browser run, so the resulting evidence is recorded as measured focus time rather than inferred from the original target.
+
+| Step | Observed result | Status |
+|---|---|---|
+| Task-linked start | The Focus selector chose the named task and the active session surfaced the task link, its initial 25-minute estimate, Pause, Stop, and explicit finish choices. | Pass |
+| Pause and resume | The session changed to `Paused` at 00:20 with a Resume control, then safely returned to `In focus`. | Pass |
+| Estimate revision | `Adjust estimate` revealed an explicit replacement field. Saving 30 minutes completed the session and returned the workspace to New session. | Pass |
+| Factual evidence | The evidence panel reported recorded measured time and an estimate comparison based on the saved session, rather than crediting the 25-minute target as completed. | Pass |
+| Cleanup | The named task was archived; the filtered active lanes showed zero tasks and the bounded archive showed the disposable record only. After observation, its test-only focus history and task row were removed in the targeted cleanup. | Pass |
+
+## 2026-08-27 — Isolated Habit Discipline acceptance run
+
+A daily disposable habit named **“R21 QA cleanup — habit acceptance”** was created in the dedicated Habit tracker. The run confirmed that the tracker is separate from task time blocks and that a factual check-in can be completed, cleared, and explicitly skipped. The test habit was then archived through the lifecycle manager, leaving active habit surfaces empty.
+
+| Step | Observed result | Status |
+|---|---|---|
+| Dedicated tracker boundary | The habit creation flow and Habits workspace both stated that the rhythm lives in the Habit tracker rather than the task calendar. | Pass |
+| Completion | The current-day `Complete` action updated the habit to `Completed today`, changed the day tally to 1/1, and made clear/undo controls available. | Pass |
+| Correction removal | `Undo completed` removed the recorded completion and restored the available `Complete` and `Skip` choices without backfilling data. | Pass |
+| Intentional skip | `Skip` produced the distinct labels `Intentionally skipped` and `0 of 1 habits complete · 1 intentionally skipped`; the tracker exposed `Clear skip`. | Pass |
+| Cleanup | The lifecycle manager confirmed the named habit before archive. After confirmation, the active Habits surface showed its guided empty state rather than the test habit. The named habit and its test-only check-in were then removed in the targeted cleanup. | Pass |
