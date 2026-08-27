@@ -852,6 +852,15 @@ export default function Home() {
   const taskRows = useMemo(() => activeTasks.filter(task => { const matchesText = task.title.toLowerCase().includes(taskSearch.toLowerCase()); const matchesFilter = taskFilter === "all" || (taskFilter === "today" && (task.scheduledLocalDate === today || task.dueLocalDate === today)) || (taskFilter === "deadline_risk" && deadlineRiskForTask(task, today) !== null); return matchesText && matchesFilter; }), [activeTasks, taskSearch, taskFilter, today]);
   const openComposer = (kind: ComposerKind) => { setComposerKind(kind); setComposerOpen(true); };
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("create") !== "task") return;
+    setSurface("tasks");
+    openComposer("task");
+    url.searchParams.delete("create");
+    window.history.replaceState(null, "", url);
+  }, []);
+  useEffect(() => {
     const composeHabit = () => openComposer("habit");
     const openHabitTracker = () => { setSurface("habits"); setMobileMoreOpen(false); };
     window.addEventListener("personal-calander:compose-habit", composeHabit);

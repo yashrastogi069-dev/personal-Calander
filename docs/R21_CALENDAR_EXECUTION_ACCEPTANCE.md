@@ -37,3 +37,17 @@ The resulting projected task block rendered as **13:00 · 30 min**, directly pro
 ## 2026-08-27 — final responsive review
 
 Fresh managed-preview screenshots at 1280×720 and 390×844 show the execution calendar’s direct **Open Tasks** action at readable contrast, clear Daily desk return path, inbox-to-grid hierarchy, manual-reservation boundary, honest external-overlay-unavailable status, and a phone layout that stacks the inbox above the scrollable time grid. The mobile viewport retains reachable day controls and avoids clipped card text or horizontal page overflow. The deliberately dark execution canvas is limited to this concentration surface and does not change the established task lanes or Habit tracker.
+
+## 2026-08-27 — keyboard workflow opening checks
+
+After a managed-preview restart, the Calendar route displayed the visible Keyboard guide. A global unmodified **n** key press from the non-editable calendar surface navigated to `/?surface=tasks` without any calendar write or browser error. The next check confirms the existing task Composer opens as part of that query-backed handoff.
+
+The Tasks destination opened the existing **Add a task** Composer and focused its Name field, so **n** remains actionable rather than a decorative shortcut. Pressing **n** again while that editable dialog field was active left the dialog open and entered the literal character `n`; it did not trigger a second navigation or an unintended planner mutation. This confirms the text-entry and dialog guard in the user-visible flow.
+
+The calendar grid presents its full keyboard contract through visible keycaps and an accessible grid description. A separately named **R21 QA Keyboard next free reservation** task was created through the guarded New shortcut. With the task selected, direct focus on the 09:00 grid entry followed by **ArrowDown** advanced both active focus and the roving selected slot to `555` (09:15). **Enter** then created the linked **09:15 · 30 min** reservation. This proved keyboard selection and reviewable next-free-slot placement without a pointer reservation.
+
+The database confirmed the keyboard-created reservation on the same active task at 09:15–09:45 with its 30-minute estimate. Targeted cleanup then removed only task `uR3xhddz_q7WJ-ZrJGn5r` and its task-scoped auxiliary rows. Verification returned zero remaining rows for task, dependency, occurrence, daily-plan-item, focus-session, and schedule-proposal scopes.
+
+The calendar was then moved to the next local day with its visible control. An unmodified **t** key press returned the heading and execution grid to **Thu, Aug 27**, confirming the Today shortcut is a non-destructive navigation reset. It made no planner or external-calendar write.
+
+During browser acceptance, the initial test harness focus landed on the grid container rather than its roving entry button. The keyboard handler was hardened so it supports both the focused slot and its grid-container path; directly focused slot verification confirmed ArrowDown moves the active and selected state from 09:00 to 09:15. The shared tests are now located in the configured server Vitest scope, where 33 test files and 122 tests pass, including shortcut guards, next-free-slot selection, 15-minute rounding, lifecycle projection, window, and conflict contracts.
