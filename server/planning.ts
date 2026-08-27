@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, like, lte, ne, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import webpush from "web-push";
 import {
@@ -34,6 +34,7 @@ import { getDb } from "./db";
 import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
+import { reorderCommittedDailyPlanItems } from "../shared/dailyPlanOrdering";
 import { reminderDueAt, type ReminderSchedule } from "./reminderSchedule";
 import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
@@ -136,6 +137,26 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), gte(planningAvailabilityExceptions.localDate, range.start), lte(planningAvailabilityExceptions.localDate, range.end))).orderBy(asc(planningAvailabilityExceptions.localDate)),
   ]);
   return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: planRows, dailyPlanItems: planItemRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows };
+}
+
+export async function searchWorkspace(scope: PlannerScope, input: { query: string; limit: number }) {
+  const db = await requireDb();
+  const phrase = input.query.trim().replace(/[\\%_]/g, "\\$&");
+  const pattern = `%${phrase}%`;
+  const [taskRows, goalRows, projectRows, habitRows, reviewRows] = await Promise.all([
+    db.select({ id: tasks.id, title: tasks.title, summary: tasks.description, state: tasks.state, updatedAt: tasks.updatedAt }).from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), or(like(tasks.title, pattern), like(tasks.description, pattern)))).orderBy(desc(tasks.updatedAt)).limit(input.limit),
+    db.select({ id: goals.id, title: goals.title, summary: goals.description, state: goals.state, updatedAt: goals.updatedAt }).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), or(like(goals.title, pattern), like(goals.description, pattern)))).orderBy(desc(goals.updatedAt)).limit(input.limit),
+    db.select({ id: projects.id, title: projects.title, summary: projects.description, state: projects.state, updatedAt: projects.updatedAt }).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), or(like(projects.title, pattern), like(projects.description, pattern)))).orderBy(desc(projects.updatedAt)).limit(input.limit),
+    db.select({ id: habits.id, title: habits.name, summary: habits.description, state: habits.archivedAt, updatedAt: habits.updatedAt }).from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), or(like(habits.name, pattern), like(habits.description, pattern)))).orderBy(desc(habits.updatedAt)).limit(input.limit),
+    db.select({ id: reviewSessions.id, kind: reviewSessions.kind, reflection: reviewSessions.reflection, state: reviewSessions.state, periodStartLocalDate: reviewSessions.periodStartLocalDate, periodEndLocalDate: reviewSessions.periodEndLocalDate, updatedAt: reviewSessions.updatedAt }).from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), or(like(reviewSessions.reflection, pattern), like(reviewSessions.kind, pattern)))).orderBy(desc(reviewSessions.updatedAt)).limit(input.limit),
+  ]);
+  return [
+    ...taskRows.map(row => ({ ...row, entity: "task" as const })),
+    ...goalRows.map(row => ({ ...row, entity: "goal" as const })),
+    ...projectRows.map(row => ({ ...row, entity: "project" as const })),
+    ...habitRows.map(row => ({ id: row.id, title: row.title, summary: row.summary, state: row.state ? "archived" : "active", updatedAt: row.updatedAt, entity: "habit" as const })),
+    ...reviewRows.map(row => ({ id: row.id, title: `${row.kind} review · ${row.periodStartLocalDate} to ${row.periodEndLocalDate}`, summary: row.reflection, state: row.state, updatedAt: row.updatedAt, entity: "review" as const })),
+  ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()).slice(0, input.limit);
 }
 
 export async function createCategory(scope: PlannerScope, input: { name: string; color: string; sortOrder?: number }) {
@@ -440,6 +461,27 @@ export async function updateDailyPlanItem(scope: PlannerScope, input: { id: stri
   if (isResolved) patch.resolvedAt = new Date();
   await db.update(dailyPlanItems).set(patch).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, input.id), eq(dailyPlanItems.version, input.expectedVersion)));
   const updated = (await db.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+export async function moveDailyPlanItem(scope: PlannerScope, input: { id: string; expectedVersion: number; direction: -1 | 1 }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Daily commitment was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  if (existing.state !== "committed") throw new Error("Only unresolved commitments can be reordered.");
+  const items = await db.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.dailyPlanId, existing.dailyPlanId)));
+  const positions = reorderCommittedDailyPlanItems(items, existing.id, input.direction);
+  if (!positions) return existing;
+  await db.transaction(async tx => {
+    for (const position of positions) {
+      const current = items.find(item => item.id === position.id);
+      if (!current || current.position === position.position) continue;
+      await tx.update(dailyPlanItems).set({ position: position.position, version: current.version + 1 }).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, current.id), eq(dailyPlanItems.version, current.version)));
+    }
+  });
+  const updated = (await db.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, existing.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
 }
@@ -917,6 +959,8 @@ export async function getDashboard(scope: PlannerScope, input: { todayLocalDate:
     categoryNames,
     habitCheckIns: snapshot.habitCheckIns,
     habitIds: snapshot.habits.filter(habit => !habit.archivedAt).map(habit => habit.id),
+    focusSessions: snapshot.focusSessions,
+    timezone: scope.timezone,
     todayLocalDate: input.todayLocalDate,
     rangeStart: input.rangeStart,
     rangeEnd: input.rangeEnd,

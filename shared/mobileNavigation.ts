@@ -3,12 +3,14 @@ export const mobilePlannerDestinations = [
   { id: "capture", label: "Capture" },
   { id: "plan", label: "Plan" },
   { id: "tasks", label: "Tasks" },
+  { id: "search", label: "Search" },
   { id: "calendar", label: "Calendar" },
   { id: "goals", label: "Goals" },
   { id: "projects", label: "Projects" },
   { id: "habits", label: "Habits" },
   { id: "focus", label: "Focus" },
   { id: "connections", label: "Connections" },
+  { id: "insights", label: "Insights" },
   { id: "review", label: "Review" },
 ] as const;
 

@@ -237,3 +237,9 @@
 - [ ] Defer all automated external actions until the final delivery phase while continuing to implement the non-automated planning workflows now.
 - [ ] Create frequent coherent checkpoints and push each validated milestone to `dev/personal-calendar-workbench` only; verify the remote `main` reference remains unchanged.
 - [ ] Keep capability-specific workflows in dedicated, directly reachable planner destinations rather than adding unrelated controls to the primary daily dashboard.
+- [ ] Audit and harden recurrence, subtasks, priority persistence, and task filter/search behavior with direct interaction and contract coverage.
+- [ ] Audit and harden goal/project linking, habit complete/skip actions, and review save/history behavior with explicit recovery paths.
+- [x] Add workspace-wide search across tasks, goals, projects, habits, and reviews; preserve supported filters and destination state in shareable URLs.
+- [x] Expand factual analytics with weekly planned-versus-completed focus time, carryover trend, category/goal allocation, and accessible review history.
+- [ ] Apply a status-semantic design-system pass: every non-neutral status must pair color with an understandable text label or icon.
+- [ ] Apply a restrained visual/theming/motion pass using purpose-built dark panels, readable scroll states, and only deliberate performance-safe animations.

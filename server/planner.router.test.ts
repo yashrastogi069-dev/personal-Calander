@@ -123,6 +123,19 @@ describe("planner task API", () => {
     update.mockRestore();
   });
 
+  it("preserves explicit flexible and pinned scheduling modes through the task contracts", async () => {
+    const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-schedule-1", scheduleMode: "flexible", version: 1 } as never);
+    const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-schedule-1", scheduleMode: "pinned", version: 2 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+
+    await expect(caller.planner.task.create({ ...scope, title: "Proposal eligible", state: "not_started", priority: "medium", horizon: "weekly", sortOrder: 0, scheduleMode: "flexible" })).resolves.toMatchObject({ scheduleMode: "flexible" });
+    await expect(caller.planner.task.update({ ...scope, id: "task-schedule-1", expectedVersion: 1, patch: { scheduleMode: "pinned" } })).resolves.toMatchObject({ scheduleMode: "pinned" });
+    expect(create).toHaveBeenCalledWith(scope, expect.objectContaining({ scheduleMode: "flexible" }));
+    expect(update).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "task-schedule-1", expectedVersion: 1, patch: { scheduleMode: "pinned" } }));
+    create.mockRestore(); update.mockRestore();
+  });
+
   it("returns a recoverable conflict when a stale task version is used for a restore or lane move", async () => {
     const update = vi.spyOn(planning, "updateTask").mockRejectedValue(new planning.PlannerConflictError({ id: "task-stale-1", version: 9, state: "archived" }));
     const caller = appRouter.createCaller(createPublicContext());
@@ -257,5 +270,25 @@ describe("planner task API", () => {
     expect(update).toHaveBeenCalledWith(scope, expect.objectContaining({ id: "template-1", expectedVersion: 1, patch: { name: "Revised follow-up" } }));
     expect(archive).toHaveBeenCalledWith(scope, { id: "template-1", expectedVersion: 2 });
     create.mockRestore(); update.mockRestore(); archive.mockRestore();
+  });
+
+  it("routes a deliberate daily commitment movement through its version-safe planning contract", async () => {
+    const move = vi.spyOn(planning, "moveDailyPlanItem").mockResolvedValue({ id: "daily-item-1", position: 0, version: 2 } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", id: "daily-item-1", expectedVersion: 1, direction: -1 as const };
+
+    await expect(caller.planner.dailyPlan.moveItem(input)).resolves.toMatchObject({ id: "daily-item-1", position: 0, version: 2 });
+    expect(move).toHaveBeenCalledWith({ workspaceId: input.workspaceId, timezone: input.timezone }, { id: input.id, expectedVersion: input.expectedVersion, direction: -1 });
+    move.mockRestore();
+  });
+
+  it("routes bounded workspace search across planning entities through the dedicated service", async () => {
+    const search = vi.spyOn(planning, "searchWorkspace").mockResolvedValue([{ id: "goal-search-1", entity: "goal", title: "Finish qualification", summary: null, state: "in_progress", updatedAt: new Date() }] as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", query: "qualification", limit: 12 };
+
+    await expect(caller.planner.search.workspace(input)).resolves.toMatchObject([{ entity: "goal", title: "Finish qualification" }]);
+    expect(search).toHaveBeenCalledWith({ workspaceId: input.workspaceId, timezone: input.timezone }, { query: input.query, limit: input.limit });
+    search.mockRestore();
   });
 });

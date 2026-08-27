@@ -41,3 +41,33 @@ The upgraded `/?surface=calendar` Day view was inspected at desktop and 390×844
 | Task/habit separation | The empty task time canvas explicitly directs repeated behavior to the Habit tracker and does not place habits in calendar slots. | Pass |
 | Unscheduled work shelf | The calendar renders a readable, task-only shelf with clear drag-or-keep guidance and a truthful empty state. | Pass |
 | Mobile composition | Day controls, time-canvas decision surface, and unscheduled shelf stack without clipping at 390px width. | Pass |
+
+## 2026-08-27 — Workspace Search review
+
+The dedicated `/?surface=search&q=plan` destination was inspected at desktop and 390×844 phone widths.
+
+| Check | Observed result | Status |
+|---|---|---|
+| Findability | Search is a dedicated destination, rather than a hidden task-board filter, and identifies its five record types in the opening explanation. | Pass |
+| URL state | The supplied `q=plan` query remains in the rendered field and is explicitly described as retained in the link. | Pass |
+| Recovery | No-result feedback names the checked record types and suggests a specific recovery path; the phone layout remains unclipped. | Pass |
+
+## 2026-08-27 — Insights review
+
+The new `/?surface=insights` destination was inspected at desktop and 390×844 phone widths against an empty but real workspace.
+
+| Check | Observed result | Status |
+|---|---|---|
+| Evidence boundary | Weekly focus, carryover, category allocation, goal allocation, and review history all render truthful zero/empty messages rather than invented statistics. | Pass |
+| Status semantics | The review-history visual uses a text state alongside the check icon and color role; blank history has clear recovery text. | Pass |
+| Responsive composition | Weekly evidence and carryover sequence remain readable at 390px; allocation and review areas stack without horizontal overflow. | Pass |
+
+## 2026-08-27 — Task-board URL-state review
+
+The task board was loaded directly with `/?surface=tasks&taskQ=plan&taskFilter=deadline_risk` at desktop and 390×844 phone widths.
+
+| Check | Observed result | Status |
+|---|---|---|
+| Restored filter state | The typed `plan` query and **Deadline risk** selection render immediately after direct navigation. | Pass |
+| Empty-state behavior | The board reports zero matching work without hiding the three task lifecycle lanes or archived-work recovery surface. | Pass |
+| Phone layout | Search and filter controls stack before the dark task lanes; all labels stay legible with no horizontal clipping. | Pass |

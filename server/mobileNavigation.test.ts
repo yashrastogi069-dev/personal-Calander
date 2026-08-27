@@ -15,12 +15,14 @@ describe("mobile planner navigation contract", () => {
       "capture",
       "plan",
       "tasks",
+      "search",
       "calendar",
       "goals",
       "projects",
       "habits",
       "focus",
       "connections",
+      "insights",
       "review",
     ]);
     expect(hasCompleteMobilePlannerNavigation(mobilePlannerDestinations)).toBe(true);
@@ -33,7 +35,7 @@ describe("mobile planner navigation contract", () => {
       "plan",
       "tasks",
     ]);
-    expect(mobileMorePlannerDestinations.map(destination => destination.id)).toEqual(["calendar", "goals", "projects", "habits", "focus", "connections", "review"]);
+    expect(mobileMorePlannerDestinations.map(destination => destination.id)).toEqual(["search", "calendar", "goals", "projects", "habits", "focus", "connections", "insights", "review"]);
     expect(hasCompletePhoneNavigationPattern(mobilePrimaryPlannerDestinations, mobileMorePlannerDestinations)).toBe(true);
   });
 

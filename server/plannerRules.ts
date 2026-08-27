@@ -15,6 +15,7 @@ export type CompactTask = {
 
 export type CompactGoal = {
   id: string;
+  title?: string;
   parentGoalId?: string | null;
   horizon?: string;
   state: "not_started" | "in_progress" | "blocked" | "completed" | "archived";
@@ -58,6 +59,13 @@ export type CompactHabitCheckIn = {
   habitId: string;
   localDate: string;
   state: "completed" | "skipped" | "missed";
+};
+
+export type CompactFocusSession = {
+  taskId: string | null;
+  state: "active" | "paused" | "completed" | "abandoned";
+  startedAt: Date;
+  activeSeconds: number;
 };
 
 export function shiftLocalDate(localDate: string, days: number) {
@@ -304,12 +312,16 @@ export function dashboardSummary(input: {
   categoryNames: Map<string, string>;
   habitCheckIns: CompactHabitCheckIn[];
   habitIds: string[];
+  focusSessions?: CompactFocusSession[];
+  timezone?: string;
   todayLocalDate: string;
   rangeStart: string;
   rangeEnd: string;
   capacityMinutes: number;
 }) {
   const activeTasks = input.tasks.filter(task => task.state !== "completed" && task.state !== "archived");
+  const focusSessions = input.focusSessions ?? [];
+  const timezone = input.timezone ?? "UTC";
   const today = activeTasks.filter(task => task.scheduledLocalDate === input.todayLocalDate || task.dueLocalDate === input.todayLocalDate);
   const allTodayTasks = input.tasks.filter(task => task.scheduledLocalDate === input.todayLocalDate || task.dueLocalDate === input.todayLocalDate);
   const upcomingEnd = shiftLocalDate(input.todayLocalDate, 7);
@@ -355,6 +367,23 @@ export function dashboardSummary(input: {
   }));
 
   const streaks = input.habitIds.map(habitId => ({ habitId, streak: currentHabitStreak(input.habitCheckIns, habitId, input.todayLocalDate) }));
+  const weekday = new Date(`${input.todayLocalDate}T12:00:00.000Z`).getUTCDay();
+  const weekStart = shiftLocalDate(input.todayLocalDate, weekday === 0 ? -6 : 1 - weekday);
+  const weekEnd = shiftLocalDate(weekStart, 6);
+  const localDateForSession = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+    const part = (type: string) => parts.find(value => value.type === type)?.value ?? "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  };
+  const plannedFocusMinutes = input.tasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate >= weekStart && task.scheduledLocalDate <= weekEnd && task.state !== "archived").reduce((total, task) => total + (task.estimateMinutes ?? 0), 0);
+  const completedFocusMinutes = Math.round(focusSessions.filter(session => session.state === "completed" && localDateForSession(session.startedAt) >= weekStart && localDateForSession(session.startedAt) <= weekEnd).reduce((total, session) => total + session.activeSeconds, 0) / 60);
+  const carryoverTrend = localDateSequence(weekStart, input.todayLocalDate).map(localDate => ({ localDate, carryover: activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate < localDate).length }));
+  const plannedInRange = activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate >= input.rangeStart && task.scheduledLocalDate <= input.rangeEnd);
+  const categoryAllocation = Array.from(input.categoryNames.entries()).map(([id, name]) => ({ id, name, plannedMinutes: plannedInRange.filter(task => task.categoryId === id).reduce((total, task) => total + (task.estimateMinutes ?? 0), 0), taskCount: plannedInRange.filter(task => task.categoryId === id).length })).filter(item => item.taskCount > 0);
+  const unassignedCategory = plannedInRange.filter(task => !task.categoryId);
+  if (unassignedCategory.length) categoryAllocation.push({ id: "unassigned", name: "Uncategorised", plannedMinutes: unassignedCategory.reduce((total, task) => total + (task.estimateMinutes ?? 0), 0), taskCount: unassignedCategory.length });
+  const goalAllocation = input.goals.filter(goal => goal.state !== "archived").map(goal => { const linked = plannedInRange.filter(task => task.goalId === goal.id || (task.projectId && input.projectGoalById.get(task.projectId) === goal.id)); return { id: goal.id, name: goal.title ?? goal.id, plannedMinutes: linked.reduce((total, task) => total + (task.estimateMinutes ?? 0), 0), taskCount: linked.length }; }).filter(item => item.taskCount > 0);
+  const reviewHistory = (input.reviewSessions ?? []).filter(review => review.state !== "archived").slice().sort((left, right) => right.periodEndLocalDate.localeCompare(left.periodEndLocalDate)).slice(0, 8).map(review => ({ kind: review.kind, state: review.state, periodEndLocalDate: review.periodEndLocalDate }));
 
   return {
     counts: {
@@ -390,5 +419,12 @@ export function dashboardSummary(input: {
     completionTrend,
     categoryDistribution,
     streaks,
+    analytics: {
+      weeklyFocus: { weekStart, weekEnd, plannedMinutes: plannedFocusMinutes, completedMinutes: completedFocusMinutes },
+      carryoverTrend,
+      categoryAllocation,
+      goalAllocation,
+      reviewHistory,
+    },
   };
 }

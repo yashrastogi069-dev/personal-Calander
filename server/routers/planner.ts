@@ -34,6 +34,7 @@ import {
   getPushDevices,
   getWorkspaceSnapshot,
   materializeTaskOccurrences,
+  moveDailyPlanItem,
   PlannerConflictError,
   prepareReminderRule,
   getReminderRules,
@@ -45,6 +46,7 @@ import {
   resolveDailyPlanItem,
   removeTaskDependency,
   sendTestPush,
+  searchWorkspace,
   startReviewSession,
   setReminderRuleActivation,
   updateTask,
@@ -222,12 +224,12 @@ export const plannerRouter = router({
     }),
   }),
   task: router({
-    create: publicProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), parentTaskId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("weekly"), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), sortOrder: z.number().int().default(0), recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(), recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(), recurrenceUntilLocalDate: dateString.nullable().optional(), clientRequestId: z.string().min(12).max(64).nullable().optional() })).mutation(async ({ input }) => {
+    create: publicProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), parentTaskId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("weekly"), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), scheduleMode: z.enum(["manual", "flexible", "pinned"]).default("manual"), sortOrder: z.number().int().default(0), recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(), recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(), recurrenceUntilLocalDate: dateString.nullable().optional(), clientRequestId: z.string().min(12).max(64).nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...task } = input;
       if (task.plannedStartAt && task.plannedEndAt && task.plannedEndAt <= task.plannedStartAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Reserved time must end after it starts." });
       return createTask({ workspaceId, timezone }, task);
     }),
-    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), categoryId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), parentTaskId: z.string().nullable().optional(), sortOrder: z.number().int().optional(), recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(), recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(), recurrenceUntilLocalDate: dateString.nullable().optional() }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "Reserved time must end after it starts." }) })).mutation(async ({ input }) => {
+    update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), scheduleMode: z.enum(["manual", "flexible", "pinned"]).optional(), categoryId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), parentTaskId: z.string().nullable().optional(), sortOrder: z.number().int().optional(), recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(), recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(), recurrenceUntilLocalDate: dateString.nullable().optional() }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "Reserved time must end after it starts." }) })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion, patch } = input;
       try { return await updateTask({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
     }),
@@ -268,6 +270,10 @@ export const plannerRouter = router({
     updateItem: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), state: z.enum(["committed", "done", "rescheduled", "deferred", "wont_do", "archived"]).optional(), resolvedToLocalDate: dateString.nullable().optional(), note: z.string().max(1000).nullable().optional(), position: z.number().int().min(0).max(200).optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...item } = input;
       try { return await updateDailyPlanItem({ workspaceId, timezone }, item); } catch (error) { return plannerError(error); }
+    }),
+    moveItem: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), direction: z.union([z.literal(-1), z.literal(1)]) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...item } = input;
+      try { return await moveDailyPlanItem({ workspaceId, timezone }, item); } catch (error) { return plannerError(error); }
     }),
     resolveItem: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), taskExpectedVersion: z.number().int().positive(), state: z.enum(["done", "rescheduled", "deferred", "wont_do", "archived"]), resolvedToLocalDate: dateString.nullable().optional(), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...item } = input;
@@ -310,6 +316,12 @@ export const plannerRouter = router({
       try { return await updateSavedView({ workspaceId, timezone }, view); } catch (error) { return plannerError(error); }
     }),
     delete: publicProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => deleteSavedView(input, input)),
+  }),
+  search: router({
+    workspace: publicProcedure.input(scope.extend({ query: z.string().trim().min(2).max(160), limit: z.number().int().min(1).max(40).default(20) })).query(async ({ input }) => {
+      const { workspaceId, timezone, ...search } = input;
+      return searchWorkspace({ workspaceId, timezone }, search);
+    }),
   }),
   calendarFeed: router({
     ensure: publicProcedure.input(scope).mutation(async ({ input }) => ensureCalendarFeed(input)),
