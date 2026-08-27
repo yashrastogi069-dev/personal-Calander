@@ -27,6 +27,7 @@ import {
   deleteCategory,
   disablePushSubscription,
   getDashboard,
+  getHabitPracticeEvidence,
   getPushDeviceForEndpoint,
   getPushDevices,
   getWorkspaceSnapshot,
@@ -57,7 +58,9 @@ import {
   upsertHabitCheckIn,
   upsertPushSubscription,
 } from "../planning";
+import { approveScheduleProposal, createScheduleProposal, dismissScheduleProposal, undoScheduleProposal } from "../scheduling";
 import { invokeLLM } from "../_core/llm";
+import { finishFocusSession, pauseFocusSession, resumeFocusSession, startFocusSession } from "../focus";
 import { publicProcedure, router } from "../_core/trpc";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -121,6 +124,42 @@ export const plannerRouter = router({
     clear: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...exception } = input;
       try { return await clearPlanningAvailabilityException({ workspaceId, timezone }, exception); } catch (error) { return plannerError(error); }
+    }),
+  }),
+  scheduleProposal: router({
+    create: publicProcedure.input(scope.extend({ taskId: z.string(), localDate: dateString })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...proposal } = input;
+      try { return await createScheduleProposal({ workspaceId, timezone }, proposal); } catch (error) { return plannerError(error); }
+    }),
+    approve: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), taskExpectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...proposal } = input;
+      try { return await approveScheduleProposal({ workspaceId, timezone }, proposal); } catch (error) { return plannerError(error); }
+    }),
+    dismiss: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...proposal } = input;
+      try { return await dismissScheduleProposal({ workspaceId, timezone }, proposal); } catch (error) { return plannerError(error); }
+    }),
+    undo: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), taskExpectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...proposal } = input;
+      try { return await undoScheduleProposal({ workspaceId, timezone }, proposal); } catch (error) { return plannerError(error); }
+    }),
+  }),
+  focus: router({
+    start: publicProcedure.input(scope.extend({ taskId: z.string().nullable().optional(), targetMinutes: z.number().int().min(5).max(240) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...session } = input;
+      try { return await startFocusSession({ workspaceId, timezone }, session); } catch (error) { return plannerError(error); }
+    }),
+    pause: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...session } = input;
+      try { return await pauseFocusSession({ workspaceId, timezone }, session); } catch (error) { return plannerError(error); }
+    }),
+    resume: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...session } = input;
+      try { return await resumeFocusSession({ workspaceId, timezone }, session); } catch (error) { return plannerError(error); }
+    }),
+    finish: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), outcome: z.enum(["done", "continue", "adjust_estimate", "stopped"]), note: z.string().max(2000).nullable().optional(), adjustedEstimateMinutes: z.number().int().min(5).max(1440).nullable().optional(), taskExpectedVersion: z.number().int().positive().optional() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...session } = input;
+      try { return await finishFocusSession({ workspaceId, timezone }, session); } catch (error) { return plannerError(error); }
     }),
   }),
   category: router({
@@ -215,6 +254,7 @@ export const plannerRouter = router({
     }),
     checkIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, state: z.enum(["completed", "skipped", "missed"]), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => upsertHabitCheckIn(input, input)),
     clearCheckIn: publicProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString })).mutation(async ({ input }) => clearHabitCheckIn(input, input)),
+    practiceEvidence: publicProcedure.input(scope.extend({ endLocalDate: dateString })).query(async ({ input }) => getHabitPracticeEvidence(input, input)),
   }),
   dailyCheckIn: router({
     upsert: publicProcedure.input(scope.extend({ localDate: dateString, intention: z.string().max(3000).nullable().optional(), reflection: z.string().max(5000).nullable().optional(), energy: z.number().int().min(1).max(5).nullable().optional(), mood: z.number().int().min(1).max(5).nullable().optional() })).mutation(async ({ input }) => upsertDailyCheckIn(input, input)),

@@ -4,7 +4,9 @@ export const mobilePlannerDestinations = [
   { id: "tasks", label: "Tasks" },
   { id: "calendar", label: "Calendar" },
   { id: "goals", label: "Goals" },
+  { id: "projects", label: "Projects" },
   { id: "habits", label: "Habits" },
+  { id: "focus", label: "Focus" },
   { id: "review", label: "Review" },
 ] as const;
 

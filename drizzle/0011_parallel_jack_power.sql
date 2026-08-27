@@ -1,0 +1,1 @@
+ALTER TABLE `focusSessions` ADD `lastResumedAt` timestamp NOT NULL;

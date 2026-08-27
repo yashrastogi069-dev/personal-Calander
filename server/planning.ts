@@ -31,7 +31,9 @@ import {
   workspaces,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import { dashboardSummary, recurringLocalDates, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
+import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
+import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
+import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
 import { reminderDueAt, type ReminderSchedule } from "./reminderSchedule";
 import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
@@ -322,6 +324,12 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
   const existing = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Task was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  if (input.patch.state === "completed" && existing.state !== "completed") {
+    const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, input.id)));
+    const prerequisites = edges.length ? await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, edges.map(edge => edge.dependsOnTaskId)))) : [];
+    const incomplete = incompleteHardPrerequisites(input.id, edges, prerequisites);
+    if (incomplete.length) throw new Error("Complete every hard prerequisite before finishing this task.");
+  }
   const patch = { ...input.patch, version: input.expectedVersion + 1 } as Record<string, unknown>;
   if (patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
   if (patch.state && patch.state !== "completed") patch.completedAt = null;
@@ -336,6 +344,14 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
 export async function bulkSetTaskState(scope: PlannerScope, input: { ids: string[]; state: "not_started" | "in_progress" | "blocked" | "completed" | "archived" }) {
   if (!input.ids.length) return [];
   const db = await requireDb();
+  if (input.state === "completed") {
+    const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), inArray(taskDependencies.taskId, input.ids)));
+    const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));
+    const prerequisites = prerequisiteIds.length ? await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, prerequisiteIds))) : [];
+    const candidateStates = prerequisites.map(task => ({ ...task, state: input.ids.includes(task.id) ? "completed" : task.state }));
+    const blocked = input.ids.flatMap(id => incompleteHardPrerequisites(id, edges, candidateStates));
+    if (blocked.length) throw new Error("The selected tasks include work with unfinished hard prerequisites.");
+  }
   const now = new Date();
   const patch: Record<string, unknown> = {
     state: input.state,
@@ -438,14 +454,14 @@ export async function resolveDailyPlanItem(scope: PlannerScope, input: { id: str
   if (!linkedTask) throw new Error("The task linked to this commitment no longer exists.");
   if (linkedTask.version !== input.taskExpectedVersion) throw new PlannerConflictError(linkedTask);
   if (item.state !== "committed") throw new Error("This daily commitment already has an outcome. Refresh before changing it.");
-  if (input.state === "rescheduled" && !input.resolvedToLocalDate) throw new Error("Choose the new Plan for date before rescheduling this task.");
+  if (input.state === "done") {
+    const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, linkedTask.id)));
+    const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));
+    const prerequisites = prerequisiteIds.length ? await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, prerequisiteIds))) : [];
+    if (incompleteHardPrerequisites(linkedTask.id, edges, prerequisites).length) throw new Error("Complete every hard prerequisite before finishing this task.");
+  }
   const now = new Date();
-  const taskPatch: Record<string, unknown> = { version: linkedTask.version + 1 };
-  if (input.state === "done") { taskPatch.state = "completed"; taskPatch.completedAt = now; }
-  if (input.state === "rescheduled") { taskPatch.scheduledLocalDate = input.resolvedToLocalDate; taskPatch.plannedStartAt = null; taskPatch.plannedEndAt = null; }
-  if (input.state === "deferred") { taskPatch.scheduledLocalDate = null; taskPatch.plannedStartAt = null; taskPatch.plannedEndAt = null; }
-  if (input.state === "wont_do") { taskPatch.state = "archived"; taskPatch.archivedAt = now; taskPatch.outcome = "wont_do"; taskPatch.outcomeAt = now; }
-  if (input.state === "archived") { taskPatch.state = "archived"; taskPatch.archivedAt = now; }
+  const taskPatch: Record<string, unknown> = { ...taskPatchForDailyPlanOutcome(input.state, now, input.resolvedToLocalDate), version: linkedTask.version + 1 };
   await db.transaction(async tx => {
     await tx.update(tasks).set(taskPatch).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, linkedTask.id), eq(tasks.version, linkedTask.version)));
     await tx.update(dailyPlanItems).set({ state: input.state, resolvedToLocalDate: input.resolvedToLocalDate ?? null, note: input.note ?? null, resolvedAt: now, version: item.version + 1 }).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, item.id), eq(dailyPlanItems.version, item.version)));
@@ -565,6 +581,17 @@ export async function clearHabitCheckIn(scope: PlannerScope, input: { habitId: s
     eq(habitCheckIns.localDate, input.localDate)
   ));
   return { habitId: input.habitId, localDate: input.localDate, cleared: true } as const;
+}
+
+/** Bounded, habit-only history for the dedicated practice workspace; it avoids widening every planner snapshot. */
+export async function getHabitPracticeEvidence(scope: PlannerScope, input: { endLocalDate: string }) {
+  const db = await requireDb();
+  const startLocalDate = shiftLocalDate(input.endLocalDate, -396);
+  const [habitRows, checkInRows] = await Promise.all([
+    db.select().from(habits).where(eq(habits.workspaceId, scope.workspaceId)),
+    db.select().from(habitCheckIns).where(and(eq(habitCheckIns.workspaceId, scope.workspaceId), gte(habitCheckIns.localDate, startLocalDate), lte(habitCheckIns.localDate, input.endLocalDate))),
+  ]);
+  return { startLocalDate, endLocalDate: input.endLocalDate, habits: habitRows, checkIns: checkInRows };
 }
 
 export async function upsertDailyCheckIn(scope: PlannerScope, input: { localDate: string; intention?: string | null; reflection?: string | null; energy?: number | null; mood?: number | null }) {

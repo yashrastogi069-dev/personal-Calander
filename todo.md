@@ -235,3 +235,5 @@
 - [x] Provide an up-to-date, secret-safe source-code archive from the development branch for the user’s backup.
 - [ ] Add dedicated, coherent planner destinations as capability depth requires, keeping primary daily execution clear on desktop and iPhone.
 - [ ] Defer all automated external actions until the final delivery phase while continuing to implement the non-automated planning workflows now.
+- [ ] Create frequent coherent checkpoints and push each validated milestone to `dev/personal-calendar-workbench` only; verify the remote `main` reference remains unchanged.
+- [ ] Keep capability-specific workflows in dedicated, directly reachable planner destinations rather than adding unrelated controls to the primary daily dashboard.
