@@ -289,18 +289,21 @@ function ReviewRitual({ sessions }: { sessions: any[] }) {
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [localReview, setLocalReview] = useState<any>(null);
   const [reflection, setReflection] = useState("");
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const utils = trpc.useUtils();
   const activeFromSnapshot = sessions.find(session => session.kind === "weekly" && session.state === "in_progress") ?? null;
   const review = localReview ?? activeFromSnapshot;
-  const completedReviews = sessions.filter(session => session.kind === "weekly" && session.state === "completed").slice(0, 3);
-  const refresh = () => utils.planner.workspace.snapshot.invalidate();
-  const start = trpc.planner.review.start.useMutation({ onSuccess: session => { setLocalReview(session); refresh(); } });
-  const complete = trpc.planner.review.complete.useMutation({ onSuccess: session => { setLocalReview(session); refresh(); } });
+  const historyQuery = trpc.planner.review.history.useQuery({ ...scope, limit: 12 });
+  const completedReviews = (historyQuery.data ?? sessions).filter(session => session.state === "completed").slice(0, 8);
+  const refresh = () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); };
+  const start = trpc.planner.review.start.useMutation({ onSuccess: session => { setReviewError(null); setLocalReview(session); refresh(); }, onError: error => setReviewError(error.message || "The weekly review could not open. Refresh and try again.") });
+  const complete = trpc.planner.review.complete.useMutation({ onSuccess: session => { setReviewError(null); setLocalReview(session); refresh(); }, onError: error => setReviewError(error.message || "The review could not be saved. Keep your reflection and try again.") });
   const periodStartLocalDate = shiftLocalDate(today, -6);
-  const history = completedReviews.length ? <div className="review-history" aria-label="Recent completed weekly reviews"><span>Recent completed reviews</span>{completedReviews.map(session => <div key={session.id}><strong>{session.periodStartLocalDate} → {session.periodEndLocalDate}</strong><p>{session.reflection || "Completed without a written reflection."}</p></div>)}</div> : null;
-  if (!review) return <div className="review-ritual"><div><span>Weekly review</span><p>Clear the week, name what changed, and choose one honest next move.</p></div><Button type="button" variant="ghost" onClick={() => start.mutate({ ...scope, kind: "weekly", periodStartLocalDate, periodEndLocalDate: today, snapshot: { openPeriod: true } })} disabled={start.isPending}>{start.isPending ? "Opening…" : "Begin review"}</Button>{history}</div>;
-  if (review.state === "completed") return <div className="review-ritual"><div><span>Weekly review</span><p>Reflection saved. The next review can begin when you are ready.</p></div><Button type="button" variant="ghost" onClick={() => { setLocalReview(null); setReflection(""); }}>New review</Button>{history}</div>;
-  return <div className="review-ritual is-active"><span>Weekly review · {review.periodStartLocalDate} to {review.periodEndLocalDate}</span><textarea value={reflection} onChange={event => setReflection(event.target.value)} placeholder="What moved, what was blocked, and what will change next week?" aria-label="Weekly review reflection" /><Button type="button" className="primary-action" onClick={() => complete.mutate({ ...scope, id: review.id, expectedVersion: review.version, reflection: reflection.trim() || null })} disabled={complete.isPending}>{complete.isPending ? "Saving…" : "Close review"}</Button>{history}</div>;
+  const history = historyQuery.error ? <p className="form-error" role="alert">Saved review history is unavailable: {historyQuery.error.message}</p> : completedReviews.length ? <div className="review-history" aria-label="Recent completed reviews"><span>Recent completed reviews</span>{completedReviews.map(session => <div key={session.id}><strong>{session.kind} · {session.periodStartLocalDate} → {session.periodEndLocalDate}</strong><p>{session.reflection || "Completed without a written reflection."}</p></div>)}</div> : null;
+  const error = reviewError ? <p className="form-error" role="alert">{reviewError}</p> : null;
+  if (!review) return <div className="review-ritual"><div><span>Weekly review</span><p>Clear the week, name what changed, and choose one honest next move.</p></div><Button type="button" variant="ghost" onClick={() => { setReviewError(null); start.mutate({ ...scope, kind: "weekly", periodStartLocalDate, periodEndLocalDate: today, snapshot: { openPeriod: true } }); }} disabled={start.isPending}>{start.isPending ? "Opening…" : "Begin review"}</Button>{error}{history}</div>;
+  if (review.state === "completed") return <div className="review-ritual"><div><span>Weekly review</span><p>Reflection saved. The next review can begin when you are ready.</p></div><Button type="button" variant="ghost" onClick={() => { setReviewError(null); setLocalReview(null); setReflection(""); }}>New review</Button>{error}{history}</div>;
+  return <div className="review-ritual is-active"><span>Weekly review · {review.periodStartLocalDate} to {review.periodEndLocalDate}</span><textarea value={reflection} onChange={event => { setReflection(event.target.value); setReviewError(null); }} placeholder="What moved, what was blocked, and what will change next week?" aria-label="Weekly review reflection" /><Button type="button" className="primary-action" onClick={() => { setReviewError(null); complete.mutate({ ...scope, id: review.id, expectedVersion: review.version, reflection: reflection.trim() || null }); }} disabled={complete.isPending}>{complete.isPending ? "Saving…" : "Close review"}</Button>{error}{history}</div>;
 }
 
 function PlanningHealthStrip() {

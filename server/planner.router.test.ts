@@ -291,4 +291,14 @@ describe("planner task API", () => {
     expect(search).toHaveBeenCalledWith({ workspaceId: input.workspaceId, timezone: input.timezone }, { query: input.query, limit: input.limit });
     search.mockRestore();
   });
+
+  it("returns a bounded, workspace-scoped saved review history through the review contract", async () => {
+    const history = vi.spyOn(planning, "getReviewHistory").mockResolvedValue([{ id: "review-history-1", kind: "monthly", state: "completed" }] as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", limit: 12 };
+
+    await expect(caller.planner.review.history(input)).resolves.toMatchObject([{ id: "review-history-1", kind: "monthly" }]);
+    expect(history).toHaveBeenCalledWith({ workspaceId: input.workspaceId, timezone: input.timezone }, { limit: input.limit });
+    history.mockRestore();
+  });
 });

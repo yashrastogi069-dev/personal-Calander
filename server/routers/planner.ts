@@ -30,6 +30,7 @@ import {
   disablePushSubscription,
   getDashboard,
   getHabitPracticeEvidence,
+  getReviewHistory,
   getPushDeviceForEndpoint,
   getPushDevices,
   getWorkspaceSnapshot,
@@ -359,6 +360,10 @@ export const plannerRouter = router({
     }),
   }),
   review: router({
+    history: publicProcedure.input(scope.extend({ limit: z.number().int().min(1).max(24).default(12) })).query(async ({ input }) => {
+      const { workspaceId, timezone, ...history } = input;
+      return getReviewHistory({ workspaceId, timezone }, history);
+    }),
     start: publicProcedure.input(scope.extend({ kind: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]), periodStartLocalDate: dateString, periodEndLocalDate: dateString, snapshot: z.record(z.string(), z.unknown()).optional() })).mutation(async ({ input }) => startReviewSession(input, input)),
     complete: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), reflection: z.string().max(5000).nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...review } = input;

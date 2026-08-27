@@ -159,6 +159,11 @@ export async function searchWorkspace(scope: PlannerScope, input: { query: strin
   ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()).slice(0, input.limit);
 }
 
+export async function getReviewHistory(scope: PlannerScope, input: { limit: number }) {
+  const db = await requireDb();
+  return db.select().from(reviewSessions).where(eq(reviewSessions.workspaceId, scope.workspaceId)).orderBy(desc(reviewSessions.periodEndLocalDate), desc(reviewSessions.updatedAt)).limit(input.limit);
+}
+
 export async function createCategory(scope: PlannerScope, input: { name: string; color: string; sortOrder?: number }) {
   const db = await requireDb();
   const id = nanoid();
