@@ -40,6 +40,7 @@ import {
   prepareReminderRule,
   getReminderRules,
   resolveTaskOccurrence,
+  reserveTask,
   revokeCalendarFeed,
   restoreGoal,
   restoreHabit,
@@ -233,6 +234,10 @@ export const plannerRouter = router({
     update: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(), dueLocalDate: dateString.nullable().optional(), scheduledLocalDate: dateString.nullable().optional(), plannedStartAt: z.date().nullable().optional(), plannedEndAt: z.date().nullable().optional(), estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(), scheduleMode: z.enum(["manual", "flexible", "pinned"]).optional(), categoryId: z.string().nullable().optional(), goalId: z.string().nullable().optional(), projectId: z.string().nullable().optional(), parentTaskId: z.string().nullable().optional(), sortOrder: z.number().int().optional(), recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(), recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(), recurrenceUntilLocalDate: dateString.nullable().optional() }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "Reserved time must end after it starts." }) })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion, patch } = input;
       try { return await updateTask({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
+    }),
+    reserve: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), localDate: dateString, plannedStartAt: z.date(), plannedEndAt: z.date() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...reservation } = input;
+      try { return await reserveTask({ workspaceId, timezone }, reservation); } catch (error) { return plannerError(error); }
     }),
     bulkSetState: publicProcedure.input(scope.extend({ ids: z.array(z.string()).min(1).max(100), state: lifecycle })).mutation(async ({ input }) => bulkSetTaskState(input, { ids: input.ids, state: input.state })),
     addDependency: publicProcedure.input(scope.extend({ taskId: z.string(), dependsOnTaskId: z.string(), dependencyType: z.enum(["hard", "soft"]).default("hard") })).mutation(async ({ input }) => createTaskDependency(input, input)),

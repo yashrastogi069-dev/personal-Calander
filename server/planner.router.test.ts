@@ -63,6 +63,16 @@ describe("planner task API", () => {
     update.mockRestore();
   });
 
+  it("passes an explicit version-safe manual reservation through the task contract", async () => {
+    const reserve = vi.spyOn(planning, "reserveTask").mockResolvedValue({ id: "task-reserve-1", version: 2, scheduledLocalDate: "2026-08-28" } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland", id: "task-reserve-1", expectedVersion: 1, localDate: "2026-08-28", plannedStartAt: new Date("2026-08-27T21:00:00.000Z"), plannedEndAt: new Date("2026-08-27T21:30:00.000Z") };
+
+    await expect(caller.planner.task.reserve(input)).resolves.toMatchObject({ id: "task-reserve-1", version: 2 });
+    expect(reserve).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: input.workspaceId, timezone: input.timezone }), expect.objectContaining({ id: input.id, expectedVersion: 1, localDate: input.localDate, plannedStartAt: input.plannedStartAt, plannedEndAt: input.plannedEndAt }));
+    reserve.mockRestore();
+  });
+
   it("validates the habit undo and skipped-state contracts before persistence", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", habitId: "habit-api-check" };

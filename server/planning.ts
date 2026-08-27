@@ -35,6 +35,7 @@ import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceR
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
 import { reorderCommittedDailyPlanItems } from "../shared/dailyPlanOrdering";
+import { reservationConflictMessage, validateTaskReservation, validateTaskReservationWindow } from "../shared/taskReservation";
 import { reminderDueAt, type ReminderSchedule } from "./reminderSchedule";
 import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
@@ -387,6 +388,44 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
   if (patch.state === "archived") patch.archivedAt = new Date();
   if (patch.state && patch.state !== "archived") patch.archivedAt = null;
   await db.update(tasks).set(patch).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id), eq(tasks.version, input.expectedVersion)));
+  const updated = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+/**
+ * Creates, moves, or resizes the one calendar projection owned by a task.
+ * The task reservation is intentionally separate from approval-first flexible proposals.
+ */
+export async function reserveTask(scope: PlannerScope, input: { id: string; expectedVersion: number; localDate: string; plannedStartAt: Date; plannedEndAt: Date }) {
+  const db = await requireDb();
+  const [task, otherTasks, events, workspaceRows, exceptionRows] = await Promise.all([
+    db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1),
+    db.select().from(tasks).where(eq(tasks.workspaceId, scope.workspaceId)),
+    db.select().from(externalEvents).where(and(eq(externalEvents.workspaceId, scope.workspaceId), eq(externalEvents.status, "active"))),
+    db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1),
+    db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), eq(planningAvailabilityExceptions.localDate, input.localDate))).limit(1),
+  ]);
+  const existing = task[0];
+  if (!existing) throw new Error("Task was not found.");
+  const workspace = workspaceRows[0];
+  if (!workspace) throw new Error("Planning workspace was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  if (existing.state === "completed" || existing.state === "archived") throw new Error("Completed or archived tasks cannot reserve calendar time. Restore the task before planning it.");
+
+  const validation = validateTaskReservation({ localDate: input.localDate, timezone: scope.timezone, plannedStartAt: input.plannedStartAt, plannedEndAt: input.plannedEndAt });
+  if (validation) throw new Error(validation);
+  const exception = exceptionRows[0];
+  const workWindowValidation = validateTaskReservationWindow({ timezone: scope.timezone, plannedStartAt: input.plannedStartAt, plannedEndAt: input.plannedEndAt, workdayStartsAt: exception?.isUnavailable ? "00:00" : (exception?.workdayStartsAt ?? workspace.workdayStartsAt), workdayEndsAt: exception?.isUnavailable ? "00:00" : (exception?.workdayEndsAt ?? workspace.workdayEndsAt) });
+  if (workWindowValidation) throw new Error(workWindowValidation);
+  const busyIntervals = [
+    ...otherTasks.filter(item => item.id !== existing.id && item.state !== "completed" && item.state !== "archived" && item.plannedStartAt && item.plannedEndAt).map(item => ({ startsAt: item.plannedStartAt!, endsAt: item.plannedEndAt! })),
+    ...events.map(event => ({ startsAt: event.startsAt, endsAt: event.endsAt })),
+  ];
+  const conflict = reservationConflictMessage({ startsAt: input.plannedStartAt, endsAt: input.plannedEndAt }, busyIntervals);
+  if (conflict) throw new Error(conflict);
+
+  await db.update(tasks).set({ scheduledLocalDate: input.localDate, plannedStartAt: input.plannedStartAt, plannedEndAt: input.plannedEndAt, scheduleMode: existing.scheduleMode === "pinned" ? "pinned" : "manual", version: input.expectedVersion + 1 }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id), eq(tasks.version, input.expectedVersion)));
   const updated = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;

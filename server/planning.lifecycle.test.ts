@@ -3,13 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./db", () => ({ getDb: vi.fn() }));
 
 import { getDb } from "./db";
-import { bulkSetTaskState, updateTask } from "./planning";
+import { bulkSetTaskState, reserveTask, updateTask } from "./planning";
 
 const mockedGetDb = vi.mocked(getDb);
 const scope = { workspaceId: "lifecycle-service-test", timezone: "UTC" };
 
 function selection(row: unknown) {
   return { from: vi.fn(() => ({ where: vi.fn(() => ({ limit: vi.fn().mockResolvedValue([row]) })) })) };
+}
+
+function collection(rows: unknown[]) {
+  return { from: vi.fn(() => ({ where: vi.fn().mockResolvedValue(rows) })) };
 }
 
 function bulkDatabase(rows: unknown[]) {
@@ -65,5 +69,39 @@ describe("planner task lifecycle persistence", () => {
 
     await expect(updateTask(scope, { id: existing.id, expectedVersion: existing.version, patch: { title: "Keep links coherent" } })).rejects.toThrow("linked to a different goal");
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("keeps a stale or completed task unchanged before issuing a manual reservation update", async () => {
+    const stale = { id: "task-stale-reservation", workspaceId: scope.workspaceId, state: "not_started", version: 3 };
+    const staleSelect = vi.fn().mockReturnValueOnce(selection(stale)).mockReturnValueOnce(collection([])).mockReturnValueOnce(collection([])).mockReturnValueOnce(selection({ workdayStartsAt: "09:00", workdayEndsAt: "17:00" })).mockReturnValueOnce(selection(null));
+    const staleUpdate = vi.fn();
+    mockedGetDb.mockResolvedValue({ select: staleSelect, update: staleUpdate } as never);
+    await expect(reserveTask(scope, { id: stale.id, expectedVersion: 2, localDate: "2026-08-28", plannedStartAt: new Date("2026-08-28T09:00:00.000Z"), plannedEndAt: new Date("2026-08-28T09:30:00.000Z") })).rejects.toThrow("changed elsewhere");
+    expect(staleUpdate).not.toHaveBeenCalled();
+
+    const completed = { ...stale, id: "task-completed-reservation", state: "completed", version: 4 };
+    const completedSelect = vi.fn().mockReturnValueOnce(selection(completed)).mockReturnValueOnce(collection([])).mockReturnValueOnce(collection([])).mockReturnValueOnce(selection({ workdayStartsAt: "09:00", workdayEndsAt: "17:00" })).mockReturnValueOnce(selection(null));
+    const completedUpdate = vi.fn();
+    mockedGetDb.mockResolvedValue({ select: completedSelect, update: completedUpdate } as never);
+    await expect(reserveTask(scope, { id: completed.id, expectedVersion: completed.version, localDate: "2026-08-28", plannedStartAt: new Date("2026-08-28T09:00:00.000Z"), plannedEndAt: new Date("2026-08-28T09:30:00.000Z") })).rejects.toThrow("Completed or archived");
+    expect(completedUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an external busy overlap and persists an eligible manual reservation with its version check", async () => {
+    const task = { id: "task-manual-reservation", workspaceId: scope.workspaceId, state: "not_started", version: 4, scheduleMode: "flexible" };
+    const busySelect = vi.fn().mockReturnValueOnce(selection(task)).mockReturnValueOnce(collection([])).mockReturnValueOnce(collection([{ startsAt: new Date("2026-08-28T09:00:00.000Z"), endsAt: new Date("2026-08-28T10:00:00.000Z") }])).mockReturnValueOnce(selection({ workdayStartsAt: "09:00", workdayEndsAt: "17:00" })).mockReturnValueOnce(selection(null));
+    const busyUpdate = vi.fn();
+    mockedGetDb.mockResolvedValue({ select: busySelect, update: busyUpdate } as never);
+    await expect(reserveTask(scope, { id: task.id, expectedVersion: task.version, localDate: "2026-08-28", plannedStartAt: new Date("2026-08-28T09:15:00.000Z"), plannedEndAt: new Date("2026-08-28T09:45:00.000Z") })).rejects.toThrow("overlaps reserved or read-only busy");
+    expect(busyUpdate).not.toHaveBeenCalled();
+
+    const updated = { ...task, version: 5, scheduledLocalDate: "2026-08-28", plannedStartAt: new Date("2026-08-28T10:00:00.000Z"), plannedEndAt: new Date("2026-08-28T10:30:00.000Z"), scheduleMode: "manual" };
+    const whereUpdate = vi.fn().mockResolvedValue({ rowsAffected: 1 });
+    const set = vi.fn(() => ({ where: whereUpdate }));
+    const validSelect = vi.fn().mockReturnValueOnce(selection(task)).mockReturnValueOnce(collection([])).mockReturnValueOnce(collection([])).mockReturnValueOnce(selection({ workdayStartsAt: "09:00", workdayEndsAt: "17:00" })).mockReturnValueOnce(selection(null)).mockReturnValueOnce(selection(updated));
+    mockedGetDb.mockResolvedValue({ select: validSelect, update: vi.fn(() => ({ set })) } as never);
+    await expect(reserveTask(scope, { id: task.id, expectedVersion: task.version, localDate: "2026-08-28", plannedStartAt: updated.plannedStartAt, plannedEndAt: updated.plannedEndAt })).resolves.toEqual(updated);
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ scheduledLocalDate: "2026-08-28", plannedStartAt: updated.plannedStartAt, plannedEndAt: updated.plannedEndAt, scheduleMode: "manual", version: 5 }));
+    expect(whereUpdate).toHaveBeenCalledTimes(1);
   });
 });
