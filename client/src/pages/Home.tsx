@@ -824,7 +824,8 @@ export default function Home() {
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("q") ?? "");
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("Day");
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("create") === "task");
+  const [composerIntentHydrated, setComposerIntentHydrated] = useState(false);
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
   const [breakdownProject, setBreakdownProject] = useState<any | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -870,10 +871,17 @@ export default function Home() {
     const url = new URL(window.location.href);
     if (url.searchParams.get("create") !== "task") return;
     setSurface("tasks");
-    openComposer("task");
+    setComposerKind("task");
+    setComposerOpen(true);
+    setComposerIntentHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined" || !composerIntentHydrated || composerOpen) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("create") !== "task") return;
     url.searchParams.delete("create");
     window.history.replaceState(null, "", url);
-  }, []);
+  }, [composerIntentHydrated, composerOpen]);
   useEffect(() => {
     const composeHabit = () => openComposer("habit");
     const openHabitTracker = () => { setSurface("habits"); setMobileMoreOpen(false); };

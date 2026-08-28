@@ -266,3 +266,7 @@
 - [x] Audit long-horizon goal, milestone, project, and review evidence for the highest-value cross-horizon decision-support refinement.
 - [x] Research, implement, and validate the selected cross-horizon refinement with factual data, local recovery, keyboard/mobile support, documented evidence, and development-branch-only synchronization.
 - [x] Add an accessible, factual Goal runway triage that filters many active goals by review/pace/deadline attention and evidence gaps, with clear empty states and no synthetic scoring or hidden records.
+- [x] Audit the task execution calendar for visual calendar hierarchy, direct add/remove workflow clarity, high-volume density, and mobile/desktop interaction gaps.
+- [x] Research and apply a premium calendar-specific visual system that makes time, days, blocks, busy context, and task actions legible without mixing habits into the execution calendar.
+- [x] Strengthen direct calendar add, move, resize, completion, and removal behavior with clear local recovery, keyboard/touch accessibility, tests, browser evidence, and development-branch-only synchronization.
+- [x] Fix the Calendar Add task URL handoff so the existing task composer opens reliably under React Strict Mode before its query parameter is cleared.

@@ -39,6 +39,20 @@ describe("planner task lifecycle persistence", () => {
     expect(whereUpdate).toHaveBeenCalledTimes(1);
   });
 
+  it("clears only task-owned reservation timestamps when a calendar block is removed", async () => {
+    const existing = { id: "task-unreserve-1", workspaceId: scope.workspaceId, state: "in_progress", version: 6, goalId: null, projectId: null, categoryId: null, parentTaskId: null, scheduledLocalDate: "2026-08-28", plannedStartAt: new Date("2026-08-28T09:00:00.000Z"), plannedEndAt: new Date("2026-08-28T09:30:00.000Z"), estimateMinutes: 30, scheduleMode: "manual" };
+    const updated = { ...existing, plannedStartAt: null, plannedEndAt: null, version: 7 };
+    const whereUpdate = vi.fn().mockResolvedValue({ rowsAffected: 1 });
+    const set = vi.fn(() => ({ where: whereUpdate }));
+    const select = vi.fn().mockReturnValueOnce(selection(existing)).mockReturnValueOnce(selection(updated));
+    mockedGetDb.mockResolvedValue({ select, update: vi.fn(() => ({ set })) } as never);
+
+    await expect(updateTask(scope, { id: existing.id, expectedVersion: existing.version, patch: { plannedStartAt: null, plannedEndAt: null } })).resolves.toEqual(updated);
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ plannedStartAt: null, plannedEndAt: null, version: 7 }));
+    expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ scheduledLocalDate: null, state: "archived" }));
+    expect(whereUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("writes consistent timestamps and a database-side version increment for bulk completion and archive", async () => {
     const completed = bulkDatabase([{ id: "task-complete-1", state: "completed", version: 4 }]);
     mockedGetDb.mockResolvedValue(completed.db as never);
