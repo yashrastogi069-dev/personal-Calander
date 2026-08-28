@@ -270,3 +270,6 @@
 - [x] Research and apply a premium calendar-specific visual system that makes time, days, blocks, busy context, and task actions legible without mixing habits into the execution calendar.
 - [x] Strengthen direct calendar add, move, resize, completion, and removal behavior with clear local recovery, keyboard/touch accessibility, tests, browser evidence, and development-branch-only synchronization.
 - [x] Fix the Calendar Add task URL handoff so the existing task composer opens reliably under React Strict Mode before its query parameter is cleared.
+- [x] Audit the phone render across Today and Calendar at 390×844, including typography scale, brand mark, icon legibility, vertical rhythm, color contrast, scroll behavior, and touch target safety.
+- [x] Apply a focused phone-first identity system: clearer Calendar wordmark/logo treatment, deliberate icon sizing, stronger type hierarchy, simplified mobile structure, and purposeful calendar colors without ornamental controls.
+- [x] Validate responsive phone and desktop regressions with screenshots, browser interactions, tests, build, console checks, cleanup, and development-branch synchronization.
