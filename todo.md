@@ -259,3 +259,7 @@
 - [x] Reconcile the supplied competitor/product-roadmap capability list against the current implementation, distinguishing delivered functionality, guarded readiness, and genuine deferred work.
 - [x] Audit the current visual identity for stronger dark-heading hierarchy, calm calendar-specific motifs, status semantics, and reduced-motion-safe micro-interactions without adding decorative or inert controls.
 - [x] Implement and validate the highest-value remaining product-depth and visual refinements found by the reconciliation, then checkpoint and push the development branch only.
+- [x] Audit current execution flows, empty states, recovery paths, and navigation density for the highest-leverage reliability or decision-quality improvement beyond the delivered roadmap.
+- [x] Research and document a competitor-informed refinement that materially improves daily execution without enabling unapproved external automation.
+- [x] Implement and validate the selected premium-quality refinement across errors, accessibility, phone/desktop, tests, source archive, and development-branch-only synchronization.
+- [x] Add a persisted, version-safe weekly review checklist that helps the user get clear, get current, and set one concrete next-week move without creating automatic tasks or external actions.

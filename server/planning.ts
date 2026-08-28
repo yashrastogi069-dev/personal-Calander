@@ -36,6 +36,7 @@ import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceR
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
 import { reorderCommittedDailyPlanItems } from "../shared/dailyPlanOrdering";
+import { canPersistWeeklyReviewChecklist, normaliseWeeklyReviewChecklist } from "../shared/reviewChecklist";
 import { reservationConflictMessage, validateTaskReservation, validateTaskReservationWindow } from "../shared/taskReservation";
 import { secureIcsOverlayReadiness } from "../shared/icsOverlay";
 import { morningRolloverPreview } from "../shared/morningRollover";
@@ -1058,6 +1059,21 @@ export async function completeReviewSession(scope: PlannerScope, input: { id: st
   if (!existing) throw new Error("Review session was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(reviewSessions).set({ state: "completed", reflection: input.reflection ?? null, completedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id), eq(reviewSessions.version, input.expectedVersion)));
+  const updated = (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
+export async function updateReviewChecklist(scope: PlannerScope, input: { id: string; expectedVersion: number; checklist: Record<string, unknown> }) {
+  if (!canPersistWeeklyReviewChecklist(input.checklist)) throw new Error("The review checklist contained an unsupported item or value.");
+  const db = await requireDb();
+  const existing = (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Review session was not found.");
+  if (existing.state !== "in_progress") throw new Error("Only an open review checklist can be updated.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  const existingSnapshot = existing.snapshot && typeof existing.snapshot === "object" && !Array.isArray(existing.snapshot) ? existing.snapshot as Record<string, unknown> : {};
+  const snapshot = { ...existingSnapshot, weeklyChecklist: normaliseWeeklyReviewChecklist(input.checklist) };
+  await db.update(reviewSessions).set({ snapshot, version: input.expectedVersion + 1 }).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id), eq(reviewSessions.version, input.expectedVersion)));
   const updated = (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;

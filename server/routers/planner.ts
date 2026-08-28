@@ -54,6 +54,7 @@ import {
   startReviewSession,
   setReminderRuleActivation,
   updateTask,
+  updateReviewChecklist,
   updateDailyPlanItem,
   updateGoalMilestone,
   updatePlanningTemplate,
@@ -389,6 +390,10 @@ export const plannerRouter = router({
       return getReviewHistory({ workspaceId, timezone }, history);
     }),
     start: publicProcedure.input(scope.extend({ kind: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]), periodStartLocalDate: dateString, periodEndLocalDate: dateString, snapshot: z.record(z.string(), z.unknown()).optional() })).mutation(async ({ input }) => startReviewSession(input, input)),
+    updateChecklist: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), checklist: z.record(z.string(), z.boolean()) })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...review } = input;
+      try { return await updateReviewChecklist({ workspaceId, timezone }, review); } catch (error) { return plannerError(error); }
+    }),
     complete: publicProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), reflection: z.string().max(5000).nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...review } = input;
       try { return await completeReviewSession({ workspaceId, timezone }, review); } catch (error) { return plannerError(error); }

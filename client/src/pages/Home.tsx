@@ -18,6 +18,7 @@ import { localDateForReservation, plannerObjectDefinitions, taskSchedulingLangua
 import { deadlineRiskForTask, deadlineRiskLabel } from "@shared/planningForecast";
 import { taskEditorSourceKey } from "@shared/taskEditor";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
+import { ReviewChecklist } from "@/features/review/ReviewChecklist";
 import {
   mobileMorePlannerDestinations,
   mobilePlannerDestinations,
@@ -313,7 +314,7 @@ function ReviewRitual({ sessions }: { sessions: any[] }) {
   const error = reviewError ? <p className="form-error" role="alert">{reviewError}</p> : null;
   if (!review) return <div className="review-ritual"><div><span>Weekly review</span><p>Clear the week, name what changed, and choose one honest next move.</p></div><Button type="button" variant="ghost" onClick={() => { setReviewError(null); start.mutate({ ...scope, kind: "weekly", periodStartLocalDate, periodEndLocalDate: today, snapshot: { openPeriod: true } }); }} disabled={start.isPending}>{start.isPending ? "Opening…" : "Begin review"}</Button>{error}{history}</div>;
   if (review.state === "completed") return <div className="review-ritual"><div><span>Weekly review</span><p>Reflection saved. The next review can begin when you are ready.</p></div><Button type="button" variant="ghost" onClick={() => { setReviewError(null); setLocalReview(null); setReflection(""); }}>New review</Button>{error}{history}</div>;
-  return <div className="review-ritual is-active"><span>Weekly review · {review.periodStartLocalDate} to {review.periodEndLocalDate}</span><textarea value={reflection} onChange={event => { setReflection(event.target.value); setReviewError(null); }} placeholder="What moved, what was blocked, and what will change next week?" aria-label="Weekly review reflection" /><Button type="button" className="primary-action" onClick={() => { setReviewError(null); complete.mutate({ ...scope, id: review.id, expectedVersion: review.version, reflection: reflection.trim() || null }); }} disabled={complete.isPending}>{complete.isPending ? "Saving…" : "Close review"}</Button>{error}{history}</div>;
+  return <div className="review-ritual is-active"><span>Weekly review · {review.periodStartLocalDate} to {review.periodEndLocalDate}</span><ReviewChecklist review={review} onUpdated={updated => setLocalReview(updated)} /><textarea value={reflection} onChange={event => { setReflection(event.target.value); setReviewError(null); }} placeholder="What moved, what was blocked, and what will change next week?" aria-label="Weekly review reflection" /><Button type="button" className="primary-action" onClick={() => { setReviewError(null); complete.mutate({ ...scope, id: review.id, expectedVersion: review.version, reflection: reflection.trim() || null }); }} disabled={complete.isPending}>{complete.isPending ? "Saving…" : "Close review"}</Button>{error}{history}</div>;
 }
 
 function PlanningHealthStrip() {

@@ -73,6 +73,16 @@ describe("planner task API", () => {
     reserve.mockRestore();
   });
 
+  it("persists a bounded in-progress weekly review checklist through the public review contract", async () => {
+    const updateChecklist = vi.spyOn(planning, "updateReviewChecklist").mockResolvedValue({ id: "review-1", version: 3, state: "in_progress" } as never);
+    const caller = appRouter.createCaller(createPublicContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+    const checklist = { "clear-captures": true, "clear-waiting": false, "current-work": false, "current-horizons": false, "creative-next": false };
+    await expect(caller.planner.review.updateChecklist({ ...scope, id: "review-1", expectedVersion: 2, checklist })).resolves.toMatchObject({ id: "review-1", version: 3 });
+    expect(updateChecklist).toHaveBeenCalledWith(scope, { id: "review-1", expectedVersion: 2, checklist });
+    updateChecklist.mockRestore();
+  });
+
   it("keeps morning rollover review and apply explicitly scoped, dated, and version-safe", async () => {
     const preview = vi.spyOn(planning, "getMorningRolloverPreview").mockResolvedValue({ fromLocalDate: "2026-08-26", candidates: [{ id: "task-rollover-1", expectedVersion: 4, rescheduleCount: 1, plannedStartAt: new Date("2026-08-26T09:00:00.000Z"), plannedEndAt: new Date("2026-08-26T09:30:00.000Z") }] } as never);
     const apply = vi.spyOn(planning, "applyMorningRollover").mockResolvedValue({ fromLocalDate: "2026-08-26", applied: 1, alreadyApplied: 0 });
