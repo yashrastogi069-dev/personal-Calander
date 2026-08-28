@@ -263,3 +263,6 @@
 - [x] Research and document a competitor-informed refinement that materially improves daily execution without enabling unapproved external automation.
 - [x] Implement and validate the selected premium-quality refinement across errors, accessibility, phone/desktop, tests, source archive, and development-branch-only synchronization.
 - [x] Add a persisted, version-safe weekly review checklist that helps the user get clear, get current, and set one concrete next-week move without creating automatic tasks or external actions.
+- [x] Audit long-horizon goal, milestone, project, and review evidence for the highest-value cross-horizon decision-support refinement.
+- [x] Research, implement, and validate the selected cross-horizon refinement with factual data, local recovery, keyboard/mobile support, documented evidence, and development-branch-only synchronization.
+- [x] Add an accessible, factual Goal runway triage that filters many active goals by review/pace/deadline attention and evidence gaps, with clear empty states and no synthetic scoring or hidden records.
