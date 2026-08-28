@@ -256,3 +256,6 @@
 - [x] Implement accessible keyboard-first planner commands for new task, today navigation, date/grid selection, and reviewable next-free-slot reservation without intercepting text-entry shortcuts.
 - [x] Implement explicit morning rollover for unfinished prior-day reserved work, returning it to unreserved planned work with a persisted reschedule count and no hidden task-state change.
 - [x] Validate linked calendar, external-overlay, keyboard, and rollover workflows across errors, conflicts, mobile/desktop accessibility, automated tests, disposable browser data, targeted cleanup, and development-branch-only synchronization.
+- [x] Reconcile the supplied competitor/product-roadmap capability list against the current implementation, distinguishing delivered functionality, guarded readiness, and genuine deferred work.
+- [x] Audit the current visual identity for stronger dark-heading hierarchy, calm calendar-specific motifs, status semantics, and reduced-motion-safe micro-interactions without adding decorative or inert controls.
+- [x] Implement and validate the highest-value remaining product-depth and visual refinements found by the reconciliation, then checkpoint and push the development branch only.
