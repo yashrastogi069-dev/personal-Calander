@@ -24,3 +24,9 @@ The phone layout remains single-column and thumb-aware. Bottom navigation remain
 ## Scope boundary
 
 This refinement changes presentation tokens and shared visual selectors only. It does not change task, goal, project, habit, review, reservation, external ICS, reminder, or database semantics. No user planning data was created or modified.
+
+## R24 brightness correction
+
+The remaining dark board treatment was identified in the phone screenshots: the To do and In progress lanes were still intentionally dark even after the global palette update. The final correction changes those lanes to distinct light status materials: blue-sage for **To do**, mint-sage for **In progress**, and soft green for **Completed**. Status remains differentiated through hue, labels, markers, and text rather than darkness.
+
+The refreshed 390×844 screenshots show Today, Tasks, Habits, and Calendar in a brighter mineral-sage system. Calendar remains light and legible, with the seven-day rail, Add task action, inbox, and task-only timeboxing surface intact. All four destinations retain larger headings, bold content labels, and readable secondary text. `pnpm test` remains **39 files / 144 tests**, `pnpm check` passes, and `pnpm build:client` passes. No planner data or external integrations changed.

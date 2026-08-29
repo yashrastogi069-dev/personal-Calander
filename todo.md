@@ -287,3 +287,8 @@
 - [x] Audit the global Personal Calendar palette, typography hierarchy, surface materials, status colors, dialogs, navigation, and embedded Calendar for a coherent premium direction.
 - [x] Apply a unified premium color system across Today, Tasks, Goals, Projects, Habits, Focus, Review, Insights, Connections, dialogs, mobile navigation, and the embedded Calendar without weakening status meaning or contrast.
 - [x] Validate whole-app light/dark rendering, phone and desktop hierarchy, focus states, touch targets, console, tests, build, and development-branch synchronization.
+- [x] Replace remaining dark whole-app surfaces and selectors with a brighter premium sage/ivory treatment, keeping dark mode available only as an intentional user/system option.
+- [x] Increase global app typography size and weight for readable headings, labels, task metadata, controls, and mobile content without causing overflow.
+- [x] Validate bright rendering, light/dark mode, phone and desktop screenshots, focus/touch states, tests, build, and push the isolated development branch.
+- [x] Remove residual dark To do/In progress task-lane surfaces and any other remaining dark content panels so the full app matches the requested brighter premium theme.
+- [x] Recheck task-lane status contrast and color meaning after the brightening pass, then rerun responsive visual and build validation.
