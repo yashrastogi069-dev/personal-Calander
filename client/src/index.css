@@ -1435,3 +1435,126 @@ html.dark .task-row.is-reschedulable::after { color:#a2b5aa; }
   .task-row-title, .project-row strong, .habit-row strong { font-size:1rem; line-height:1.3; }
   .task-row-meta, .panel-count, .workspace-pill small { font-size:.72rem; line-height:1.4; }
 }
+
+/* R23 premium whole-app visual system: mineral daylight, ink hierarchy, verdigris action color. */
+:root {
+  --background:#f1f5f2;
+  --foreground:#17352c;
+  --card:#fbfdfb;
+  --card-foreground:#17352c;
+  --popover:#ffffff;
+  --popover-foreground:#17352c;
+  --primary:#2f8b6c;
+  --primary-foreground:#f7fffb;
+  --secondary:#e3eee8;
+  --secondary-foreground:#245244;
+  --muted:#e7f0eb;
+  --muted-foreground:#557267;
+  --accent:#d7eee3;
+  --accent-foreground:#173f31;
+  --destructive:#b84f43;
+  --destructive-foreground:#fff9f7;
+  --border:#c9ddd3;
+  --input:#c1d7cc;
+  --ring:#2f8b6c;
+}
+.dark {
+  --background:#13221d;
+  --foreground:#eef9f3;
+  --card:#1c322a;
+  --card-foreground:#eef9f3;
+  --popover:#203a30;
+  --popover-foreground:#eef9f3;
+  --primary:#82d6b2;
+  --primary-foreground:#12382d;
+  --secondary:#29483b;
+  --secondary-foreground:#d9f0e5;
+  --muted:#20382f;
+  --muted-foreground:#b1cfc1;
+  --accent:#2c5142;
+  --accent-foreground:#edfff6;
+  --destructive:#e8897d;
+  --destructive-foreground:#24110e;
+  --border:#416757;
+  --input:#527967;
+  --ring:#9be8c8;
+}
+html { background:var(--background); color-scheme:light; }
+html.dark { color-scheme:dark; }
+body { background:var(--background); color:var(--foreground); }
+::selection { background:rgba(84,181,143,.28); color:#17352c; }
+::-webkit-scrollbar-track { background:var(--background); }
+::-webkit-scrollbar-thumb { background:#a5c4b5; border-color:var(--background); }
+::-webkit-scrollbar-thumb:hover { background:#63a889; }
+.planner-shell { background:radial-gradient(circle at 76% -5%,rgba(110,199,164,.17),transparent 27rem),#f1f5f2; }
+.planner-rail { background:rgba(238,245,241,.9); border-right-color:#c9ddd3; }
+.brand-lockup { color:#5f7c70; }
+.brand-lockup b { color:#17352c; }
+.brand-mark { border-color:#55b995; }
+.brand-mark span { background:#55b995; }
+.planner-nav button { color:#5f7c70; font-weight:650; }
+.planner-nav button:hover { color:#17352c; background:#e0eee7; }
+.planner-nav button.is-active { color:#173f31; background:#d9ece3; box-shadow:inset 0 1px 0 rgba(255,255,255,.8); }
+.planner-nav button.is-active::before { background:#2f8b6c; }
+.planner-nav i { color:#f5fffa; background:#2f8b6c; }
+.workspace-avatar { background:#d4eadf; color:#2f8b6c; }
+.workspace-pill strong { color:#315b4c; }
+.workspace-pill small,.rail-footer > button { color:#648276; }
+.planner-main { background:transparent; }
+.planner-topbar { border-bottom-color:#c9ddd3; }
+.top-date,.eyebrow { color:#547668; font-weight:750; }
+.planner-topbar h1 { color:#17352c; font-weight:850; }
+.quick-capture { border-color:#c7ddd2; background:#fbfdfb; }
+.quick-capture:focus-within { border-color:#61b595; background:#ffffff; }
+.quick-capture svg { color:#2f8b6c; }
+.quick-capture input { color:#17352c; }
+.icon-quiet { color:#527669; }
+.icon-quiet:hover { color:#17352c; background:#dfeee7; }
+.primary-action { background:#2f8b6c; color:#f6fffb; box-shadow:0 5px 18px rgba(47,139,108,.16); }
+.primary-action:hover { background:#25795c; box-shadow:0 7px 22px rgba(47,139,108,.23); }
+.focus-panel,.timeline-panel,.goal-panel,.habit-panel,.analytics-panel,.planning-band,.work-surface,.calendar-surface,.review-surface { border-color:#c7ddd2; background:#fbfdfb; box-shadow:0 8px 28px rgba(32,83,62,.045); }
+.focus-panel { background:linear-gradient(145deg,#edf8f2,#fbfdfb 58%); border-color:#afd3c0; }
+.timeline-panel { background:linear-gradient(180deg,#f4f9f6,#fbfdfb); }
+.panel-heading h2,.timeline-heading h2 { color:#17352c; font-weight:850; }
+.panel-count { color:#547668; font-weight:750; }
+.task-row { border-top-color:#d8e6df; }
+.task-row:hover { background:#edf6f1; }
+.task-row-title { color:#244b3d; font-weight:700; }
+.task-row-meta { color:#547668; font-weight:700; }
+.task-check { border-color:#8db5a3; background:#f8fcfa; }
+.task-check:hover,.task-check.is-checked { border-color:#2f8b6c; }
+.task-check.is-checked { background:#2f8b6c; color:#fff; }
+.task-priority { color:#527669; }
+.timeline-heading h2,.time-block-title { color:#244b3d; font-weight:800; }
+.date-pager button,.matrix-header button { color:#527669; }
+.date-pager button:hover,.matrix-header button:hover { color:#17352c; background:#dfeee7; }
+.time-slot time { color:#628274; font-weight:700; }
+.time-slot-line { border-top-color:#d8e6df; }
+.time-block { color:#245244; background:#d4eee1; font-weight:750; }
+.timeline-empty { color:#5f7c70; border-color:#b8d3c5; }
+.goal-line,.goal-line-top { color:#315b4c; }
+.goal-line { border-top-color:#d8e6df; }
+.goal-line-top strong,.text-button { color:#2f8b6c; font-weight:800; }
+.goal-progress { background:#dbe9e2; }
+.goal-progress > div { background:#55b995; }
+.destination-loading { border-color:#b6d6c5; background:linear-gradient(135deg,#e7f5ed,#fbfdfb 70%); color:#527669; }
+.destination-loading span { background:#cbe2d6; }
+.destination-loading span::after { background:#55b995; }
+.destination-loading p { font-weight:750; }
+.mobile-planner-nav { background:rgba(247,251,249,.95); border-color:#c7ddd2; box-shadow:0 -8px 25px rgba(35,81,61,.1); }
+.mobile-planner-nav button { color:#527669; }
+.mobile-planner-nav button.is-active { color:#1f634c; background:#dcefe6; }
+.mobile-more-sheet { background:#fbfdfb; border-color:#c7ddd2; }
+.dark .planner-shell { background:radial-gradient(circle at 76% -5%,rgba(103,203,162,.13),transparent 27rem),#13221d; }
+.dark .planner-rail { background:rgba(18,34,28,.92); border-right-color:#365a4a; }
+.dark .brand-lockup b,.dark .planner-topbar h1,.dark .panel-heading h2,.dark .timeline-heading h2 { color:#effbf4; }
+.dark .planner-nav button { color:#a6c4b5; }
+.dark .planner-nav button:hover { color:#f1fff7; background:#234236; }
+.dark .planner-nav button.is-active { color:#f1fff7; background:#2a5141; }
+.dark .quick-capture,.dark .focus-panel,.dark .timeline-panel,.dark .goal-panel,.dark .habit-panel,.dark .analytics-panel,.dark .planning-band,.dark .work-surface,.dark .calendar-surface,.dark .review-surface { background:#1c322a; border-color:#416757; }
+.dark .planner-topbar,.dark .task-row,.dark .time-slot-line { border-color:#365a4a; }
+.dark .planner-topbar h1,.dark .task-row-title,.dark .task-check { color:#eef9f3; }
+.dark .task-row:hover { background:#234236; }
+.dark .task-row-meta,.dark .panel-count,.dark .time-slot time { color:#aac7b8; }
+.dark .mobile-planner-nav,.dark .mobile-more-sheet { background:rgba(20,39,31,.96); border-color:#416757; }
+@media (max-width:680px) { .planner-topbar h1 { font-size:35px; }.panel-heading h2,.timeline-heading h2 { font-size:19px; }.task-row-title { font-size:14px; }.task-row-meta { font-size:11px; } }

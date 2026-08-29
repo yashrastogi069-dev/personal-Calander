@@ -281,3 +281,9 @@
 - [x] Add tested touch swipe navigation for adjacent Calendar days while retaining visible previous/next tap controls and preventing horizontal swipes from hijacking vertical grid scrolling.
 - [x] Audit and replace the dedicated Calendar execution palette with a lighter medium verdigris treatment that keeps time hierarchy and task/block contrast readable on iPhone.
 - [x] Revalidate the phone-first pass after the Calendar palette change, including touch/day swipe, offline status, skeleton loading, system theme, desktop regression, full tests/build, and branch synchronization.
+- [x] Restore the earlier user-preferred premium verdigris Calendar direction and remove the darker medium-green override.
+- [x] Increase Calendar phone and desktop typography size, weight, and contrast while preserving hierarchy, touch targets, block readability, and responsive layout.
+- [x] Revalidate screenshots, browser console, tests, build, and development-branch synchronization after the visual rollback.
+- [x] Audit the global Personal Calendar palette, typography hierarchy, surface materials, status colors, dialogs, navigation, and embedded Calendar for a coherent premium direction.
+- [x] Apply a unified premium color system across Today, Tasks, Goals, Projects, Habits, Focus, Review, Insights, Connections, dialogs, mobile navigation, and the embedded Calendar without weakening status meaning or contrast.
+- [x] Validate whole-app light/dark rendering, phone and desktop hierarchy, focus states, touch targets, console, tests, build, and development-branch synchronization.
