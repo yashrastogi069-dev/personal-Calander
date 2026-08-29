@@ -31,7 +31,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
-        defaultTheme="dark"
+        defaultTheme="system"
       >
         <TooltipProvider>
           <Toaster />

@@ -4,8 +4,9 @@ import { trpc } from "@/lib/trpc";
 import { isTaskCalendarProjection, roundedTaskReservationMinutes, taskReservationGridMinutes, taskReservationLocalParts } from "@shared/taskReservation";
 import { zonedDateTimeToUtc } from "@shared/planningAvailability";
 import { nextFreeReservationMinute, plannerShortcutCommand } from "@shared/plannerKeyboard";
+import { resolveMobileCalendarGesture } from "@shared/mobileCalendarGesture";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, GripVertical, Inbox, LockKeyhole, MoveRight, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import "./calendar-execution.css";
 
@@ -44,8 +45,17 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const calendarPointerStart = useRef<{ x: number; y: number; pointerType: string } | null>(null);
   const reserveTask = trpc.planner.task.reserve.useMutation();
   const nearbyDates = useMemo(() => Array.from({ length: 7 }, (_, index) => shiftLocalDate(selectedDate, index - 3)), [selectedDate]);
+  const recordCalendarPointerStart = (event: React.PointerEvent<HTMLElement>) => { calendarPointerStart.current = { x: event.clientX, y: event.clientY, pointerType: event.pointerType }; };
+  const resolveCalendarSwipe = (event: React.PointerEvent<HTMLElement>) => {
+    const start = calendarPointerStart.current;
+    calendarPointerStart.current = null;
+    if (!start) return;
+    const direction = resolveMobileCalendarGesture({ pointerType: start.pointerType, startX: start.x, startY: start.y, endX: event.clientX, endY: event.clientY });
+    if (direction) setSelectedDate(date => shiftLocalDate(date, direction));
+  };
 
   const exception = snapshot.planningAvailabilityExceptions.find(item => item.localDate === selectedDate);
   const workStart = exception?.isUnavailable ? 0 : minutesForTime(exception?.workdayStartsAt ?? snapshot.workspace.workdayStartsAt);
@@ -180,7 +190,7 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
       <div><h2 id="calendar-execution-heading">Reserve real focus time</h2><p>Tasks own their calendar blocks. Drag or select an inbox task, then place it deliberately; completing the task removes its block.</p></div>
       <div className="calendar-execution-header-actions"><button type="button" className="calendar-create-task" onClick={() => window.location.assign("/?surface=tasks&create=task")}><Plus size={15} /> Add task</button><div className="calendar-execution-day-controls"><button type="button" aria-label="Previous calendar day" onClick={() => setSelectedDate(date => shiftLocalDate(date, -1))}><ChevronLeft size={17} /></button><strong>{displayLocalDate(selectedDate, scope.timezone, { weekday: "short", month: "short", day: "numeric" })}</strong><button type="button" aria-label="Next calendar day" onClick={() => setSelectedDate(date => shiftLocalDate(date, 1))}><ChevronRight size={17} /></button></div></div>
     </header>
-    <nav className="calendar-date-rail" aria-label="Choose a nearby calendar day">{nearbyDates.map(date => <button type="button" key={date} className={cn(date === selectedDate && "is-selected", date === today && "is-today")} aria-current={date === selectedDate ? "date" : undefined} onClick={() => setSelectedDate(date)}><span>{displayLocalDate(date, scope.timezone, { weekday: "short" })}</span><b>{displayLocalDate(date, scope.timezone, { day: "numeric" })}</b><small>{date === today ? "Today" : date === selectedDate ? "Selected" : ""}</small></button>)}</nav>
+    <nav className="calendar-date-rail" aria-label="Choose a nearby calendar day" onPointerDown={recordCalendarPointerStart} onPointerUp={resolveCalendarSwipe} onPointerCancel={() => { calendarPointerStart.current = null; }}>{nearbyDates.map(date => <button type="button" key={date} className={cn(date === selectedDate && "is-selected", date === today && "is-today")} aria-current={date === selectedDate ? "date" : undefined} onClick={() => setSelectedDate(date)}><span>{displayLocalDate(date, scope.timezone, { weekday: "short" })}</span><b>{displayLocalDate(date, scope.timezone, { day: "numeric" })}</b><small>{date === today ? "Today" : date === selectedDate ? "Selected" : ""}</small></button>)}</nav>
     <div className="calendar-execution-note"><CalendarDays size={16} /><span><b>Manual reservation</b> changes only this task’s plan and time block. Flexible proposals remain review-first.</span></div>
     <section className="calendar-rollover" aria-labelledby="calendar-rollover-heading"><div><h3 id="calendar-rollover-heading">Morning rollover</h3><p>{rolloverLoading ? "Reviewing yesterday’s unfinished reservations…" : rolloverPreview?.candidates.length ? `${rolloverPreview.candidates.length} unfinished reservation${rolloverPreview.candidates.length === 1 ? "" : "s"} from ${rolloverPreview.fromLocalDate} can return to unreserved work. Applying clears Reserve time only; task state, Plan for date, and recurrence stay unchanged.` : "No unfinished prior-day reservations are waiting for review."}</p></div>{rolloverPreview?.candidates.length ? <button type="button" onClick={() => void onApplyMorningRollover()} disabled={rolloverPending}>{rolloverPending ? "Applying rollover…" : `Apply ${rolloverPreview.candidates.length} rollover${rolloverPreview.candidates.length === 1 ? "" : "s"}`}</button> : null}</section>
     <div className="calendar-keyboard-guide" aria-label="Calendar keyboard shortcuts"><span>Keyboard</span><p><kbd>n</kbd> new task <kbd>t</kbd> today <kbd>↑</kbd><kbd>↓</kbd> or <kbd>←</kbd><kbd>→</kbd> move grid selection <kbd>Enter</kbd> reserve the selected inbox task in the next free slot.</p></div>

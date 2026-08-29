@@ -103,3 +103,61 @@
   .calendar-mobile-mark { transform:none; }
   .calendar-mobile-mark span { transform:none; }
 }
+
+/* Medium Verdigris Calendar: lighter than the former dark-green cockpit, still focused enough for timeboxing. */
+.calendar-execution-page { background:radial-gradient(circle at 88% 0%, rgba(132,226,193,.2), transparent 32%), radial-gradient(circle at 8% 100%, rgba(77,145,124,.18), transparent 42%), #18362f; }
+.calendar-execution-page-top h1 { color:#f3fff8; }
+.calendar-execution-back { color:#c2ded3; }
+.calendar-execution-back:hover { color:#ffffff; }
+.calendar-execution-page-state, .calendar-execution { border-color:rgba(190,239,220,.28); background:linear-gradient(148deg,rgba(112,210,177,.18),transparent 33%), #244b41; box-shadow:0 22px 50px rgba(5,38,30,.22); }
+.calendar-execution-header { border-bottom-color:rgba(220,248,235,.18); }
+.calendar-execution-header h2, .calendar-rollover h3 { color:#f4fff8; }
+.calendar-execution-header p, .calendar-rollover p { color:#c3ddd3; }
+.calendar-create-task { color:#143a31; border-color:#91e3c5; background:#91e3c5; }
+.calendar-create-task:hover { background:#b0f0d5; }
+.calendar-execution-day-controls { border-color:rgba(222,249,236,.24); background:#2d5d50; }
+.calendar-execution-day-controls button { color:#d3eee4; }
+.calendar-execution-day-controls button:hover { color:#fff; background:#3a715f; }
+.calendar-execution-day-controls strong { color:#f3fff8; }
+.calendar-date-rail { border-bottom-color:rgba(220,248,235,.18); background:rgba(17,52,44,.64); }
+.calendar-date-rail button { color:#b4d2c6; }
+.calendar-date-rail button:hover { color:#fff; background:#356b5a; }
+.calendar-date-rail button.is-today:not(.is-selected) { color:#dcf5e9; }
+.calendar-date-rail button.is-selected { border-color:#9be8c8; background:linear-gradient(150deg,#438f78,#2d6453); box-shadow:0 7px 14px rgba(6,40,30,.24); }
+.calendar-execution-note { color:#c8e1d7; border-bottom-color:rgba(220,248,235,.16); background:rgba(101,183,153,.12); }
+.calendar-execution-note svg { color:#9be8c8; }
+.calendar-execution-note b { color:#effff7; }
+.calendar-inbox { border-right-color:rgba(220,248,235,.18); background:#1e4037; }
+.calendar-inbox-heading h3, .calendar-inbox-task b { color:#f0fff7; }
+.calendar-inbox-heading > span { color:#123a30; background:#9be8c8; }
+.calendar-inbox-help, .calendar-inbox-task small { color:#b8d2c7; }
+.calendar-inbox-task { color:#e9f9f0; border-color:rgba(220,248,235,.18); background:#2b584b; }
+.calendar-inbox-task:hover, .calendar-inbox-task.is-selected { border-color:#9be8c8; background:linear-gradient(100deg,rgba(137,223,190,.25),#315f51); }
+.calendar-inbox-task > svg { color:#b8d8ca; }
+.calendar-inbox-empty { color:#b8d2c7; }
+.calendar-inbox-empty svg { color:#9be8c8; }
+.calendar-inbox-empty button { color:#baf0d8; border-color:rgba(155,232,200,.48); }
+.calendar-day-grid-status { color:#b7d0c5; }
+.calendar-day-grid-status span:last-child { color:#b8dfea; }
+.calendar-day-grid { border-color:rgba(220,248,235,.22); background:#1a3931; }
+.calendar-grid-slot { color:#9ab7aa; border-top-color:rgba(220,248,235,.12); }
+.calendar-grid-slot time { color:#b1ccbf; }
+.calendar-grid-slot.is-ready:hover, .calendar-grid-slot.is-ready:focus-visible { background:rgba(155,232,200,.15); box-shadow:inset 3px 0 0 #9be8c8; }
+.calendar-grid-slot.is-keyboard-selected { box-shadow:inset 3px 0 0 #9be8c8, inset 0 0 0 1px rgba(155,232,200,.72); background:rgba(155,232,200,.16); }
+.calendar-grid-slot:focus-visible { outline-color:#d6ffea; }
+.calendar-grid-hint { color:#a3c3b5; }
+.calendar-task-block { color:#e5f8ed; background:linear-gradient(110deg,rgba(139,224,190,.3),rgba(39,87,72,.96)); box-shadow:0 5px 12px rgba(8,44,34,.22); }
+.calendar-task-block b { color:#f3fff8; }
+.calendar-task-block > span { color:#c3ddd1; }
+.calendar-block-complete { color:#dcfae8; border-color:rgba(155,232,200,.52); background:rgba(155,232,200,.16); }
+.calendar-block-complete:hover { background:rgba(155,232,200,.28); }
+.calendar-block-resize button { color:#c1dcd0; background:rgba(230,250,240,.13); }
+.calendar-block-resize button:hover:not(:disabled) { color:#fff; background:rgba(230,250,240,.24); }
+.calendar-busy-overlay { border-color:rgba(150,215,244,.65); background:repeating-linear-gradient(135deg,rgba(150,215,244,.18),rgba(150,215,244,.18) 6px,rgba(150,215,244,.07) 6px,rgba(150,215,244,.07) 12px); }
+.calendar-keyboard-guide { color:#c0d9ce; background:rgba(125,207,174,.1); border-bottom-color:rgba(220,248,235,.16); }
+.calendar-keyboard-guide > span { color:#e5fff1; }
+.calendar-keyboard-guide kbd { color:#effff6; border-color:rgba(193,242,218,.48); background:#2d5b4e; }
+.calendar-rollover { border-bottom-color:rgba(220,248,235,.16); background:linear-gradient(90deg,rgba(115,195,157,.18),rgba(33,78,64,.08)); }
+.calendar-rollover button { color:#143a31; border-color:#9be8c8; background:#9be8c8; }
+.calendar-execution-feedback { color:#ffe7e2; border-color:rgba(255,172,157,.62); background:rgba(180,76,65,.2); }
+@media (max-width:780px) { .calendar-inbox { border-bottom-color:rgba(220,248,235,.18); border-right:0; } }

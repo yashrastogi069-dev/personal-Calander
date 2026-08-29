@@ -273,3 +273,11 @@
 - [x] Audit the phone render across Today and Calendar at 390×844, including typography scale, brand mark, icon legibility, vertical rhythm, color contrast, scroll behavior, and touch target safety.
 - [x] Apply a focused phone-first identity system: clearer Calendar wordmark/logo treatment, deliberate icon sizing, stronger type hierarchy, simplified mobile structure, and purposeful calendar colors without ornamental controls.
 - [x] Validate responsive phone and desktop regressions with screenshots, browser interactions, tests, build, console checks, cleanup, and development-branch synchronization.
+- [x] Audit current phone interactions, offline capture, loading states, theme defaults, safe-area handling, form zoom behavior, and initial bundle cost.
+- [x] Add discoverable tap-only alternatives plus guarded swipe and long-press gestures for task actions and calendar navigation, with no destructive action triggered accidentally.
+- [x] Make the primary phone flows optimistic and offline-safe, including local pending/retry visibility, skeleton loading, safe-area insets, 16px form inputs, system theme default, and lean Home loading.
+- [x] Validate phone-first gestures, offline recovery, loading, accessibility, light/dark themes, responsive layouts, performance, tests, browser console, and development-branch synchronization.
+- [x] Document and verify branch-specific Vercel deployment prerequisites, environment-variable visibility, database/auth requirements, preview behavior, and rollback steps without changing protected main.
+- [x] Add tested touch swipe navigation for adjacent Calendar days while retaining visible previous/next tap controls and preventing horizontal swipes from hijacking vertical grid scrolling.
+- [x] Audit and replace the dedicated Calendar execution palette with a lighter medium verdigris treatment that keeps time hierarchy and task/block contrast readable on iPhone.
+- [x] Revalidate the phone-first pass after the Calendar palette change, including touch/day swipe, offline status, skeleton loading, system theme, desktop regression, full tests/build, and branch synchronization.

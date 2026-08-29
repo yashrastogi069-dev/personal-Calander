@@ -1366,3 +1366,72 @@ html, body { background:#e8ecea; color:#182420; }
 .horizon-triage { display:grid; gap:9px; margin:16px 0 18px; padding:13px; border-radius:13px; background:#edf6f0; box-shadow:0 10px 24px rgba(31,79,64,.07); }.horizon-triage-controls { display:flex; flex-wrap:wrap; gap:7px; }.horizon-triage-controls button { display:inline-flex; align-items:center; gap:7px; min-height:34px; padding:6px 9px 6px 11px; border:1px solid #c4ddce; border-radius:999px; color:#315f50; background:#fafffc; font-size:11px; font-weight:780; transition:transform 160ms var(--ease-out),background 160ms var(--ease-out),border-color 160ms var(--ease-out),color 160ms var(--ease-out); }.horizon-triage-controls button:hover { border-color:#70a68d; background:#f4fbf7; }.horizon-triage-controls button:active { transform:scale(.98); }.horizon-triage-controls button.is-active { border-color:#285f4e; color:#fff; background:#285f4e; }.horizon-triage-controls button b { display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:999px; color:#2f6653; background:#dceee3; font:750 10px "IBM Plex Mono",monospace; }.horizon-triage-controls button.is-active b { color:#f4fff8; background:#437a67; }.horizon-triage>p { margin:0; color:#52786a; font-size:11px; font-weight:620; line-height:1.45; }.horizon-card.is-review-due:not(.is-overdue):not(.is-behind) { border-color:rgba(151,116,55,.38); }.horizon-card.is-review-due:not(.is-overdue):not(.is-behind) .horizon-status { color:#85652e; }.horizon-show-more { display:flex; align-items:center; justify-content:center; width:100%; min-height:39px; margin-top:12px; border:1px solid #c1dccd; border-radius:10px; color:#2d6954; background:#f7fcf8; font-size:11px; font-weight:800; transition:transform 160ms var(--ease-out),border-color 160ms var(--ease-out),background 160ms var(--ease-out); }.horizon-show-more:hover { border-color:#73a98f; background:#eff8f2; }.horizon-show-more:active { transform:translateY(1px); }.horizon-triage-empty { display:grid; gap:4px; padding:19px; border:1px dashed #bdd8c7; border-radius:12px; color:#315f50; background:#f8fcf9; }.horizon-triage-empty strong { font-size:12px; }.horizon-triage-empty span { color:#638175; font-size:11px; line-height:1.45; }
 @media (max-width:680px) { .horizon-triage { gap:8px; margin:13px 0 15px; padding:11px; border-radius:12px; }.horizon-triage-controls { display:grid; grid-template-columns:1fr 1fr; gap:6px; }.horizon-triage-controls button { justify-content:space-between; min-width:0; min-height:36px; padding-inline:10px; text-align:left; }.horizon-triage-controls button span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }.horizon-triage>p { font-size:10px; }.horizon-show-more { min-height:42px; margin-top:10px; }.horizon-triage-empty { padding:15px; } }
 @media (max-width:680px) { .insights-workspace { gap:14px; padding:16px; border-radius:13px; }.insights-workspace>header>svg { display:none; }.insights-workspace h2 { font-size:22px; }.insights-workspace>header p { font-size:12px; }.insights-focus,.insights-carryover,.insights-allocation,.insights-reviews { padding:13px; }.insights-heading h3 { font-size:15px; }.focus-comparison>div { grid-template-columns:1fr; gap:6px; }.insights-grid { grid-template-columns:1fr; }.insights-carryover { grid-column:auto; }.review-history-list { grid-template-columns:1fr 1fr; }.review-history-list>div { padding:9px; } }
+
+/* Phone-first interaction layer: touch-safe, offline-aware and system-theme friendly. */
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+input, select, textarea { font-size: 16px; }
+.destination-loading { min-height: 18rem; display:grid; align-content:start; gap:1rem; padding:clamp(1.25rem, 4vw, 2rem); border:1px solid color-mix(in srgb, var(--border) 70%, transparent); border-radius:1.25rem; background:color-mix(in srgb, var(--card) 88%, transparent); }
+.destination-loading-heading, .destination-loading-grid { display:grid; gap:.75rem; }
+.destination-loading-grid { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.task-row { position:relative; isolation:isolate; touch-action:pan-y; }
+.task-row.is-reschedulable::after { content:"Swipe left to complete · swipe right for archive"; position:absolute; left:3.1rem; bottom:.3rem; color:color-mix(in srgb, currentColor 58%, transparent); font:500 .58rem/1.2 "IBM Plex Mono", monospace; letter-spacing:.02em; opacity:0; pointer-events:none; transition:opacity 180ms ease-out; }
+.task-row:focus-within::after, .task-row:active::after { opacity:1; }
+.task-swipe-action { position:absolute; inset:.35rem .35rem .35rem auto; z-index:3; display:flex; align-items:center; gap:.45rem; padding:.4rem .45rem .4rem .7rem; border-radius:.9rem; background:#153f37; color:#f1faf3; box-shadow:0 10px 22px rgba(4,27,23,.22); }
+.task-swipe-action span { font:500 .65rem/1.1 "IBM Plex Mono", monospace; color:#b7dfc7; }
+.task-swipe-action button { min-width:44px; min-height:40px; border:0; border-radius:.65rem; padding:.55rem .65rem; background:#bce6c8; color:#12382f; font-weight:700; }
+.task-swipe-action button:last-child { background:transparent; color:#d8f0dc; }
+.offline-capture-indicator { margin:0 10px 10px; padding:.7rem .8rem; border:1px solid color-mix(in srgb, #e5a75a 46%, transparent); border-radius:.7rem; background:color-mix(in srgb, #e5a75a 10%, transparent); color:#f0c27e; font-size:.72rem; line-height:1.4; }
+@media (max-width:720px) {
+  body { min-width:320px; overflow-x:hidden; }
+  .planner-main, .calendar-execution-main { padding-bottom:calc(5rem + env(safe-area-inset-bottom)); }
+  .planner-topbar, .calendar-execution-header { padding-top:calc(1rem + env(safe-area-inset-top)); }
+  .mobile-planner-nav { padding-bottom:calc(.45rem + env(safe-area-inset-bottom)); }
+  .mobile-planner-nav button, .mobile-more-destinations button, .calendar-create-task, .calendar-execution-day-controls button, .task-row-actions button, .task-row-reschedule button, .task-priority { min-width:44px; min-height:44px; }
+  .destination-loading-grid { grid-template-columns:1fr; }
+  .task-row { min-height:4.2rem; padding-block:.75rem; }
+  .task-row.is-reschedulable::after { opacity:1; bottom:.18rem; }
+  .task-swipe-action { position:relative; inset:auto; grid-column:1 / -1; order:-1; margin:-.25rem -.1rem .35rem; justify-content:space-between; flex-wrap:wrap; }
+}
+@media (prefers-reduced-motion:reduce) { .task-row.is-reschedulable::after, .task-swipe-action { transition:none; } }
+
+/* System dark mode: the daylight planner keeps its structure but shifts to a calm ink surface. */
+html.dark {
+  --background:#101615;
+  --foreground:#eef5ef;
+  --card:#17201d;
+  --card-foreground:#eef5ef;
+  --popover:#1b2722;
+  --popover-foreground:#eef5ef;
+  --primary:#9bd7b5;
+  --primary-foreground:#10251d;
+  --secondary:#22332c;
+  --secondary-foreground:#d9eee1;
+  --muted:#1c2823;
+  --muted-foreground:#a2b5aa;
+  --accent:#24473a;
+  --accent-foreground:#e9f8ed;
+  --destructive:#e27b73;
+  --destructive-foreground:#fff7f5;
+  --border:#30443b;
+  --input:#395248;
+  --ring:#9bd7b5;
+}
+html.dark body { background:var(--background); color:var(--foreground); }
+html.dark .planner-shell { background:radial-gradient(circle at 72% 0%, rgba(155,215,181,.07), transparent 28rem), var(--background); }
+html.dark .planner-rail, html.dark .focus-panel, html.dark .timeline-panel, html.dark .goal-panel, html.dark .habit-panel, html.dark .analytics-panel, html.dark .work-surface, html.dark .calendar-surface, html.dark .review-surface { background:#17201d; }
+html.dark .planner-rail { border-color:#30443b; }
+html.dark .planner-topbar { border-color:#30443b; }
+html.dark .planner-topbar h1, html.dark .panel-heading h2, html.dark .task-row-title { color:#eef5ef; }
+html.dark .quick-capture, html.dark .task-search, html.dark .task-lane, html.dark .project-row, html.dark .habit-row { background:#141c19; }
+html.dark .quick-capture input, html.dark input, html.dark select, html.dark textarea { color:#eef5ef; }
+html.dark .task-row.is-reschedulable::after { color:#a2b5aa; }
+
+@media (max-width:720px) {
+  .planner-main, .calendar-execution-main { padding-left:max(1rem, env(safe-area-inset-left)); padding-right:max(1rem, env(safe-area-inset-right)); }
+  .planner-topbar h1, .calendar-execution-title { font-size:clamp(1.65rem, 8vw, 2.15rem); line-height:1; }
+  .top-date, .eyebrow, .calendar-execution-eyebrow { font-size:.68rem; letter-spacing:.08em; }
+  .task-row-title, .project-row strong, .habit-row strong { font-size:1rem; line-height:1.3; }
+  .task-row-meta, .panel-count, .workspace-pill small { font-size:.72rem; line-height:1.4; }
+}
