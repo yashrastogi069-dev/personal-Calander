@@ -295,3 +295,21 @@
 - [ ] Diagnose the blank Vercel screen reported on branch revision d75205d, including production asset loading, runtime errors, routing, and environment prerequisites.
 - [ ] Apply and validate the smallest safe deployment fix, document the cause and verification, and push only the development branch.
 - [x] Write and deliver a beginner-friendly environment-variable guide with click-by-click Vercel steps, ownership boundaries, visibility rules, safe generation instructions, and a clear pause before any architecture migration.
+- [ ] Inventory every Manus OAuth, built-in API, storage, notification, analytics, environment, and framework dependency and document the independent replacement architecture.
+- [ ] Define and obtain user-controlled replacement services for authentication, database, storage, notifications, analytics, and deployment before removing the current runtime path.
+- [ ] Migrate the application behind user-controlled interfaces with data-preserving fallback, secure secrets, tests, phone validation, and no changes to protected main.
+- [ ] Validate that no Manus runtime dependency remains in the independent build, then checkpoint and push only the development branch.
+
+- [ ] Compare Supabase Free with TiDB Cloud Free and independent auth options, including MySQL compatibility, limits, sleep behavior, backups, realtime, storage, and migration risk.
+- [ ] Preserve the current frontend, visual design, routes, planner semantics, offline behavior, and all feature contracts during any infrastructure migration; add explicit regression and rollback acceptance criteria.
+- [ ] Document any unavoidable provider-related changes or possible data loss before asking for migration approval.
+
+- [ ] Migrate the backend to the user-controlled Supabase Free project while preserving all current frontend UI, UX, colors, routes, feature logic, planner rules, offline behavior, and phone interactions.
+- [ ] Recreate the current planner schema in Supabase PostgreSQL with no data-import requirement, then verify all existing tRPC contracts against the new database.
+- [ ] Replace Manus authentication, session validation, runtime API, storage, notifications, analytics, and environment dependencies with explicit user-owned interfaces.
+- [ ] Run a full zero-regression validation and remove only Manus dependencies proven unused; checkpoint and push only the development branch.
+
+- [ ] Complete Supabase Free migration on the development branch with no frontend, visual, planner, offline, or phone UX changes.
+- [ ] Determine whether existing features require file storage; use Supabase Storage by default and add R2 only if a real storage requirement remains.
+- [ ] Complete independent authentication, database schema, server adapter, VAPID push boundary, and Vercel environment/deployment preparation.
+- [ ] Validate all existing features and deployment behavior, then checkpoint and push only the development branch.

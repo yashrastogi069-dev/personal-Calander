@@ -730,7 +730,7 @@ export async function upsertHabitCheckIn(scope: PlannerScope, input: { habitId: 
   if (!habit) throw new Error("Habit was not found.");
   const id = nanoid();
   const completedAt = input.state === "completed" ? new Date() : null;
-  await db.insert(habitCheckIns).values({ id, workspaceId: scope.workspaceId, habitId: input.habitId, localDate: input.localDate, timezoneAtCheckIn: scope.timezone, state: input.state, note: input.note ?? null, completedAt }).onDuplicateKeyUpdate({ set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
+  await db.insert(habitCheckIns).values({ id, workspaceId: scope.workspaceId, habitId: input.habitId, localDate: input.localDate, timezoneAtCheckIn: scope.timezone, state: input.state, note: input.note ?? null, completedAt }).onConflictDoUpdate({ target: [habitCheckIns.habitId, habitCheckIns.localDate], set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
   return (await db.select().from(habitCheckIns).where(and(eq(habitCheckIns.habitId, input.habitId), eq(habitCheckIns.localDate, input.localDate))).limit(1))[0]!;
 }
 
@@ -789,7 +789,7 @@ export async function archivePlanningTemplate(scope: PlannerScope, input: { id: 
 export async function upsertDailyCheckIn(scope: PlannerScope, input: { localDate: string; intention?: string | null; reflection?: string | null; energy?: number | null; mood?: number | null }) {
   const db = await requireDb();
   const id = nanoid();
-  await db.insert(dailyCheckIns).values({ id, workspaceId: scope.workspaceId, ...input }).onDuplicateKeyUpdate({ set: input });
+  await db.insert(dailyCheckIns).values({ id, workspaceId: scope.workspaceId, ...input }).onConflictDoUpdate({ target: [dailyCheckIns.workspaceId, dailyCheckIns.localDate], set: input });
   return (await db.select().from(dailyCheckIns).where(and(eq(dailyCheckIns.workspaceId, scope.workspaceId), eq(dailyCheckIns.localDate, input.localDate))).limit(1))[0]!;
 }
 
@@ -879,7 +879,7 @@ export async function upsertPushSubscription(scope: PlannerScope, input: Browser
     status: "active",
     failureReason: null,
     lastSeenAt: now,
-  }).onDuplicateKeyUpdate({ set: {
+  }).onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: {
     workspaceId: scope.workspaceId,
     p256dh: input.keys.p256dh,
     auth: input.keys.auth,
