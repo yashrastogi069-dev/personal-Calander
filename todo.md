@@ -292,3 +292,6 @@
 - [x] Validate bright rendering, light/dark mode, phone and desktop screenshots, focus/touch states, tests, build, and push the isolated development branch.
 - [x] Remove residual dark To do/In progress task-lane surfaces and any other remaining dark content panels so the full app matches the requested brighter premium theme.
 - [x] Recheck task-lane status contrast and color meaning after the brightening pass, then rerun responsive visual and build validation.
+- [ ] Diagnose the blank Vercel screen reported on branch revision d75205d, including production asset loading, runtime errors, routing, and environment prerequisites.
+- [ ] Apply and validate the smallest safe deployment fix, document the cause and verification, and push only the development branch.
+- [x] Write and deliver a beginner-friendly environment-variable guide with click-by-click Vercel steps, ownership boundaries, visibility rules, safe generation instructions, and a clear pause before any architecture migration.
