@@ -26,7 +26,7 @@ export function createPlannerApp() {
   });
 
   // Scheduled delivery remains intentionally disabled until a user-owned Vercel Cron
-  // secret and delivery policy are configured. No Manus scheduler is used here.
+  // secret and delivery policy are configured.
   app.post("/api/scheduled/reminder", (_req, res) => {
     return res.status(503).json({ error: "scheduled-reminders-not-configured", message: "Configure a user-owned scheduler before enabling reminder delivery." });
   });

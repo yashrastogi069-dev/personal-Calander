@@ -7,13 +7,24 @@ import { ENV } from './_core/env';
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
+function poolConnectionString(value: string): string {
+  const parsed = new URL(value);
+  // pg v8 treats sslmode=require in a connection string as verify-full and
+  // overrides the explicit TLS object. The Session Pooler URI remains the
+  // source of truth; removing only this client-library mode lets the pool use
+  // encrypted transport with its explicit certificate policy.
+  parsed.searchParams.delete("sslmode");
+  parsed.searchParams.delete("uselibpqcompat");
+  return parsed.toString();
+}
+
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   const connectionString = process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL;
   if (!_db && connectionString) {
     try {
       _pool = new Pool({
-        connectionString,
+        connectionString: poolConnectionString(connectionString),
         max: 3,
         connectionTimeoutMillis: 10_000,
         idleTimeoutMillis: 10_000,

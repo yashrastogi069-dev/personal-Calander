@@ -32,6 +32,10 @@ Import the GitHub repository `yashrastogi069-dev/personal-Calander`, select the 
 
 The first deployment should be tested in this order: open the site, create an account, confirm the email if required, sign in, create a disposable task, refresh, move it between task lanes, open Calendar, create a time block, open Habits, complete and undo a check-in, sign out, and sign in again. Remove only the disposable records after validation.
 
-## Known boundaries
+## User-owned service boundaries
 
-This migration does not enable scheduled reminders automatically. The scheduled route returns a clear not-configured response until a user-owned Vercel Cron secret and delivery policy are approved. Push delivery continues to use the user’s VAPID keys. The optional AI/image-generation modules still require a separate user-owned provider decision; no Manus AI key should be added to this Vercel project.
+The core planner currently does not upload avatars, attachments, or generated media, so **no R2 or storage credential is required for this release**. If a future feature needs files, use a private Supabase Storage bucket first and add a separate bucket provider only after an explicit decision. Never place storage service keys in `VITE_` variables.
+
+Analytics is intentionally disabled in the independent build. No Manus analytics endpoint or website ID should be added to Vercel. If analytics is wanted later, choose a separate account or self-hosted service and add it as an explicit, documented feature.
+
+This migration does not enable scheduled reminders automatically. The scheduled route returns a clear not-configured response until a user-owned Vercel Cron secret and delivery policy are approved. Push delivery continues to use the user’s VAPID keys. The optional AI companion still requires a separate user-owned OpenAI-compatible provider decision; no Manus AI key should be added to this Vercel project.

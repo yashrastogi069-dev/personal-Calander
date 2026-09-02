@@ -8,18 +8,34 @@ import * as planning from "./planning";
 import * as focus from "./focus";
 import * as scheduling from "./scheduling";
 
-function createPublicContext(): TrpcContext {
+function createAuthenticatedContext(): TrpcContext {
+  const now = new Date("2026-01-01T00:00:00.000Z");
   return {
-    user: null,
+    user: {
+      id: 1,
+      openId: "supabase-test-user",
+      name: "Test User",
+      email: "test@example.com",
+      loginMethod: "supabase_email",
+      role: "user",
+      createdAt: now,
+      updatedAt: now,
+      lastSignedIn: now,
+    },
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: {} as TrpcContext["res"],
   };
 }
 
 describe("planner task API", () => {
+  it("rejects planner access without a validated Supabase user", async () => {
+    const caller = appRouter.createCaller({ ...createAuthenticatedContext(), user: null });
+    await expect(caller.planner.workspace.snapshot({ workspaceId: "workspace-api-check", timezone: "UTC", start: "2026-08-24", end: "2026-08-24" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("returns a model draft when readable and a disclosed safe fallback when the companion model response is unusable", async () => {
     const draft = vi.mocked(invokeLLM);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", todayLocalDate: "2026-08-26", thought: "Prepare a project status note tomorrow." };
     draft.mockResolvedValueOnce({ choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify({ kind: "task", title: "Prepare project status note", summary: "Draft a concise update.", priority: "medium", horizon: "weekly", suggestedDueLocalDate: "2026-08-27" }) }, finish_reason: "stop" }] } as never);
     await expect(caller.planner.ai.draft(input)).resolves.toMatchObject({ source: "model", title: "Prepare project status note", suggestedDueLocalDate: "2026-08-27" });
@@ -34,7 +50,7 @@ describe("planner task API", () => {
   });
 
   it("rejects a timeblock whose end precedes its start before attempting persistence", async () => {
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     await expect(caller.planner.task.create({
       workspaceId: "workspace-api-check",
       timezone: "UTC",
@@ -51,7 +67,7 @@ describe("planner task API", () => {
   it("accepts a stable offline capture id and a version-safe nearby-day reschedule through the task contract", async () => {
     const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-offline-1", version: 1 } as never);
     const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-offline-1", version: 2, scheduledLocalDate: "2026-08-26" } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
 
     await expect(caller.planner.task.create({ ...scope, title: "Offline capture", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0, scheduledLocalDate: "2026-08-25", clientRequestId: "capture-000001" })).resolves.toMatchObject({ id: "task-offline-1" });
@@ -65,7 +81,7 @@ describe("planner task API", () => {
 
   it("passes an explicit version-safe manual reservation through the task contract", async () => {
     const reserve = vi.spyOn(planning, "reserveTask").mockResolvedValue({ id: "task-reserve-1", version: 2, scheduledLocalDate: "2026-08-28" } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland", id: "task-reserve-1", expectedVersion: 1, localDate: "2026-08-28", plannedStartAt: new Date("2026-08-27T21:00:00.000Z"), plannedEndAt: new Date("2026-08-27T21:30:00.000Z") };
 
     await expect(caller.planner.task.reserve(input)).resolves.toMatchObject({ id: "task-reserve-1", version: 2 });
@@ -75,7 +91,7 @@ describe("planner task API", () => {
 
   it("persists a bounded in-progress weekly review checklist through the public review contract", async () => {
     const updateChecklist = vi.spyOn(planning, "updateReviewChecklist").mockResolvedValue({ id: "review-1", version: 3, state: "in_progress" } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
     const checklist = { "clear-captures": true, "clear-waiting": false, "current-work": false, "current-horizons": false, "creative-next": false };
     await expect(caller.planner.review.updateChecklist({ ...scope, id: "review-1", expectedVersion: 2, checklist })).resolves.toMatchObject({ id: "review-1", version: 3 });
@@ -86,7 +102,7 @@ describe("planner task API", () => {
   it("keeps morning rollover review and apply explicitly scoped, dated, and version-safe", async () => {
     const preview = vi.spyOn(planning, "getMorningRolloverPreview").mockResolvedValue({ fromLocalDate: "2026-08-26", candidates: [{ id: "task-rollover-1", expectedVersion: 4, rescheduleCount: 1, plannedStartAt: new Date("2026-08-26T09:00:00.000Z"), plannedEndAt: new Date("2026-08-26T09:30:00.000Z") }] } as never);
     const apply = vi.spyOn(planning, "applyMorningRollover").mockResolvedValue({ fromLocalDate: "2026-08-26", applied: 1, alreadyApplied: 0 });
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland", fromLocalDate: "2026-08-26" };
 
     await expect(caller.planner.task.rolloverPreview(scope)).resolves.toMatchObject({ fromLocalDate: scope.fromLocalDate, candidates: [{ id: "task-rollover-1", expectedVersion: 4 }] });
@@ -99,7 +115,7 @@ describe("planner task API", () => {
   });
 
   it("validates the habit undo and skipped-state contracts before persistence", async () => {
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", habitId: "habit-api-check" };
 
     await expect(caller.planner.habit.clearCheckIn({ ...scope, localDate: "not-a-local-date" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -109,7 +125,7 @@ describe("planner task API", () => {
   it("passes valid skipped and clear habit actions through the public router contract", async () => {
     const skip = vi.spyOn(planning, "upsertHabitCheckIn").mockResolvedValue({ id: "check-in-1", state: "skipped" } as never);
     const clear = vi.spyOn(planning, "clearHabitCheckIn").mockResolvedValue({ habitId: "habit-api-check", localDate: "2026-08-24", cleared: true });
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", habitId: "habit-api-check", localDate: "2026-08-24" };
 
     await expect(caller.planner.habit.checkIn({ ...scope, state: "skipped" })).resolves.toMatchObject({ state: "skipped" });
@@ -122,7 +138,7 @@ describe("planner task API", () => {
 
   it("preserves explicit weekday and interval habit schedules through the creation contract", async () => {
     const create = vi.spyOn(planning, "createHabit").mockResolvedValue({ id: "habit-schedule-1", version: 1 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", color: "#285D52" };
     const weekdaySchedule = { weekdays: [1, 3, 5] };
     const intervalSchedule = { startLocalDate: "2026-08-24", intervalDays: 3 };
@@ -136,7 +152,7 @@ describe("planner task API", () => {
 
   it("passes a saved-view configuration overwrite through the public router contract", async () => {
     const update = vi.spyOn(planning, "updateSavedView").mockResolvedValue({ id: "view-1", name: "Focus", configuration: { filter: "all", sort: "created" }, version: 2 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", id: "view-1", expectedVersion: 1, configuration: { filter: "all", sort: "created" } };
 
     await expect(caller.planner.savedView.update(input)).resolves.toMatchObject({ id: "view-1", configuration: { filter: "all", sort: "created" }, version: 2 });
@@ -146,7 +162,7 @@ describe("planner task API", () => {
 
   it("passes a version-safe recurrence configuration update through the public router contract", async () => {
     const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-1", version: 2, recurrenceRule: { frequency: "weekly", interval: 2 }, recurrenceAnchor: "scheduled", recurrenceUntilLocalDate: "2026-12-31" } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = {
       workspaceId: "workspace-api-check",
       timezone: "UTC",
@@ -163,7 +179,7 @@ describe("planner task API", () => {
   it("preserves explicit flexible and pinned scheduling modes through the task contracts", async () => {
     const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-schedule-1", scheduleMode: "flexible", version: 1 } as never);
     const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-schedule-1", scheduleMode: "pinned", version: 2 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
 
     await expect(caller.planner.task.create({ ...scope, title: "Proposal eligible", state: "not_started", priority: "medium", horizon: "weekly", sortOrder: 0, scheduleMode: "flexible" })).resolves.toMatchObject({ scheduleMode: "flexible" });
@@ -176,7 +192,7 @@ describe("planner task API", () => {
   it("passes explicit task-to-project assignment and clearing through the version-safe task contracts", async () => {
     const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-project-1", projectId: "project-1", version: 1 } as never);
     const update = vi.spyOn(planning, "updateTask").mockResolvedValue({ id: "task-project-1", projectId: null, version: 2 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
 
     await expect(caller.planner.task.create({ ...scope, title: "Deliberately linked work", projectId: "project-1", state: "not_started", priority: "medium", horizon: "weekly", sortOrder: 0 })).resolves.toMatchObject({ projectId: "project-1" });
@@ -189,7 +205,7 @@ describe("planner task API", () => {
 
   it("returns a recoverable conflict when a stale task version is used for a restore or lane move", async () => {
     const update = vi.spyOn(planning, "updateTask").mockRejectedValue(new planning.PlannerConflictError({ id: "task-stale-1", version: 9, state: "archived" }));
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", id: "task-stale-1", expectedVersion: 8, patch: { state: "not_started" as const } };
 
     await expect(caller.planner.task.update(input)).rejects.toMatchObject({ code: "CONFLICT", message: "This item changed elsewhere. Refresh before applying your edit." });
@@ -200,7 +216,7 @@ describe("planner task API", () => {
   it("passes category edits and safe detachment deletion through the public router contract", async () => {
     const update = vi.spyOn(planning, "updateCategory").mockResolvedValue({ id: "category-1", name: "Deep work", color: "#285D52", version: 2 } as never);
     const remove = vi.spyOn(planning, "deleteCategory").mockResolvedValue({ id: "category-1", detachedRecords: true, deleted: true });
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", id: "category-1", expectedVersion: 1 };
 
     await expect(caller.planner.category.update({ ...scope, patch: { name: "Deep work", color: "#285D52" } })).resolves.toMatchObject({ id: "category-1", version: 2 });
@@ -215,7 +231,7 @@ describe("planner task API", () => {
     const goal = vi.spyOn(planning, "archiveGoal").mockResolvedValue({ id: "goal-1", state: "archived", version: 2 } as never);
     const project = vi.spyOn(planning, "archiveProject").mockResolvedValue({ id: "project-1", state: "archived", version: 2 } as never);
     const habit = vi.spyOn(planning, "archiveHabit").mockResolvedValue({ id: "habit-1", archivedAt: new Date(), version: 2 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", expectedVersion: 1 };
 
     await expect(caller.planner.goal.archive({ ...scope, id: "goal-1" })).resolves.toMatchObject({ state: "archived" });
@@ -234,7 +250,7 @@ describe("planner task API", () => {
     const project = vi.spyOn(planning, "restoreProject").mockResolvedValue({ id: "project-restore-1", state: "not_started", completedAt: null, archivedAt: null, version: 3 } as never);
     const habit = vi.spyOn(planning, "restoreHabit").mockResolvedValue({ id: "habit-restore-1", archivedAt: null, version: 3 } as never);
     const bulk = vi.spyOn(planning, "bulkSetTaskState").mockResolvedValue([{ id: "task-restore-1", state: "archived", version: 3 }] as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC", expectedVersion: 2 };
 
     await expect(caller.planner.goal.restore({ ...scope, id: "goal-restore-1" })).resolves.toMatchObject({ state: "not_started", archivedAt: null });
@@ -251,7 +267,7 @@ describe("planner task API", () => {
 
   it("passes a dated monthly milestone through the public router contract", async () => {
     const create = vi.spyOn(planning, "createGoalMilestone").mockResolvedValue({ id: "milestone-1", goalId: "goal-1", version: 1 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", goalId: "goal-1", title: "August evidence", horizon: "monthly" as const, progressValue: 20, targetValue: 100, dueLocalDate: "2026-08-31", cue: "If it is Friday", response: "Then review the evidence" };
 
     await expect(caller.planner.milestone.create(input)).resolves.toMatchObject({ id: "milestone-1", goalId: "goal-1" });
@@ -262,7 +278,7 @@ describe("planner task API", () => {
   it("routes a browser subscription and device opt-out only through the workspace-scoped notification contract", async () => {
     const enable = vi.spyOn(planning, "upsertPushSubscription").mockResolvedValue({ id: "device-1", status: "active" } as never);
     const disable = vi.spyOn(planning, "disablePushSubscription").mockResolvedValue({ id: "device-1", status: "disabled" } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
     const subscription = { endpoint: "https://push.example.test/subscription/abc", keys: { p256dh: "public-key", auth: "auth-key" }, deviceLabel: "iPhone home screen", userAgent: "Mozilla/5.0" };
 
@@ -276,7 +292,7 @@ describe("planner task API", () => {
 
   it("resolves the current device by its exact browser endpoint rather than a list position", async () => {
     const current = vi.spyOn(planning, "getPushDeviceForEndpoint").mockResolvedValue({ id: "device-current", status: "active", deviceLabel: "This device" } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", endpoint: "https://push.example.test/subscription/current" };
 
     await expect(caller.planner.notification.currentDevice(input)).resolves.toMatchObject({ id: "device-current", status: "active" });
@@ -285,7 +301,7 @@ describe("planner task API", () => {
   });
 
   it("rejects an unsafe test-notification origin before a push can be sent", async () => {
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     await expect(caller.planner.notification.testDevice({ workspaceId: "workspace-api-check", timezone: "UTC", subscriptionId: "device-1", origin: "http://example.test" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
@@ -295,7 +311,7 @@ describe("planner task API", () => {
       .mockResolvedValueOnce({ id: "weekly-rule", scheduleCronTaskUid: null } as never);
     const activate = vi.spyOn(planning, "setReminderRuleActivation").mockResolvedValue({ id: "rule", isEnabled: 1 } as never);
     const list = vi.spyOn(planning, "getReminderRules").mockResolvedValue([] as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
 
     await expect(caller.planner.reminder.activateApproved(scope)).resolves.toEqual([]);
@@ -310,7 +326,7 @@ describe("planner task API", () => {
     const create = vi.spyOn(planning, "createPlanningTemplate").mockResolvedValue({ id: "template-1", kind: "task", name: "Admin follow-up", version: 1 } as never);
     const update = vi.spyOn(planning, "updatePlanningTemplate").mockResolvedValue({ id: "template-1", name: "Revised follow-up", version: 2 } as never);
     const archive = vi.spyOn(planning, "archivePlanningTemplate").mockResolvedValue({ id: "template-1", archivedAt: new Date(), version: 3 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
     const payload = { title: "Follow up", priority: "medium", estimateMinutes: 20 };
 
@@ -325,7 +341,7 @@ describe("planner task API", () => {
 
   it("routes a deliberate daily commitment movement through its version-safe planning contract", async () => {
     const move = vi.spyOn(planning, "moveDailyPlanItem").mockResolvedValue({ id: "daily-item-1", position: 0, version: 2 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", id: "daily-item-1", expectedVersion: 1, direction: -1 as const };
 
     await expect(caller.planner.dailyPlan.moveItem(input)).resolves.toMatchObject({ id: "daily-item-1", position: 0, version: 2 });
@@ -335,7 +351,7 @@ describe("planner task API", () => {
 
   it("routes bounded workspace search across planning entities through the dedicated service", async () => {
     const search = vi.spyOn(planning, "searchWorkspace").mockResolvedValue([{ id: "goal-search-1", entity: "goal", title: "Finish qualification", summary: null, state: "in_progress", updatedAt: new Date() }] as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", query: "qualification", limit: 12 };
 
     await expect(caller.planner.search.workspace(input)).resolves.toMatchObject([{ entity: "goal", title: "Finish qualification" }]);
@@ -345,7 +361,7 @@ describe("planner task API", () => {
 
   it("returns a bounded, workspace-scoped saved review history through the review contract", async () => {
     const history = vi.spyOn(planning, "getReviewHistory").mockResolvedValue([{ id: "review-history-1", kind: "monthly", state: "completed" }] as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const input = { workspaceId: "workspace-api-check", timezone: "UTC", limit: 12 };
 
     await expect(caller.planner.review.history(input)).resolves.toMatchObject([{ id: "review-history-1", kind: "monthly" }]);
@@ -362,7 +378,7 @@ describe("planner task API", () => {
     const createObjective = vi.spyOn(planning, "createWeeklyObjective").mockResolvedValue({ id: "objective-1", state: "active", version: 1 } as never);
     const updateObjective = vi.spyOn(planning, "updateWeeklyObjective").mockResolvedValue({ id: "objective-1", state: "completed", version: 2 } as never);
     const carryObjective = vi.spyOn(planning, "carryForwardWeeklyObjective").mockResolvedValue({ id: "objective-2", state: "active", version: 1 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
 
     await expect(caller.planner.availability.upsert({ ...scope, localDate: "2026-08-27", workdayStartsAt: "09:00", workdayEndsAt: "16:00", breakMinutes: 30 })).resolves.toMatchObject({ id: "availability-1" });
@@ -394,7 +410,7 @@ describe("planner task API", () => {
     const approveProposal = vi.spyOn(scheduling, "approveScheduleProposal").mockResolvedValue({ id: "proposal-1", state: "approved", version: 2 } as never);
     const dismissProposal = vi.spyOn(scheduling, "dismissScheduleProposal").mockResolvedValue({ id: "proposal-2", state: "dismissed", version: 2 } as never);
     const undoProposal = vi.spyOn(scheduling, "undoScheduleProposal").mockResolvedValue({ id: "proposal-1", state: "undone", version: 3 } as never);
-    const caller = appRouter.createCaller(createPublicContext());
+    const caller = appRouter.createCaller(createAuthenticatedContext());
     const scope = { workspaceId: "workspace-api-check", timezone: "Pacific/Auckland" };
 
     await expect(caller.planner.focus.start({ ...scope, taskId: "task-1", targetMinutes: 25 })).resolves.toMatchObject({ state: "active" });

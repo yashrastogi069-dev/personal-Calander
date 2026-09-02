@@ -4,6 +4,38 @@ const projectUrl = process.env.VITE_SUPABASE_URL;
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const databaseUrl = process.env.SUPABASE_DB_URL;
+const plannerTables = [
+  "aiDrafts",
+  "calendarFeeds",
+  "categories",
+  "dailyCheckIns",
+  "dailyPlanItems",
+  "dailyPlans",
+  "externalEvents",
+  "focusSessions",
+  "goalMilestones",
+  "goals",
+  "habitCheckIns",
+  "habits",
+  "integrationConnections",
+  "planningAvailabilityExceptions",
+  "planningTemplates",
+  "projects",
+  "pushDeliveries",
+  "pushSubscriptions",
+  "reminderRules",
+  "reminderSchedulers",
+  "reviewSessions",
+  "savedViews",
+  "scheduleProposals",
+  "taskDependencies",
+  "taskOccurrences",
+  "taskReservationRollovers",
+  "tasks",
+  "users",
+  "weeklyObjectives",
+  "workspaces",
+] as const;
 
 describe("Supabase project configuration", () => {
   it("has a complete user-owned project configuration", () => {
@@ -31,4 +63,17 @@ describe("Supabase project configuration", () => {
     expect(response.ok, `Supabase REST gateway returned ${response.status}`).toBe(true);
   });
 
+  it("exposes every planner table through the user-owned REST gateway", async () => {
+    const baseUrl = projectUrl!.replace(/\/$/, "");
+    const results = await Promise.all(plannerTables.map(async table => {
+      const response = await fetch(`${baseUrl}/rest/v1/${table}?select=*&limit=1`, {
+        headers: {
+          apikey: serviceRoleKey!,
+          Authorization: `Bearer ${serviceRoleKey!}`,
+        },
+      });
+      return { table, status: response.status };
+    }));
+    expect(results.filter(result => result.status !== 200)).toEqual([]);
+  });
 });
