@@ -214,14 +214,17 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const resolveApiUrl = () => {
+  if (!ENV.aiApiUrl || !ENV.aiApiUrl.trim()) {
+    throw new Error("OPENAI_BASE_URL is not configured");
+  }
+  const base = ENV.aiApiUrl.replace(/\/$/, "");
+  return base.endsWith("/chat/completions") ? base : `${base}/v1/chat/completions`;
+};
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!ENV.aiApiKey) {
+    throw new Error("OPENAI_API_KEY or OPENROUTER_API_KEY is not configured");
   }
 };
 
@@ -414,7 +417,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${ENV.aiApiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -444,12 +447,14 @@ export type ModelsResponse = {
 export async function listLLMModels(): Promise<ModelsResponse> {
   assertApiKey();
 
-  const url = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/models`
-    : "https://forge.manus.im/v1/models";
+  if (!ENV.aiApiUrl || !ENV.aiApiUrl.trim()) {
+    throw new Error("OPENAI_BASE_URL is not configured");
+  }
+  const base = ENV.aiApiUrl.replace(/\/$/, "");
+  const url = base.endsWith("/models") ? base : `${base}/v1/models`;
 
   const response = await fetchWithBackoff(url, {
-    headers: { authorization: `Bearer ${ENV.forgeApiKey}` },
+    headers: { authorization: `Bearer ${ENV.aiApiKey}` },
   });
 
   if (!response.ok) {

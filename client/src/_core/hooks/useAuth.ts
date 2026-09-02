@@ -19,9 +19,20 @@ export function useAuth(options?: UseAuthOptions) {
       return;
     }
     let active = true;
+    const timeout = window.setTimeout(() => {
+      if (!active) return;
+      setSession(null);
+      setSessionLoading(false);
+    }, 2500);
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
+      window.clearTimeout(timeout);
       setSession(data.session);
+      setSessionLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      window.clearTimeout(timeout);
+      setSession(null);
       setSessionLoading(false);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
@@ -32,6 +43,7 @@ export function useAuth(options?: UseAuthOptions) {
     });
     return () => {
       active = false;
+      window.clearTimeout(timeout);
       listener.subscription.unsubscribe();
     };
   }, [utils]);

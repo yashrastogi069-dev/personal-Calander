@@ -43,7 +43,7 @@ TiDB is a **database**, not a complete application backend. It does not replace 
 | Free-plan risk | Possible pause after one week of inactivity | Quota exhaustion can deny new connections until reset |
 | Best match | Fewest services and easiest independent auth/backend bundle | Lowest risk of changing existing planner persistence behavior |
 
-**Revised recommendation:** because the user’s highest priority is “nothing in the application should change or break,” do not approve a Supabase migration yet. First prototype the authentication boundary independently while retaining the current MySQL-compatible data contract, then test the app against TiDB Cloud Starter using a disposable database. If the TiDB route passes the full regression suite, it is the safer first database destination. Supabase remains a valid fallback if the user values one integrated platform more than minimizing database changes.
+**Decision:** the user approved the Supabase-first route because one user-controlled platform can provide authentication, PostgreSQL, Storage, and optional Realtime with fewer moving parts. The strict no-regression requirement still applies: the existing frontend, visual system, planner vocabulary, tRPC procedures, offline behavior, and phone interactions remain frozen while the server adapter and schema are replaced underneath. TiDB remains documented as a future database fallback, not a second backend in this migration.
 
 ## Target architecture
 
@@ -102,7 +102,7 @@ No secret should be sent in ordinary chat. It should be entered through the proj
 
 ## Migration phases
 
-The safe order is: first create a user-owned Supabase project and disposable database; second add an ownership-neutral auth adapter alongside the existing Manus adapter; third add a user-owned login screen and explicit unauthenticated state; fourth port the schema and tests to PostgreSQL; fifth migrate storage and push subscriptions; sixth remove Manus imports and environment variables only after a dependency scan and production-like acceptance; and finally deploy the independent project to a separate Vercel project.
+The safe order is: first create a user-owned Supabase project and disposable database; second add the Supabase auth adapter and user-owned login screen; third port the schema and tests to PostgreSQL; fourth migrate storage and push subscriptions where the product actually uses them; fifth remove inactive Manus imports and environment variables after a dependency scan; and finally deploy the independent project to a separate Vercel project. The current branch has completed the Auth/REST validation, PostgreSQL schema generation, server bearer resolver, client session forwarding, login gate, provider-neutral logout, and inactive OAuth route removal. The Supabase SQL still requires one user-run execution in the project’s SQL Editor because the sandbox must not execute against the wrong database.
 
 At every phase, `main` remains untouched. The development branch receives a checkpoint, the complete tests run, and the old working path remains available until the replacement has passed authentication, data isolation, CRUD, calendar reservation, habit tracking, offline capture, and phone acceptance tests.
 

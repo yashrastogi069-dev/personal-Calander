@@ -2,7 +2,7 @@
 
 **Purpose:** This guide explains what each variable means, where it comes from, what you personally need to create, and exactly where to enter it in Vercel. It is written for the separate Vercel project that will use `dev/personal-calendar-workbench`.
 
-> Important: owning the Vercel project does not automatically mean the application is independent of Manus. The current Personal Calendar code uses Manus authentication and Manus built-in services. You can deploy it using those existing services, or you can later authorize a larger migration to services that you own. Do not replace a variable with a random value unless this guide says it is safe to generate one.
+> Important: the approved target is the independent Supabase architecture. Do not copy Manus OAuth, Forge, owner, or Manus analytics variables into the new project. Use the Supabase values listed below and the companion checklist in `docs/SUPABASE_VERCEL_DEPLOYMENT.md`.
 
 ## Part 1 — Decide which setup you want
 
@@ -11,9 +11,9 @@ There are two different setups. Choose deliberately before entering values.
 | Setup | What it means | What you need to do |
 |---|---|---|
 | **Current architecture** | Your Vercel project is yours, but the application still uses the existing Manus auth/service contracts. | Copy the matching values from the working main Vercel project or its project configuration. Do not copy its database if you do not want shared data. |
-| **Fully independent architecture** | Vercel hosts your app, but authentication, database, storage, notifications, and optional analytics are all owned by you. | This requires a later code migration. It cannot be achieved by changing environment-variable text alone. Do not enter invented replacement values into the current codebase. |
+| **Fully independent architecture** | Vercel hosts your app while Supabase supplies your user-controlled authentication, PostgreSQL, and optional Storage/Realtime; VAPID remains yours. | This is the approved target for this development branch. Apply the checked-in Supabase SQL migration and use the independent variables below. |
 
-For the current branch, the safest immediate deployment is **a separate Vercel project using the current architecture**, with a database and credentials that you personally control. The existing main Vercel project remains untouched.
+For this branch, use **a separate Vercel project with the independent Supabase architecture**. The existing main Vercel project remains untouched. The current old-architecture instructions are retained below only as history and must not be used for this independent deployment.
 
 ## Part 2 — Create the separate Vercel project
 
@@ -43,39 +43,39 @@ If Vercel asks for visibility, use **Configuration** for names beginning with `V
 
 ## Part 4 — Variables you need and where to get them
 
-### A. Database and sessions
+### A. Supabase database and sessions
 
 | Key | Plain-English meaning | Where to get it | Visibility |
 |---|---|---|---|
-| `DATABASE_URL` | The private connection address for the database where tasks, goals, habits, and reviews are stored. | From the database provider you personally own, or from the working project’s database settings if you intentionally want that database. A new independent project should use a new database or a deliberately separate database. | Secret/Sensitive |
-| `JWT_SECRET` | A private signing key used to protect login sessions. | For an independent project, generate a new random value. You can use a password manager’s 32-byte random generator. A terminal alternative is `openssl rand -base64 32`. Do not use your name, a normal password, or the word `secret`. | Secret/Sensitive |
+| `SUPABASE_DB_URL` | The private PostgreSQL connection address for tasks, goals, habits, reviews, and calendar data. | Supabase Project Settings → Database → Connect → Session Pooler URI. Keep `?sslmode=require` at the end. | Secret/Sensitive |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key used to validate the authenticated Supabase user and resolve the application profile. | Supabase Project Settings → API → service_role key. | Secret/Sensitive |
 
-**Do not test `DATABASE_URL` by pasting it into a browser.** It is not a web address for a normal browser. Paste it only into Vercel’s value field.
+**Do not test `SUPABASE_DB_URL` by pasting it into a browser.** It is not a web address for a normal browser. Paste it only into Vercel’s value field.
 
-### B. Current Manus authentication
+### B. Supabase authentication
 
-These values belong to the current Manus authentication integration. They are not values you can safely invent.
-
-| Key | Meaning | Where to get it | Visibility |
-|---|---|---|---|
-| `VITE_APP_ID` | Identifies the Manus application used by the frontend and auth flow. | Copy from the working main Vercel project, or from the application configuration that created it. | Configuration |
-| `OAUTH_SERVER_URL` | The server endpoint that handles the current OAuth flow. | Copy from the working main project. | Secret/Config; server-side use |
-| `VITE_OAUTH_PORTAL_URL` | The browser login portal URL. | Copy from the working main project. | Configuration |
-| `OWNER_OPEN_ID` | Identifies the owner account used by the current application. | Copy from the working main project configuration. | Secret/Config |
-| `OWNER_NAME` | Owner display name used by the current project. | Copy the value from the working main project, or use your own display name if the current configuration permits it. | Config |
-
-If you do not want any Manus dependency, do **not** replace these with fake URLs. The application needs a code migration to your own auth provider first.
-
-### C. Current Manus built-in services
+These values belong to the user-controlled Supabase authentication integration. They must come from your own Supabase project.
 
 | Key | Meaning | Where to get it | Visibility |
 |---|---|---|---|
-| `BUILT_IN_FORGE_API_URL` | Server URL for the current built-in API helpers. | Copy from the working main project configuration. | Secret/Config; server-side |
-| `BUILT_IN_FORGE_API_KEY` | Private server credential for those helpers. | Copy from the working main project or the connected service configuration. | Secret/Sensitive |
-| `VITE_FRONTEND_FORGE_API_URL` | Browser-safe URL for frontend helpers. | Copy from the working main project. | Configuration |
-| `VITE_FRONTEND_FORGE_API_KEY` | Browser-exposed client key used by the current frontend helper. | Copy only if you intentionally continue using the current Manus-backed architecture. | Configuration; never Secret in Vercel |
+| `VITE_SUPABASE_URL` | Identifies your Supabase project. | Supabase Project Settings → API → Project URL. | Configuration |
+| `VITE_SUPABASE_ANON_KEY` | Browser-safe key for your Supabase project. | Supabase Project Settings → API → Publishable/anon public key. | Configuration |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key used to validate Supabase sessions. | Supabase Project Settings → API → service_role key. | Secret/Sensitive |
+| `SUPABASE_DB_URL` | Server-only PostgreSQL connection using the IPv4 Session Pooler. | Supabase Project Settings → Database → Connect → Session Pooler URI, retaining `?sslmode=require`. | Secret/Sensitive |
+| `VITE_VAPID_PUBLIC_KEY` | Browser-safe public key for your own web-push subscription. | Your existing VAPID credentials. | Configuration |
 
-A `VITE_` key is not automatically private. Treat its value as visible to a website visitor.
+Do not add `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `OWNER_OPEN_ID`, or `OWNER_NAME` to the independent project. The independent branch no longer actively uses the Manus OAuth route.
+
+### C. Optional user-owned services
+
+| Key | Meaning | Where to get it | Visibility |
+|---|---|---|---|
+| `OPENAI_BASE_URL` | Optional OpenAI-compatible endpoint for the AI companion. | Add only if you explicitly choose a user-owned AI provider; otherwise leave unset. | Secret/Config |
+| `OPENAI_API_KEY` or `OPENROUTER_API_KEY` | Optional server-only key for that provider. | Add only if you explicitly choose that provider; never copy a Manus key. | Secret/Sensitive |
+| `PERSONAL_CALENDAR_ICS_OVERLAY_URL` | Optional private read-only calendar feed. | Add only if you intentionally configure the ICS overlay. | Secret/Sensitive |
+| `VITE_APP_TITLE` | Optional title override. | Use `Personal Calendar` or your preferred name. | Configuration |
+
+A `VITE_` key is not automatically private. Treat its value as visible to a website visitor. Do not add any `BUILT_IN_FORGE_*` or `VITE_FRONTEND_FORGE_*` variables to the independent project.
 
 ### D. App name and logo
 
@@ -150,11 +150,17 @@ If you see a blank page and the Vercel logs say `Auth Missing session cookie`, t
 
 If you see an error about a `VITE_` value using Secret visibility, edit that variable and change visibility to **Configuration**. If you see a database connection error, check `DATABASE_URL`, database availability, SSL requirements, and network access.
 
-## Part 8 — The most important safety rules
+## Part 8 — Independent Supabase deployment note
+
+Before deploying, run `supabase/migrations/0000_loving_madrox.sql` once in your Supabase SQL Editor. Then configure Supabase Authentication → URL Configuration with the Vercel Site URL and redirect URLs. The independent app uses Supabase email/password authentication and forwards the access token to the server; it does not use the old Manus OAuth callback.
+
+For the independent project, the required variables are `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, and the VAPID values if push is enabled. R2 is not required by the current core product. Supabase Storage is the default if a future file feature is activated. The optional AI companion requires a separately chosen user-owned provider and may remain unavailable without one.
+
+## Part 9 — The most important safety rules
 
 Never commit a `.env` file to GitHub. Never post a secret in chat, screenshots, browser console output, or a support ticket. Never use the main project’s database accidentally. Never put `DATABASE_URL`, `JWT_SECRET`, `BUILT_IN_FORGE_API_KEY`, `VAPID_PRIVATE_KEY`, or an ICS URL in a `VITE_` variable. Never change the GitHub `main` branch for this setup.
 
-The separate Vercel project can be yours while still using Vercel as the hosting provider. If your requirement is that no part of the application depends on Manus, pause after deployment configuration and request the independent architecture migration; that is a separate engineering project involving auth, database, storage, notification, and possibly analytics replacements.
+The separate Vercel project can be yours while still using Vercel as the hosting provider. The independent architecture migration is the approved path for this branch. Complete the Supabase SQL setup and use only the user-owned variables listed in Part 8.
 
 ## References
 

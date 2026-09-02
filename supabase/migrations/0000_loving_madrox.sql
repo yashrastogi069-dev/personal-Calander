@@ -519,3 +519,36 @@ CREATE UNIQUE INDEX "tasks_workspace_client_request_unique" ON "tasks" USING btr
 CREATE INDEX "weekly_objectives_workspace_week_idx" ON "weeklyObjectives" USING btree ("workspaceId","weekStartLocalDate");--> statement-breakpoint
 CREATE INDEX "weekly_objectives_goal_idx" ON "weeklyObjectives" USING btree ("goalId");--> statement-breakpoint
 CREATE INDEX "weekly_objectives_project_idx" ON "weeklyObjectives" USING btree ("projectId");
+
+-- Preserve the existing automatic updatedAt behavior from the MySQL runtime.
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  NEW."updatedAt" = now();
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'aiDrafts','calendarFeeds','categories','dailyCheckIns','dailyPlanItems','dailyPlans',
+    'externalEvents','focusSessions','goalMilestones','goals','habitCheckIns','habits',
+    'integrationConnections','planningAvailabilityExceptions','planningTemplates','projects',
+    'pushDeliveries','pushSubscriptions','reminderRules','reminderSchedulers','reviewSessions',
+    'savedViews','scheduleProposals','taskOccurrences','tasks','weeklyObjectives','workspaces'
+  ] LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = table_name || '_updated_at_trigger'
+    ) THEN
+      EXECUTE format(
+        'CREATE TRIGGER %I BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION set_updated_at()',
+        table_name || '_updated_at_trigger', table_name
+      );
+    END IF;
+  END LOOP;
+END;
+$$;

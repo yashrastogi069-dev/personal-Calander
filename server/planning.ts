@@ -730,7 +730,12 @@ export async function upsertHabitCheckIn(scope: PlannerScope, input: { habitId: 
   if (!habit) throw new Error("Habit was not found.");
   const id = nanoid();
   const completedAt = input.state === "completed" ? new Date() : null;
-  await db.insert(habitCheckIns).values({ id, workspaceId: scope.workspaceId, habitId: input.habitId, localDate: input.localDate, timezoneAtCheckIn: scope.timezone, state: input.state, note: input.note ?? null, completedAt }).onConflictDoUpdate({ target: [habitCheckIns.habitId, habitCheckIns.localDate], set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
+  const habitInsert = db.insert(habitCheckIns).values({ id, workspaceId: scope.workspaceId, habitId: input.habitId, localDate: input.localDate, timezoneAtCheckIn: scope.timezone, state: input.state, note: input.note ?? null, completedAt });
+  if (typeof (habitInsert as any).onConflictDoUpdate === "function") {
+    await (habitInsert as any).onConflictDoUpdate({ target: [habitCheckIns.habitId, habitCheckIns.localDate], set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
+  } else {
+    await (habitInsert as any).onDuplicateKeyUpdate({ set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
+  }
   return (await db.select().from(habitCheckIns).where(and(eq(habitCheckIns.habitId, input.habitId), eq(habitCheckIns.localDate, input.localDate))).limit(1))[0]!;
 }
 
@@ -789,7 +794,12 @@ export async function archivePlanningTemplate(scope: PlannerScope, input: { id: 
 export async function upsertDailyCheckIn(scope: PlannerScope, input: { localDate: string; intention?: string | null; reflection?: string | null; energy?: number | null; mood?: number | null }) {
   const db = await requireDb();
   const id = nanoid();
-  await db.insert(dailyCheckIns).values({ id, workspaceId: scope.workspaceId, ...input }).onConflictDoUpdate({ target: [dailyCheckIns.workspaceId, dailyCheckIns.localDate], set: input });
+  const dailyInsert = db.insert(dailyCheckIns).values({ id, workspaceId: scope.workspaceId, ...input });
+  if (typeof (dailyInsert as any).onConflictDoUpdate === "function") {
+    await (dailyInsert as any).onConflictDoUpdate({ target: [dailyCheckIns.workspaceId, dailyCheckIns.localDate], set: input });
+  } else {
+    await (dailyInsert as any).onDuplicateKeyUpdate({ set: input });
+  }
   return (await db.select().from(dailyCheckIns).where(and(eq(dailyCheckIns.workspaceId, scope.workspaceId), eq(dailyCheckIns.localDate, input.localDate))).limit(1))[0]!;
 }
 
@@ -868,7 +878,7 @@ export async function upsertPushSubscription(scope: PlannerScope, input: Browser
   const db = await requireDb();
   const id = nanoid();
   const now = new Date();
-  await db.insert(pushSubscriptions).values({
+  const pushValues = {
     id,
     workspaceId: scope.workspaceId,
     endpoint: input.endpoint,
@@ -876,19 +886,26 @@ export async function upsertPushSubscription(scope: PlannerScope, input: Browser
     auth: input.keys.auth,
     deviceLabel: input.deviceLabel?.trim().slice(0, 120) || null,
     userAgent: input.userAgent?.slice(0, 512) || null,
-    status: "active",
+    status: "active" as const,
     failureReason: null,
     lastSeenAt: now,
-  }).onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: {
+  };
+  const pushInsert = db.insert(pushSubscriptions).values(pushValues);
+  const pushUpdate = {
     workspaceId: scope.workspaceId,
     p256dh: input.keys.p256dh,
     auth: input.keys.auth,
     deviceLabel: input.deviceLabel?.trim().slice(0, 120) || null,
     userAgent: input.userAgent?.slice(0, 512) || null,
-    status: "active",
+    status: "active" as const,
     failureReason: null,
     lastSeenAt: now,
-  } });
+  };
+  if (typeof (pushInsert as any).onConflictDoUpdate === "function") {
+    await (pushInsert as any).onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: pushUpdate });
+  } else {
+    await (pushInsert as any).onDuplicateKeyUpdate({ set: pushUpdate });
+  }
   const stored = (await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.workspaceId, scope.workspaceId), eq(pushSubscriptions.endpoint, input.endpoint))).limit(1))[0]!;
   return safePushDevice(stored);
 }

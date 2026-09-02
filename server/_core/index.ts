@@ -27,10 +27,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = createPlannerApp();
   const server = createServer(app);
-  // The managed preview serves the current production bundle by default. Its
-  // external proxy cannot reliably transport Vite's direct HMR socket, and a
-  // static bundle avoids a second client runtime. Local Vite debugging remains
-  // available by explicitly omitting MANUS_STABLE_PREVIEW.
+  // The managed preview serves the current production bundle by default when
+  // NODE_ENV is not development. Local development uses the Vite middleware so
+  // the same application entrypoint remains available in both environments.
   if (shouldUseViteDevelopmentServer()) {
     await setupVite(app, server);
   } else {
