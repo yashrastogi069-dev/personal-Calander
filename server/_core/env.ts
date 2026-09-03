@@ -3,7 +3,6 @@ export const ENV = {
   supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   supabaseDbUrl: process.env.SUPABASE_DB_URL ?? "",
-  databaseUrl: process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL ?? "",
   vapidPublicKey: process.env.VITE_VAPID_PUBLIC_KEY ?? "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   vapidSubject: process.env.VAPID_SUBJECT ?? "",

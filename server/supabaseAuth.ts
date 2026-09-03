@@ -1,6 +1,6 @@
 import { createClient, type User as SupabaseUser } from "@supabase/supabase-js";
 import type { User } from "../drizzle/schema";
-import { upsertUser, getUserByOpenId } from "./db";
+import { upsertUser, getUserBySupabaseUserId } from "./db";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL ?? "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -13,7 +13,7 @@ const adminClient = supabaseUrl && serviceRoleKey
 
 function toPlannerUser(user: SupabaseUser): Parameters<typeof upsertUser>[0] {
   return {
-    openId: user.id,
+    supabaseUserId: user.id,
     name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? null,
     email: user.email ?? null,
     loginMethod: "supabase_email",
@@ -26,7 +26,7 @@ export async function authenticateSupabaseBearer(token: string): Promise<User | 
   if (error || !data.user) return null;
   const plannerUser = toPlannerUser(data.user);
   await upsertUser(plannerUser);
-  return (await getUserByOpenId(plannerUser.openId)) ?? null;
+  return (await getUserBySupabaseUserId(plannerUser.supabaseUserId)) ?? null;
 }
 
 export function readBearerToken(request: { headers: { authorization?: string | string[] | undefined } }) {

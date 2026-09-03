@@ -12,6 +12,7 @@ export function useAuth(options?: UseAuthOptions) {
   const utils = trpc.useUtils();
   const [session, setSession] = useState<Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["getSession"]>>["data"]["session"]>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [authRecovery, setAuthRecovery] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -28,16 +29,19 @@ export function useAuth(options?: UseAuthOptions) {
       if (!active) return;
       window.clearTimeout(timeout);
       setSession(data.session);
+      setAuthRecovery(false);
       setSessionLoading(false);
     }).catch(() => {
       if (!active) return;
       window.clearTimeout(timeout);
       setSession(null);
+      setAuthRecovery(false);
       setSessionLoading(false);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
       setSession(nextSession);
+      setAuthRecovery(false);
       setSessionLoading(false);
       void utils.auth.me.invalidate();
     });
@@ -53,6 +57,16 @@ export function useAuth(options?: UseAuthOptions) {
     retry: false,
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (sessionLoading || !session || !meQuery.isLoading) return;
+    const timeout = window.setTimeout(() => {
+      setAuthRecovery(true);
+      setSession(null);
+      setSessionLoading(false);
+    }, 5000);
+    return () => window.clearTimeout(timeout);
+  }, [meQuery.isLoading, session, sessionLoading]);
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => utils.auth.me.setData(undefined, null),
@@ -78,11 +92,11 @@ export function useAuth(options?: UseAuthOptions) {
     }
     return {
       user,
-      loading: sessionLoading || Boolean(session && meQuery.isLoading) || logoutMutation.isPending,
+      loading: sessionLoading || Boolean(session && meQuery.isLoading && !authRecovery) || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(session && user),
     };
-  }, [logoutMutation.error, logoutMutation.isPending, meQuery.data, meQuery.error, meQuery.isLoading, session, sessionLoading]);
+  }, [authRecovery, logoutMutation.error, logoutMutation.isPending, meQuery.data, meQuery.error, meQuery.isLoading, session, sessionLoading]);
 
   useEffect(() => {
     if (!redirectOnUnauthenticated || sessionLoading || state.user) return;

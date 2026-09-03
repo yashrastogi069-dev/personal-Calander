@@ -13,7 +13,7 @@ function createAuthenticatedContext(): TrpcContext {
   return {
     user: {
       id: 1,
-      openId: "supabase-test-user",
+      supabaseUserId: "supabase-test-user",
       name: "Test User",
       email: "test@example.com",
       loginMethod: "supabase_email",

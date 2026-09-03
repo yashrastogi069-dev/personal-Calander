@@ -317,3 +317,26 @@
 - [ ] Diagnose whether the persistent white/skeleton preview is caused by Supabase session bootstrap, stale assets, React runtime resolution, or lazy-route fallback; add and verify a visible recovery state without changing product behavior.
 
 - [ ] Resume the independent Supabase migration end to end while deferring the white-screen investigation until the migration baseline is complete.
+
+- [ ] Confirm user-owned Vercel serverless routing, environment scope, and deployment branch configuration without changing the product UI.
+- [ ] Resolve the deferred white/skeleton preview state with a bounded visible fallback and regression coverage.
+- [ ] Complete final tests, build, phone validation, tracker cleanup, checkpoint, and development-branch synchronization; request only genuinely missing user actions.
+
+- [ ] Prepare a separate Vercel staging deployment from dev/personal-calendar-workbench; do not promote it to permanent production until Vercel auth/CRUD, iPhone push, phone UI, realtime, and white-screen checks pass.
+- [ ] Report completed infrastructure versus remaining end-to-end verification and request only the user actions required for staging or permanent promotion.
+
+- [ ] Document and verify the user-owned VAPID web-push setup and iPhone delivery path before deployment.
+- [ ] Decide whether analytics and Supabase Realtime are justified; implement only with privacy-safe defaults and explicit user ownership.
+- [ ] Complete and verify Supabase Auth before deployment, while preserving the existing authenticated UI flow.
+- [ ] Fix and regression-test the white/skeleton preview state before any Vercel deployment.
+
+- [ ] Fix the white/skeleton preview only through a small reversible change; preserve the local codebase and avoid reset, deletion, or destructive migration actions.
+
+- [ ] Reproduce and resolve the remaining managed-preview blank screen after the first Vite/static-calendar fix; keep the app codebase intact and document the exact runtime/bootstrap cause.
+
+- [x] Audit and remove remaining Manus OAuth/auth environment dependencies; use Supabase Auth user IDs everywhere instead of openId.
+- [x] Verify PostgreSQL Drizzle configuration uses SUPABASE_DB_URL and postgresql dialect throughout.
+- [x] Replace Forge-backed storage and notifications with user-owned Supabase/owned paths or safe no-op boundaries.
+- [x] Remove Manus analytics/debug/runtime integrations, Manus preview script flags, and correct allowed-host configuration for the user-owned domain.
+- [x] Update tests and documentation, run full validation, and checkpoint only after the independent-stack source audit passes.
+- [ ] Run drizzle/0013_supabase_identity.sql in the user-owned Supabase SQL Editor; the managed SQL executor is connected to TiDB and correctly rejected PostgreSQL syntax, so no managed database was changed.

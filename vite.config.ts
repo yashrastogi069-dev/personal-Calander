@@ -15,8 +15,7 @@ export default defineConfig({
   },
   envDir: path.resolve(import.meta.dirname),
   optimizeDeps: {
-    include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query"],
-    exclude: ["@trpc/react-query"],
+    include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@trpc/react-query"],
   },
   root: path.resolve(import.meta.dirname, "client"),
   publicDir: path.resolve(import.meta.dirname, "client", "public"),
@@ -26,7 +25,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: ["localhost", "127.0.0.1"],
+    allowedHosts: ["personal-calander.vercel.app", "localhost", "127.0.0.1"],
     fs: {
       strict: true,
       deny: ["**/.*"],

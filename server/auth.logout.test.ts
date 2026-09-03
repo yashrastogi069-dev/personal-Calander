@@ -14,7 +14,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
 
   const user: AuthenticatedUser = {
     id: 1,
-    openId: "sample-user",
+    supabaseUserId: "sample-user",
     email: "sample@example.com",
     name: "Sample User",
     loginMethod: "supabase_email",

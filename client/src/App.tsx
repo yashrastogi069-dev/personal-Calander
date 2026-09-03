@@ -2,18 +2,17 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
-import { lazy, Suspense } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
-const CalendarExecution = lazy(() => import("./pages/CalendarExecution"));
+import CalendarExecution from "./pages/CalendarExecution";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/calendar"}><Suspense fallback={<main /> }><CalendarExecution /></Suspense></Route>
+      <Route path={"/calendar"}><CalendarExecution /></Route>
       <Route path={"/"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
