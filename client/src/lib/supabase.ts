@@ -13,9 +13,10 @@ function configuredClient() {
         detectSessionInUrl: true,
       },
     });
-  } catch {
+  } catch (error) {
     // A malformed build-time URL must not crash before the app can show recovery.
-    console.warn("[Auth] Supabase public configuration is invalid.");
+    const reason = error instanceof Error ? error.message : "unknown configuration error";
+    console.warn(`[Auth] Supabase public configuration is invalid: ${reason}`);
     return null;
   }
 }
