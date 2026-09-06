@@ -6,6 +6,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import { AuthenticatedPlanner } from "./components/AuthenticatedPlanner";
+import { Analytics } from "@vercel/analytics/react";
+import { sanitizeAnalyticsEvent } from "./lib/deploymentAnalytics";
 
 import CalendarExecution from "./pages/CalendarExecution";
 
@@ -36,6 +38,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <AuthenticatedPlanner><Router /></AuthenticatedPlanner>
+          <Analytics beforeSend={sanitizeAnalyticsEvent} />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

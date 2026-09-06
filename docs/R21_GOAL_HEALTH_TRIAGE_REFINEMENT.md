@@ -13,7 +13,7 @@ The Goal runway already derives progress from visible work, milestones, child go
 |---|---|
 | Goals are more useful when work, milestones, and progress live in a connected system. [1] | Reuse the established `longHorizon` contract instead of re-computing, copying, or storing goal-health data in the client. |
 | Weekly objectives should be bounded outcomes, not a large task list, and can align supporting work. [2] | Show missing execution evidence distinctly; the existing task, project, habit, and weekly-objective flows remain the only way to add work. |
-| Long-term direction should be revisited against current work so it does not become a set-and-forget list. [3] | Add a clearly named **Needs attention** view, limited to overdue, behind-pace, or review-due evidence. |
+| Long-term direction should be revisited against current work so it does not become a unattended list. [3] | Add a clearly named **Needs attention** view, limited to overdue, behind-pace, or review-due evidence. |
 | Large goal collections need focused views without removing the underlying record set. [1] | Preserve **All goals**, disclose counts, cap the initial visual card set at six, and provide an explicit **Show all N goals** control when needed. |
 
 ## Interaction Contract

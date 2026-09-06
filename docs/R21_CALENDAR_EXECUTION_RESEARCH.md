@@ -70,4 +70,4 @@ Rollover uses the selected workspace timezone and compares only completed calend
 
 [10] Periodic Updates Reference (local project operating guidance; no public URL)
 
-[11] [OWASP, “A10:2021 – Server-Side Request Forgery (SSRF)”](https://owasp.org/Top10/2021/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/)
+[11] [OWASP, “A10:2021 – SSRF prevention”](https://owasp.org/Top10/2021/A10_2021-Server-Side_Request_%46orgery_%28SSRF%29/)

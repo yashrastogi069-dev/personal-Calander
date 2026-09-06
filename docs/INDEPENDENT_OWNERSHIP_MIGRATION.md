@@ -1,6 +1,6 @@
 # Independent Ownership Migration Plan
 
-**Scope:** Remove the current Manus OAuth and Manus-owned runtime dependencies from Personal Calendar. This document is an architecture decision record, not an authorization to delete the working path or migrate user data.
+**Scope:** Remove the current former managed platform OAuth and former managed platform-owned runtime dependencies from Personal Calendar. This document is an architecture decision record, not an authorization to delete the working path or migrate user data.
 
 ## Executive conclusion
 
@@ -8,22 +8,22 @@ The current app is not a static Vite site. Its authenticated planner depends on 
 
 The recommended user-controlled replacement is a **Supabase project owned by the user**, paired with Vercel hosting owned by the user. Supabase can provide managed PostgreSQL, email/password or magic-link authentication, row-level security, Storage, and Realtime in one account. Its official documentation also supports self-hosting with Docker for a later phase when the user wants to operate the infrastructure themselves. [1] [2] [3]
 
-This recommendation does not mean that Supabase is owned by Manus or an AI service. It is a separate provider. However, a hosted Supabase project is still a third-party cloud service. Full infrastructure ownership would require self-hosting PostgreSQL, the auth service, storage, and realtime components on a server the user administers.
+This recommendation does not mean that Supabase is owned by former managed platform or an AI service. It is a separate provider. However, a hosted Supabase project is still a third-party cloud service. Full infrastructure ownership would require self-hosting PostgreSQL, the auth service, storage, and realtime components on a server the user administers.
 
 ## Current dependency inventory
 
 | Current dependency | Evidence in this repository | Replacement target |
 |---|---|---|
-| Manus OAuth login and callback | `/api/oauth/callback`, `server/_core/oauth.ts`, `server/_core/sdk.ts`, `client/src/_core/hooks/useAuth.ts`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `VITE_APP_ID` | Supabase Auth with an application-owned email/password or magic-link flow. Social login is optional and must be explicitly enabled by the user. |
-| Manus session identity | `ctx.user`, `sdk.authenticateRequest`, `protectedProcedure`, `users` table | Supabase Auth user ID validated server-side; application profile row linked to `auth.users.id`. |
+| former managed platform OAuth login and callback | `/api/oauth/callback`, `server/_core/oauth.ts`, `server/_core/sdk.ts`, `client/src/_core/hooks/useAuth.ts`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `VITE_APP_ID` | Supabase Auth with an application-owned email/password or magic-link flow. Social login is optional and must be explicitly enabled by the user. |
+| former managed platform session identity | `ctx.user`, `sdk.authenticateRequest`, `protectedProcedure`, `users` table | Supabase Auth user ID validated server-side; application profile row linked to `auth.users.id`. |
 | MySQL/TiDB persistence | `mysql2`, Drizzle schema, `DATABASE_URL`, `server/db.ts` | Supabase PostgreSQL. Schema and SQL types must be migrated deliberately; no destructive conversion in a Vercel build. |
-| Manus built-in server API | `BUILT_IN_FORGE_API_URL`, `BUILT_IN_FORGE_API_KEY`, server helpers | Explicit service interfaces or user-selected providers. Do not replace with hidden proxy calls. |
-| Manus browser API | `VITE_FRONTEND_FORGE_API_URL`, `VITE_FRONTEND_FORGE_API_KEY` | Remove unless a user-owned public service is actually required. |
-| Manus storage proxy/S3 helper | `server/storage.ts`, `storagePut`, `storageGet`, `storageProxy` | Supabase Storage or an S3-compatible bucket owned by the user. Existing file metadata must be migrated separately if any files exist. |
-| Manus owner notifications | `server/_core/notification.ts`, `BUILT_IN_FORGE_API_*` | Web Push using the user’s VAPID keys; email is optional and requires a user-owned provider. |
-| Manus analytics configuration | `VITE_ANALYTICS_ENDPOINT`, `VITE_ANALYTICS_WEBSITE_ID` | User-owned analytics property, self-hosted analytics, or no analytics. |
-| Manus project identity/config | `OWNER_OPEN_ID`, `OWNER_NAME`, several pre-injected system variables | Local application profile and explicit user-owned environment values. |
-| Manus framework assumptions | `server/_core/context.ts`, `trpc`, Vercel adapter imports | Keep Express/tRPC/Drizzle only where useful, but remove Manus-specific auth/runtime calls behind explicit owned interfaces. |
+| former managed platform built-in server API | the retired built-in server endpoint and key, server helpers | Explicit service interfaces or user-selected providers. Do not replace with hidden proxy calls. |
+| former managed platform browser API | the retired browser-service endpoint and key | Remove unless a user-owned public service is actually required. |
+| former managed platform storage proxy/S3 helper | `server/storage.ts`, `storagePut`, `storageGet`, `storageProxy` | Supabase Storage or an S3-compatible bucket owned by the user. Existing file metadata must be migrated separately if any files exist. |
+| former managed platform owner notifications | `server/_core/notification.ts`, retired built-in service credentials | Web Push using the user’s VAPID keys; email is optional and requires a user-owned provider. |
+| former managed platform analytics configuration | `VITE_ANALYTICS_ENDPOINT`, `VITE_ANALYTICS_WEBSITE_ID` | User-owned analytics property, self-hosted analytics, or no analytics. |
+| former managed platform project identity/config | `OWNER_OPEN_ID`, `OWNER_NAME`, several pre-injected system variables | Local application profile and explicit user-owned environment values. |
+| former managed platform framework assumptions | `server/_core/context.ts`, `trpc`, Vercel adapter imports | Keep Express/tRPC/Drizzle only where useful, but remove former managed platform-specific auth/runtime calls behind explicit owned interfaces. |
 
 ## TiDB comparison and revised decision rule
 
@@ -47,7 +47,7 @@ TiDB is a **database**, not a complete application backend. It does not replace 
 
 ## Target architecture
 
-The frontend remains React/Vite and the existing tRPC contract remains the application boundary during the first migration. This reduces UI risk. The server context changes from Manus session discovery to a Supabase server client that validates the bearer/cookie session and resolves the application profile. Protected procedures continue to reject unauthenticated calls with a normal `UNAUTHORIZED` response rather than allowing the app to hang.
+The frontend remains React/Vite and the existing tRPC contract remains the application boundary during the first migration. This reduces UI risk. The server context changes from former managed platform session discovery to a Supabase server client that validates the bearer/cookie session and resolves the application profile. Protected procedures continue to reject unauthenticated calls with a normal `UNAUTHORIZED` response rather than allowing the app to hang.
 
 The database should move from MySQL/TiDB to PostgreSQL through a schema-first migration. The existing planner vocabulary—tasks, goals, projects, habits, reviews, reservations, and audit records—must remain intact. Migration work must include a dry-run schema comparison, a disposable test database, explicit timestamp and enum mapping, and a user-approved data migration plan before production records are copied.
 
@@ -58,14 +58,14 @@ The database should move from MySQL/TiDB to PostgreSQL through a schema-first mi
 | Database | Supabase PostgreSQL in the user’s project | RLS or server-only access; no production migration until backup and dry run. |
 | Files | Supabase Storage bucket or user-owned S3/R2 bucket | Private buckets by default; signed URLs; metadata and authorization separate from bytes. |
 | Push | Existing user-owned VAPID key pair | Private key server-only; subscription records scoped to the authenticated user. |
-| Analytics | User-owned provider or disabled | No analytics value copied from the Manus-backed project unless user owns that account. |
+| Analytics | User-owned provider or disabled | No analytics value copied from the former managed platform-backed project unless user owns that account. |
 | External calendar | Optional read-only ICS | Server-only secret URL, SSRF controls, no external writes. |
 
 ## What must not happen
 
-Do not delete Manus framework files before the replacement auth path works. Do not point a new independent app at the existing production database unless the user explicitly wants shared records. Do not invent OAuth URLs, user IDs, database URLs, or API keys. Do not run schema migration commands against an important database as part of a Vercel build. Do not place database credentials, private VAPID keys, or calendar feed URLs in `VITE_` variables.
+Do not delete former managed platform framework files before the replacement auth path works. Do not point a new independent app at the existing production database unless the user explicitly wants shared records. Do not invent OAuth URLs, user IDs, database URLs, or API keys. Do not run schema migration commands against an important database as part of a Vercel build. Do not place database credentials, private VAPID keys, or calendar feed URLs in `VITE_` variables.
 
-The migration also must not silently remove features that currently use the Manus built-in API. Each call site must be classified as required, replaceable, or removable. If a feature has no user-owned replacement, it should fail with a clear local explanation—not a blank screen.
+The migration also must not silently remove features that currently use the former managed platform built-in API. Each call site must be classified as required, replaceable, or removable. If a feature has no user-owned replacement, it should fail with a clear local explanation—not a blank screen.
 
 ## Free-tier decision
 
@@ -81,9 +81,9 @@ The free tier does not provide the same operational guarantees as a paid product
 | Planner database | Supabase PostgreSQL | Use the 500 MB allocation with RLS and an export backup routine. |
 | Realtime | Supabase Realtime only for narrowly scoped planner changes | Keep optional; local optimistic writes remain the primary phone experience. |
 | Files | Supabase Storage, private bucket | Use only when the product actually needs files; keep the 1 GB allocation in mind. |
-| Push notifications | User’s VAPID keys with the existing web-push implementation | No Manus notification service. |
-| Hosting | User-owned Vercel Hobby project | Separate project and environment variables from the Manus-backed deployment. |
-| Analytics | Disabled initially or a separate user-owned free analytics property | Never retain Manus analytics configuration by default. |
+| Push notifications | User’s VAPID keys with the existing web-push implementation | No former managed platform notification service. |
+| Hosting | User-owned Vercel Hobby project | Separate project and environment variables from the former managed platform-backed deployment. |
+| Analytics | Disabled initially or a separate user-owned free analytics property | Never retain former managed platform analytics configuration by default. |
 
 ## Credentials required from the user before implementation
 
@@ -102,7 +102,7 @@ No secret should be sent in ordinary chat. It should be entered through the proj
 
 ## Migration phases
 
-The safe order is: first create a user-owned Supabase project and disposable database; second add the Supabase auth adapter and user-owned login screen; third port the schema and tests to PostgreSQL; fourth migrate storage and push subscriptions where the product actually uses them; fifth remove inactive Manus imports and environment variables after a dependency scan; and finally deploy the independent project to a separate Vercel project. The current branch has completed the Auth/REST validation, PostgreSQL schema generation, server bearer resolver, client session forwarding, login gate, provider-neutral logout, and inactive OAuth route removal. The Supabase SQL still requires one user-run execution in the project’s SQL Editor because the sandbox must not execute against the wrong database.
+The safe order is: first create a user-owned Supabase project and disposable database; second add the Supabase auth adapter and user-owned login screen; third port the schema and tests to PostgreSQL; fourth migrate storage and push subscriptions where the product actually uses them; fifth remove inactive former managed platform imports and environment variables after a dependency scan; and finally deploy the independent project to a separate Vercel project. The current branch has completed the Auth/REST validation, PostgreSQL schema generation, server bearer resolver, client session forwarding, login gate, provider-neutral logout, and inactive OAuth route removal. The Supabase SQL still requires one user-run execution in the project’s SQL Editor because the sandbox must not execute against the wrong database.
 
 At every phase, `main` remains untouched. The development branch receives a checkpoint, the complete tests run, and the old working path remains available until the replacement has passed authentication, data isolation, CRUD, calendar reservation, habit tracking, offline capture, and phone acceptance tests.
 

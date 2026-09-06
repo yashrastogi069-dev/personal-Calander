@@ -295,10 +295,10 @@
 - [ ] Diagnose the blank Vercel screen reported on branch revision d75205d, including production asset loading, runtime errors, routing, and environment prerequisites.
 - [ ] Apply and validate the smallest safe deployment fix, document the cause and verification, and push only the development branch.
 - [x] Write and deliver a beginner-friendly environment-variable guide with click-by-click Vercel steps, ownership boundaries, visibility rules, safe generation instructions, and a clear pause before any architecture migration.
-- [x] Inventory every Manus OAuth, built-in API, storage, notification, analytics, environment, and framework dependency and document the independent replacement architecture.
+- [x] Inventory every former managed platform OAuth, built-in API, storage, notification, analytics, environment, and framework dependency and document the independent replacement architecture.
 - [x] Define and obtain user-controlled replacement services for authentication, database, storage, notifications, analytics, and deployment before removing the current runtime path.
 - [x] Migrate the application behind user-controlled interfaces with data-preserving fallback, secure secrets, tests, phone validation, and no changes to protected main.
-- [x] Validate that no Manus runtime dependency remains in the independent build, then checkpoint and push only the development branch.
+- [x] Validate that no former managed platform runtime dependency remains in the independent build, then checkpoint and push only the development branch.
 
 - [x] Compare Supabase Free with TiDB Cloud Free and independent auth options, including MySQL compatibility, limits, sleep behavior, backups, realtime, storage, and migration risk.
 - [x] Preserve the current frontend, visual design, routes, planner semantics, offline behavior, and all feature contracts during any infrastructure migration; add explicit regression and rollback acceptance criteria.
@@ -306,8 +306,8 @@
 
 - [x] Migrate the backend to the user-controlled Supabase Free project while preserving all current frontend UI, UX, colors, routes, feature logic, planner rules, offline behavior, and phone interactions.
 - [x] Recreate the current planner schema in Supabase PostgreSQL with no data-import requirement, then verify all existing tRPC contracts against the new database.
-- [x] Replace Manus authentication, session validation, runtime API, storage, notifications, analytics, and environment dependencies with explicit user-owned interfaces.
-- [ ] Run a full zero-regression validation and remove only Manus dependencies proven unused; checkpoint and push only the development branch.
+- [x] Replace former managed platform authentication, session validation, runtime API, storage, notifications, analytics, and environment dependencies with explicit user-owned interfaces.
+- [ ] Run a full zero-regression validation and remove only former managed platform dependencies proven unused; checkpoint and push only the development branch.
 
 - [x] Complete Supabase Free migration on the development branch with no frontend, visual, planner, offline, or phone UX changes.
 - [x] Determine whether existing features require file storage; use Supabase Storage by default and add R2 only if a real storage requirement remains.
@@ -334,10 +334,10 @@
 
 - [ ] Reproduce and resolve the remaining managed-preview blank screen after the first Vite/static-calendar fix; keep the app codebase intact and document the exact runtime/bootstrap cause.
 
-- [x] Audit and remove remaining Manus OAuth/auth environment dependencies; use Supabase Auth user IDs everywhere instead of openId.
+- [x] Audit and remove remaining former managed platform OAuth/auth environment dependencies; use Supabase Auth user IDs everywhere instead of openId.
 - [x] Verify PostgreSQL Drizzle configuration uses SUPABASE_DB_URL and postgresql dialect throughout.
-- [x] Replace Forge-backed storage and notifications with user-owned Supabase/owned paths or safe no-op boundaries.
-- [x] Remove Manus analytics/debug/runtime integrations, Manus preview script flags, and correct allowed-host configuration for the user-owned domain.
+- [x] Replace retired proxy service-backed storage and notifications with user-owned Supabase/owned paths or safe no-op boundaries.
+- [x] Remove former managed platform analytics/debug/runtime integrations, former managed platform preview script flags, and correct allowed-host configuration for the user-owned domain.
 - [x] Update tests and documentation, run full validation, and checkpoint only after the independent-stack source audit passes.
 - [ ] Inspect the live Supabase schema and apply the reviewed additive PostgreSQL upgrade in supabase/migrations/0001_independent_ownership.sql. This supersedes the standalone 0013 step and accepts databases where that rename was already applied.
 

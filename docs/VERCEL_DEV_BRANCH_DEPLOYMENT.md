@@ -41,21 +41,18 @@ Do not set the Root Directory to `client`. Doing so hides `server/`, `drizzle/`,
 
 Open **Settings → Environment Variables**. Add the variables for the environments in which the deployment will run. For a safe preview, select **Preview** first. Select **Production** only when you intentionally want this configuration available to the production deployment.
 
-The application requires the existing Manus/database environment set supplied by the project. Copy values from the working project configuration or the connected Vercel project; never commit them to GitHub and never paste them into source files.
+Use the independent values from `.env.example` and `docs/SUPABASE_VERCEL_DEPLOYMENT.md`. Never copy the retired platform credentials, commit real secrets to GitHub, or paste them into source files.
 
 | Variable group | Variables | Visibility |
 |---|---|---|
-| Database and session | `DATABASE_URL`, `JWT_SECRET` | Server-only secret |
-| Manus authentication | `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `OWNER_OPEN_ID`, `OWNER_NAME` | Keep server credentials secret; `VITE_*` values are client-visible config, not secrets |
-| Built-in server services | `BUILT_IN_FORGE_API_URL`, `BUILT_IN_FORGE_API_KEY` | Server-only secret |
-| Built-in client services | `VITE_FRONTEND_FORGE_API_URL`, `VITE_FRONTEND_FORGE_API_KEY` | Client-visible config; use Vercel **Configuration**, not Secret, for public-prefixed values |
-| App identity | `VITE_APP_TITLE`, `VITE_APP_LOGO`, `VITE_APP_ID` | Client-visible config |
-| Analytics | `VITE_ANALYTICS_ENDPOINT`, `VITE_ANALYTICS_WEBSITE_ID` | Client-visible config; optional only if analytics is intentionally disabled and the script is adjusted accordingly |
+| Database and server identity/storage | `SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Server-only secrets |
+| Supabase browser authentication | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Public project configuration |
+| Scheduled worker | `APP_ORIGIN`, `REMINDER_CRON_SECRET` | Server-only configuration/secret; matching Vault setup required |
+| Analytics | Vercel Web Analytics | Enable in this Vercel project; no retired endpoint variables |
 | Push readiness | `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Public key is client-visible config; private key and subject are server-side values |
-| OAuth/session support | `OAUTH_SERVER_URL`, `JWT_SECRET` | Server-only secret/config |
 | Optional external calendar readiness | `PERSONAL_CALENDAR_ICS_OVERLAY_URL` | Server-only secret; do not add to client, logs, database payloads, screenshots, or public config |
 
-The exact values are connector/project-specific. If a variable already exists in Vercel, edit the environment selection rather than creating a duplicate with a slightly different name. For a variable beginning with `VITE_`, Vercel rejects Secret visibility; choose **Configuration**. Do not expose `DATABASE_URL`, `JWT_SECRET`, `BUILT_IN_FORGE_API_KEY`, `VAPID_PRIVATE_KEY`, or the ICS URL to the browser.
+The exact values are connector/project-specific. If a variable already exists in Vercel, edit the environment selection rather than creating a duplicate with a slightly different name. For a variable beginning with `VITE_`, Vercel rejects Secret visibility; choose **Configuration**. Do not expose `DATABASE_URL`, `JWT_SECRET`, retired service secrets, `VAPID_PRIVATE_KEY`, or the ICS URL to the browser.
 
 ## Safe deployment steps
 

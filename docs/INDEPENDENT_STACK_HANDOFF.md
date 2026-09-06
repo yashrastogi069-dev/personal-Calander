@@ -10,7 +10,7 @@ This supersedes older statements that the database is disposable or has no impor
 - Authentication/bootstrap and query failures display recovery instead of a permanent skeleton. Session lookup and API requests have bounded waits.
 - The migration chain uses `supabase/migrations`. Historical MySQL files in `drizzle` remain provenance and are not executed by current migration commands.
 - Optional AI uses explicit user-owned provider settings; versioned endpoints are normalized correctly. PostgreSQL duplicate-delivery errors use code 23505.
-- Unused legacy OAuth/debug dependencies were removed. Core runtime has no Manus/Forge/TiDB/MySQL endpoint or credential dependency.
+- Unused legacy OAuth/debug dependencies were removed. Core runtime has no retired managed-platform or proxy-service/TiDB/MySQL endpoint or credential dependency.
 - Local development and production launch commands work without Unix-only environment assignment.
 
 ## Preserve and upgrade the existing database
