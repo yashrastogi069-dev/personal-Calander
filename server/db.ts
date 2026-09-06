@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { InsertUser, users } from "../drizzle/schema";
+import { users, type User } from "../drizzle/schema";
+import type { AuthenticatedUserProfile } from "./supabaseAuth";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
@@ -38,71 +39,35 @@ export async function getDb() {
   return _db;
 }
 
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.supabaseUserId) {
-    throw new Error("Supabase user ID is required for upsert");
-  }
-
+export async function upsertAuthenticatedUser(profile: AuthenticatedUserProfile): Promise<User> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
+    throw new Error("The planner database is not configured.");
   }
 
-  try {
-    const values: InsertUser = {
-      supabaseUserId: user.supabaseUserId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onConflictDoUpdate({
-      target: users.supabaseUserId,
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
+  const [persisted] = await db.insert(users).values(profile).onConflictDoUpdate({
+    target: users.authUserId,
+    set: {
+      name: profile.name,
+      email: profile.email,
+      avatarUrl: profile.avatarUrl,
+      loginMethod: profile.loginMethod,
+      lastSignedIn: profile.lastSignedIn,
+      updatedAt: new Date(),
+    },
+  }).returning();
+  if (!persisted) throw new Error("The planner account could not be persisted.");
+  return persisted;
 }
 
-export async function getUserBySupabaseUserId(supabaseUserId: string) {
+export async function getUserByAuthUserId(authUserId: string) {
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Cannot get user: database not available");
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.supabaseUserId, supabaseUserId)).limit(1);
+  const result = await db.select().from(users).where(eq(users.authUserId, authUserId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }

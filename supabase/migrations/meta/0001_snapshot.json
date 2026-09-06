@@ -3549,11 +3549,17 @@
           "primaryKey": true,
           "notNull": true
         },
-        "supabaseUserId": {
-          "name": "supabaseUserId",
-          "type": "varchar(64)",
+        "authUserId": {
+          "name": "authUserId",
+          "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "legacyExternalId": {
+          "name": "legacyExternalId",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
         },
         "name": {
           "name": "name",
@@ -3564,6 +3570,12 @@
         "email": {
           "name": "email",
           "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatarUrl": {
+          "name": "avatarUrl",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -3606,11 +3618,18 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_supabaseUserId_unique": {
-          "name": "users_supabaseUserId_unique",
+        "users_authUserId_unique": {
+          "name": "users_authUserId_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "supabaseUserId"
+            "authUserId"
+          ]
+        },
+        "users_legacyExternalId_unique": {
+          "name": "users_legacyExternalId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "legacyExternalId"
           ]
         }
       },
@@ -3787,9 +3806,9 @@
           "primaryKey": true,
           "notNull": true
         },
-        "ownerSupabaseUserId": {
-          "name": "ownerSupabaseUserId",
-          "type": "varchar(64)",
+        "ownerUserId": {
+          "name": "ownerUserId",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -3880,15 +3899,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "workspaces_ownerSupabaseUserId_users_supabaseUserId_fk": {
-          "name": "workspaces_ownerSupabaseUserId_users_supabaseUserId_fk",
+        "workspaces_ownerUserId_users_id_fk": {
+          "name": "workspaces_ownerUserId_users_id_fk",
           "tableFrom": "workspaces",
           "tableTo": "users",
           "columnsFrom": [
-            "ownerSupabaseUserId"
+            "ownerUserId"
           ],
           "columnsTo": [
-            "supabaseUserId"
+            "id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -3896,11 +3915,11 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "workspaces_ownerSupabaseUserId_unique": {
-          "name": "workspaces_ownerSupabaseUserId_unique",
+        "workspaces_ownerUserId_unique": {
+          "name": "workspaces_ownerUserId_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "ownerSupabaseUserId"
+            "ownerUserId"
           ]
         }
       },

@@ -31,7 +31,7 @@ export function AuthenticatedPlanner({ children }: { children: ReactNode }) {
     <p>Sign-in succeeded. The deployment owner must link your existing planner to this account before you can continue.</p>
     <Button onClick={() => void workspace.refetch()}>Check again</Button>{signOut}
   </main>;
-  return <WorkspaceContext.Provider key={auth.user.supabaseUserId} value={scope}>
+  return <WorkspaceContext.Provider key={auth.user.id} value={scope}>
     {children}<div className="px-5 py-3">{signOut}</div>
   </WorkspaceContext.Provider>;
 }

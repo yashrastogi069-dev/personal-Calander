@@ -1,35 +1,41 @@
-import { createClient, type User as SupabaseUser } from "@supabase/supabase-js";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { User } from "../drizzle/schema";
-import { upsertUser, getUserBySupabaseUserId } from "./db";
+import { upsertAuthenticatedUser } from "./db";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL ?? "";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+export type AuthenticatedUserProfile = {
+  authUserId: string;
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+  loginMethod: string;
+  lastSignedIn: Date;
+};
 
-const adminClient = supabaseUrl && serviceRoleKey
-  ? createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-  : null;
+function nullableMetadataString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
 
-function toPlannerUser(user: SupabaseUser): Parameters<typeof upsertUser>[0] {
+function toAuthenticatedUserProfile(user: SupabaseUser): AuthenticatedUserProfile {
+  const recordedSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at) : null;
+  const provider = nullableMetadataString(user.app_metadata?.provider);
   return {
-    supabaseUserId: user.id,
-    name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? null,
+    authUserId: user.id,
+    name: nullableMetadataString(user.user_metadata?.full_name)
+      ?? nullableMetadataString(user.user_metadata?.name),
     email: user.email ?? null,
-    loginMethod: "supabase_email",
+    avatarUrl: nullableMetadataString(user.user_metadata?.avatar_url)
+      ?? nullableMetadataString(user.user_metadata?.picture),
+    loginMethod: provider ?? "supabase_email",
+    lastSignedIn: recordedSignIn && !Number.isNaN(recordedSignIn.getTime()) ? recordedSignIn : new Date(),
   };
 }
 
 export async function authenticateSupabaseBearer(token: string): Promise<User | null> {
   if (!token) return null;
-  if (!adminClient) throw new Error("Supabase server authentication is not configured.");
-  const { data, error } = await adminClient.auth.getUser(token);
+  const { data, error } = await getSupabaseAdmin().auth.getUser(token);
   if (error || !data.user) return null;
-  const plannerUser = toPlannerUser(data.user);
-  await upsertUser(plannerUser);
-  const profile = await getUserBySupabaseUserId(plannerUser.supabaseUserId);
-  if (!profile) throw new Error("The planner account could not be loaded from PostgreSQL.");
-  return profile;
+  return upsertAuthenticatedUser(toAuthenticatedUserProfile(data.user));
 }
 
 export function readBearerToken(request: { headers: { authorization?: string | string[] | undefined } }) {

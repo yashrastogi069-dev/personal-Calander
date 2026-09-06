@@ -64,7 +64,7 @@ export function useAuth(_options?: UseAuthOptions) {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const user = session && meQuery.data?.supabaseUserId === session.user.id ? meQuery.data : null;
+  const user = session && meQuery.data?.authUserId === session.user.id ? meQuery.data : null;
   const logout = useCallback(async () => {
     try {
       if (supabase) {

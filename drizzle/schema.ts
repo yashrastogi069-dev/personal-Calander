@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -22,9 +23,11 @@ export const horizons = ["daily", "weekly", "monthly", "quarterly", "yearly", "s
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  supabaseUserId: varchar("supabaseUserId", { length: 64 }).notNull().unique(),
+  authUserId: uuid("authUserId").unique(),
+  legacyExternalId: varchar("legacyExternalId", { length: 128 }).unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
+  avatarUrl: text("avatarUrl"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: enumText("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -35,7 +38,7 @@ export const users = pgTable("users", {
 export const workspaces = pgTable("workspaces", {
   id: varchar("id", { length: 64 }).primaryKey(),
   // Existing workspaces remain unclaimed until explicitly assigned by the owner.
-  ownerSupabaseUserId: varchar("ownerSupabaseUserId", { length: 64 }).unique().references(() => users.supabaseUserId),
+  ownerUserId: integer("ownerUserId").unique().references(() => users.id),
   name: varchar("name", { length: 120 }).notNull().default("My planning workspace"),
   timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
   weekStartsOn: integer("weekStartsOn").notNull().default(1),

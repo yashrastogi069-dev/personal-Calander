@@ -11,7 +11,7 @@ export const appRouter = router({
       if (opts.ctx.authError) throw opts.ctx.authError;
       return opts.ctx.user;
     }),
-    workspace: protectedProcedure.query(opts => getAccountWorkspace(opts.ctx.user.supabaseUserId)),
+    workspace: protectedProcedure.query(opts => getAccountWorkspace(opts.ctx.user.id)),
     logout: publicProcedure.mutation(() => ({
       success: true,
     } as const)),

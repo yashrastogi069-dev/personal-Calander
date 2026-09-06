@@ -22,12 +22,12 @@ describe("active planner authentication boundary", () => {
     expect(render()).not.toContain("PRIVATE_PLANNER");
   });
   it("does not invent a workspace for an authenticated but unlinked account", () => {
-    state.auth = { ...state.auth, isAuthenticated: true, user: { supabaseUserId: "owner-a" } };
+    state.auth = { ...state.auth, isAuthenticated: true, user: { id: 41, authUserId: "11111111-1111-4111-8111-111111111111" } };
     expect(render()).toContain("waiting to be connected");
     expect(render()).not.toContain("PRIVATE_PLANNER");
   });
   it("mounts the planner only after the server resolves the owned workspace", () => {
-    state.auth = { ...state.auth, isAuthenticated: true, user: { supabaseUserId: "owner-a" } };
+    state.auth = { ...state.auth, isAuthenticated: true, user: { id: 41, authUserId: "11111111-1111-4111-8111-111111111111" } };
     state.workspace.data = { id: "existing-workspace-a", timezone: "UTC" };
     expect(render()).toContain("PRIVATE_PLANNER");
   });

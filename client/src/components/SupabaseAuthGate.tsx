@@ -6,6 +6,26 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { withTimeout } from "@shared/withTimeout";
 
+type GoogleOAuthClient = {
+  auth: {
+    signInWithOAuth(input: {
+      provider: "google";
+      options: { redirectTo: string };
+    }): Promise<{ data: unknown; error: { message: string } | null }>;
+  };
+};
+
+export function startGoogleOAuth(client: GoogleOAuthClient, redirectTo: string) {
+  return withTimeout(
+    client.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    }),
+    15_000,
+    "Google sign-in took too long. Please try again.",
+  );
+}
+
 export function SupabaseAuthGate() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
@@ -19,6 +39,27 @@ export function SupabaseAuthGate() {
     window.addEventListener("supabase-auth-required", open);
     return () => window.removeEventListener("supabase-auth-required", open);
   }, []);
+
+  async function signInWithGoogle() {
+    setPending(true);
+    setError(null);
+    setNotice(null);
+    if (!supabase) {
+      setError("Authentication is not configured for this deployment.");
+      setPending(false);
+      return;
+    }
+    try {
+      const result = await startGoogleOAuth(supabase, window.location.origin);
+      if (result.error) {
+        setError(`Google sign-in is unavailable: ${result.error.message}. Check that the Google provider and this site's redirect URL are configured in Supabase.`);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,12 +96,20 @@ export function SupabaseAuthGate() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Personal Calendar</p>
           <CardTitle className="text-2xl font-bold tracking-tight">Sign in to continue</CardTitle>
           <CardDescription className="text-sm leading-6">
-            Your planner is private to your account. Use the email and password you control for this deployment.
+            Your planner is private to your account. Continue with Google or use the email and password you control.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={submit}>
             {!supabase ? <p role="alert">Sign-in is not configured for this deployment. Contact the deployment owner.</p> : null}
+            <Button type="button" size="lg" className="w-full" disabled={pending || !supabase} onClick={() => void signInWithGoogle()}>
+              {pending ? "Working…" : "Continue with Google"}
+            </Button>
+            <div className="flex items-center gap-3" aria-hidden="true">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">or use email</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="supabase-email">Email</Label>
               <Input id="supabase-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} />
