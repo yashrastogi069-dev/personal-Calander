@@ -1,60 +1,62 @@
 # Independent stack: current workbench handoff
 
-This supersedes older statements that the database is disposable or has no important data. The user confirmed that it contains real planner data. Work only on `dev/personal-calendar-workbench`; do not merge into `main` without explicit instruction.
+The Supabase project contains real planner data. Work only on `dev/personal-calendar-workbench`; never merge into `main` without the user's explicit instruction. This document supersedes earlier disposable-database, external-identity, and disabled-scheduler instructions.
 
-## Completed locally
+## Implemented in this branch
 
-- The active Home and Calendar routes now pass through Supabase authentication and server-resolved workspace ownership.
-- Every planner tRPC procedure checks the signed-in account against the selected workspace. Browser-generated IDs no longer establish ownership. Cross-account query cache is cleared on sign-out/account changes.
-- Existing workspaces are not claimed automatically. A signed-in account without an assigned workspace gets a visible connection/setup state.
-- Authentication/bootstrap and query failures display recovery instead of a permanent skeleton. Session lookup and API requests have bounded waits.
-- The migration chain uses `supabase/migrations`. Historical MySQL files in `drizzle` remain provenance and are not executed by current migration commands.
-- Optional AI uses explicit user-owned provider settings; versioned endpoints are normalized correctly. PostgreSQL duplicate-delivery errors use code 23505.
-- Unused legacy OAuth/debug dependencies were removed. Core runtime has no retired managed-platform or proxy-service/TiDB/MySQL endpoint or credential dependency.
-- Local development and production launch commands work without Unix-only environment assignment.
+- Google OAuth and email/password use Supabase Auth. Bearer tokens are validated server-side. Durable application identity is integer `users.id`, linked through UUID `users.authUserId`; earlier identifiers remain in `users.legacyExternalId`.
+- Workspaces use nullable integer `ownerUserId`. Existing workspaces stay unclaimed until an explicit assignment. Every planner/file procedure checks the current account's workspace ownership. Sign-out/account changes clear cached private data.
+- Auth and workspace failures have bounded waits and visible recovery. An authenticated unlinked account sees connection instructions.
+- Private Supabase bucket `planner-files` supports PDF, plain text, JSON, JPEG, PNG, and WebP up to 20 MiB. Metadata, request deduplication, object verification, deletion, and 300-second download links run through the owned server boundary.
+- Deleted/failed file metadata remains durable cleanup work. The scheduled worker repeatedly removes matching objects, including uploads arriving after cancellation. It preserves ownership checks and retries failures.
+- One shared authenticated `/api/scheduled/reminder` endpoint dispatches existing VAPID reminders and file cleanup independently. Supabase Cron installation SQL runs it every five minutes using Vault values.
+- Vercel Web Analytics is mounted once, without custom events or planner fields. Its page URLs discard queries/fragments and unknown paths. Private planner insights and the existing design remain intact.
+- Retired runtime/template dependencies and current source/build references have been removed. Historical SQL files remain migration provenance, not current migration commands.
 
-## Preserve and upgrade the existing database
+## Upgrade the populated database safely
 
-1. Inspect the selected Supabase project, table inventory, row counts, user identity columns, workspace IDs, existing RLS policies, and migration journal. Confirm whether this database actually contains the expected planner records.
-2. Capture a recoverable database backup/export before applying schema changes. Do not point this branch at the frozen main deployment's database by accident.
-3. For a populated PostgreSQL database with the baseline tables, review and apply **only** `supabase/migrations/0001_independent_ownership.sql` in a transaction. It accepts either `users.openId` or the already-renamed `users.supabaseUserId`, adds nullable ownership with uniqueness/FK constraints, and enables RLS on the 30 planner tables. It does not recreate, delete, or assign records. Existing policies are preserved and must be checked for unintended browser access.
-4. Do not run `pnpm db:migrate` blindly on a database initially created by manually pasting SQL. First reconcile its Drizzle migration journal with the schema. Otherwise the migration runner may try to replay the baseline.
-5. On a truly empty database only, `pnpm db:migrate` runs baseline + upgrade in order. `pnpm db:generate` generates future migrations for review; it does not apply them.
-6. Sign in through the application so the validated Supabase account gets its planner `users` profile. An unlinked account will not see or modify any existing workspace.
-7. Inspect the exact `users.supabaseUserId` and existing `workspaces.id`, then explicitly assign the chosen workspace to that account. The one-workspace-per-account constraint is deliberate for this private planner. Do not transfer a workspace already owned by another account without the user's instruction.
-8. Compare record counts and verify sign-in, reload, task CRUD, Calendar, Habits, Focus, Review, sign-out, and cross-account denial. Use only named disposable records for write tests.
+1. Read-only audit first: confirm project identity, PostgreSQL tables/columns, exact workspace and user IDs, row counts, migration journal, bucket contents, and all current RLS policies. Check for preliminary ownership columns or schema variants before choosing an upgrade.
+2. Capture a recoverable database backup/export plus inventory/backups of any existing storage objects. Record counts and identifiers before changing anything. Never assume this project is empty or silently substitute the frozen main deployment's database.
+3. For supported existing baseline tables, review `supabase/migrations/0001_independent_ownership.sql` and apply it transactionally. It accepts exactly one earlier identity column, retains provenance, adds the durable auth/ownership fields, and enables RLS without assigning or deleting records. Ambiguous columns fail for manual inspection.
+4. Review and apply `supabase/migrations/0002_private_planner_files.sql` afterward. It adds metadata and the private bucket/policies. Inspect existing Storage policies because permissive policies combine; an older broad policy can undermine newly added owner-folder policies.
+5. Reconcile the actual schema with the migration journal before using Drizzle's runner. Never replay `0000_loving_madrox.sql` over existing data. Baseline + upgrades are only for a verified empty database. `pnpm db:generate` is offline generation; `pnpm db:migrate` applies changes.
+6. Sign in to persist the validated Supabase profile. Verify its UUID `users.authUserId`, internal integer `users.id`, and the chosen existing `workspaces.id`. Never link by email alone or copy a prior provider ID into the new UUID field.
+7. Explicitly assign only the reviewed workspace to that internal user ID, guarded by `ownerUserId IS NULL`. Lock and inspect the target row in a transaction, require exactly one returned row, and refuse to overwrite another owner. This planner intentionally permits one workspace per account.
+8. Compare record counts/relationships and test the actual account's reads, reload, sign-out, and cross-account denial. Any write verification must use named disposable records and remove only those records afterward.
 
-An assignment can be reviewed with the following SQL after replacing placeholders with verified identifiers. It updates only the ownership column and refuses to overwrite an existing owner:
+Live upgrade, ownership assignment, and backup verification have not been performed by these offline implementation tasks.
 
-```sql
-BEGIN;
-SELECT id, name, "ownerSupabaseUserId" FROM public.workspaces WHERE id = '<verified-workspace-id>' FOR UPDATE;
-SELECT "supabaseUserId", email FROM public.users WHERE "supabaseUserId" = '<verified-supabase-user-id>';
-UPDATE public.workspaces
-SET "ownerSupabaseUserId" = '<verified-supabase-user-id>'
-WHERE id = '<verified-workspace-id>' AND "ownerSupabaseUserId" IS NULL
-RETURNING id, "ownerSupabaseUserId";
--- Commit only after verifying exactly the intended row was updated.
-COMMIT;
+## Runtime and deployment
+
+The complete configuration is in [Supabase/Vercel deployment](SUPABASE_VERCEL_DEPLOYMENT.md) and `.env.example`. Modern Supabase publishable keys map to `VITE_SUPABASE_ANON_KEY`; modern secret keys map to the server-only `SUPABASE_SERVICE_ROLE_KEY`. These are the application's existing variable names, not a requirement to choose legacy key formats.
+
+Use a separate user-owned Vercel project with repository root and the checked-in `vercel.json`. Set public keys before building, configure Google/email redirect origins, and keep database/admin/VAPID/cron secrets server-only. A preview deployment does not require merging to main.
+
+For scheduled work, set `APP_ORIGIN` and `REMINDER_CRON_SECRET`, create Vault values `personal_calendar_reminder_url` and `personal_calendar_reminder_secret`, then review/install `supabase/cron/reminder_sweep.sql`. Confirm the endpoint is reachable by automation through any deployment protection. Do not disable the shared job merely to pause reminder rules: file reconciliation also depends on it.
+
+## Local verification and preview
+
+Fresh integrated verification on 2026-09-06: `pnpm check` passed; `pnpm test` passed **200 tests across 48 files**; `pnpm build:client` passed. Client build transformed 2464 modules; the main chunk is 1250.17 kB (358.05 kB gzip), with the existing large-chunk warning. The Vercel server bundle is 223.5 kB. Dependency/runtime build differences can change bundle size; performance optimization is separate work.
+
+`scripts/preview-auth-states.py` and `scripts/preview-linked-planner.py` use Playwright interception with synthetic account/planner data. They block remote requests, intercept all APIs, disable service-worker interception, and fix the preview date. These screenshots prove rendered states, not live OAuth or real-data connectivity. Artifacts live outside Git in `C:/Users/win 10/personal-Calander-analysis/`.
+
+Fresh browser results: eight auth/recovery/unlinked states and linked Home at desktop 1440x1000 and phone 390x844 passed required rendering, runtime-error, private-request and overflow checks. Ten screenshots were captured. An additional interaction check found that the visible phone Sign out button is covered by the fixed bottom navigation; desktop pointer sign-out succeeds. This phone UI issue is recorded in the external results JSON and remains to be fixed. No forced clicks or style overrides were used.
+
+Example local run in PowerShell (requires Python Playwright/Chromium):
+
+```powershell
+$env:PORT = '14773'
+$env:NODE_ENV = 'development'
+$env:VITE_HMR_CLIENT_PORT = '14773'
+node --import tsx server/_core/index.ts
+# In another terminal:
+python scripts/preview-auth-states.py --url http://localhost:14773 --with-linked
 ```
 
-## Vercel staging
+The no-watch server avoids the observed Windows watch restart loop. Match the HMR client port to the actual local port. The generic with_server.py helper can leave its Windows child server running; confirm and stop only the preview process you started before restarting it.
 
-- Use a separate user-owned Vercel project for `dev/personal-calendar-workbench`. Keep the existing main deployment intact.
-- Root: repository root. The checked-in `vercel.json` builds `dist/public` plus the tRPC server bundle.
-- Configure the four required Supabase values from `.env.example`. The two `VITE_` values are public build-time configuration; database/service-role secrets are server-only.
-- Set Supabase Auth URLs for the chosen staging domain. Redeploy when public build-time values change.
-- Push, analytics, external ICS fetch, and scheduled automation are separate optional services. No storage account is required. The scheduled-reminder endpoint deliberately returns 503 until an owned scheduler is implemented.
-- Do not promote to permanent production until live authentication, ownership, data preservation, planner workflows, and phone checks pass.
+## Rollback and remaining live work
 
-## Verification and remaining work
+Keep the pre-change backup, deployment configuration, VAPID pair, workspace IDs, and auth mapping. On a failed rollout, stop new writes and return traffic to a known compatible deployment. Keep additive schema fields and file metadata; do not drop tables, purge cleanup tombstones, reset accounts, or rotate VAPID keys as a repair. Pause the named Cron job only when necessary, knowing cleanup pauses too. Restore from backup only after comparing post-backup writes and obtaining explicit direction.
 
-Use `pnpm check`, `pnpm test`, and `pnpm build:client` for local checks. `pnpm test:services` explicitly loads local `.env` and performs read-only checks against real Supabase services. It is separate from offline tests so missing secrets cannot be mistaken for logic regressions.
-
-The new tests execute the baseline and upgrade in embedded PostgreSQL, preserve sample existing records, verify compatibility with the earlier identity rename, and exercise cross-account read/write denial. Render tests verify sign-in, recovery, unlinked-account, and authenticated states. These are local tests, not proof of the live deployment.
-
-Validation on 2026-09-06: 155 tests passed across 41 files; TypeScript and the client/server production build passed; Drizzle generation reported no schema differences. A 390x844 browser check verified both Home and Calendar configuration recovery, no premature private API requests, and no runtime errors. Separate simulated authenticated browser checks passed for account-service failure, an unlinked account, and workspace-service failure. The existing large JavaScript bundle warning remains for later performance work.
-
-The official Supabase MCP connection was registered in read-only mode and OAuth login succeeded. This running session did not load the newly configured server, so reload Codex and resume this conversation before live inspection.
-
-Live work remains: load the authenticated Supabase MCP tools in the session; inspect the selected project and backup state; apply the reviewed upgrade and exact account assignment; configure local/staging runtime credentials; verify real workflows; then deploy and validate Vercel. No live database migration or Vercel deployment was performed during preparation.
+Remaining: live project/backup audit, reviewed migration and exact account assignment, runtime credentials, real Google/email sign-in and planner checks, Vercel deployment, Web Analytics enablement, Cron activation, and a real device delivery check. Offline tests do not establish completion of those steps.

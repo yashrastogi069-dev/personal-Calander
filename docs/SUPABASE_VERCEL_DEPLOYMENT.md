@@ -1,43 +1,69 @@
-# Supabase Free + Vercel Deployment Checklist
+# Supabase and Vercel deployment checklist
 
-**Current migration instructions:** [Independent stack handoff](INDEPENDENT_STACK_HANDOFF.md). The database contains real planner data. Do not replay the baseline or assume it is empty.
+Deploy only `dev/personal-calendar-workbench` to the user's Vercel project. Do not merge or modify main. The connected database contains real planner data; use the [current handoff](INDEPENDENT_STACK_HANDOFF.md) for backup/audit and additive migration gates.
 
-This guide deploys the `dev/personal-calendar-workbench` branch to a Vercel project owned by the user. The frontend, planner routes, visual system, and phone behavior are not changed by this setup. The Supabase project supplies the account system and PostgreSQL database.
+## Exact environment mapping
 
-## Required Vercel variables
+| Application variable | Value | Exposure |
+|---|---|---|
+| `VITE_SUPABASE_URL` | This project's HTTPS URL, also used by the server admin client | Public; required before Vite build |
+| `VITE_SUPABASE_ANON_KEY` | Modern `sb_publishable_...` key, or the project's still-enabled legacy anon key | Public; required before build |
+| `SUPABASE_SERVICE_ROLE_KEY` | Modern `sb_secret_...` key, or the project's still-enabled legacy service_role key | Server-only secret |
+| `SUPABASE_DB_URL` | PostgreSQL Session Pooler URI from this project's Connect panel | Server-only secret |
+| `VITE_VAPID_PUBLIC_KEY` | Existing VAPID public key | Public; required before build for enrolled devices |
+| `VAPID_PRIVATE_KEY` | Matching existing VAPID private key | Server-only secret |
+| `VAPID_SUBJECT` | Contact URI controlled by the user | Server-only configuration |
+| `APP_ORIGIN` | Deployed HTTPS origin without a path | Server-only scheduler configuration |
+| `REMINDER_CRON_SECRET` | Long random bearer secret matching the Vault value | Server-only secret |
+| `OPENAI_BASE_URL` | Optional explicit OpenAI-compatible endpoint | Server-only configuration |
+| `OPENAI_API_KEY` or `OPENROUTER_API_KEY` | Optional key for that explicitly selected provider | Server-only secret |
+| `PERSONAL_CALENDAR_ICS_OVERLAY_URL` | Optional private read-only calendar URL | Server-only secret |
 
-| Variable | Visibility | Source | Purpose |
-|---|---|---|---|
-| `VITE_SUPABASE_URL` | Public configuration | Supabase Project Settings → API → Project URL | Browser client endpoint. |
-| `VITE_SUPABASE_ANON_KEY` | Public configuration | Supabase Project Settings → API → Publishable/anon public key | Browser-safe Supabase Auth key. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Secret | Supabase Project Settings → API → service_role key | Server-only user validation and privileged planner access. Never expose it in client code. |
-| `SUPABASE_DB_URL` | Secret | Supabase Project Settings → Database → Connect → Session Pooler URI | Server-side Drizzle PostgreSQL connection. Keep `?sslmode=require`. |
-| `VITE_VAPID_PUBLIC_KEY` | Public configuration | User’s existing VAPID key pair | Browser push subscription. |
-| `VAPID_PRIVATE_KEY` | Secret | User’s existing VAPID key pair | Server-side push signing. |
-| `VAPID_SUBJECT` | Secret/configuration | A `mailto:` address controlled by the user | Web Push contact identity. |
+The variable names remain compatible with this codebase; they do not require legacy JWT-format API keys. Supabase's modern publishable keys belong in browser clients, while secret keys have elevated access and must stay on the backend. The installed Supabase SDK recognizes both formats. Creating modern keys does not itself revoke legacy keys. See [Supabase API key guidance](https://supabase.com/docs/guides/getting-started/api-keys).
 
-The database URI should use the IPv4 Session Pooler form supplied by Supabase. Do not use `/rest/v1/` in the database URI. Do not place the database URI, service-role key, or private VAPID key in a variable beginning with `VITE_`.
+Use the IPv4 Session Pooler connection supplied by Supabase, with its TLS configuration. A database URI is not an HTTPS REST URL. Never place database/admin/private-VAPID/cron secrets in `VITE_` variables, screenshots, source, or chat. Enter them locally in ignored `.env` or through the hosting dashboard. No extra external storage account is required.
 
-## Apply the schema
+## Schema, data and private files
 
-The repository contains the baseline at `supabase/migrations/0000_loving_madrox.sql` and the additive upgrade at `supabase/migrations/0001_independent_ownership.sql`. Existing populated databases require inspection and only the applicable upgrade, followed by explicit workspace ownership assignment. Use the current handoff above. The baseline is only for a verified empty database.
+1. Confirm the exact project, schema, journal and real row inventory. Take a recoverable database backup and preserve existing objects before changes.
+2. Reconcile journal/schema history. On supported populated baseline tables, apply only reviewed `0001_independent_ownership.sql`, then `0002_private_planner_files.sql`. Never replay the baseline on this populated project.
+3. Verify nullable UUID `users.authUserId`, preserved `legacyExternalId`, and nullable integer `workspaces.ownerUserId`. Sign-in creates/updates the durable profile; ownership assignment is a separate reviewed operation.
+4. Verify `planner-files` is private, limited to 20971520 bytes, and allows PDF/text/JSON/JPEG/PNG/WebP. Inspect all existing policies for broader access. The four new Storage object policies restrict authenticated access to the user's first path segment; the server adds workspace ownership checks.
+5. Preserve cancelled/failed file metadata so recurring reconciliation can remove late uploads. Download links last 300 seconds. Any existing legacy objects need an explicit inventory and separate reviewed transfer; creating the bucket does not migrate external objects automatically.
 
-After the query completes, open **Table Editor** and confirm that tables such as `users`, `workspaces`, `tasks`, `goals`, `projects`, `habits`, `habitCheckIns`, `dailyPlans`, `reviewSessions`, and `pushSubscriptions` exist.
+## Google OAuth and email
 
-## Configure Supabase Auth
+The app supports both Google and email/password. In Supabase Authentication, enable the desired providers and choose whether email confirmation is required. Email confirmation must be completed before login when enabled.
 
-Open **Authentication → Providers** and enable **Email**. For the first private deployment, email/password is the simplest path. In **Authentication → URL Configuration**, set **Site URL** to the Vercel production URL and add the Vercel preview URL pattern if preview testing is required. Email confirmation may remain enabled; if it is enabled, a new account must confirm its email before the first sign-in.
+For Google, create a Web application OAuth client in the Google Auth Platform console. Add the app origins to its authorized JavaScript origins. Put the Supabase callback URL shown in the Google provider panel (normally `https://<project-ref>.supabase.co/auth/v1/callback`) in Google's authorized redirect URIs. Enter the resulting client ID/secret in Supabase's Google provider settings, not browser environment variables. Configure the consent audience/test users as appropriate. See [Supabase Google sign-in setup](https://supabase.com/docs/guides/auth/social-login/auth-google).
 
-## Vercel project setup
+In Supabase Authentication URL Configuration, set Site URL to the intended deployment origin. Add the exact local/preview origins used by this app, for example `http://localhost:14772`, `http://localhost:14773`, and the actual Vercel preview origin. The app supplies `window.location.origin` as `redirectTo`; it must match the allowlist. Prefer explicit preview URLs rather than unnecessarily broad wildcards. See [redirect URL configuration](https://supabase.com/docs/guides/auth/redirect-urls).
 
-Import the GitHub repository `yashrastogi069-dev/personal-Calander`, select the branch `dev/personal-calendar-workbench` after import, and use the repository root. Add all variables above to **Preview** and **Production** as appropriate. Redeploy after adding or changing variables because `VITE_` values are embedded during the client build.
+After signing in, an unlinked account should see the workspace connection message. Verify the Supabase UUID, durable integer user ID, and intended existing workspace before assigning ownership. Do not treat this state as permission to create or claim arbitrary workspaces.
 
-The first deployment should be tested in this order: open the site, create an account, confirm the email if required, sign in, create a disposable task, refresh, move it between task lanes, open Calendar, create a time block, open Habits, complete and undo a check-in, sign out, and sign in again. Remove only the disposable records after validation.
+## Vercel setup
 
-## User-owned service boundaries
+Use a separate project, repository root, and the committed `vercel.json`: `pnpm run build:client`, `dist/public`, and the server adapter bundle. Add values for Preview first, redeploy after public build-time values change, and preserve the existing main project's settings. Preview branch deployment does not require a main merge.
 
-The core planner currently does not upload avatars, attachments, or generated media, so **no R2 or storage credential is required for this release**. If a future feature needs files, use a private Supabase Storage bucket first and add a separate bucket provider only after an explicit decision. Never place storage service keys in `VITE_` variables.
+Enable Web Analytics in this Vercel project. The application mounts Analytics once, strips query/fragment/private path data from page URLs, and sends no custom planner events. Existing private planner analytics continue to use the user's records.
 
-Vercel Web Analytics is mounted once at the application root. Enable Web Analytics in the user-owned Vercel project. No custom events or planner record fields are sent; the existing private planner insights remain unchanged. Do not copy retired analytics endpoints or website identifiers into the new project.
+## Scheduled reminders and file cleanup
 
-Scheduled reminders and cancelled-file cleanup use the shared authenticated `/api/scheduled/reminder` handler. Configure server-only `APP_ORIGIN` and `REMINDER_CRON_SECRET`, matching Supabase Vault values, and the reviewed five-minute Cron job before relying on scheduled delivery. Push uses the existing VAPID pair. The optional AI companion requires explicitly configured user-owned endpoint/key values; never copy retired AI service credentials.
+Configure `APP_ORIGIN` and `REMINDER_CRON_SECRET` on the server. In Supabase Vault create:
+
+- `personal_calendar_reminder_url`: the HTTPS deployment URL ending `/api/scheduled/reminder`.
+- `personal_calendar_reminder_secret`: exactly the same bearer secret.
+
+Review/install `supabase/cron/reminder_sweep.sql` only after the deployment and migrations are verified. It requires available pg_cron/pg_net/Vault, rejects missing values, and replaces only `personal-calendar-reminder-sweep`. It runs every five minutes. Existing rule times and per-device delivery idempotency remain unchanged; arbitrary non-five-minute rule times need a separate cadence/window decision.
+
+The endpoint accepts GET/POST with `Authorization: Bearer <secret>`, rejects other methods, returns 503 for missing configuration and 401 for invalid credentials, and never derives links from request Host headers. Success includes `reminders` and `storageCleanup`; failures return a generic 500. Cleanup runs independently of push success and repeats on later sweeps. Verify any Vercel deployment protection permits the configured automation to reach this endpoint.
+
+Pause reminder rules in the app to stop notifications while preserving cleanup. Unscheduling the shared job also stops automatic file reconciliation. Keep the existing VAPID pair to avoid breaking enrolled devices.
+
+## Verification and rollback
+
+Local 2026-09-06 verification: TypeScript passed, **200 tests / 48 files** passed, and the Vercel client/server build passed with the known large-client-chunk warning. Preview scripts use intercepted synthetic data and do not prove live login, ownership assignment, service access, or scheduled delivery.
+
+After the live upgrade, compare real record counts and verify Google/email login, reload, Home/Calendar, sign-out and cross-account denial. Use named disposable records only for authorized write checks. Confirm a manual device push, Cron HTTP outcome, and later a real scheduled delivery before relying on reminders.
+
+If rollout fails, stop new writes and use a known compatible deployment. Preserve additive schema, auth mappings, metadata, real planner records and the VAPID pair. Do not reset the database or drop columns/buckets as a rollback shortcut. Review any restore against post-backup writes first. Keep main untouched throughout.
