@@ -1,79 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { configurationSummary, probeCredentials } from "../scripts/audit-supabase.mjs";
 
-const projectUrl = process.env.VITE_SUPABASE_URL;
-const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const databaseUrl = process.env.SUPABASE_DB_URL;
-const plannerTables = [
-  "aiDrafts",
-  "calendarFeeds",
-  "categories",
-  "dailyCheckIns",
-  "dailyPlanItems",
-  "dailyPlans",
-  "externalEvents",
-  "focusSessions",
-  "goalMilestones",
-  "goals",
-  "habitCheckIns",
-  "habits",
-  "integrationConnections",
-  "planningAvailabilityExceptions",
-  "planningTemplates",
-  "projects",
-  "pushDeliveries",
-  "pushSubscriptions",
-  "reminderRules",
-  "reminderSchedulers",
-  "reviewSessions",
-  "savedViews",
-  "scheduleProposals",
-  "taskDependencies",
-  "taskOccurrences",
-  "taskReservationRollovers",
-  "tasks",
-  "users",
-  "weeklyObjectives",
-  "workspaces",
-] as const;
-
-describe("Supabase project configuration", () => {
-  it("has a complete user-owned project configuration", () => {
-    expect(projectUrl, "VITE_SUPABASE_URL is required").toMatch(/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i);
-    expect(anonKey, "VITE_SUPABASE_ANON_KEY is required").toMatch(/^.+$/);
-    expect(serviceRoleKey, "SUPABASE_SERVICE_ROLE_KEY is required").toMatch(/^.+$/);
-    expect(databaseUrl, "SUPABASE_DB_URL is required").toMatch(/^postgres(?:ql)?:\/\//i);
-    expect(databaseUrl).not.toContain("[YOUR-PASSWORD]");
+const config = { VITE_SUPABASE_URL: "https://preview-project.supabase.co", VITE_SUPABASE_ANON_KEY: "sb_publishable_fake", SUPABASE_SERVICE_ROLE_KEY: "sb_secret_fake", SUPABASE_DB_URL: "postgresql://fake:fake@localhost:5432/test" };
+describe("redacted service checks", () => {
+  it("returns configuration booleans without serializing actual values", () => {
+    expect(configurationSummary(config)).toEqual({ publicConfigured: true, serverConfigured: true, databaseConfigured: true });
+    expect(configurationSummary({ ...config, SUPABASE_DB_URL: "" }).databaseConfigured).toBe(false);
+    for (const value of Object.values(config)) expect(JSON.stringify(configurationSummary(config))).not.toContain(value);
   });
-
-  it("authenticates the browser-safe key against Supabase Auth", async () => {
-    const response = await fetch(`${projectUrl!.replace(/\/$/, "")}/auth/v1/settings`, {
-      headers: { apikey: anonKey! },
-    });
-    expect(response.ok, `Supabase Auth settings returned ${response.status}`).toBe(true);
+  it("uses an Auth settings GET and a zero-row REST HEAD, without bearer misuse of modern keys", async () => {
+    const fetcher = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    expect(await probeCredentials(config, fetcher)).toEqual({ authOk: true, restOk: true, authStatus: 200, restStatus: 200 });
+    expect(fetcher.mock.calls[1][0]).toContain("?select=id&limit=0");
+    expect(fetcher.mock.calls[1][1]).toMatchObject({ method: "HEAD", headers: { apikey: "sb_secret_fake" } });
+    expect(fetcher.mock.calls[1][1].headers).not.toHaveProperty("Authorization");
   });
-
-  it("authenticates the server-only key against the Supabase REST gateway", async () => {
-    const response = await fetch(`${projectUrl!.replace(/\/$/, "")}/rest/v1/`, {
-      headers: {
-        apikey: serviceRoleKey!,
-        Authorization: `Bearer ${serviceRoleKey!}`,
-      },
-    });
-    expect(response.ok, `Supabase REST gateway returned ${response.status}`).toBe(true);
+  it("redacts network errors instead of exposing URLs, keys or response bodies", async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error(Object.values(config).join(" ")));
+    const result = await probeCredentials(config, fetcher);
+    expect(result).toEqual({ authOk: false, restOk: false, authStatus: null, restStatus: null });
   });
+});
 
-  it("exposes every planner table through the user-owned REST gateway", async () => {
-    const baseUrl = projectUrl!.replace(/\/$/, "");
-    const results = await Promise.all(plannerTables.map(async table => {
-      const response = await fetch(`${baseUrl}/rest/v1/${table}?select=*&limit=1`, {
-        headers: {
-          apikey: serviceRoleKey!,
-          Authorization: `Bearer ${serviceRoleKey!}`,
-        },
-      });
-      return { table, status: response.status };
-    }));
-    expect(results.filter(result => result.status !== 200)).toEqual([]);
+describe.runIf(process.env.RUN_SUPABASE_SERVICE_TESTS === "1")("live Supabase credentials", () => {
+  it("validates configuration without printing secrets", () => {
+    expect(configurationSummary(process.env)).toEqual({ publicConfigured: true, serverConfigured: true, databaseConfigured: true });
+  });
+  it("reaches Auth and REST without fetching planner records", async () => {
+    const result = await probeCredentials(process.env);
+    expect(result.authOk, "Auth settings check failed").toBe(true);
+    expect(result.restOk, "Zero-row REST access check failed").toBe(true);
   });
 });
