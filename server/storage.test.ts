@@ -12,6 +12,7 @@ const repo: FileRepository = {
   reserve: async row => { const existing = rows.find(r => r.workspaceId === row.workspaceId && r.requestId === row.requestId); if (existing) return existing; rows.push(row); return row; },
   find: async (workspaceId, id) => rows.find(r => r.workspaceId === workspaceId && r.id === id) ?? null,
   ready: async workspaceId => rows.filter(r => r.workspaceId === workspaceId && r.status === "ready"),
+  cleanupCandidates: async afterId => rows.filter(r => (r.status === "deleted" || r.status === "failed") && r.id > afterId).sort((a, b) => a.id.localeCompare(b.id)).map(file => ({ file, authUserId: actor.authUserId })),
   update: async (row, patch) => { Object.assign(row, patch); return row; },
 };
 const service = createStorageService({ repository: repo, requireOwner: owner, getAdmin: admin as never });
@@ -21,7 +22,7 @@ beforeEach(() => {
   bucket.createSignedUploadUrl.mockResolvedValue({ data: { signedUrl: "https://storage.test/upload?token=secret" }, error: null });
   bucket.info.mockResolvedValue({ data: { size: 42, contentType: "application/pdf" }, error: null });
   bucket.createSignedUrl.mockResolvedValue({ data: { signedUrl: "https://storage.test/download?token=secret" }, error: null });
-  bucket.remove.mockResolvedValue({ data: [], error: null });
+  bucket.remove.mockReset().mockResolvedValue({ data: [], error: null });
 });
 
 describe("private planner storage", () => {
@@ -58,12 +59,12 @@ describe("private planner storage", () => {
     expect(await service.createDownloadUrl(actor, { ...scope, fileId: created.file.id })).toMatchObject({ expiresIn: 300 });
     expect(bucket.createSignedUrl).toHaveBeenCalledWith(rows[0].objectPath, 300);
   });
-  it("deletes the object before marking metadata deleted and supports repeated deletion", async () => {
+  it("records deletion intent, removes the object, and rechecks repeated deletion", async () => {
     const { file } = await service.createUpload(actor, input);
     await service.completeUpload(actor, { ...scope, fileId: file.id });
     await service.deleteFile(actor, { ...scope, fileId: file.id });
     await service.deleteFile(actor, { ...scope, fileId: file.id });
-    expect(bucket.remove).toHaveBeenCalledTimes(1); expect(rows[0].status).toBe("deleted");
+    expect(bucket.remove).toHaveBeenCalledTimes(2); expect(rows[0].status).toBe("deleted");
     expect(await service.listFiles(actor, scope)).toEqual([]);
   });
   it("cleans up objects whose actual metadata differs from the reservation", async () => {
@@ -72,14 +73,34 @@ describe("private planner storage", () => {
     await expect(service.completeUpload(actor, { ...scope, fileId: file.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(bucket.remove).toHaveBeenCalledWith([rows[0].objectPath]); expect(rows[0].status).toBe("failed");
   });
-  it("keeps missing uploads retryable and preserves metadata when object deletion fails", async () => {
+  it("keeps missing uploads retryable and records cleanup intent when object deletion fails", async () => {
     const { file } = await service.createUpload(actor, input);
     bucket.info.mockResolvedValue({ data: null, error: { status: 404 } });
     await expect(service.completeUpload(actor, { ...scope, fileId: file.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(rows[0].status).toBe("uploading");
     bucket.remove.mockResolvedValue({ data: null, error: new Error("unavailable") });
     await expect(service.deleteFile(actor, { ...scope, fileId: file.id })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
-    expect(rows[0].status).toBe("uploading");
+    expect(rows[0].status).toBe("deleted");
+  });
+  it.each(["deleted", "failed"] as const)("reconciles an upload arriving after %s cancellation and retries cleanup failure", async status => {
+    const { file } = await service.createUpload(actor, input);
+    if (status === "deleted") await service.deleteFile(actor, { ...scope, fileId: file.id });
+    else {
+      bucket.info.mockResolvedValueOnce({ data: { size: 99, contentType: "text/html" }, error: null });
+      await expect(service.completeUpload(actor, { ...scope, fileId: file.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    }
+    // A signed upload already in flight lands after the first removal completed.
+    let objectExists = true;
+    bucket.remove.mockResolvedValueOnce({ error: new Error("temporary failure") }).mockImplementation(async () => { objectExists = false; return { data: [], error: null }; });
+    expect(await service.reconcileCancelledUploads()).toEqual({ removed: 0, failed: 1 });
+    expect(objectExists).toBe(true);
+    expect(await service.reconcileCancelledUploads()).toEqual({ removed: 1, failed: 0 });
+    expect(objectExists).toBe(false);
+    expect(rows[0].status).toBe(status);
+    // Tombstones remain eligible: another late arrival cannot evade future sweeps.
+    objectExists = true;
+    await service.reconcileCancelledUploads();
+    expect(objectExists).toBe(false);
   });
   it("revalidates ownership before finalization, download, and deletion", async () => {
     const { file } = await service.createUpload(actor, input); vi.clearAllMocks(); owner.mockRejectedValue(new Error("forbidden"));
@@ -87,6 +108,13 @@ describe("private planner storage", () => {
       await expect(operation(actor, { ...scope, fileId: file.id })).rejects.toThrow("forbidden");
     }
     expect(admin).not.toHaveBeenCalled();
+  });
+  it("keeps cleanup queued without touching Storage when workspace ownership is revoked", async () => {
+    const { file } = await service.createUpload(actor, input);
+    await service.deleteFile(actor, { ...scope, fileId: file.id });
+    vi.clearAllMocks(); owner.mockRejectedValue(new Error("forbidden"));
+    expect(await service.reconcileCancelledUploads()).toEqual({ removed: 0, failed: 1 });
+    expect(admin).not.toHaveBeenCalled(); expect(rows[0].status).toBe("deleted");
   });
   it("does not reveal files from another workspace even if the actor owns both", async () => {
     const { file } = await service.createUpload(actor, input); vi.clearAllMocks();

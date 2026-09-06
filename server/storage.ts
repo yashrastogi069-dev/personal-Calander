@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { plannerFiles } from "../drizzle/schema";
+import { plannerFiles, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { requireWorkspaceOwner } from "./workspaceOwnership";
@@ -21,6 +21,7 @@ export type FileRepository = {
   reserve(row: FileRecord): Promise<FileRecord>;
   find(workspaceId: string, id: string): Promise<FileRecord | null>;
   ready(workspaceId: string): Promise<FileRecord[]>;
+  cleanupCandidates(afterId: string): Promise<Array<{ file: FileRecord; authUserId: string | null }>>;
   update(row: FileRecord, patch: Partial<Pick<FileRecord, "status" | "updatedAt" | "deletedAt" | "failureReason">>): Promise<FileRecord>;
 };
 
@@ -44,6 +45,12 @@ const repository: FileRepository = {
   },
   async ready(workspaceId) {
     return (await database()).select().from(plannerFiles).where(and(eq(plannerFiles.workspaceId, workspaceId), eq(plannerFiles.status, "ready"))).orderBy(desc(plannerFiles.createdAt));
+  },
+  async cleanupCandidates(afterId) {
+    return (await database()).select({ file: plannerFiles, authUserId: users.authUserId })
+      .from(plannerFiles).innerJoin(users, eq(plannerFiles.ownerUserId, users.id))
+      .where(and(inArray(plannerFiles.status, ["deleted", "failed"]), gt(plannerFiles.id, afterId)))
+      .orderBy(asc(plannerFiles.id)).limit(100);
   },
   async update(row, patch) {
     const [updated] = await (await database()).update(plannerFiles).set(patch).where(and(eq(plannerFiles.id, row.id), eq(plannerFiles.workspaceId, row.workspaceId), eq(plannerFiles.status, row.status))).returning();
@@ -84,9 +91,10 @@ export function createStorageService(deps: { repository: FileRepository; require
     return row;
   }
   async function markFailed(actor: Actor, scope: Scope, row: FileRecord) {
+    // Persist cleanup intent before I/O so failures and late arrivals remain retryable.
+    await deps.repository.update(row, { status: "failed", failureReason: "Uploaded file size or type did not match.", updatedAt: new Date() });
     const removed = await (await bucket(actor, scope)).remove([row.objectPath]);
     if (removed.error) throw storageError();
-    await deps.repository.update(row, { status: "failed", failureReason: "Uploaded file size or type did not match.", updatedAt: new Date() });
   }
   return {
     async createUpload(actor: Actor, input: Scope & z.infer<typeof uploadInput>) {
@@ -135,11 +143,37 @@ export function createStorageService(deps: { repository: FileRepository; require
     },
     async deleteFile(actor: Actor, input: FileInput) {
       const row = await find(actor, input);
-      if (row.status === "deleted") return publicFile(row);
+      const deleted = row.status === "deleted" ? row : await deps.repository.update(row, { status: "deleted", deletedAt: new Date(), updatedAt: new Date() });
       const result = await (await bucket(actor, input)).remove([row.objectPath]);
       if (result.error) throw storageError();
-      return publicFile(await deps.repository.update(row, { status: "deleted", deletedAt: new Date(), updatedAt: new Date() }));
+      return publicFile(deleted);
+    },
+    async reconcileCancelledUploads() {
+      const result = { removed: 0, failed: 0 };
+      let afterId = "";
+      for (;;) {
+        const candidates = await deps.repository.cleanupCandidates(afterId);
+        if (!candidates.length) return result;
+        for (const { file, authUserId } of candidates) {
+          afterId = file.id;
+          try {
+            const actor = { id: file.ownerUserId, authUserId };
+            const input = { workspaceId: file.workspaceId, timezone: "UTC", fileId: file.id };
+            const current = await find(actor, input);
+            if (current.status !== "deleted" && current.status !== "failed") continue;
+            const removed = await (await bucket(actor, input)).remove([current.objectPath]);
+            if (removed.error) throw storageError();
+            result.removed++;
+          } catch {
+            result.failed++;
+          }
+        }
+        // Keep tombstones eligible forever: even a successful removal cannot
+        // prove that an issued signed upload will not finish arriving later.
+      }
     },
   };
 }
 export const storageService = createStorageService({ repository, requireOwner: requireWorkspaceOwner, getAdmin: getSupabaseAdmin });
+// Called by the authenticated scheduled worker; never exposed as a public tRPC procedure.
+export const reconcileCancelledStorageUploads = () => storageService.reconcileCancelledUploads();
