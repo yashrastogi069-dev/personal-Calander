@@ -1,5 +1,23 @@
 # Web Push and iPhone Activation Runbook
 
+## Independent Supabase/Vercel activation (current)
+
+The current branch uses Supabase PostgreSQL (`SUPABASE_DB_URL`) and the existing VAPID Web Push sender. The historical deployment notes below record earlier device acceptance; they do not establish that the new deployment is active. Do not use their old database or scheduler configuration.
+
+1. Preserve the existing `VITE_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` pair for already-enrolled devices. Configure those values plus `VAPID_SUBJECT` securely in Vercel. Public Vite values must exist at build time.
+2. Set server-only `APP_ORIGIN` to the deployment origin (for example, `https://planner.example`, without a path) and `REMINDER_CRON_SECRET` to a long random secret. The shared `/api/scheduled/reminder` handler accepts authenticated GET/POST and does not trust Host or forwarded headers for notification links.
+3. After backing up and reviewing the populated Supabase project, apply only the reviewed additive migrations in order. Never reset real data or replay the baseline. Preserve existing workspace identities, notification rules, subscriptions, and delivery history.
+4. Create Supabase Vault secrets named `personal_calendar_reminder_url` (the HTTPS deployment URL ending `/api/scheduled/reminder`) and `personal_calendar_reminder_secret` (exactly matching `REMINDER_CRON_SECRET`). Enter secret values in the dashboard; do not paste them into this SQL file or Git.
+5. Review and install `supabase/cron/reminder_sweep.sql`. It requires available `pg_cron`, `pg_net`, and Vault, refuses missing configuration, and replaces only the job named `personal-calendar-reminder-sweep`. Re-running it does not create duplicate jobs. It runs every five minutes; the current daily 11:00 and Sunday 17:00 rules remain unchanged and are evaluated in each persisted timezone.
+6. Confirm authenticated requests succeed, unauthenticated requests return 401, and Cron HTTP outcomes show success. A successful response contains separate `reminders` and `storageCleanup` results. A failed job returns a generic 500. Storage cleanup runs even when notification delivery fails and retries on later sweeps.
+7. Use the existing manual device test, then verify a real scheduled reminder on the installed app. Neither local mocked tests nor this runbook claim a new production delivery has occurred.
+
+Cancelled or failed upload metadata is retained as durable cleanup work. Each scheduled run rechecks those object paths, so a signed upload that arrives after deletion is removed on a later sweep. Do not purge these records or disable this job while relying on automatic file cleanup. Each Storage call still validates current workspace ownership; failed authorization or service calls remain pending and produce a failed cleanup count.
+
+To pause reminder delivery, disable the reminder rules in the app; keep the shared job running for cancelled-file cleanup. To disable the entire worker, unschedule only `personal-calendar-reminder-sweep` and remove its Vault values, understanding that automatic file cleanup also stops. Restore the same VAPID pair and database records when rolling back; never rotate keys or delete subscriptions as a deployment repair.
+
+## Previous deployment evidence (historical)
+
 **Status:** The application has an installable manifest, service worker, explicit device opt-in, secure subscription persistence, local/browser plus server-side opt-out, subscription-refresh messaging, audited manual test delivery, and terminal-expiration handling. VAPID values are configured through secure secrets only. The user has confirmed both a visible iPhone manual test notification and the corrected **Pause reminders** state after enabling the approved cadence. Server persistence confirms one enabled `daily@11:00` rule and one enabled `weekly@0@17:00` rule in `Pacific/Auckland`. A production scheduler audit authenticated successfully, inspected both rules, and safely sent nothing outside their due times. The next actual scheduled provider delivery remains future-observed evidence rather than a result this runbook claims in advance.
 
 > **Important:** Browser permission is not delivery. A device must be installed and subscribed, the subscription must be stored, and a server must sign and send a Web Push request before a reminder can reach the phone.

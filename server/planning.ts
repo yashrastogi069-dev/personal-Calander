@@ -1063,6 +1063,10 @@ export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin:
   };
 }
 
+export async function dispatchAllScheduledReminders(origin: string, now = new Date()) {
+  return dispatchProjectReminderSweep(await requireDb(), origin, now);
+}
+
 export async function startReviewSession(scope: PlannerScope, input: { kind: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"; periodStartLocalDate: string; periodEndLocalDate: string; snapshot?: unknown }) {
   const db = await requireDb();
   const id = nanoid();

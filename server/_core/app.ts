@@ -3,6 +3,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { buildCalendarFeed } from "../calendarFeed";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { handleReminderRequest } from "../reminderEndpoint";
 
 /**
  * Shared HTTP application for local Express hosting and serverless hosts.
@@ -25,11 +26,7 @@ export function createPlannerApp() {
     }
   });
 
-  // Scheduled delivery remains intentionally disabled until a user-owned Vercel Cron
-  // secret and delivery policy are configured.
-  app.post("/api/scheduled/reminder", (_req, res) => {
-    return res.status(503).json({ error: "scheduled-reminders-not-configured", message: "Configure a user-owned scheduler before enabling reminder delivery." });
-  });
+  app.all("/api/scheduled/reminder", handleReminderRequest);
 
   app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext }));
   return app;
