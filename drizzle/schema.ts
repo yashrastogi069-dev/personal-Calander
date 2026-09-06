@@ -53,6 +53,25 @@ export const workspaces = pgTable("workspaces", {
   version: integer("version").notNull().default(1),
 }).enableRLS();
 
+export const plannerFiles = pgTable("plannerFiles", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  workspaceId: varchar("workspaceId", { length: 64 }).notNull().references(() => workspaces.id),
+  ownerUserId: integer("ownerUserId").notNull().references(() => users.id),
+  requestId: varchar("requestId", { length: 128 }).notNull(),
+  objectPath: text("objectPath").notNull().unique(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  mimeType: varchar("mimeType", { length: 100 }).notNull(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  status: enumText("status", ["uploading", "ready", "deleted", "failed"]).notNull().default("uploading"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
+  failureReason: text("failureReason"),
+}, table => [
+  uniqueIndex("plannerFiles_workspace_request_unique").on(table.workspaceId, table.requestId),
+  index("plannerFiles_workspace_status_idx").on(table.workspaceId, table.status),
+]).enableRLS();
+
 export const categories = pgTable(
   "categories",
   {
