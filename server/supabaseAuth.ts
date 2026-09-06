@@ -21,12 +21,15 @@ function toPlannerUser(user: SupabaseUser): Parameters<typeof upsertUser>[0] {
 }
 
 export async function authenticateSupabaseBearer(token: string): Promise<User | null> {
-  if (!adminClient || !token) return null;
+  if (!token) return null;
+  if (!adminClient) throw new Error("Supabase server authentication is not configured.");
   const { data, error } = await adminClient.auth.getUser(token);
   if (error || !data.user) return null;
   const plannerUser = toPlannerUser(data.user);
   await upsertUser(plannerUser);
-  return (await getUserBySupabaseUserId(plannerUser.supabaseUserId)) ?? null;
+  const profile = await getUserBySupabaseUserId(plannerUser.supabaseUserId);
+  if (!profile) throw new Error("The planner account could not be loaded from PostgreSQL.");
+  return profile;
 }
 
 export function readBearerToken(request: { headers: { authorization?: string | string[] | undefined } }) {

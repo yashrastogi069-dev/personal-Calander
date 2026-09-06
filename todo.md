@@ -339,4 +339,18 @@
 - [x] Replace Forge-backed storage and notifications with user-owned Supabase/owned paths or safe no-op boundaries.
 - [x] Remove Manus analytics/debug/runtime integrations, Manus preview script flags, and correct allowed-host configuration for the user-owned domain.
 - [x] Update tests and documentation, run full validation, and checkpoint only after the independent-stack source audit passes.
-- [ ] Run drizzle/0013_supabase_identity.sql in the user-owned Supabase SQL Editor; the managed SQL executor is connected to TiDB and correctly rejected PostgreSQL syntax, so no managed database was changed.
+- [ ] Inspect the live Supabase schema and apply the reviewed additive PostgreSQL upgrade in supabase/migrations/0001_independent_ownership.sql. This supersedes the standalone 0013 step and accepts databases where that rename was already applied.
+
+## 2026-09-06 — Independent workbench preparation
+- [x] Preserve the explicit no-merge-to-main rule and record that the database contains real planner data.
+- [x] Mount authentication on active routes and expose bounded recovery for session, account, and workspace failures.
+- [x] Resolve workspace identity from server-owned account assignment; enforce ownership on all planner procedures.
+- [x] Prepare and test an additive identity/ownership/RLS migration without claiming or recreating existing workspaces.
+- [x] Remove unused legacy dependencies, normalize explicit AI endpoints, and handle PostgreSQL duplicate-delivery errors.
+- [x] Validate 155 tests in 41 files, TypeScript, production build, migration consistency, and phone-sized sign-in/recovery browser checks.
+- [x] Register and authenticate the official Supabase MCP connection in read-only mode.
+- [ ] Reload the session to load Supabase tools; inspect the selected project, existing data, and migration history.
+- [ ] Verify backup/recovery, apply the reviewed upgrade, and explicitly link the correct existing workspace to the verified Supabase account.
+- [ ] Configure runtime credentials and complete real auth/CRUD/planner validation.
+- [ ] Deploy the workbench to a separate Vercel staging project and verify it before production promotion.
+- [ ] Begin UI/UX development after independent deployment validation.

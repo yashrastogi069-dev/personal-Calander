@@ -9,7 +9,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { getReminderDevicePresentation } from "@/lib/reminderDevicePresentation";
 import { capturesForWorkspace, createOfflineTaskCapture, isRetryableCaptureError, queueOfflineTaskCapture, removeOfflineTaskCapture } from "@/lib/offlineTaskCapture";
-import { displayLocalDate, getWorkspaceScope, localDateInTimezone, shiftLocalDate, type WorkspaceScope } from "@/lib/workspace";
+import { displayLocalDate, localDateInTimezone, shiftLocalDate, type WorkspaceScope } from "@/lib/workspace";
+import { useWorkspaceScope } from "@/contexts/WorkspaceContext";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
 import { completedLanePreviewLimit, laneForTaskState, stateForTaskLane, taskBoardLanes, type TaskBoardLaneId, visibleTasksForLane } from "@shared/taskBoard";
@@ -163,7 +164,7 @@ function TaskRow({ task, categoryColor, parentTitle, childCount = 0, projects, o
   const pointerStart = useRef<{ x: number; y: number; pointerType: string } | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [swipeAction, setSwipeAction] = useState<"archive" | null>(null);
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const deadlineRisk = deadlineRiskForTask(task, localDateInTimezone(scope.timezone));
   const utils = trpc.useUtils();
   const saveTask = trpc.planner.task.update.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
@@ -285,7 +286,7 @@ function TaskArchivePanel({ tasks, query, onRestore }: { tasks: any[]; query: st
 }
 
 function DailyCompass() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [intention, setIntention] = useState("");
   const [energy, setEnergy] = useState("3");
@@ -296,7 +297,7 @@ function DailyCompass() {
 }
 
 function RecurringWorkControl() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const utils = trpc.useUtils();
   const materialize = trpc.planner.occurrence.materialize.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
@@ -305,7 +306,7 @@ function RecurringWorkControl() {
 }
 
 function ReviewRitual({ sessions }: { sessions: any[] }) {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [localReview, setLocalReview] = useState<any>(null);
   const [reflection, setReflection] = useState("");
@@ -327,7 +328,7 @@ function ReviewRitual({ sessions }: { sessions: any[] }) {
 }
 
 function PlanningHealthStrip() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(() => isoRange(today), [today]);
   const dashboard = trpc.planner.dashboard.useQuery({ ...scope, todayLocalDate: today, rangeStart: range.start, rangeEnd: range.end });
@@ -338,7 +339,7 @@ function PlanningHealthStrip() {
 }
 
 function DecisionSignals() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(() => isoRange(today), [today]);
   const dashboard = trpc.planner.dashboard.useQuery({ ...scope, todayLocalDate: today, rangeStart: range.start, rangeEnd: range.end });
@@ -357,7 +358,7 @@ function DailyCapacityForecast({ workload, onOpenDeadlineRisk }: { workload: any
 }
 
 function TaskTriagePanel() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(() => ({ start: shiftLocalDate(today, -31), end: shiftLocalDate(today, 31) }), [today]);
   const utils = trpc.useUtils();
@@ -381,7 +382,7 @@ function TaskTriagePanel() {
 }
 
 function CalendarSubscriptionControl() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [feed, setFeed] = useState<any>(null);
   const ensure = trpc.planner.calendarFeed.ensure.useMutation({ onSuccess: setFeed });
   const revoke = trpc.planner.calendarFeed.revoke.useMutation({ onSuccess: () => setFeed(null) });
@@ -396,7 +397,7 @@ function vapidKeyToUint8Array(value: string) {
 }
 
 function BrowserNotificationControl() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const utils = trpc.useUtils();
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => typeof Notification === "undefined" || !navigator.serviceWorker ? "unsupported" : Notification.permission);
   const [message, setMessage] = useState<string | null>(null);
@@ -495,7 +496,7 @@ function BrowserNotificationControl() {
 }
 
 function OccurrencePanel() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(() => ({ start: shiftLocalDate(today, -7), end: shiftLocalDate(today, 7) }), [today]);
   const utils = trpc.useUtils();
@@ -515,7 +516,7 @@ function ResponsiveSupportGroup({ title, detail, children, className }: { title:
 function FocusPanel({ tasks, categories, projects, onToggle, onCompose, onArchive }: { tasks: any[]; categories: any[]; projects: any[]; onToggle: (task: any) => void; onCompose: () => void; onArchive: (task: any) => void }) {
   const categoryColors = new Map(categories.map(category => [category.id, category.color]));
   const entryStage = todayEntryStage(tasks.filter(task => task.state !== "completed").length);
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [rescheduleMessage, setRescheduleMessage] = useState<string | null>(null);
   const utils = trpc.useUtils();
   const reschedule = trpc.planner.task.update.useMutation({ onSuccess: () => { utils.planner.workspace.snapshot.invalidate(); utils.planner.dashboard.invalidate(); } });
@@ -545,7 +546,7 @@ function FocusPanel({ tasks, categories, projects, onToggle, onCompose, onArchiv
 }
 
 function OfflineCaptureIndicator() {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [queued, setQueued] = useState(() => capturesForWorkspace(scope.workspaceId).length);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
   useEffect(() => {
@@ -563,7 +564,7 @@ function OfflineCaptureIndicator() {
 
 function Timeline({ tasks, selectedDate, onDrop, onMoveDay, onOpenTasks, onComplete, onResize, scheduleError, onRetrySchedule, onOpenHabits = () => window.dispatchEvent(new Event("personal-calander:open-habits")) }: { tasks: any[]; selectedDate: string; onDrop: (id: string, localDate: string) => void; onMoveDay: (amount: number) => void; onOpenTasks: () => void; onComplete: (task: any) => void; onResize: (task: any, minutes: number) => void; scheduleError: string | null; onRetrySchedule: () => void; onOpenHabits?: () => void }) {
   const hours = Array.from({ length: 10 }, (_, index) => index + 8);
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [guidanceDismissedFor, setGuidanceDismissedFor] = useState<string | null>(null);
   const scheduled = tasks.filter(task => task.scheduledLocalDate === selectedDate && task.state !== "completed");
   const allDay = scheduled.filter(task => !task.plannedStartAt || !task.plannedEndAt);
@@ -594,7 +595,7 @@ const nextActionCopy: Record<string, string> = {
 };
 
 function GoalPlanningControl({ goals }: { goals: any[] }) {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -609,7 +610,7 @@ function GoalPlanningControl({ goals }: { goals: any[] }) {
 }
 
 function HorizonCompass({ goals }: { goals: any[] }) {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(() => ({ start: shiftLocalDate(today, -31), end: shiftLocalDate(today, 62) }), [today]);
   const utils = trpc.useUtils();
@@ -727,7 +728,7 @@ function FullComposer({ open, kind, categories, goals = [], onOpenChange, onKind
 }
 
 function Composer({ open, kind, categories: _categories, goals = [], onOpenChange, onKindChange, onCreate, onManageCategories: _onManageCategories }: { open: boolean; kind: ComposerKind; categories: any[]; goals?: any[]; onOpenChange: (open: boolean) => void; onKindChange: (kind: ComposerKind) => void; onCreate: (values: any) => Promise<void>; onManageCategories: () => void }) {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const projectWorkspace = trpc.planner.workspace.snapshot.useQuery({ ...scope, ...isoRange(today) }, { enabled: open && kind === "project" });
   const projectGoals = projectWorkspace.data?.goals ?? goals;
@@ -764,7 +765,7 @@ function CategoryManagerRow({ category, onUpdate, onDelete, busy }: { category: 
 function CategoryDialog({ open, onOpenChange, categories }: { open: boolean; onOpenChange: (open: boolean) => void; categories: any[] }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("#7DB8E0");
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(() => ({ start: shiftLocalDate(today, -31), end: shiftLocalDate(today, 31) }), [today]);
   const utils = trpc.useUtils();
@@ -802,7 +803,7 @@ function CategoryDialog({ open, onOpenChange, categories }: { open: boolean; onO
 }
 
 function AICompanion() {
-  const [scope] = useState<WorkspaceScope>(() => getWorkspaceScope());
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [thought, setThought] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
@@ -829,7 +830,7 @@ function AICompanion() {
 }
 
 export default function Home() {
-  const [scope] = useState<WorkspaceScope>(() => getWorkspaceScope());
+  const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [selectedDate, setSelectedDate] = useState(today);
   const [surface, setSurface] = useState<Surface>(() => { const requested = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("surface"); return mobilePlannerDestinations.some(destination => destination.id === requested) ? requested as Surface : "today"; });
@@ -1021,8 +1022,8 @@ export default function Home() {
     }
   };
 
-  if (snapshotQuery.isLoading || !snapshot) return <LoadingBoard />;
   if (snapshotQuery.error) return <div className="planner-error"><div><p className="eyebrow">Connection interrupted</p><h1>Planning data could not load.</h1><p>{snapshotQuery.error.message}</p><Button onClick={() => snapshotQuery.refetch()}>Try again</Button></div></div>;
+  if (snapshotQuery.isLoading || !snapshot) return <LoadingBoard />;
 
   const surfaceTitle = surface === "today" ? "Today" : navItems.find(item => item.id === surface)?.label ?? "Planner";
   const modeCopy: Record<CalendarMode, string> = { Day: "Make one focused day believable.", Week: "Balance commitments across the week.", Month: "Keep due work and milestones in view.", Quarter: "Review active projects and runway.", Year: "Connect annual direction to current work." };
@@ -1035,7 +1036,7 @@ export default function Home() {
 
 function CalendarMatrix({ mode, anchor, tasks, categories, today, onMoveDay, onOpenTasks }: { mode: CalendarMode; anchor: string; tasks: any[]; categories: any[]; today: string; onMoveDay: (amount: number) => void; onOpenTasks: () => void }) {
   const categoryColors = new Map(categories.map(category => [category.id, category.color]));
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const utils = trpc.useUtils();
   const slots = mode === "Week" ? 7 : mode === "Month" ? 35 : mode === "Quarter" ? 12 : 12;
   const step = mode === "Week" ? 1 : mode === "Month" ? 1 : mode === "Quarter" ? 7 : 30;

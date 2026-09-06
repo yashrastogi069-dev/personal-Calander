@@ -12,6 +12,7 @@ export const publicProcedure = t.procedure;
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
+  if (ctx.authError) throw ctx.authError;
 
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });

@@ -71,7 +71,8 @@ import {
 import { approveScheduleProposal, createScheduleProposal, dismissScheduleProposal, undoScheduleProposal } from "../scheduling";
 import { invokeLLM } from "../_core/llm";
 import { finishFocusSession, pauseFocusSession, resumeFocusSession, startFocusSession } from "../focus";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure as authenticatedProcedure, router } from "../_core/trpc";
+import { requireWorkspaceOwner } from "../workspaceOwnership";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const approvedReminderSpecs = [
@@ -79,6 +80,10 @@ const approvedReminderSpecs = [
   { type: "weekly_review" as const, schedule: { kind: "weekly" as const, weekday: 0, timeLocal: "17:00" } },
 ];
 const scope = z.object({ workspaceId: z.string().min(12).max(64), timezone: z.string().min(1).max(64) });
+const protectedProcedure = authenticatedProcedure.input(scope).use(async ({ ctx, input, next }) => {
+  await requireWorkspaceOwner(ctx.user.supabaseUserId, input.workspaceId);
+  return next();
+});
 const lifecycle = z.enum(["not_started", "in_progress", "blocked", "completed", "archived"]);
 const priority = z.enum(["none", "low", "medium", "high", "critical"]);
 const horizon = z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "someday"]);

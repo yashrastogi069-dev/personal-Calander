@@ -30,10 +30,12 @@ export const users = pgTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const workspaces = pgTable("workspaces", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  // Existing workspaces remain unclaimed until explicitly assigned by the owner.
+  ownerSupabaseUserId: varchar("ownerSupabaseUserId", { length: 64 }).unique().references(() => users.supabaseUserId),
   name: varchar("name", { length: 120 }).notNull().default("My planning workspace"),
   timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
   weekStartsOn: integer("weekStartsOn").notNull().default(1),
@@ -46,7 +48,7 @@ export const workspaces = pgTable("workspaces", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   version: integer("version").notNull().default(1),
-});
+}).enableRLS();
 
 export const categories = pgTable(
   "categories",
@@ -64,7 +66,7 @@ export const categories = pgTable(
     index("categories_workspace_idx").on(table.workspaceId),
     uniqueIndex("categories_workspace_name_unique").on(table.workspaceId, table.name),
   ]
-);
+).enableRLS();
 
 export const goals = pgTable(
   "goals",
@@ -95,7 +97,7 @@ export const goals = pgTable(
     index("goals_workspace_horizon_idx").on(table.workspaceId, table.horizon),
     index("goals_parent_idx").on(table.parentGoalId),
   ]
-);
+).enableRLS();
 
 export const goalMilestones = pgTable(
   "goalMilestones",
@@ -123,7 +125,7 @@ export const goalMilestones = pgTable(
     index("goal_milestones_workspace_goal_idx").on(table.workspaceId, table.goalId),
     index("goal_milestones_workspace_due_idx").on(table.workspaceId, table.dueLocalDate),
   ]
-);
+).enableRLS();
 
 export const projects = pgTable(
   "projects",
@@ -149,7 +151,7 @@ export const projects = pgTable(
     index("projects_workspace_state_idx").on(table.workspaceId, table.state),
     index("projects_goal_idx").on(table.goalId),
   ]
-);
+).enableRLS();
 
 export const tasks = pgTable(
   "tasks",
@@ -195,7 +197,7 @@ export const tasks = pgTable(
     index("tasks_goal_idx").on(table.goalId),
     uniqueIndex("tasks_workspace_client_request_unique").on(table.workspaceId, table.clientRequestId),
   ]
-);
+).enableRLS();
 
 /** Immutable per-task evidence that a completed planning day was manually rolled over. */
 export const taskReservationRollovers = pgTable(
@@ -213,7 +215,7 @@ export const taskReservationRollovers = pgTable(
     index("task_rollovers_workspace_date_idx").on(table.workspaceId, table.fromLocalDate),
     uniqueIndex("task_rollover_task_date_unique").on(table.taskId, table.fromLocalDate),
   ]
-);
+).enableRLS();
 
 export const taskDependencies = pgTable(
   "taskDependencies",
@@ -229,7 +231,7 @@ export const taskDependencies = pgTable(
     index("task_dependencies_workspace_task_idx").on(table.workspaceId, table.taskId),
     uniqueIndex("task_dependency_unique").on(table.taskId, table.dependsOnTaskId),
   ]
-);
+).enableRLS();
 
 export const taskOccurrences = pgTable(
   "taskOccurrences",
@@ -253,7 +255,7 @@ export const taskOccurrences = pgTable(
     index("occurrences_workspace_date_idx").on(table.workspaceId, table.localDate),
     uniqueIndex("occurrences_task_date_unique").on(table.taskId, table.localDate),
   ]
-);
+).enableRLS();
 
 export const habits = pgTable(
   "habits",
@@ -277,7 +279,7 @@ export const habits = pgTable(
     index("habits_workspace_active_idx").on(table.workspaceId, table.archivedAt),
     index("habits_goal_idx").on(table.goalId),
   ]
-);
+).enableRLS();
 
 export const habitCheckIns = pgTable(
   "habitCheckIns",
@@ -298,7 +300,7 @@ export const habitCheckIns = pgTable(
     index("habit_checkins_workspace_date_idx").on(table.workspaceId, table.localDate),
     uniqueIndex("habit_checkin_unique").on(table.habitId, table.localDate),
   ]
-);
+).enableRLS();
 
 export const dailyCheckIns = pgTable(
   "dailyCheckIns",
@@ -315,7 +317,7 @@ export const dailyCheckIns = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [uniqueIndex("daily_checkin_unique").on(table.workspaceId, table.localDate)]
-);
+).enableRLS();
 
 /** A deliberate, reopenable daily commitment list; opening this record never moves a task. */
 export const dailyPlans = pgTable(
@@ -337,7 +339,7 @@ export const dailyPlans = pgTable(
     uniqueIndex("daily_plans_workspace_date_unique").on(table.workspaceId, table.localDate),
     index("daily_plans_workspace_state_idx").on(table.workspaceId, table.state),
   ]
-);
+).enableRLS();
 
 /** Each committed task has an explicit daily outcome without replacing task lifecycle history. */
 export const dailyPlanItems = pgTable(
@@ -360,7 +362,7 @@ export const dailyPlanItems = pgTable(
     uniqueIndex("daily_plan_item_unique").on(table.dailyPlanId, table.taskId),
     index("daily_plan_items_workspace_plan_idx").on(table.workspaceId, table.dailyPlanId),
   ]
-);
+).enableRLS();
 
 /** Outcome-level weekly intent is distinct from the daily commitment list. */
 export const weeklyObjectives = pgTable(
@@ -387,7 +389,7 @@ export const weeklyObjectives = pgTable(
     index("weekly_objectives_goal_idx").on(table.goalId),
     index("weekly_objectives_project_idx").on(table.projectId),
   ]
-);
+).enableRLS();
 
 /** Actual focus time is attributed to a task rather than inferred from a reservation. */
 export const focusSessions = pgTable(
@@ -414,7 +416,7 @@ export const focusSessions = pgTable(
     index("focus_sessions_workspace_started_idx").on(table.workspaceId, table.startedAt),
     index("focus_sessions_task_idx").on(table.taskId),
   ]
-);
+).enableRLS();
 
 /** Review-first reusable personal configurations; applying one is a separate explicit action. */
 export const planningTemplates = pgTable(
@@ -432,7 +434,7 @@ export const planningTemplates = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [index("planning_templates_workspace_kind_idx").on(table.workspaceId, table.kind)]
-);
+).enableRLS();
 
 /** Suggestions change a task reservation only after explicit user approval and remain undoable. */
 export const scheduleProposals = pgTable(
@@ -457,7 +459,7 @@ export const scheduleProposals = pgTable(
     index("schedule_proposals_workspace_date_idx").on(table.workspaceId, table.localDate),
     index("schedule_proposals_task_idx").on(table.taskId),
   ]
-);
+).enableRLS();
 
 /** A day-specific exception overrides normal availability without modifying the workspace default. */
 export const planningAvailabilityExceptions = pgTable(
@@ -476,7 +478,7 @@ export const planningAvailabilityExceptions = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [uniqueIndex("planning_availability_exception_workspace_date_unique").on(table.workspaceId, table.localDate)]
-);
+).enableRLS();
 
 export const savedViews = pgTable(
   "savedViews",
@@ -492,7 +494,7 @@ export const savedViews = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [index("saved_views_workspace_type_idx").on(table.workspaceId, table.viewType)]
-);
+).enableRLS();
 
 export const reviewSessions = pgTable(
   "reviewSessions",
@@ -511,7 +513,7 @@ export const reviewSessions = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [index("reviews_workspace_period_idx").on(table.workspaceId, table.periodStartLocalDate)]
-);
+).enableRLS();
 
 export const reminderRules = pgTable(
   "reminderRules",
@@ -535,7 +537,7 @@ export const reminderRules = pgTable(
     index("reminders_workspace_enabled_idx").on(table.workspaceId, table.isEnabled),
     uniqueIndex("reminders_schedule_task_unique").on(table.scheduleCronTaskUid),
   ]
-);
+).enableRLS();
 
 /** A single project-owned Heartbeat task drives due enabled rules. */
 export const reminderSchedulers = pgTable("reminderSchedulers", {
@@ -543,7 +545,7 @@ export const reminderSchedulers = pgTable("reminderSchedulers", {
   scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }).notNull().unique(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const integrationConnections = pgTable(
   "integrationConnections",
@@ -562,7 +564,7 @@ export const integrationConnections = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [index("integrations_workspace_idx").on(table.workspaceId)]
-);
+).enableRLS();
 
 export const externalEvents = pgTable(
   "externalEvents",
@@ -583,7 +585,7 @@ export const externalEvents = pgTable(
     index("external_events_workspace_time_idx").on(table.workspaceId, table.startsAt),
     uniqueIndex("external_events_connection_external_unique").on(table.connectionId, table.externalId),
   ]
-);
+).enableRLS();
 
 export const calendarFeeds = pgTable(
   "calendarFeeds",
@@ -599,7 +601,7 @@ export const calendarFeeds = pgTable(
     revokedAt: timestamp("revokedAt"),
   },
   table => [index("calendar_feeds_workspace_idx").on(table.workspaceId), uniqueIndex("calendar_feeds_token_unique").on(table.token)]
-);
+).enableRLS();
 
 export const pushSubscriptions = pgTable(
   "pushSubscriptions",
@@ -620,7 +622,7 @@ export const pushSubscriptions = pgTable(
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   },
   table => [index("push_subscriptions_workspace_status_idx").on(table.workspaceId, table.status), uniqueIndex("push_subscriptions_endpoint_unique").on(table.endpoint)]
-);
+).enableRLS();
 
 export const pushDeliveries = pgTable(
   "pushDeliveries",
@@ -644,7 +646,7 @@ export const pushDeliveries = pgTable(
     index("push_deliveries_subscription_idx").on(table.subscriptionId),
     uniqueIndex("push_deliveries_idempotency_unique").on(table.idempotencyKey),
   ]
-);
+).enableRLS();
 
 export const aiDrafts = pgTable(
   "aiDrafts",
@@ -661,7 +663,7 @@ export const aiDrafts = pgTable(
     version: integer("version").notNull().default(1),
   },
   table => [index("ai_drafts_workspace_state_idx").on(table.workspaceId, table.state)]
-);
+).enableRLS();
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;

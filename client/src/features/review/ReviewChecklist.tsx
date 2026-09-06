@@ -1,12 +1,12 @@
 import { trpc } from "@/lib/trpc";
-import { getWorkspaceScope } from "@/lib/workspace";
+import { useWorkspaceScope } from "@/contexts/WorkspaceContext";
 import { reviewChecklistFromSnapshot, weeklyReviewChecklistItems, weeklyReviewChecklistProgress, type WeeklyReviewChecklist } from "@shared/reviewChecklist";
 import { CheckCircle2, Circle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import "./review-checklist.css";
 
 export function ReviewChecklist({ review, onUpdated }: { review: any; onUpdated: (review: any) => void }) {
-  const scope = useMemo(() => getWorkspaceScope(), []);
+  const scope = useWorkspaceScope();
   const utils = trpc.useUtils();
   const [checklist, setChecklist] = useState<WeeklyReviewChecklist>(() => reviewChecklistFromSnapshot(review.snapshot));
   const [error, setError] = useState<string | null>(null);

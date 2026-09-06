@@ -4,6 +4,7 @@ import path from "path";
 const templateRoot = path.resolve(import.meta.dirname);
 
 export default defineConfig({
+  esbuild: { jsx: "automatic" },
   root: templateRoot,
   resolve: {
     alias: {
@@ -15,5 +16,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    exclude: ["**/node_modules/**", "**/supabase.credentials.test.ts", "**/supabase.database.test.ts"],
   },
 });

@@ -1,5 +1,7 @@
 # Supabase Free + Vercel Deployment Checklist
 
+**Current migration instructions:** [Independent stack handoff](INDEPENDENT_STACK_HANDOFF.md). The database contains real planner data. Do not replay the baseline or assume it is empty.
+
 This guide deploys the `dev/personal-calendar-workbench` branch to a Vercel project owned by the user. The frontend, planner routes, visual system, and phone behavior are not changed by this setup. The Supabase project supplies the account system and PostgreSQL database.
 
 ## Required Vercel variables
@@ -18,7 +20,7 @@ The database URI should use the IPv4 Session Pooler form supplied by Supabase. D
 
 ## Apply the schema
 
-The repository contains the generated schema at `supabase/migrations/0000_loving_madrox.sql`. In the Supabase dashboard, open **SQL Editor**, create a new query, paste the complete file contents, and click **Run**. This creates the 30 planner tables and the `updatedAt` trigger function. The project has no important user data to import, so this is a new empty database setup.
+The repository contains the baseline at `supabase/migrations/0000_loving_madrox.sql` and the additive upgrade at `supabase/migrations/0001_independent_ownership.sql`. Existing populated databases require inspection and only the applicable upgrade, followed by explicit workspace ownership assignment. Use the current handoff above. The baseline is only for a verified empty database.
 
 After the query completes, open **Table Editor** and confirm that tables such as `users`, `workspaces`, `tasks`, `goals`, `projects`, `habits`, `habitCheckIns`, `dailyPlans`, `reviewSessions`, and `pushSubscriptions` exist.
 

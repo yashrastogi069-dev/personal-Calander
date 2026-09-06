@@ -22,7 +22,7 @@ function queryResult(value: unknown) {
 function makeDatabase({ duplicate = false, ruleRow = rule, projectSchedulerTaskUid }: { duplicate?: boolean; ruleRow?: typeof rule; projectSchedulerTaskUid?: string } = {}) {
   const set = vi.fn(() => ({ where: vi.fn(async () => undefined) }));
   const update = vi.fn(() => ({ set }));
-  const values = vi.fn(async () => { if (duplicate) throw { code: "ER_DUP_ENTRY" }; });
+  const values = vi.fn(async () => { if (duplicate) throw { code: "23505" }; });
   const selections = projectSchedulerTaskUid
     ? [[{ id: "project-reminder-sweep", scheduleCronTaskUid: projectSchedulerTaskUid }], [ruleRow], [subscription]]
     : [[], [ruleRow], [subscription]];

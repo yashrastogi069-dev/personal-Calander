@@ -986,7 +986,7 @@ export async function setReminderRuleActivation(scope: PlannerScope, input: { id
 }
 
 function isDuplicateDelivery(error: unknown) {
-  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ER_DUP_ENTRY";
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "23505";
 }
 
 function scheduledPayload(type: "daily_plan" | "weekly_review", origin: string, subscriptionId: string) {

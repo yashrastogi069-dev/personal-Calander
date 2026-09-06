@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import { AuthenticatedPlanner } from "./components/AuthenticatedPlanner";
 
 import CalendarExecution from "./pages/CalendarExecution";
 
@@ -34,7 +35,7 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <AuthenticatedPlanner><Router /></AuthenticatedPlanner>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

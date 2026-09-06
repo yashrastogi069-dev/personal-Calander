@@ -219,7 +219,8 @@ const resolveApiUrl = () => {
     throw new Error("OPENAI_BASE_URL is not configured");
   }
   const base = ENV.aiApiUrl.replace(/\/$/, "");
-  return base.endsWith("/chat/completions") ? base : `${base}/v1/chat/completions`;
+  if (base.endsWith("/chat/completions")) return base;
+  return /\/v\d+$/.test(base) ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
 };
 
 const assertApiKey = () => {

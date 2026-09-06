@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { withTimeout } from "@shared/withTimeout";
 
 export function SupabaseAuthGate() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
@@ -29,17 +30,22 @@ export function SupabaseAuthGate() {
       setPending(false);
       return;
     }
-    const result = mode === "sign-in"
-      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({ email: email.trim(), password });
-    if (result.error) {
-      setError(result.error.message);
-    } else if (mode === "sign-up" && !result.data.session) {
-      setNotice("Check your email to confirm the account, then return here to sign in.");
-    } else {
-      setNotice(mode === "sign-in" ? "Signed in." : "Account created.");
+    try {
+      const result = await withTimeout(mode === "sign-in"
+        ? supabase.auth.signInWithPassword({ email: email.trim(), password })
+        : supabase.auth.signUp({ email: email.trim(), password }), 15_000, "Sign-in took too long. Please try again.");
+      if (result.error) {
+        setError(result.error.message);
+      } else if (mode === "sign-up" && !result.data.session) {
+        setNotice("Check your email to confirm the account, then return here to sign in.");
+      } else {
+        setNotice(mode === "sign-in" ? "Signed in." : "Account created.");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Sign-in failed. Please try again.");
+    } finally {
+      setPending(false);
     }
-    setPending(false);
   }
 
   return (
@@ -54,6 +60,7 @@ export function SupabaseAuthGate() {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={submit}>
+            {!supabase ? <p role="alert">Sign-in is not configured for this deployment. Contact the deployment owner.</p> : null}
             <div className="space-y-2">
               <Label htmlFor="supabase-email">Email</Label>
               <Input id="supabase-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} />
@@ -64,7 +71,7 @@ export function SupabaseAuthGate() {
             </div>
             {error ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">{error}</p> : null}
             {notice ? <p role="status" className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">{notice}</p> : null}
-            <Button type="submit" size="lg" className="w-full" disabled={pending}>
+            <Button type="submit" size="lg" className="w-full" disabled={pending || !supabase}>
               {pending ? "Working…" : mode === "sign-in" ? "Sign in" : "Create account"}
             </Button>
             <button type="button" className="w-full rounded-md py-2 text-sm font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setMode(mode === "sign-in" ? "sign-up" : "sign-in"); setError(null); setNotice(null); }}>

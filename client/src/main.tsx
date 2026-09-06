@@ -6,9 +6,10 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { supabase } from "./lib/supabase";
+import { withTimeout } from "@shared/withTimeout";
 import "./index.css";
 
-document.documentElement.dataset.release = "entry-flow-r20";
+document.documentElement.dataset.release = "independent-workbench";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -51,14 +52,23 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       async headers() {
-        const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+        const session = supabase ? (await withTimeout(supabase.auth.getSession(), 10_000, "Session lookup timed out. Please try again.")).data.session : null;
         return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
       },
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
+      async fetch(input, init) {
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        if (init?.signal?.aborted) abort();
+        init?.signal?.addEventListener("abort", abort, { once: true });
+        const timer = window.setTimeout(abort, 20_000);
+        try {
+          return await globalThis.fetch(input, {
+            ...(init ?? {}), signal: controller.signal, credentials: "include",
+          });
+        } finally {
+          window.clearTimeout(timer);
+          init?.signal?.removeEventListener("abort", abort);
+        }
       },
     }),
   ],

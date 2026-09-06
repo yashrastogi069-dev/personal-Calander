@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { vi } from "vitest";
+vi.mock("./workspaceOwnership", () => ({ requireWorkspaceOwner: vi.fn().mockResolvedValue(undefined), getAccountWorkspace: vi.fn() }));
 vi.mock("./_core/llm", () => ({ invokeLLM: vi.fn() }));
 import { invokeLLM } from "./_core/llm";
 import { appRouter } from "./routers";

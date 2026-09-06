@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
+import webPush from "web-push";
 import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
 describe("VAPID configuration", () => {
   it("accepts the securely supplied environment configuration without exposing its private key", () => {
-    const result = validateVapidConfiguration(getVapidConfigurationFromEnvironment());
+    const keys = webPush.generateVAPIDKeys();
+    const result = validateVapidConfiguration(getVapidConfigurationFromEnvironment({
+      VITE_VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey,
+      VAPID_SUBJECT: "mailto:owner@example.test",
+    }));
 
     expect(result).toEqual({ valid: true });
   });
