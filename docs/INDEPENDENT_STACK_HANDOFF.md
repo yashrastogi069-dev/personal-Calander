@@ -1,5 +1,7 @@
 # Independent stack: current workbench handoff
 
+> 2026-09-12 planning note: the approved next roadmap is documented in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`. Phase 1 is design-only pending review; no new PWA, synchronization, notification, or reminder implementation from that roadmap has been claimed complete.
+
 The Supabase project contains real planner data. Work only on `dev/personal-calendar-workbench`; never merge into `main` without the user's explicit instruction. This document supersedes earlier disposable-database, external-identity, and disabled-scheduler instructions.
 
 ## Implemented in this branch

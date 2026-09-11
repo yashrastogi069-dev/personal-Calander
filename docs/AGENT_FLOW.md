@@ -1,6 +1,12 @@
 # Agent flow and active handoff
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
+
+## Approved reliability roadmap
+
+The next work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Product rules are recorded in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`; the Phase 1 design awaiting user review is `docs/superpowers/specs/2026-09-12-reliable-pwa-foundation-design.md`.
+
+Approved data behavior: automatically merge non-overlapping fields; retain both values for overlapping conflicts; never silently delete; move explicit deletes to an indefinite recycle bin; require a separate confirmed permanent-delete action. Signing out preserves but hides the account-scoped device cache and unsynchronized work. Keep the initial synchronization design lean: full snapshot plus idempotent pending operations, not CRDTs or a complex incremental event stream.
 
 ## Working branch and safety
 
