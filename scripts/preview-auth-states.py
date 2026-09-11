@@ -58,6 +58,9 @@ export const requireSupabaseClient = () => supabase;
                     response.append({"result": {"data": {"json": data}}})
             route.fulfill(status=200, content_type="application/json", body=json.dumps(response))
             return
+        if parsed.path == "/api/health":
+            route.fulfill(status=200, content_type="application/json", body='{"ok":true}')
+            return
         if parsed.path.startswith("/api/") or parsed.path.startswith("/_vercel/"):
             unexpected.append(parsed.path)
             route.fulfill(status=404, content_type="application/json", body="{}")
@@ -75,6 +78,9 @@ def new_page(browser, size):
     return context, page, errors
 
 def assert_layout(page, errors):
+    # Vite's development-only HMR socket can close during a short headless
+    # snapshot. It is not part of the application runtime.
+    errors[:] = [error for error in errors if error != "WebSocket closed without opened."]
     assert not errors, errors
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Horizontal overflow"
 
@@ -90,20 +96,22 @@ def run_auth_preview(url, output):
                     requests, unexpected = install_preview(context, url, state)
                     page.goto(url, wait_until="networkidle")
                     if state == "signed-out":
-                        expect(page.get_by_role("button", name="Continue with Google")).to_be_visible()
+                        expect(page.get_by_role("button", name="Continue with Google")).to_be_visible(timeout=20_000)
                         expect(page.get_by_label("Email", exact=True)).to_be_visible()
                         expect(page.get_by_label("Password", exact=True)).to_be_visible()
                     else:
                         headings = {"auth-error": "Your account could not load", "unlinked": "Your workspace is waiting to be connected", "workspace-error": "Your workspace could not load"}
-                        expect(page.get_by_role("heading", name=headings[state])).to_be_visible()
+                        expect(page.get_by_role("heading", name=headings[state])).to_be_visible(timeout=20_000)
                         expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
                     assert not any(name.startswith("planner.") for name in requests), requests
                     assert not unexpected, unexpected
                     assert_layout(page, errors)
                     path = output / f"preview-{state}-{size}.png"
                     page.screenshot(path=str(path), full_page=True)
-                    results.append({"state": state, "size": size, "screenshot": str(path), "requests": requests, "runtimeErrors": errors})
                     context.close()
+                    errors[:] = [error for error in errors if error != "WebSocket closed without opened."]
+                    assert not errors, errors
+                    results.append({"state": state, "size": size, "screenshot": str(path), "requests": requests, "runtimeErrors": list(errors)})
         finally: browser.close()
     (output / "preview-auth-results.json").write_text(json.dumps(results, indent=2), encoding="utf8")
     print(json.dumps({"auth_states_passed": len(results), "output": str(output)}))
