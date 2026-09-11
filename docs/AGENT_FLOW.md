@@ -35,4 +35,8 @@ The initial More sheet was structurally invalid because it lived inside a filter
 
 The installed-PWA update path now uses `personal-calander-shell-v2`, deletes older owned shell caches during activation, bypasses HTTP cache when checking `/sw.js`, and explicitly checks for a worker update after registration. This prevents a successful Vercel deployment from remaining hidden behind the original permanent phone shell cache.
 
+Production and Preview were confirmed to use different application/data generations. Production was the August 26 legacy build with no Supabase client project URL; Preview uses Supabase project `dwiudauuuxzstbavkkqa`, whose read-only counts were one user, one workspace, and zero task/goal/project/habit records. The user explicitly accepted that old planner data would not appear in the independent stack and authorized merging/deploying the verified workbench on 2026-09-11. This authorizes code promotion only: do not reset or delete either data source.
+
+Pre-merge visual gate: the Task board restores the exact R20/main dark state palette (To do `#2a405d` → `#15283f`; In progress `#155b59` → `#0b393b`; Completed `#1d4b3d` → `#102f27`) while retaining the workbench mobile layout and typography. The synthetic Playwright flow asserts the three computed surface tokens and no horizontal overflow at 1440×1000 and 390×844; both passed and screenshots were visually reviewed.
+
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.

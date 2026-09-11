@@ -38,6 +38,9 @@ def main():
                 expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
                 assert "planner.workspace.snapshot" in requests, requests
                 assert not unexpected, unexpected
+                # Vite's development-only HMR socket can close during a headless
+                # snapshot; it is not part of the application runtime.
+                errors[:] = [error for error in errors if error != "WebSocket closed without opened."]
                 shared["assert_layout"](page, errors)
                 if size == "phone":
                     page.get_by_role("button", name="More", exact=True).click()
@@ -45,13 +48,23 @@ def main():
                     overlay = page.locator(".mobile-more-layer").bounding_box()
                     assert overlay and overlay["height"] >= shared["SIZES"][size]["height"] - 2, overlay
                     page.screenshot(path=str(args.output / "preview-linked-phone-more-sheet.png"))
-                    page.get_by_role("button", name="Customize & settings", exact=True).click()
+                    page.locator(".mobile-more-settings").click()
                     expect(page.get_by_role("heading", name="Make the planner yours", exact=True)).to_be_visible()
                     page.screenshot(path=str(args.output / "preview-linked-phone-settings.png"))
                     page.get_by_role("button", name="Done", exact=True).click()
+                page.get_by_role("button", name="Tasks", exact=True).click()
+                lanes = page.locator(".task-lane")
+                expect(lanes).to_have_count(3)
+                lane_surfaces = lanes.evaluate_all(
+                    "elements => elements.map(element => getComputedStyle(element).getPropertyValue('--lane-surface').trim())"
+                )
+                assert lane_surfaces == ["#2a405d", "#155b59", "#1d4b3d"], lane_surfaces
+                assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "Task board overflows the viewport"
+                task_path = args.output / f"preview-linked-task-lanes-{size}.png"
+                page.screenshot(path=str(task_path), full_page=True)
                 path = args.output / f"preview-linked-home-{size}.png"
                 page.screenshot(path=str(path), full_page=True)
-                results.append({"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "requests": requests, "runtimeErrors": errors})
+                results.append({"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "taskLaneScreenshot": str(task_path), "taskLaneSurfaces": lane_surfaces, "requests": requests, "runtimeErrors": errors})
                 try:
                     page.get_by_role("button", name="Sign out", exact=True).click(timeout=1500)
                     expect(page.get_by_role("button", name="Continue with Google")).to_be_visible()

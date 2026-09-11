@@ -19,6 +19,7 @@ The phone planner is a primary product surface, not a compressed desktop layout.
 ## Design system
 
 - One visual language: warm mineral background, high-contrast ink text, verdigris primary action, muted mint surfaces, and restrained elevation.
+- Task status is the intentional high-contrast exception: the three Work lanes retain the exact R20/main dark slate, teal, and forest gradients with light controls and text.
 - iOS rhythm: 4/8pt spacing, 44pt controls, short transform/opacity motion only, native-safe sheet behavior.
 - Information hierarchy: one clear primary action per screen; navigation and utility actions are visually subordinate.
 - Accessibility: semantic labels, visible focus, color-independent states, reduced-motion support, and no user-critical hover-only behavior.
@@ -34,7 +35,7 @@ The phone planner is a primary product surface, not a compressed desktop layout.
 
 ## Acceptance evidence
 
-The focused local Playwright flow uses intercepted synthetic data and checks 390×844 layout, More overlay viewport coverage, settings opening, settings dismissal, horizontal overflow, and browser runtime errors. It is a UI regression guard, not proof of real OAuth or production data behavior.
+The focused local Playwright flow uses intercepted synthetic data and checks 390×844 layout, More overlay viewport coverage, settings opening, settings dismissal, all three exact dark Task-lane surface tokens, horizontal overflow, and browser runtime errors. It is a UI regression guard, not proof of real OAuth or production data behavior.
 
 ## Deferred but designed-for phases
 
