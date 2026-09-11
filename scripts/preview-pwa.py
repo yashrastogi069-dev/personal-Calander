@@ -67,19 +67,25 @@ def wait_for_control(page):
 
 
 def cache_evidence(page):
-    return page.evaluate(
-        """async prefix => {
-          const names = await caches.keys();
-          const owned = names.filter(name => name.startsWith(prefix));
-          const entries = [];
-          for (const name of owned) {
-            const cache = await caches.open(name);
-            for (const request of await cache.keys()) entries.push(request.url);
-          }
-          return {names, owned, entries};
-        }""",
-        OWNED_CACHE_PREFIX,
-    )
+    expression = """async prefix => {
+      const names = await caches.keys();
+      const owned = names.filter(name => name.startsWith(prefix));
+      const entries = [];
+      for (const name of owned) {
+        const cache = await caches.open(name);
+        for (const request of await cache.keys()) entries.push(request.url);
+      }
+      return {names, owned, entries};
+    }"""
+    for attempt in range(3):
+        try:
+            page.wait_for_load_state("domcontentloaded")
+            return page.evaluate(expression, OWNED_CACHE_PREFIX)
+        except PlaywrightError as error:
+            if "Execution context was destroyed" not in str(error) or attempt == 2:
+                raise
+            page.wait_for_timeout(250)
+    raise AssertionError("Cache evidence was not collected")
 
 
 def assert_public_cache(evidence):

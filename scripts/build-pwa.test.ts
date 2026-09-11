@@ -88,4 +88,12 @@ describe("production PWA build generation", () => {
 
     expect(urls.every(url => !url.startsWith("/api/") && !url.startsWith("/uploads/"))).toBe(true);
   });
+
+  it("bounds runtime static caching by both entry count and age", async () => {
+    const worker = await readFile(join(process.cwd(), "client", "public", "sw.js"), "utf8");
+    expect(worker).toMatch(/runtimeLimit\s*=\s*40/);
+    expect(worker).toMatch(/runtimeMaxAgeMs\s*=\s*7\s*\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
+    expect(worker).toContain("x-personal-calendar-cached-at");
+    expect(worker).toContain("Date.now() - cachedAt > runtimeMaxAgeMs");
+  });
 });

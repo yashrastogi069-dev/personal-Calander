@@ -8,6 +8,8 @@ const ownedCachePrefix = "personal-calander-";
 const shellCache = `${ownedCachePrefix}shell-${pwaBuild.release}`;
 const runtimeCache = `${ownedCachePrefix}runtime-v1`;
 const runtimeLimit = 40;
+const runtimeMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
+const cachedAtHeader = "x-personal-calendar-cached-at";
 
 function isSafeResponse(response) {
   return response.ok && !response.redirected && (response.type === "basic" || response.type === "default");
@@ -57,7 +59,27 @@ async function navigationResponse(request) {
 
 async function trimRuntimeCache(cache) {
   const keys = await cache.keys();
-  await Promise.all(keys.slice(0, Math.max(0, keys.length - runtimeLimit)).map(key => cache.delete(key)));
+  const expired = [];
+  for (const key of keys) {
+    const response = await cache.match(key);
+    const cachedAt = Number(response?.headers.get(cachedAtHeader) || 0);
+    if (!cachedAt || Date.now() - cachedAt > runtimeMaxAgeMs) expired.push(key);
+  }
+  await Promise.all(expired.map(key => cache.delete(key)));
+  const retained = await cache.keys();
+  const remaining = retained.slice(0, Math.max(0, retained.length - runtimeLimit));
+  await Promise.all(remaining.map(key => cache.delete(key)));
+}
+
+async function putRuntime(cache, request, response) {
+  const headers = new Headers(response.headers);
+  headers.set(cachedAtHeader, String(Date.now()));
+  const stamped = new Response(await response.clone().blob(), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  await cache.put(request, stamped);
 }
 
 async function cacheFirst(request) {
@@ -66,7 +88,7 @@ async function cacheFirst(request) {
   const response = await fetch(request);
   if (!isSafeResponse(response)) return response;
   const cache = await caches.open(runtimeCache);
-  await cache.put(request, response.clone());
+  await putRuntime(cache, request, response);
   await trimRuntimeCache(cache);
   return response;
 }
@@ -75,7 +97,7 @@ async function refreshRuntime(request) {
   const response = await fetch(request);
   if (isSafeResponse(response)) {
     const cache = await caches.open(runtimeCache);
-    await cache.put(request, response.clone());
+    await putRuntime(cache, request, response);
     await trimRuntimeCache(cache);
   }
   return response;
