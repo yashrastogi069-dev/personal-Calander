@@ -1,6 +1,6 @@
 # Reliable PWA, Sync, and Notifications Roadmap
 
-Status: approved product direction; implementation proceeds one gated phase at a time.
+Status: approved product direction; Phase 1 implemented and locally verified, Preview/device gates pending.
 
 Last updated: 2026-09-12
 
@@ -22,6 +22,8 @@ Deliver a complete manifest and icon set, iPhone standalone metadata, determinis
 Authenticated API responses are never stored in Cache Storage. Phase 1 makes the application shell reliably available offline; Phase 2 owns offline account data.
 
 Detailed design: `docs/superpowers/specs/2026-09-12-reliable-pwa-foundation-design.md`.
+
+Local implementation evidence (2026-09-12): deterministic release `a5f1f2018fa6b158`, 20 public shell files, full TypeScript/test/build gate, cached offline relaunch at desktop and 390x844, honest cold-offline behavior, explicit waiting-update activation, preservation of unrelated caches, and no API/private Cache Storage entries. Vercel Preview and real-iPhone installation remain required before Phase 1 is release-complete.
 
 ## Phase 2: lean secure synchronization
 

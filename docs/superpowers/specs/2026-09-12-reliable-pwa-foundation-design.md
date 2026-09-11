@@ -1,6 +1,6 @@
 # Reliable PWA Foundation Design
 
-Status: proposed for user review
+Status: implemented and verified locally; Vercel Preview and real-iPhone gates pending
 
 Date: 2026-09-12
 
@@ -125,3 +125,11 @@ Rollback returns routing to the last compatible deployment without clearing Inde
 ## Completion gate
 
 Phase 1 completes only when manifest/icons install correctly, the production build owns a deterministic atomic shell cache, offline launch works after an online visit, API data remains outside Cache Storage, updates cannot destroy pending work, push handlers remain intact, automated checks pass, a real iPhone installation is reviewed, and handoff documents record exact evidence.
+
+## Local implementation evidence
+
+Implemented on isolated branch `work/pwa-foundation` in commits `5eb764d..10a7344`. The final local build generated release `a5f1f2018fa6b158` with 20 exact shell URLs, main assets `assets/index-Cwoo2EKO.js` and `assets/index-BbIcsZJO.css`, and only the pre-existing large-chunk warning.
+
+The production browser suite passed cached offline relaunch at 1440x1000 and 390x844, honest cold-offline failure, explicit waiting-worker activation, owned-cache cleanup, preservation of an unrelated sentinel cache, public-only Cache Storage, no horizontal overflow, and no unexpected runtime/console errors. Separate synthetic regressions passed eight auth/workspace states and linked planner rendering at both sizes. Visual review caused one additional correction: on phone sign-in, the status surface now participates in page flow and does not cover account controls.
+
+Not yet verified: Vercel Preview assets/worker/cache behavior and a physical iPhone Home Screen icon, standalone chrome, offline relaunch, reconnect, and update. Phase 1 therefore remains locally implemented rather than release-complete.

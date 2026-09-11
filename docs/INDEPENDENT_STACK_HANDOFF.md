@@ -1,6 +1,25 @@
 # Independent stack: current workbench handoff
 
-> 2026-09-12 planning note: the approved next roadmap is documented in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`. Phase 1 is design-only pending review; no new PWA, synchronization, notification, or reminder implementation from that roadmap has been claimed complete.
+> 2026-09-12 current note: the approved roadmap is documented in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`. Phase 1 is implemented and verified locally on the isolated `work/pwa-foundation` branch. It is not yet claimed Preview- or real-iPhone-complete. Phase 2 synchronization and Phase 3 notifications/integrations have not started.
+
+## 2026-09-12 reliable PWA implementation
+
+The isolated `work/pwa-foundation` branch implements Phase 1 without changing the database, planner IDs, workspace ownership, authentication records, or server data. Commits `5eb764d..10a7344` provide:
+
+- manifest identity, standalone configuration, Today/New Task shortcuts, Apple metadata, and reproducibly generated 180/192/512 standard and maskable icons;
+- a build-time SHA-256 release identifier and exact 20-file shell list injected into the single repository-owned worker;
+- network-first documents, cache-first fingerprinted assets, bounded seven-day/40-entry static runtime caching, and strict exclusion of API, cross-origin, and non-GET requests;
+- controlled waiting-worker activation, a one-reload guard, durable quick-capture check, bounded `/api/health` connectivity verification, and contextual install/offline/reconnected UI;
+- allowlisted shortcut consumption that preserves unrelated URL parameters; and
+- a phone sign-in layout correction so PWA status does not cover account controls.
+
+Latest generated shell release: `a5f1f2018fa6b158`. Main client artifacts are `assets/index-Cwoo2EKO.js` and `assets/index-BbIcsZJO.css`. The only build warning is the existing main-chunk size warning.
+
+Integrated local gate: `npm run check` passed; all 56 Vitest files passed with 239 tests and 3 environment-dependent skips; `npm run build:client` passed.
+
+Local browser evidence is outside Git at `C:/Users/win 10/AppData/Local/Temp/personal-calander-pwa-verification/`. Four production PWA scenarios passed: cached offline relaunch at 1440x1000 and 390x844, honest cold-offline failure before any worker exists, and explicit waiting-update activation. Cache inspection found only the 20 public shell URLs; the unrelated sentinel cache survived app cleanup; runtime and unexpected console errors were empty. Eight synthetic auth/recovery states and two linked planner layouts also passed. The exact dark task-lane colors and mobile More/settings flow remain intact.
+
+Remaining Phase 1 gates: merge only into `dev/personal-calendar-workbench`, push and verify its Vercel Preview, then test Home Screen icon/cropping, standalone chrome, cached launch, reconnect, and update activation on a real iPhone. Roll back by routing to the last compatible deployment; never clear IndexedDB, quick captures, auth, push subscriptions, planner records, or unrelated caches. The existing authenticated-phone Sign out obstruction remains a separate tracked UI item.
 
 The Supabase project contains real planner data. Work only on `dev/personal-calendar-workbench`; never merge into `main` without the user's explicit instruction. This document supersedes earlier disposable-database, external-identity, and disabled-scheduler instructions.
 
