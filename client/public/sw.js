@@ -1,10 +1,15 @@
-const appShellCache = "personal-calander-shell-v1";
+const appShellCache = "personal-calander-shell-v2";
+const ownedCachePrefix = "personal-calander-shell-";
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(appShellCache).then(cache => cache.add("/")).catch(() => undefined));
   self.skipWaiting();
 });
-self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
+self.addEventListener("activate", event => event.waitUntil((async () => {
+  const cacheNames = await caches.keys();
+  await Promise.all(cacheNames.filter(name => name.startsWith(ownedCachePrefix) && name !== appShellCache).map(name => caches.delete(name)));
+  await self.clients.claim();
+})()));
 
 self.addEventListener("fetch", event => {
   const request = event.request;

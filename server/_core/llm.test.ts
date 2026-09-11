@@ -1,14 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./env", () => ({
-  ENV: { forgeApiKey: "test-forge-key", forgeApiUrl: "https://forge.example.test" },
+  ENV: { aiApiKey: "test-provider-key", aiApiUrl: "https://provider.example.test" },
 }));
 
 import { invokeLLM } from "./llm";
+import { ENV } from "./env";
 
 describe("invokeLLM", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    ENV.aiApiUrl = "https://provider.example.test";
+  });
+
+  it.each([
+    ["https://provider.example.test/v1", "https://provider.example.test/v1/chat/completions"],
+    ["https://provider.example.test/api/v1/", "https://provider.example.test/api/v1/chat/completions"],
+    ["https://provider.example.test/v1/chat/completions", "https://provider.example.test/v1/chat/completions"],
+  ])("uses the explicit provider endpoint %s without duplicating its API version", async (base, endpoint) => {
+    ENV.aiApiUrl = base;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await invokeLLM({ messages: [{ role: "user", content: "Draft a task" }] });
+    expect(fetchMock.mock.calls[0][0]).toBe(endpoint);
   });
 
   it("sends max_completion_tokens for a GPT completion request", async () => {

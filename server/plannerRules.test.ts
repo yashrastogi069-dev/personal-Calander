@@ -134,6 +134,24 @@ describe("planning rules", () => {
     expect(summary.streaks).toEqual([{ habitId: "habit-1", streak: 2 }]);
   });
 
+  it("derives weekly focus, carryover, allocation, and review history from recorded planning evidence", () => {
+    const summary = dashboardSummary({
+      tasks: [
+        { id: "carry", goalId: null, projectId: null, categoryId: "category-1", state: "in_progress", dueLocalDate: null, scheduledLocalDate: "2026-08-23", estimateMinutes: 20, completedAt: null },
+        { id: "planned", goalId: "goal-1", projectId: null, categoryId: "category-1", state: "not_started", dueLocalDate: null, scheduledLocalDate: "2026-08-24", estimateMinutes: 45, completedAt: null },
+      ],
+      goals: [{ id: "goal-1", title: "Evidence goal", state: "in_progress", progressMode: "task", progressValue: 0, targetValue: 100, dueLocalDate: null }],
+      projectGoalById: new Map(), categoryNames: new Map([["category-1", "Deep work"]]), habitCheckIns: [], habitIds: [], timezone: "UTC", todayLocalDate: "2026-08-24", rangeStart: "2026-08-18", rangeEnd: "2026-08-24", capacityMinutes: 360,
+      focusSessions: [{ taskId: "planned", state: "completed", startedAt: new Date("2026-08-24T10:00:00.000Z"), activeSeconds: 1_800 }, { taskId: "planned", state: "active", startedAt: new Date("2026-08-24T12:00:00.000Z"), activeSeconds: 3_600 }],
+      reviewSessions: [{ kind: "weekly", state: "completed", periodEndLocalDate: "2026-08-24" }, { kind: "daily", state: "in_progress", periodEndLocalDate: "2026-08-23" }],
+    });
+    expect(summary.analytics.weeklyFocus).toMatchObject({ weekStart: "2026-08-24", weekEnd: "2026-08-30", plannedMinutes: 45, completedMinutes: 30 });
+    expect(summary.analytics.carryoverTrend.at(-1)).toEqual({ localDate: "2026-08-24", carryover: 1 });
+    expect(summary.analytics.categoryAllocation).toEqual([{ id: "category-1", name: "Deep work", plannedMinutes: 65, taskCount: 2 }]);
+    expect(summary.analytics.goalAllocation).toEqual([{ id: "goal-1", name: "Evidence goal", plannedMinutes: 45, taskCount: 1 }]);
+    expect(summary.analytics.reviewHistory).toEqual([{ kind: "weekly", state: "completed", periodEndLocalDate: "2026-08-24" }, { kind: "daily", state: "in_progress", periodEndLocalDate: "2026-08-23" }]);
+  });
+
   it("rolls a yearly goal through nested monthly milestone evidence without double counting direct work", () => {
     const health = longHorizonGoalHealth({
       goals: [

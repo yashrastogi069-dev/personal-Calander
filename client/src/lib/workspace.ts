@@ -3,8 +3,6 @@ export type WorkspaceScope = {
   timezone: string;
 };
 
-const STORAGE_KEY = "personal-calander:workspace:v1";
-
 export function safeTimeZone(candidate?: string | null) {
   if (!candidate) return "UTC";
   try {
@@ -13,27 +11,6 @@ export function safeTimeZone(candidate?: string | null) {
   } catch {
     return "UTC";
   }
-}
-
-function newWorkspaceId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `workspace_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
-}
-
-export function getWorkspaceScope(): WorkspaceScope {
-  const timezone = safeTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored) as WorkspaceScope;
-      if (parsed.workspaceId) return { workspaceId: parsed.workspaceId, timezone: safeTimeZone(parsed.timezone) };
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }
-  const scope = { workspaceId: newWorkspaceId(), timezone };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(scope));
-  return scope;
 }
 
 export function localDateInTimezone(timezone: string, date = new Date()) {

@@ -1,0 +1,1 @@
+ALTER TABLE `scheduleProposals` ADD `previousScheduledLocalDate` varchar(10);

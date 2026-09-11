@@ -5,11 +5,17 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import { AuthenticatedPlanner } from "./components/AuthenticatedPlanner";
+import { Analytics } from "@vercel/analytics/react";
+import { sanitizeAnalyticsEvent } from "./lib/deploymentAnalytics";
+
+import CalendarExecution from "./pages/CalendarExecution";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
+      <Route path={"/calendar"}><CalendarExecution /></Route>
       <Route path={"/"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -27,11 +33,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
-        defaultTheme="dark"
+        defaultTheme="system"
       >
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <AuthenticatedPlanner><Router /></AuthenticatedPlanner>
+          <Analytics beforeSend={sanitizeAnalyticsEvent} />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

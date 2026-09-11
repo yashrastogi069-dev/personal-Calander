@@ -211,3 +211,146 @@
 - [x] Increase the effective contrast and readable size of secondary labels in the rendered incumbent interface, then verify against the user-visible surface.
 - [x] Make the task-versus-habit boundary operational in the primary flow, with explicit next actions that route work to the correct tracker or calendar.
 - [x] Revalidate the repaired R18/R19 experience in the browser at desktop and phone widths, then synchronize and publicly verify the release.
+- [x] Inspect the newly created GitHub branch without altering current work, then provide a separately hosted preview of that branch. Superseded at the user's request because the external branch was not available.
+- [x] Create and use an isolated GitHub development branch for future changes; do not merge or push changes to main unless the user explicitly requests it.
+- [x] Create a source-of-truth implementation matrix covering every supplied roadmap and new-capability requirement, with an explicit delivery boundary for credential-dependent external integrations.
+- [x] Add personal planning settings for work hours, breaks, shutdown preference, daily capacity, and day-specific availability exceptions.
+- [x] Build a persisted Guided Daily Plan workflow with commitment selection, capacity fit, task ordering, re-entry, and deliberate daily plan history.
+- [x] Build a Daily Shutdown workflow with done, reschedule, defer, won’t-do, archive, reflection, and close-day safeguards.
+- [x] Add weekly objectives with goal/project linkage, carry-forward, evidence, outcome review, and a dedicated planning surface.
+- [x] Improve workload and at-risk guidance with work-hour availability, busy-event readiness, free-time calculations, transparent reasons, and safe corrective choices.
+- [x] Add a task-linked focus timer with pause/resume, outcome actions, actual duration, optional note, and estimate-accuracy analytics.
+- [x] Add factual habit discipline analytics: overview, monthly accessible consistency board, historical correction, long-term practice view, and schedule-aware calculations.
+- [x] Add dependency management with visible blocked/blocked-by relations, safe removal, completion safeguards, and risk-aware next-action ordering.
+- [x] Add a project execution view with next action, milestones, workload, dependency state, risk explanation, and reviewed breakdown continuity.
+- [x] Add deterministic natural-language task parsing for dates, times, durations, priority, recurrence, and visibly editable parsed results.
+- [x] Add review-first personal templates and reusable personalized views without automatic task creation or hidden dates.
+- [x] Upgrade the calendar into a task execution canvas with all-day work, unscheduled triage, resize-safe reservations, in-calendar completion, and explicit habit separation.
+- [x] Establish calendar-integration readiness with a read-only Google Calendar policy, connection/status/recovery surfaces, and no external write until credentials and consent are available.
+- [x] Establish controlled scheduling-assistance foundations: flexible/pinned task semantics, free-slot proposals, explanations, approval, undo, and change history without silent replanning.
+- [x] Extend reminders and recurring-task controls with item-level configuration, timezone/status clarity, occurrences, exceptions, and safe degradation while preserving the existing active cadence.
+- [x] Improve cross-device readiness through account-backed workspace migration design, conflict visibility, offline continuity boundaries, and data-recovery guidance.
+- [x] Modularize the primary planner implementation into dedicated feature modules while preserving tested behavior and limiting client rendering/bundle regressions.
+- [x] Revalidate the branch implementation across schema migrations, high-volume/error paths, accessibility, desktop, iPhone, automated tests, branch preview, and GitHub development-branch synchronization only.
+- [x] Provide an up-to-date, secret-safe source-code archive from the development branch for the user’s backup.
+- [x] Add dedicated, coherent planner destinations as capability depth requires, keeping primary daily execution clear on desktop and iPhone.
+- [x] Defer all automated external actions until the final delivery phase while continuing to implement the non-automated planning workflows now.
+- [x] Create frequent coherent checkpoints and push each validated milestone to `dev/personal-calendar-workbench` only; verify the remote `main` reference remains unchanged.
+- [x] Keep capability-specific workflows in dedicated, directly reachable planner destinations rather than adding unrelated controls to the primary daily dashboard.
+- [x] Audit and harden recurrence, subtasks, priority persistence, and task filter/search behavior with direct interaction and contract coverage.
+- [x] Audit and harden goal/project linking, habit complete/skip actions, and review save/history behavior with explicit recovery paths.
+- [x] Add workspace-wide search across tasks, goals, projects, habits, and reviews; preserve supported filters and destination state in shareable URLs.
+- [x] Expand factual analytics with weekly planned-versus-completed focus time, carryover trend, category/goal allocation, and accessible review history.
+- [x] Apply a status-semantic design-system pass: every non-neutral status must pair color with an understandable text label or icon.
+- [x] Apply a restrained visual/theming/motion pass using purpose-built dark panels, readable scroll states, and only deliberate performance-safe animations.
+- [x] Split Plan, Capture, Search, Projects, Habits, Focus, Connections, and Insights into on-demand destination chunks; verify direct-route loading and reduce the initial client asset from 1.61 MB / 392.84 kB gzip to 1.39 MB / 367.14 kB gzip.
+- [x] Browser-test an isolated daily plan from creation through commitment, guarded close, deliberate reschedule, closed reflection, archive behavior, and targeted cleanup.
+- [x] Browser-test a task-linked focus session through start, pause, resume, explicit estimate adjustment, factual evidence, archive behavior, and targeted cleanup.
+- [x] Browser-test an isolated daily habit through complete, clear correction, intentional skip, archive behavior, and targeted cleanup.
+- [x] Repair the browser-discovered missing task-to-project assignment control so reviewed project task creation and dependency acceptance can complete through a supported UI path.
+- [x] Browser-test an isolated project through creation, explicit task links, hard dependency add/remove, blocked-completion recovery, completed sequence, and scoped cleanup.
+- [x] Ensure a blocked task-completion attempt shows the dependency recovery text in a persistent, accessible local error surface rather than relying on an ephemeral notification or console entry.
+- [x] Research and design a safe task-to-time-block execution model that keeps drag, move, resize, and completion behavior bidirectionally consistent without duplicating state.
+- [x] Add a task inbox-to-day-grid drag workflow that creates an explicit, linked calendar reservation and supports moving and bounded resizing through the existing task record.
+- [x] Add a user-controlled, read-only external-calendar overlay model sourced from validated ICS feed URLs supplied through secure configuration, with no OAuth dependency and clear unavailable/error states. Refresh remains explicitly disabled until a real secure source is authorised.
+- [x] Implement accessible keyboard-first planner commands for new task, today navigation, date/grid selection, and reviewable next-free-slot reservation without intercepting text-entry shortcuts.
+- [x] Implement explicit morning rollover for unfinished prior-day reserved work, returning it to unreserved planned work with a persisted reschedule count and no hidden task-state change.
+- [x] Validate linked calendar, external-overlay, keyboard, and rollover workflows across errors, conflicts, mobile/desktop accessibility, automated tests, disposable browser data, targeted cleanup, and development-branch-only synchronization.
+- [x] Reconcile the supplied competitor/product-roadmap capability list against the current implementation, distinguishing delivered functionality, guarded readiness, and genuine deferred work.
+- [x] Audit the current visual identity for stronger dark-heading hierarchy, calm calendar-specific motifs, status semantics, and reduced-motion-safe micro-interactions without adding decorative or inert controls.
+- [x] Implement and validate the highest-value remaining product-depth and visual refinements found by the reconciliation, then checkpoint and push the development branch only.
+- [x] Audit current execution flows, empty states, recovery paths, and navigation density for the highest-leverage reliability or decision-quality improvement beyond the delivered roadmap.
+- [x] Research and document a competitor-informed refinement that materially improves daily execution without enabling unapproved external automation.
+- [x] Implement and validate the selected premium-quality refinement across errors, accessibility, phone/desktop, tests, source archive, and development-branch-only synchronization.
+- [x] Add a persisted, version-safe weekly review checklist that helps the user get clear, get current, and set one concrete next-week move without creating automatic tasks or external actions.
+- [x] Audit long-horizon goal, milestone, project, and review evidence for the highest-value cross-horizon decision-support refinement.
+- [x] Research, implement, and validate the selected cross-horizon refinement with factual data, local recovery, keyboard/mobile support, documented evidence, and development-branch-only synchronization.
+- [x] Add an accessible, factual Goal runway triage that filters many active goals by review/pace/deadline attention and evidence gaps, with clear empty states and no synthetic scoring or hidden records.
+- [x] Audit the task execution calendar for visual calendar hierarchy, direct add/remove workflow clarity, high-volume density, and mobile/desktop interaction gaps.
+- [x] Research and apply a premium calendar-specific visual system that makes time, days, blocks, busy context, and task actions legible without mixing habits into the execution calendar.
+- [x] Strengthen direct calendar add, move, resize, completion, and removal behavior with clear local recovery, keyboard/touch accessibility, tests, browser evidence, and development-branch-only synchronization.
+- [x] Fix the Calendar Add task URL handoff so the existing task composer opens reliably under React Strict Mode before its query parameter is cleared.
+- [x] Audit the phone render across Today and Calendar at 390×844, including typography scale, brand mark, icon legibility, vertical rhythm, color contrast, scroll behavior, and touch target safety.
+- [x] Apply a focused phone-first identity system: clearer Calendar wordmark/logo treatment, deliberate icon sizing, stronger type hierarchy, simplified mobile structure, and purposeful calendar colors without ornamental controls.
+- [x] Validate responsive phone and desktop regressions with screenshots, browser interactions, tests, build, console checks, cleanup, and development-branch synchronization.
+- [x] Audit current phone interactions, offline capture, loading states, theme defaults, safe-area handling, form zoom behavior, and initial bundle cost.
+- [x] Add discoverable tap-only alternatives plus guarded swipe and long-press gestures for task actions and calendar navigation, with no destructive action triggered accidentally.
+- [x] Make the primary phone flows optimistic and offline-safe, including local pending/retry visibility, skeleton loading, safe-area insets, 16px form inputs, system theme default, and lean Home loading.
+- [x] Validate phone-first gestures, offline recovery, loading, accessibility, light/dark themes, responsive layouts, performance, tests, browser console, and development-branch synchronization.
+- [x] Document and verify branch-specific Vercel deployment prerequisites, environment-variable visibility, database/auth requirements, preview behavior, and rollback steps without changing protected main.
+- [x] Add tested touch swipe navigation for adjacent Calendar days while retaining visible previous/next tap controls and preventing horizontal swipes from hijacking vertical grid scrolling.
+- [x] Audit and replace the dedicated Calendar execution palette with a lighter medium verdigris treatment that keeps time hierarchy and task/block contrast readable on iPhone.
+- [x] Revalidate the phone-first pass after the Calendar palette change, including touch/day swipe, offline status, skeleton loading, system theme, desktop regression, full tests/build, and branch synchronization.
+- [x] Restore the earlier user-preferred premium verdigris Calendar direction and remove the darker medium-green override.
+- [x] Increase Calendar phone and desktop typography size, weight, and contrast while preserving hierarchy, touch targets, block readability, and responsive layout.
+- [x] Revalidate screenshots, browser console, tests, build, and development-branch synchronization after the visual rollback.
+- [x] Audit the global Personal Calendar palette, typography hierarchy, surface materials, status colors, dialogs, navigation, and embedded Calendar for a coherent premium direction.
+- [x] Apply a unified premium color system across Today, Tasks, Goals, Projects, Habits, Focus, Review, Insights, Connections, dialogs, mobile navigation, and the embedded Calendar without weakening status meaning or contrast.
+- [x] Validate whole-app light/dark rendering, phone and desktop hierarchy, focus states, touch targets, console, tests, build, and development-branch synchronization.
+- [x] Replace remaining dark whole-app surfaces and selectors with a brighter premium sage/ivory treatment, keeping dark mode available only as an intentional user/system option.
+- [x] Increase global app typography size and weight for readable headings, labels, task metadata, controls, and mobile content without causing overflow.
+- [x] Validate bright rendering, light/dark mode, phone and desktop screenshots, focus/touch states, tests, build, and push the isolated development branch.
+- [x] Remove residual dark To do/In progress task-lane surfaces and any other remaining dark content panels so the full app matches the requested brighter premium theme.
+- [x] Recheck task-lane status contrast and color meaning after the brightening pass, then rerun responsive visual and build validation.
+- [ ] Diagnose the blank Vercel screen reported on branch revision d75205d, including production asset loading, runtime errors, routing, and environment prerequisites.
+- [ ] Apply and validate the smallest safe deployment fix, document the cause and verification, and push only the development branch.
+- [x] Write and deliver a beginner-friendly environment-variable guide with click-by-click Vercel steps, ownership boundaries, visibility rules, safe generation instructions, and a clear pause before any architecture migration.
+- [x] Inventory every former managed platform OAuth, built-in API, storage, notification, analytics, environment, and framework dependency and document the independent replacement architecture.
+- [x] Define and obtain user-controlled replacement services for authentication, database, storage, notifications, analytics, and deployment before removing the current runtime path.
+- [x] Migrate the application behind user-controlled interfaces with data-preserving fallback, secure secrets, tests, phone validation, and no changes to protected main.
+- [x] Validate that no former managed platform runtime dependency remains in the independent build, then checkpoint and push only the development branch.
+
+- [x] Compare Supabase Free with TiDB Cloud Free and independent auth options, including MySQL compatibility, limits, sleep behavior, backups, realtime, storage, and migration risk.
+- [x] Preserve the current frontend, visual design, routes, planner semantics, offline behavior, and all feature contracts during any infrastructure migration; add explicit regression and rollback acceptance criteria.
+- [x] Document any unavoidable provider-related changes or possible data loss before asking for migration approval.
+
+- [x] Migrate the backend to the user-controlled Supabase Free project while preserving all current frontend UI, UX, colors, routes, feature logic, planner rules, offline behavior, and phone interactions.
+- [x] Recreate the current planner schema in Supabase PostgreSQL with no data-import requirement, then verify all existing tRPC contracts against the new database.
+- [x] Replace former managed platform authentication, session validation, runtime API, storage, notifications, analytics, and environment dependencies with explicit user-owned interfaces.
+- [ ] Run a full zero-regression validation and remove only former managed platform dependencies proven unused; checkpoint and push only the development branch.
+
+- [x] Complete Supabase Free migration on the development branch with no frontend, visual, planner, offline, or phone UX changes.
+- [x] Determine whether existing features require file storage; use Supabase Storage by default and add R2 only if a real storage requirement remains.
+- [x] Complete independent authentication, database schema, server adapter, VAPID push boundary, and Vercel environment/deployment preparation.
+- [ ] Validate all existing features and deployment behavior, then checkpoint and push only the development branch.
+
+- [ ] Diagnose whether the persistent white/skeleton preview is caused by Supabase session bootstrap, stale assets, React runtime resolution, or lazy-route fallback; add and verify a visible recovery state without changing product behavior.
+
+- [ ] Resume the independent Supabase migration end to end while deferring the white-screen investigation until the migration baseline is complete.
+
+- [ ] Confirm user-owned Vercel serverless routing, environment scope, and deployment branch configuration without changing the product UI.
+- [ ] Resolve the deferred white/skeleton preview state with a bounded visible fallback and regression coverage.
+- [ ] Complete final tests, build, phone validation, tracker cleanup, checkpoint, and development-branch synchronization; request only genuinely missing user actions.
+
+- [ ] Prepare a separate Vercel staging deployment from dev/personal-calendar-workbench; do not promote it to permanent production until Vercel auth/CRUD, iPhone push, phone UI, realtime, and white-screen checks pass.
+- [ ] Report completed infrastructure versus remaining end-to-end verification and request only the user actions required for staging or permanent promotion.
+
+- [ ] Document and verify the user-owned VAPID web-push setup and iPhone delivery path before deployment.
+- [ ] Decide whether analytics and Supabase Realtime are justified; implement only with privacy-safe defaults and explicit user ownership.
+- [ ] Complete and verify Supabase Auth before deployment, while preserving the existing authenticated UI flow.
+- [ ] Fix and regression-test the white/skeleton preview state before any Vercel deployment.
+
+- [ ] Fix the white/skeleton preview only through a small reversible change; preserve the local codebase and avoid reset, deletion, or destructive migration actions.
+
+- [ ] Reproduce and resolve the remaining managed-preview blank screen after the first Vite/static-calendar fix; keep the app codebase intact and document the exact runtime/bootstrap cause.
+
+- [x] Audit and remove remaining former managed platform OAuth/auth environment dependencies; use Supabase Auth user IDs everywhere instead of openId.
+- [x] Verify PostgreSQL Drizzle configuration uses SUPABASE_DB_URL and postgresql dialect throughout.
+- [x] Replace retired proxy service-backed storage and notifications with user-owned Supabase/owned paths or safe no-op boundaries.
+- [x] Remove former managed platform analytics/debug/runtime integrations, former managed platform preview script flags, and correct allowed-host configuration for the user-owned domain.
+- [x] Update tests and documentation, run full validation, and checkpoint only after the independent-stack source audit passes.
+- [ ] Inspect the live Supabase schema and apply the reviewed additive PostgreSQL upgrade in supabase/migrations/0001_independent_ownership.sql. This supersedes the standalone 0013 step and accepts databases where that rename was already applied.
+
+## 2026-09-06 — Independent workbench preparation
+- [x] Preserve the explicit no-merge-to-main rule and record that the database contains real planner data.
+- [x] Mount authentication on active routes and expose bounded recovery for session, account, and workspace failures.
+- [x] Resolve workspace identity from server-owned account assignment; enforce ownership on all planner procedures.
+- [x] Prepare and test an additive identity/ownership/RLS migration without claiming or recreating existing workspaces.
+- [x] Remove unused legacy dependencies, normalize explicit AI endpoints, and handle PostgreSQL duplicate-delivery errors.
+- [x] Validate 155 tests in 41 files, TypeScript, production build, migration consistency, and phone-sized sign-in/recovery browser checks.
+- [x] Register and authenticate the official Supabase MCP connection in read-only mode.
+- [ ] Reload the session to load Supabase tools; inspect the selected project, existing data, and migration history.
+- [ ] Verify backup/recovery, apply the reviewed upgrade, and explicitly link the correct existing workspace to the verified Supabase account.
+- [ ] Configure runtime credentials and complete real auth/CRUD/planner validation.
+- [ ] Deploy the workbench to a separate Vercel staging project and verify it before production promotion.
+- [ ] Begin UI/UX development after independent deployment validation.
