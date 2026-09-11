@@ -33,4 +33,6 @@ Last updated: 2026-09-11
 
 The initial More sheet was structurally invalid because it lived inside a filtered sticky rail. The fixed overlay could therefore use the rail as its coordinate system. The rail is now viewport-fixed at the phone bottom without that containing effect, while More/settings overlays occupy the viewport above it. The local 390×844 Playwright flow verifies More → Customize & settings → Done and full overlay coverage. Keep this test whenever changing phone navigation, safe-area CSS, sheets, or account actions.
 
+The installed-PWA update path now uses `personal-calander-shell-v2`, deletes older owned shell caches during activation, bypasses HTTP cache when checking `/sw.js`, and explicitly checks for a worker update after registration. This prevents a successful Vercel deployment from remaining hidden behind the original permanent phone shell cache.
+
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.
