@@ -39,6 +39,16 @@ def main():
                 assert "planner.workspace.snapshot" in requests, requests
                 assert not unexpected, unexpected
                 shared["assert_layout"](page, errors)
+                if size == "phone":
+                    page.get_by_role("button", name="More", exact=True).click()
+                    expect(page.locator("#mobile-more-sheet")).to_be_visible()
+                    overlay = page.locator(".mobile-more-layer").bounding_box()
+                    assert overlay and overlay["height"] >= shared["SIZES"][size]["height"] - 2, overlay
+                    page.screenshot(path=str(args.output / "preview-linked-phone-more-sheet.png"))
+                    page.get_by_role("button", name="Customize & settings", exact=True).click()
+                    expect(page.get_by_role("heading", name="Make the planner yours", exact=True)).to_be_visible()
+                    page.screenshot(path=str(args.output / "preview-linked-phone-settings.png"))
+                    page.get_by_role("button", name="Done", exact=True).click()
                 path = args.output / f"preview-linked-home-{size}.png"
                 page.screenshot(path=str(path), full_page=True)
                 results.append({"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "requests": requests, "runtimeErrors": errors})

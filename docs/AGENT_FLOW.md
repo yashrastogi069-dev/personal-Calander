@@ -19,6 +19,7 @@ Last updated: 2026-09-11
 
 - `client/src/pages/Home.tsx`: phone layout preferences, tab pinning/reordering and density controls.
 - `client/src/index.css`: safe-area sheet, adaptive tab bar, compact density, touch targets.
+- `docs/PHONE_PREMIUM_REDESIGN_CONTRACT.md`: mobile product contract, edge-case review, and acceptance criteria.
 - Preference scope: browser `localStorage`, keyed by workspace ID. It is explicitly not cross-device sync.
 - Verification: `tsc --noEmit` and `vite build` passed after the UI update. The Vite large-client-chunk warning is pre-existing/non-blocking.
 
@@ -27,5 +28,9 @@ Last updated: 2026-09-11
 1. Apply private file storage migration after reviewing existing Storage policies/bucket state.
 2. Design and connect Apple Calendar/reminders and notifications; validate on a real iPhone.
 3. Fix the authenticated mobile Sign out obstruction.
+
+## Latest corrective checkpoint
+
+The initial More sheet was structurally invalid because it lived inside a filtered sticky rail. The fixed overlay could therefore use the rail as its coordinate system. The rail is now viewport-fixed at the phone bottom without that containing effect, while More/settings overlays occupy the viewport above it. The local 390×844 Playwright flow verifies More → Customize & settings → Done and full overlay coverage. Keep this test whenever changing phone navigation, safe-area CSS, sheets, or account actions.
 
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.

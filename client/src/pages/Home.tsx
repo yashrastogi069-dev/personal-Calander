@@ -7076,6 +7076,18 @@ export default function Home() {
                   <X size={20} />
                 </button>
               </div>
+              <button
+                type="button"
+                className="mobile-more-settings"
+                onClick={() => {
+                  setMobileCustomizationOpen(true);
+                  setMobileMoreOpen(false);
+                }}
+              >
+                <span className="mobile-more-settings-icon"><Settings2 size={18} /></span>
+                <span><b>Customize & settings</b><small>Tabs, order, and reading density</small></span>
+                <ChevronRight size={18} />
+              </button>
               <div className="mobile-more-destinations">
                 {mobileMoreDestinations.map(item => {
                   return (
@@ -7113,17 +7125,6 @@ export default function Home() {
                 })}
               </div>
               <div className="mobile-more-utility">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileCustomizationOpen(true);
-                    setMobileMoreOpen(false);
-                  }}
-                >
-                  <Settings2 size={18} />
-                  <span>Customize phone</span>
-                  <ChevronRight size={18} />
-                </button>
                 <button
                   type="button"
                   onClick={() => {

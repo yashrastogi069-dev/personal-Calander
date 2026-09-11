@@ -154,3 +154,7 @@ Remaining: resolve the verified empty-project mismatch, audit/back up the actual
 - The phone planner has an in-progress iPhone-first update: safe-area-aware bottom navigation, 44pt touch controls, task gestures (left complete, right archive reveal, long-press edit), and a device-local “Customize phone” sheet for tab pinning, destination ordering, and compact/comfortable density. TypeScript and the production client build passed after this update.
 
 Not yet performed: private file storage migration (`0002`), Apple Calendar/reminder connection, push notification/device verification, Cron/Vault setup, and the separately tracked authenticated-phone Sign out obstruction. Preferences intentionally remain device-local until a separate syncable account-preferences schema is approved.
+
+## 2026-09-11 phone overlay correction
+
+The initial customizable phone navigation did not meet the mobile contract. Root cause: the `More` overlay was rendered inside a sticky mobile rail with `backdrop-filter`, which establishes a containing block. Its `position: fixed` layer therefore used the rail instead of the viewport and could trap the interface. The correction removes that containing context on phone, fixes the rail to the actual viewport bottom, and gives More/settings independent full-viewport overlay layers above it. `scripts/preview-linked-planner.py` now verifies the 390×844 More → Customize & settings → Done flow and asserts that the overlay spans the viewport. The premium-phone design contract is in `PHONE_PREMIUM_REDESIGN_CONTRACT.md`.
