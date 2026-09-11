@@ -21,6 +21,10 @@ Local browser evidence is outside Git at `C:/Users/win 10/AppData/Local/Temp/per
 
 Remaining Phase 1 gates: merge only into `dev/personal-calendar-workbench`, push and verify its Vercel Preview, then test Home Screen icon/cropping, standalone chrome, cached launch, reconnect, and update activation on a real iPhone. Roll back by routing to the last compatible deployment; never clear IndexedDB, quick captures, auth, push subscriptions, planner records, or unrelated caches. The existing authenticated-phone Sign out obstruction remains a separate tracked UI item.
 
+### Deployment result
+
+The user explicitly authorized both branch push and `main` promotion. Workbench commit `15d3a8f` deployed successfully to Vercel Preview with generated worker release `a19a367f5ecb20f4`. The identical source tree was merged into `main` as `2c17978` and Vercel reported deployment success. Production `https://personal-calander.vercel.app` returned 200 for root and `/api/health`; its environment-specific worker release is `0962e8db7704ad8f`, with 20 public entries and no API/Supabase cache entry. A clean online Chromium run at 390x844 showed no runtime error or horizontal overflow. The user will perform the remaining physical-iPhone offline test.
+
 The Supabase project contains real planner data. Work only on `dev/personal-calendar-workbench`; never merge into `main` without the user's explicit instruction. This document supersedes earlier disposable-database, external-identity, and disabled-scheduler instructions.
 
 ## Implemented in this branch

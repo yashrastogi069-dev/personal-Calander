@@ -54,4 +54,12 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 - Visual inspection found and fixed PWA status overlap on the phone sign-in screen. The independent pre-existing authenticated phone Sign out obstruction remains explicitly tracked.
 - Next: merge the isolated implementation into `dev/personal-calendar-workbench`, push that branch, verify Vercel Preview, then perform the real-iPhone install/relaunch/update check. Do not merge `main` without a new explicit user instruction.
 
+## 2026-09-12 PWA deployment checkpoint
+
+- The user explicitly authorized production promotion. Workbench commit `15d3a8f` passed its Vercel Preview gate, then identical tree `2c17978` was merged and pushed to `main`.
+- Preview: health/root/manifest/worker returned 200; worker release `a19a367f5ecb20f4`; 20 public shell entries; no API entry; clean 390x844 online render.
+- Production: `https://personal-calander.vercel.app` returned 200 for root and `/api/health`; manifest exposes 5 icons and 2 shortcuts; active worker release `0962e8db7704ad8f` owns exactly 20 entries and no API/Supabase entry; online 390x844 render had no overflow or runtime errors.
+- The different Preview/Production release hashes are expected because their Vercel build environments produce different bundle bytes. Both were generated from the same source tree.
+- User owns the remaining physical-iPhone offline/relaunch/update gate. Continue Phase 2 on `dev/personal-calendar-workbench`; do not enable notification delivery until account sync passes.
+
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.
