@@ -31,7 +31,7 @@ The implementation must evolve these files without registering a second worker, 
 
 ## Manifest and standalone behavior
 
-The manifest will define a stable `id` and `/` scope; a `/?source=pwa` start URL; standalone display with a conservative display override; product name, description, language, direction, categories, theme and background colors; portrait-primary orientation without blocking landscape; Today and New Task shortcuts; raster 192x192 and 512x512 icons; and dedicated maskable versions with safe padding.
+The manifest will define a stable `id` and `/` scope; a `/?source=pwa` start URL; standalone display with a conservative display override; product name, description, language, direction, categories, theme and background colors; `orientation: "any"` so portrait and useful iPhone landscape both remain available; Today and New Task shortcuts; raster 192x192 and 512x512 icons; and dedicated maskable versions with safe padding.
 
 `client/index.html` will include the 180x180 Apple touch icon, theme color, Apple standalone capability, Apple status-bar preference, and an application title. Metadata must not depend on JavaScript execution.
 
