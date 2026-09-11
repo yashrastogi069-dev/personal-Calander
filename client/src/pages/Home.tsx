@@ -78,6 +78,7 @@ import {
   mobilePlannerDestinations,
   type MobilePlannerDestination,
 } from "@shared/mobileNavigation";
+import { pwaEntryFromSearch } from "@shared/pwaEntry";
 import {
   ArrowDown,
   ArrowDownUp,
@@ -6259,7 +6260,8 @@ export default function Home() {
   const [composerOpen, setComposerOpen] = useState(
     () =>
       typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("create") === "task"
+      (new URLSearchParams(window.location.search).get("create") === "task" ||
+        pwaEntryFromSearch(window.location.search).composeTask)
   );
   const [composerIntentHydrated, setComposerIntentHydrated] = useState(false);
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
@@ -6439,7 +6441,12 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (url.searchParams.get("create") !== "task") return;
+    const pwaEntry = pwaEntryFromSearch(url.search);
+    if (pwaEntry.cleanedSearch !== url.search) {
+      url.search = pwaEntry.cleanedSearch;
+      window.history.replaceState(null, "", url);
+    }
+    if (!pwaEntry.composeTask && url.searchParams.get("create") !== "task") return;
     setSurface("tasks");
     setComposerKind("task");
     setComposerOpen(true);

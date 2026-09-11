@@ -7,17 +7,10 @@ import superjson from "superjson";
 import App from "./App";
 import { supabase } from "./lib/supabase";
 import { withTimeout } from "@shared/withTimeout";
+import { PwaProvider } from "./contexts/PwaContext";
 import "./index.css";
 
 document.documentElement.dataset.release = "independent-workbench";
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
-      .then(registration => registration.update())
-      .catch(error => console.warn("[PWA] Service worker registration skipped", error));
-  });
-}
 
 const queryClient = new QueryClient();
 
@@ -79,7 +72,7 @@ const trpcClient = trpc.createClient({
 createRoot(document.getElementById("root")!).render(
   <trpc.Provider client={trpcClient} queryClient={queryClient}>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <PwaProvider><App /></PwaProvider>
     </QueryClientProvider>
   </trpc.Provider>
 );

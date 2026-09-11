@@ -90,7 +90,7 @@ export function SupabaseAuthGate() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+    <div className="auth-gate flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
       <Card className="w-full max-w-md border-border/70 bg-card/95 shadow-[0_22px_70px_-36px_hsl(var(--foreground)/.45)]">
         <CardHeader className="space-y-3">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Personal Calendar</p>

@@ -38,9 +38,6 @@ def main():
                 expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
                 assert "planner.workspace.snapshot" in requests, requests
                 assert not unexpected, unexpected
-                # Vite's development-only HMR socket can close during a headless
-                # snapshot; it is not part of the application runtime.
-                errors[:] = [error for error in errors if error != "WebSocket closed without opened."]
                 shared["assert_layout"](page, errors)
                 if size == "phone":
                     page.get_by_role("button", name="More", exact=True).click()
@@ -64,17 +61,21 @@ def main():
                 page.screenshot(path=str(task_path), full_page=True)
                 path = args.output / f"preview-linked-home-{size}.png"
                 page.screenshot(path=str(path), full_page=True)
-                results.append({"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "taskLaneScreenshot": str(task_path), "taskLaneSurfaces": lane_surfaces, "requests": requests, "runtimeErrors": errors})
+                result = {"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "taskLaneScreenshot": str(task_path), "taskLaneSurfaces": lane_surfaces, "requests": requests}
                 try:
                     page.get_by_role("button", name="Sign out", exact=True).click(timeout=1500)
                     expect(page.get_by_role("button", name="Continue with Google")).to_be_visible()
-                    results[-1]["signOutPointerAccessible"] = True
+                    result["signOutPointerAccessible"] = True
                 except PlaywrightTimeoutError:
                     # Visibility is required above. Report pointer obstruction separately
                     # without disguising it through forced clicks or changing app styles.
-                    results[-1]["signOutPointerAccessible"] = False
-                    results[-1]["interactionIssue"] = "Visible Sign out is covered by the fixed phone navigation."
+                    result["signOutPointerAccessible"] = False
+                    result["interactionIssue"] = "Visible Sign out is covered by the fixed phone navigation."
                 context.close()
+                errors[:] = [error for error in errors if error != "WebSocket closed without opened."]
+                assert not errors, errors
+                result["runtimeErrors"] = list(errors)
+                results.append(result)
         finally: browser.close()
     (args.output / "preview-linked-results.json").write_text(json.dumps(results, indent=2), encoding="utf8")
     print(json.dumps({"linked_states_passed": len(results), "data": "synthetic only", "output": str(args.output)}))

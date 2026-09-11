@@ -1,6 +1,12 @@
 # Agent flow and active handoff
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
+
+## Approved reliability roadmap
+
+The next work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Product rules are recorded in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`; Phase 1 is implemented and verified locally on `work/pwa-foundation`, with Preview and real-iPhone gates still pending.
+
+Approved data behavior: automatically merge non-overlapping fields; retain both values for overlapping conflicts; never silently delete; move explicit deletes to an indefinite recycle bin; require a separate confirmed permanent-delete action. Signing out preserves but hides the account-scoped device cache and unsynchronized work. Keep the initial synchronization design lean: full snapshot plus idempotent pending operations, not CRDTs or a complex incremental event stream.
 
 ## Working branch and safety
 
@@ -38,5 +44,14 @@ The installed-PWA update path now uses `personal-calander-shell-v2`, deletes old
 Production and Preview were confirmed to use different application/data generations. Production was the August 26 legacy build with no Supabase client project URL; Preview uses Supabase project `dwiudauuuxzstbavkkqa`, whose read-only counts were one user, one workspace, and zero task/goal/project/habit records. The user explicitly accepted that old planner data would not appear in the independent stack and authorized merging/deploying the verified workbench on 2026-09-11. This authorizes code promotion only: do not reset or delete either data source.
 
 Pre-merge visual gate: the Task board restores the exact R20/main dark state palette (To do `#2a405d` → `#15283f`; In progress `#155b59` → `#0b393b`; Completed `#1d4b3d` → `#102f27`) while retaining the workbench mobile layout and typography. The synthetic Playwright flow asserts the three computed surface tokens and no horizontal overflow at 1440×1000 and 390×844; both passed and screenshots were visually reviewed.
+
+## 2026-09-12 PWA foundation checkpoint
+
+- Implementation commits from `5eb764d` through `10a7344` add stable manifest identity and shortcuts, reproducible raster icons, Apple standalone metadata, a generated release-specific shell cache, honest offline fallback, controlled updates, connectivity verification, install guidance, and a safe-area-aware status surface.
+- Shell release `a5f1f2018fa6b158` contains 20 explicit public files. Cache Storage excludes `/api/**`, Supabase, authorization, snapshots, mutations, attachments, and uploads. Optional runtime static entries are capped at 40 and seven days.
+- Local gate: TypeScript passed; all 56 test files passed with 239 tests and 3 environment-dependent skips. The final production build passed with only the pre-existing large-client-chunk warning.
+- Browser gate: four production PWA scenarios passed at 1440x1000 and 390x844 with no unexpected runtime/console errors; eight synthetic auth/workspace states and two linked planner layouts also passed. Cold offline without a prior service worker fails honestly. Cached relaunch, waiting-update activation, unrelated-cache preservation, exact task-lane colors, settings navigation, and zero horizontal overflow were verified.
+- Visual inspection found and fixed PWA status overlap on the phone sign-in screen. The independent pre-existing authenticated phone Sign out obstruction remains explicitly tracked.
+- Next: merge the isolated implementation into `dev/personal-calendar-workbench`, push that branch, verify Vercel Preview, then perform the real-iPhone install/relaunch/update check. Do not merge `main` without a new explicit user instruction.
 
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.

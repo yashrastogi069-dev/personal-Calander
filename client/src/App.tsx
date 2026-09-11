@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import { AuthenticatedPlanner } from "./components/AuthenticatedPlanner";
 import { Analytics } from "@vercel/analytics/react";
 import { sanitizeAnalyticsEvent } from "./lib/deploymentAnalytics";
+import PwaStatus from "./components/PwaStatus";
 
 import CalendarExecution from "./pages/CalendarExecution";
 
@@ -37,6 +38,7 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
+          <PwaStatus />
           <AuthenticatedPlanner><Router /></AuthenticatedPlanner>
           <Analytics beforeSend={sanitizeAnalyticsEvent} />
         </TooltipProvider>
