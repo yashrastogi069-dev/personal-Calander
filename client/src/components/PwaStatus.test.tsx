@@ -68,5 +68,6 @@ describe("PWA status presentation", () => {
     const css = readFileSync(resolve(process.cwd(), "client", "src", "index.css"), "utf8");
     expect(css).toMatch(/\.pwa-status-actions button\s*\{[^}]*min-height:\s*44px[\s\S]*?\}/);
     expect(css).toMatch(/prefers-reduced-motion:[^)]+\)[^{]*\{[\s\S]*?\.pwa-status-card/);
+    expect(css).toMatch(/body:has\(\.auth-gate\) \.pwa-status-layer\s*\{[^}]*position:\s*relative/);
   });
 });
