@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6faf7" />
+    <title>Personal Calendar · Offline</title>
+    <style>
+      :root { color-scheme:light dark; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#dcebe4; color:#143d33; }
+      * { box-sizing:border-box; }
+      body { display:grid; min-height:100dvh; margin:0; padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom)); place-items:center; background:radial-gradient(circle at 50% 0,#f6faf7 0,#dcebe4 62%,#c9dfd6 100%); }
+      main { width:min(100%,420px); padding:32px 28px; border:1px solid rgba(40,93,82,.2); border-radius:24px; background:rgba(246,250,247,.9); box-shadow:0 20px 60px rgba(20,61,51,.12); }
+      span { display:inline-grid; width:48px; height:48px; place-items:center; border-radius:15px; background:#285d52; color:#c6f06a; font-size:26px; font-weight:800; }
+      h1 { margin:24px 0 10px; font-size:clamp(28px,9vw,40px); letter-spacing:-.045em; line-height:1; }
+      p { margin:0; color:#456b61; font-size:16px; line-height:1.55; }
+      button { width:100%; min-height:48px; margin-top:24px; border:0; border-radius:14px; background:#285d52; color:#fff; font:700 16px/1 system-ui,sans-serif; cursor:pointer; }
+      button:focus-visible { outline:3px solid #85a900; outline-offset:3px; }
+      @media (prefers-color-scheme:dark) { :root { background:#101714; color:#f6faf7; } body { background:radial-gradient(circle at 50% 0,#284b40 0,#101714 68%); } main { border-color:rgba(246,250,247,.18); background:rgba(22,45,37,.94); } p { color:#bad0c6; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span aria-hidden="true">✓</span>
+      <h1>You’re offline</h1>
+      <p>The planner shell is safe, but this page was not available in the current offline release. Reconnect and try again. Saved account data and queued work are not deleted.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

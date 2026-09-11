@@ -1,15 +1,85 @@
-const appShellCache = "personal-calander-shell-v2";
-const ownedCachePrefix = "personal-calander-shell-";
+/*__PERSONAL_CALENDAR_PWA_BUILD__*/
+
+const pwaBuild = self.__PERSONAL_CALENDAR_PWA_BUILD__ || {
+  release: "development",
+  precache: ["/", "/offline.html", "/manifest.webmanifest", "/icon.svg"],
+};
+const ownedCachePrefix = "personal-calander-";
+const shellCache = `${ownedCachePrefix}shell-${pwaBuild.release}`;
+const runtimeCache = `${ownedCachePrefix}runtime-v1`;
+const runtimeLimit = 40;
+
+function isSafeResponse(response) {
+  return response.ok && !response.redirected && (response.type === "basic" || response.type === "default");
+}
+
+async function installShell() {
+  const responses = await Promise.all(pwaBuild.precache.map(async url => {
+    const response = await fetch(new Request(url, { cache: "reload", credentials: "same-origin" }));
+    if (!isSafeResponse(response)) throw new Error(`Unsafe shell response for ${url}`);
+    return [url, response];
+  }));
+  const cache = await caches.open(shellCache);
+  await Promise.all(responses.map(([url, response]) => cache.put(url, response)));
+}
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(appShellCache).then(cache => cache.add("/")).catch(() => undefined));
-  self.skipWaiting();
+  event.waitUntil(installShell());
 });
-self.addEventListener("activate", event => event.waitUntil((async () => {
-  const cacheNames = await caches.keys();
-  await Promise.all(cacheNames.filter(name => name.startsWith(ownedCachePrefix) && name !== appShellCache).map(name => caches.delete(name)));
-  await self.clients.claim();
-})()));
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames
+      .filter(name => name.startsWith(ownedCachePrefix) && name !== shellCache && name !== runtimeCache)
+      .map(name => caches.delete(name)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("message", event => {
+  if (event.data?.type === "personal-calendar:activate-update") event.waitUntil(self.skipWaiting());
+});
+
+async function navigationResponse(request) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch(request, { signal: controller.signal });
+    if (isSafeResponse(response)) return response;
+    throw new Error("Navigation returned an unsafe response");
+  } catch {
+    return (await caches.match("/")) || (await caches.match("/offline.html")) || Response.error();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function trimRuntimeCache(cache) {
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - runtimeLimit)).map(key => cache.delete(key)));
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (!isSafeResponse(response)) return response;
+  const cache = await caches.open(runtimeCache);
+  await cache.put(request, response.clone());
+  await trimRuntimeCache(cache);
+  return response;
+}
+
+async function refreshRuntime(request) {
+  const response = await fetch(request);
+  if (isSafeResponse(response)) {
+    const cache = await caches.open(runtimeCache);
+    await cache.put(request, response.clone());
+    await trimRuntimeCache(cache);
+  }
+  return response;
+}
 
 self.addEventListener("fetch", event => {
   const request = event.request;
@@ -17,21 +87,21 @@ self.addEventListener("fetch", event => {
   if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).then(response => {
-      const copy = response.clone();
-      void caches.open(appShellCache).then(cache => cache.put("/", copy));
-      return response;
-    }).catch(async () => (await caches.match("/")) || Response.error()));
+    event.respondWith(navigationResponse(request));
     return;
   }
-
-  event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
-    if (response.ok) {
-      const copy = response.clone();
-      void caches.open(appShellCache).then(cache => cache.put(request, copy));
-    }
-    return response;
-  })));
+  if (/^\/assets\/.*\.(?:css|js)$/.test(url.pathname)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+  if (url.pathname === "/manifest.webmanifest" || url.pathname === "/icon.svg" || url.pathname.startsWith("/icons/")) {
+    event.respondWith((async () => {
+      const cached = await caches.match(request);
+      const update = refreshRuntime(request).catch(() => null);
+      event.waitUntil(update);
+      return cached || (await update) || Response.error();
+    })());
+  }
 });
 
 self.addEventListener("push", event => {
@@ -39,17 +109,27 @@ self.addEventListener("push", event => {
   try { payload = { ...payload, ...event.data?.json() }; } catch { /* use the safe default */ }
   event.waitUntil(self.registration.showNotification(payload.title, {
     body: payload.body,
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
     data: { url: payload.url || "/", kind: payload.kind || "reminder" },
     tag: payload.tag || "planning-reminder",
     renotify: false,
   }));
 });
 
+function safeNotificationTarget(candidate) {
+  try {
+    const target = new URL(candidate || "/", self.location.origin);
+    if (target.origin !== self.location.origin) return "/";
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/";
+  const targetUrl = safeNotificationTarget(event.notification.data?.url);
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const existing = windows.find(client => new URL(client.url).origin === self.location.origin);

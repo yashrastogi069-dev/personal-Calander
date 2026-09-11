@@ -5,8 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "node scripts/run.mjs development",
-    "build:client": "vite build && esbuild server/_core/vercelApp.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/server/planner-app.mjs",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:client": "vite build && node scripts/build-pwa.mjs && esbuild server/_core/vercelApp.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/server/planner-app.mjs",
+    "build": "vite build && node scripts/build-pwa.mjs && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "node scripts/run.mjs production",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
