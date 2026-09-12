@@ -1,6 +1,6 @@
 # Reliable PWA, Sync, and Notifications Roadmap
 
-Status: Phase 1 deployed; Phase 2 and Phase 3 implementation/infrastructure complete on the workbench release candidate, awaiting Preview and Production verification. Physical-iPhone offline and notification-delivery checks remain delegated to the user.
+Status: Phases 1–3 are deployed and engineering-verified in Production. Physical-iPhone offline/relaunch and opt-in notification-delivery checks remain delegated to the user. Phase 4 has not started.
 
 Last updated: 2026-09-12
 
@@ -41,7 +41,7 @@ Notifications are device-specific and opt-in. Reminder rules are account data an
 
 The Apple Calendar bridge remains standards-based: a private revocable outbound calendar subscription, a read-only inbound ICS availability overlay, and one-off `.ics` export. Native EventKit and credential-based Apple account access are outside a web PWA and remain deferred.
 
-Release-candidate infrastructure: Production and Preview have the required VAPID/app-origin configuration; Production has a generated server-only scheduler secret matched through Supabase Vault. The exact independent Supabase project has Vault plus installed `pg_cron`/`pg_net`, and exactly one `personal-calendar-reminder-sweep` job runs every five minutes. Activation preserved planner counts. The database currently has zero subscriptions and zero reminder rules, so no delivery is claimed before the user connects the installed iPhone and enables a cadence.
+Production infrastructure: Production and Preview have the required VAPID/app-origin configuration; Production has a generated server-only scheduler secret matched through Supabase Vault. The exact independent Supabase project has Vault plus installed `pg_cron`/`pg_net`, and exactly one active `personal-calendar-reminder-sweep` job runs every five minutes. Activation preserved planner counts. The authenticated canary and first actual Cron invocation both returned 200 with zero sends. The database currently has zero subscriptions and zero reminder rules, so no phone delivery is claimed before the user connects the installed iPhone and enables a cadence.
 
 ## Phase 4: holistic phone UI/UX polish
 

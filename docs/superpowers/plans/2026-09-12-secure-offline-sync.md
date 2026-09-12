@@ -1,6 +1,6 @@
 # Secure Offline Synchronization Implementation Plan
 
-Status: implementation complete; deployment verification pending
+Status: deployed and engineering-verified; physical-iPhone offline/relaunch check delegated to the user
 
 Date: 2026-09-12
 
@@ -55,7 +55,7 @@ Date: 2026-09-12
 - [x] Run TypeScript, full tests, and production build locally.
 - [x] Run synthetic authenticated phone/desktop checks including sign-out cache isolation, offline task operations, conflict review, Recycle Bin access, and reconnection-safe queue storage.
 - [x] Update handoff, flow, and roadmap with exact evidence.
-- [ ] Push workbench, verify Vercel Preview/database compatibility, then merge/push `main` under explicit authorization.
+- [x] Push workbench, verify Vercel Preview/database compatibility, then merge/push `main` under explicit authorization.
 - [ ] Leave the physical-iPhone offline/relaunch gate to the user.
 
 ## Execution rule
