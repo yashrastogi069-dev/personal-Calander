@@ -77,6 +77,10 @@ def main():
                 if size == "phone":
                     context.set_offline(True)
                     page.get_by_role("button", name="Complete Plan a focused week", exact=True).click()
+                    capture = page.get_by_label("Quickly capture a task", exact=True)
+                    capture.fill("Captured while offline")
+                    capture.press("Enter")
+                    expect(page.get_by_text("Captured while offline", exact=True)).to_be_visible()
                     expect(page.get_by_text("Needs review", exact=True)).to_be_visible()
                     pending = page.evaluate("""async () => await new Promise((resolve, reject) => {
                       const request = indexedDB.open('personal-calander-planner-v1');
@@ -87,7 +91,7 @@ def main():
                         count.onsuccess = () => resolve(count.result);
                       };
                     })""")
-                    assert pending == 1, pending
+                    assert pending == 2, pending
                     result_offline = {"offlineTaskQueued": pending, "offlineScreenshot": str(args.output / "preview-linked-phone-offline-sync.png")}
                     page.screenshot(path=result_offline["offlineScreenshot"], full_page=True)
                 else:

@@ -104,7 +104,7 @@ const syncTaskPatch = z.object({
   recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(),
   recurrenceUntilLocalDate: dateString.nullable().optional(),
 }).refine(value => Object.keys(value).length > 0, { message: "A synchronization patch cannot be empty." });
-const syncTaskOperation = z.object({
+const syncTaskUpdateOperation = z.object({
   operationId: z.string().min(8).max(128),
   entity: z.literal("task"),
   entityId: z.string().min(1).max(64),
@@ -120,6 +120,37 @@ const syncTaskOperation = z.object({
     }
   }
 });
+const syncTaskCreateOperation = z.object({
+  operationId: z.string().min(8).max(64),
+  entity: z.literal("task"),
+  entityId: z.string().min(1).max(64),
+  kind: z.literal("create"),
+  baseVersion: z.null(),
+  baseValues: z.object({}).strict(),
+  patch: z.object({
+    title: z.string().trim().min(1).max(280),
+    description: z.string().max(10000).nullable().optional(),
+    categoryId: z.string().max(64).nullable().optional(),
+    goalId: z.string().max(64).nullable().optional(),
+    projectId: z.string().max(64).nullable().optional(),
+    parentTaskId: z.string().max(64).nullable().optional(),
+    state: lifecycle.default("not_started"),
+    priority: priority.default("medium"),
+    horizon: horizon.default("daily"),
+    dueLocalDate: dateString.nullable().optional(),
+    scheduledLocalDate: dateString.nullable().optional(),
+    plannedStartAt: z.date().nullable().optional(),
+    plannedEndAt: z.date().nullable().optional(),
+    estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(),
+    scheduleMode: z.enum(["manual", "flexible", "pinned"]).default("manual"),
+    sortOrder: z.number().int().default(0),
+    recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(),
+    recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(),
+    recurrenceUntilLocalDate: dateString.nullable().optional(),
+  }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "Reserved time must end after it starts." }),
+  createdAt: z.string().datetime({ offset: true }),
+});
+const syncTaskOperation = z.union([syncTaskUpdateOperation, syncTaskCreateOperation]);
 const aiDraft = z.object({
   kind: z.enum(["task", "goal"]),
   title: z.string().trim().min(1).max(280),
@@ -178,6 +209,11 @@ export const plannerRouter = router({
       const results = [];
       for (const operation of input.operations) {
         try {
+          if (operation.kind === "create") {
+            const record = await createTask(plannerScope, { ...operation.patch, clientRequestId: operation.operationId });
+            results.push({ operationId: operation.operationId, status: "completed" as const, outcome: "applied" as const, appliedFields: Object.keys(operation.patch), alreadyAppliedFields: [], conflicts: [], record });
+            continue;
+          }
           const result = await processTaskUpdateOperation(plannerScope, operation);
           results.push({ status: "completed" as const, ...result });
         } catch (error) {

@@ -37,15 +37,15 @@ Date: 2026-09-12
 
 ## Task 5: Offline mutation coverage
 
-- [ ] Migrate quick capture into the scoped queue without losing existing localStorage captures.
+- [x] Migrate quick capture into the scoped queue without losing existing localStorage captures.
 - [ ] Cover task create/update/state/archive/restore and reorder flows. Common state, archive/restore, schedule, and reservation updates are implemented; full editor/create/reorder coverage remains.
 - [ ] Cover goal, milestone, project, habit, category, saved-view, daily-plan, review, dependency, and availability writes in coherent groups.
 - [ ] Keep focus, push, calendar, file upload, permanent deletion, and security-sensitive operations online-only unless separately designed.
 
 ## Task 6: Conflict review and recycle bin
 
-- [ ] Add a visible Needs Review inbox retaining base/local/server values.
-- [ ] Resolve via a fresh version-checked operation.
+- [x] Add a visible Needs Review inbox retaining base/local/server values.
+- [x] Resolve via a fresh version-checked operation.
 - [ ] Present archived entities as an indefinite recycle bin with restore.
 - [ ] Add separately confirmed permanent deletion only where history rules are defined.
 

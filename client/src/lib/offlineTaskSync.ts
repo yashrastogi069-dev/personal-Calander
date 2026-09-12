@@ -25,8 +25,8 @@ export type TaskReplayOperation = {
   operationId: string;
   entity: "task";
   entityId: string;
-  kind: "update";
-  baseVersion: number;
+  kind: "update" | "create";
+  baseVersion: number | null;
   baseValues: Record<string, unknown>;
   patch: Record<string, unknown>;
   createdAt: string;
@@ -61,13 +61,34 @@ export async function queueTaskUpdate(
   return operation;
 }
 
-function replayInput(operation: PlannerOperation & { entity: "task"; kind: "update"; baseVersion: number }): TaskReplayOperation {
+export async function queueTaskCreate(
+  store: PlannerSyncStore,
+  scope: PlannerSyncScope,
+  patch: TaskPatch,
+  id = operationId(),
+  createdAt = new Date().toISOString(),
+) {
+  const operation = createPlannerOperation(scope, {
+    operationId: id,
+    entity: "task",
+    entityId: `offline:${id}`,
+    kind: "create",
+    baseVersion: null,
+    baseValues: {},
+    patch,
+    createdAt,
+  });
+  await store.enqueue(operation);
+  return operation;
+}
+
+function replayInput(operation: PlannerOperation & { entity: "task"; kind: "update" | "create" }): TaskReplayOperation {
   const { accountId: _accountId, workspaceId: _workspaceId, state: _state, attempts: _attempts, lastErrorCode: _lastErrorCode, ...input } = operation;
   return input;
 }
 
 export async function replayQueuedTaskUpdates(store: PlannerSyncStore, scope: PlannerSyncScope, replay: TaskReplay) {
-  const operations = (await store.listOperations(scope)).filter((operation): operation is PlannerOperation & { entity: "task"; kind: "update"; baseVersion: number } => operation.entity === "task" && operation.kind === "update" && operation.baseVersion !== null && operation.state !== "needs_review").slice(0, 25);
+  const operations = (await store.listOperations(scope)).filter((operation): operation is PlannerOperation & { entity: "task"; kind: "update" | "create" } => operation.entity === "task" && (operation.kind === "update" ? operation.baseVersion !== null : operation.kind === "create" && operation.baseVersion === null) && operation.state !== "needs_review").slice(0, 25);
   if (!operations.length) return { completed: 0, needsReview: 0, retry: 0, records: [] as Record<string, unknown>[] };
 
   let results: TaskReplayResult[];

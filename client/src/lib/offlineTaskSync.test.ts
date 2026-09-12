@@ -1,10 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryPlannerSyncStore } from "./offlineSync";
-import { queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
+import { queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
 
 const scope = { accountId: "account-a", workspaceId: "workspace-a" };
 
 describe("offline task replay", () => {
+  it("queues an account-scoped idempotent task create", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskCreate(store, scope, { title: "Captured offline", scheduledLocalDate: "2026-09-12", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 }, "capture-1", "2026-09-12T09:00:00.000Z");
+    await expect(store.listOperations(scope)).resolves.toEqual([expect.objectContaining({
+      operationId: "capture-1", entityId: "offline:capture-1", kind: "create", baseVersion: null,
+      baseValues: {}, patch: expect.objectContaining({ title: "Captured offline", scheduledLocalDate: "2026-09-12" }),
+    })]);
+  });
+
+  it("acknowledges a replayed create and returns the durable server record", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskCreate(store, scope, { title: "Captured offline", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 }, "capture-1", "2026-09-12T09:00:00.000Z");
+    const replay = vi.fn().mockResolvedValue([{ operationId: "capture-1", status: "completed", outcome: "applied", appliedFields: ["title"], alreadyAppliedFields: [], conflicts: [], record: { id: "server-task-1", clientRequestId: "capture-1", title: "Captured offline", version: 1 } }]);
+    await expect(replayQueuedTaskUpdates(store, scope, replay)).resolves.toMatchObject({ completed: 1, records: [{ id: "server-task-1", clientRequestId: "capture-1" }] });
+    await expect(store.listOperations(scope)).resolves.toEqual([]);
+  });
+
   it("captures a base value for every patched field", async () => {
     const store = new MemoryPlannerSyncStore();
     await queueTaskUpdate(store, scope, { id: "task-1", version: 4, title: "Before", state: "not_started" }, { title: "After", state: "completed" }, "operation-1", "2026-09-12T10:00:00.000Z");

@@ -76,6 +76,19 @@ describe("planner task API", () => {
     expect(replay).toHaveBeenCalledTimes(2);
   });
 
+  it("replays an offline task capture idempotently through its client request ID", async () => {
+    const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-created", clientRequestId: "capture-sync-1", title: "Captured offline", version: 1 } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const result = await caller.planner.sync.replay({ workspaceId: "workspace-api-check", timezone: "UTC", operations: [{
+      operationId: "capture-sync-1", entity: "task", entityId: "offline:capture-sync-1", kind: "create", baseVersion: null,
+      baseValues: {}, patch: { title: "Captured offline", scheduledLocalDate: "2026-09-12", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 },
+      createdAt: "2026-09-12T10:00:00.000Z",
+    }] });
+    expect(result).toEqual([expect.objectContaining({ operationId: "capture-sync-1", status: "completed", record: expect.objectContaining({ id: "task-created" }) })]);
+    expect(create).toHaveBeenCalledWith({ workspaceId: "workspace-api-check", timezone: "UTC" }, expect.objectContaining({ title: "Captured offline", clientRequestId: "capture-sync-1" }));
+    create.mockRestore();
+  });
+
   it("rejects planner access without a validated Supabase user", async () => {
     const caller = appRouter.createCaller({ ...createAuthenticatedContext(), user: null });
     await expect(caller.planner.workspace.snapshot({ workspaceId: "workspace-api-check", timezone: "UTC", start: "2026-08-24", end: "2026-08-24" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });

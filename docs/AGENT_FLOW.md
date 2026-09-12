@@ -77,4 +77,10 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 - Verification: 49 focused tests passed; then the complete suite passed 61 files / 258 tests with 3 intentional skips. TypeScript and the production build passed, generating PWA release `5ca7582c4a167c3b`. Desktop and 390x844 synthetic browser checks passed, including the phone conflict sheet, dark Task-lane colors, offline queue, and zero horizontal overflow.
 - Next Phase 2 work: broaden the operation contract beyond common task updates/create capture, consolidate archive/recycle-bin management, and run the Preview gate. Notification delivery remains gated until those sync semantics are complete.
 
+## 2026-09-12 scoped quick-capture checkpoint
+
+- New quick captures use an idempotent account/workspace-scoped task-create operation and are visible immediately while offline.
+- Existing localStorage captures migrate losslessly: enqueue first, remove the legacy copy second. The server's unique workspace/client-request key prevents duplicate creation after ambiguous responses.
+- Complete tests, TypeScript, production build release `84daa9a657fc24cc`, and desktop/390x844 browser checks passed. The phone test retained two independent operations—one create and one update—without overflow.
+
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.

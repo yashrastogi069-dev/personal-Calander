@@ -40,7 +40,7 @@ import {
 import { usePlannerSyncScope, useWorkspaceScope } from "@/contexts/WorkspaceContext";
 import { useOfflinePlannerSnapshot } from "@/hooks/useOfflinePlannerSnapshot";
 import { getBrowserPlannerSyncStore, type PlannerConflict, type PlannerOperation } from "@/lib/offlineSync";
-import { queueTaskUpdate, replayQueuedTaskUpdates } from "@/lib/offlineTaskSync";
+import { queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "@/lib/offlineTaskSync";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
 import {
@@ -6610,10 +6610,19 @@ export default function Home() {
       replayTaskSyncRef.current({ ...scope, operations: operations as Parameters<typeof replayTaskSync.mutateAsync>[0]["operations"] })
     );
     if (result.records.length) {
-      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
-        ...current,
-        tasks: current.tasks.map(task => result.records.find(record => record.id === task.id) ? { ...task, ...result.records.find(record => record.id === task.id) } : task),
-      } : current);
+      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => {
+        if (!current) return current;
+        const syncedRecords = result.records as typeof current.tasks;
+        return {
+          ...current,
+          tasks: [
+            ...current.tasks
+              .filter(task => !syncedRecords.some(record => record.clientRequestId && record.clientRequestId === task.clientRequestId && record.id !== task.id))
+              .map(task => syncedRecords.find(record => record.id === task.id) ? { ...task, ...syncedRecords.find(record => record.id === task.id) } : task),
+            ...syncedRecords.filter(record => !current.tasks.some(task => task.id === record.id)),
+          ],
+        };
+      });
       invalidatePlan();
     }
     setSyncSummary(current => ({ ...current, syncing: false, retry: result.retry > 0 }));
@@ -6691,44 +6700,35 @@ export default function Home() {
     announceOfflineCaptureChange();
   }, [scope.workspaceId]);
   const replayOfflineCaptures = useCallback(async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const captures = capturesForWorkspace(scope.workspaceId);
     if (!captures.length) return;
-    let synced = 0;
+    if (!plannerSyncStore) return;
+    let migrated = 0;
     for (const capture of captures) {
       try {
-        await createTask.mutateAsync({
-          workspaceId: capture.workspaceId,
-          timezone: capture.timezone,
+        await queueTaskCreate(plannerSyncStore, plannerSyncScope, {
           title: capture.title,
           scheduledLocalDate: capture.scheduledLocalDate,
           state: "not_started",
           priority: "medium",
           horizon: "daily",
           sortOrder: 0,
-          clientRequestId: capture.id,
-        });
+        }, capture.id, capture.createdAt);
         removeOfflineTaskCapture(capture.id);
-        synced += 1;
-      } catch (error) {
-        if (!isRetryableCaptureError(error))
-          toast.error(
-            "A saved capture needs attention. Reopen it online and add it from the task composer."
-          );
+        migrated += 1;
+      } catch {
         break;
       }
     }
     refreshOfflineCaptureCount();
-    if (synced) {
-      toast.success(
-        `${synced} saved capture${synced === 1 ? "" : "s"} added to Today.`
-      );
-      invalidatePlan();
-    }
+    await refreshSyncSummary();
+    if (migrated && (typeof navigator === "undefined" || navigator.onLine)) await replayPendingTaskUpdates();
   }, [
-    createTask,
-    invalidatePlan,
+    plannerSyncScope,
+    plannerSyncStore,
+    refreshSyncSummary,
     refreshOfflineCaptureCount,
+    replayPendingTaskUpdates,
     scope.workspaceId,
   ]);
   useEffect(() => {
@@ -6867,7 +6867,34 @@ export default function Home() {
     if (lastCalendarMove)
       scheduleTask(lastCalendarMove.id, lastCalendarMove.date);
   };
-  const createQuickTask = (event: FormEvent) => {
+  const saveQuickTaskOffline = async (capture: ReturnType<typeof createOfflineTaskCapture>) => {
+    if (!plannerSyncStore) {
+      if (!queueOfflineTaskCapture(capture)) throw new Error("This device could not save the capture locally.");
+      refreshOfflineCaptureCount();
+      return;
+    }
+    await queueTaskCreate(plannerSyncStore, plannerSyncScope, {
+      title: capture.title,
+      scheduledLocalDate: capture.scheduledLocalDate,
+      state: "not_started",
+      priority: "medium",
+      horizon: "daily",
+      sortOrder: 0,
+    }, capture.id, capture.createdAt);
+    utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current && !current.tasks.some(task => task.clientRequestId === capture.id) ? {
+      ...current,
+      tasks: [...current.tasks, {
+        id: `offline:${capture.id}`, workspaceId: scope.workspaceId, clientRequestId: capture.id,
+        title: capture.title, description: null, state: "not_started", priority: "medium", horizon: "daily",
+        scheduledLocalDate: capture.scheduledLocalDate, dueLocalDate: null, estimateMinutes: null, sortOrder: 0,
+        categoryId: null, goalId: null, projectId: null, parentTaskId: null, recurrenceRule: null,
+        scheduleMode: "manual", plannedStartAt: null, plannedEndAt: null, version: 1,
+        completedAt: null, archivedAt: null, createdAt: new Date(capture.createdAt), updatedAt: new Date(capture.createdAt),
+      } as any],
+    } : current);
+    await refreshSyncSummary();
+  };
+  const createQuickTask = async (event: FormEvent) => {
     event.preventDefault();
     const title = quickTitle.trim();
     if (!title || createTask.isPending) return;
@@ -6879,18 +6906,19 @@ export default function Home() {
     });
     setQuickTitle("");
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      if (queueOfflineTaskCapture(capture)) {
-        refreshOfflineCaptureCount();
+      try {
+        await saveQuickTaskOffline(capture);
         toast.message(
           "Saved on this device. It will be added to Today when you are online."
         );
-      } else
+      } catch {
         toast.error(
           "This device could not save the capture locally. Reconnect and try again."
         );
+      }
       return;
     }
-    void createTask
+    await createTask
       .mutateAsync({
         ...scope,
         title,
@@ -6902,12 +6930,14 @@ export default function Home() {
         clientRequestId: capture.id,
       })
       .then(() => toast.success("Added to Today."))
-      .catch(error => {
-        if (
-          isRetryableCaptureError(error) &&
-          queueOfflineTaskCapture(capture)
-        ) {
-          refreshOfflineCaptureCount();
+      .catch(async error => {
+        if (isRetryableCaptureError(error)) {
+          try {
+            await saveQuickTaskOffline(capture);
+          } catch {
+            toast.error("This device could not save the capture locally. Reconnect and try again.");
+            return;
+          }
           toast.message(
             "Saved on this device. It will retry when you are online."
           );

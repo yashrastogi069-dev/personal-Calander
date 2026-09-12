@@ -16,6 +16,12 @@ Overlapping task fields now have an explicit workspace-owner-protected review pa
 
 Verification: 49 focused sync/router/storage tests passed, followed by the complete 61-file suite with 258 passing tests and 3 intentional skips. TypeScript and the production client build passed; generated PWA release `5ca7582c4a167c3b` contains 20 shell files. Synthetic desktop 1440x1000 and phone 390x844 checks passed with no horizontal overflow, preserved the exact dark Task-lane palette, queued an offline task change, and rendered the conflict choices correctly. The inspected phone screenshot is outside Git at `C:/Users/win 10/AppData/Local/Temp/personal-calendar-sync-review/preview-linked-phone-sync-review.png`.
 
+### Account-scoped quick-capture slice
+
+Quick task captures now enter the account/workspace IndexedDB operation queue and render immediately in the current snapshot while offline. Replay uses the existing workspace-scoped unique `clientRequestId`, so a lost response or repeated reconnect cannot create a duplicate task. Legacy localStorage captures are copied into the scoped queue first and removed from the legacy list only after enqueue succeeds; an unavailable IndexedDB keeps the older bounded localStorage fallback. No existing capture or planner record is deleted during migration.
+
+Verification: the complete suite passed with the new create/replay router and client tests; TypeScript passed; production build generated release `84daa9a657fc24cc` with 20 shell files. The synthetic desktop and 390x844 phone flow passed, including an immediately visible offline capture plus an independent queued task update in the same IndexedDB scope.
+
 ## 2026-09-12 reliable PWA implementation
 
 The isolated `work/pwa-foundation` branch implements Phase 1 without changing the database, planner IDs, workspace ownership, authentication records, or server data. Commits `5eb764d..10a7344` provide:
