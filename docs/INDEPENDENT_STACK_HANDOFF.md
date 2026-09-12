@@ -16,6 +16,8 @@ Fresh local evidence: TypeScript passed; 63 Vitest files passed with 272 tests a
 
 Deployment packaging correction: the first `bc2ff69` Production canary found that the dedicated Calendar and reminder TypeScript functions referenced source modules omitted by Vercel's serverless package (`ERR_MODULE_NOT_FOUND`). Cron remained paused. Both routes now use the same generated `dist/server/planner-app.mjs` Express artifact as the working tRPC function, with explicit `includeFiles` entries and a regression test covering all three planner entrypoints. A new Preview and Production canary are required before enabling the scheduler.
 
+Scheduler/storage separation: the replacement Production function then authenticated correctly and reminder evaluation succeeded, but the shared endpoint returned 500 because the separately deferred `0002_private_planner_files.sql` table is absent. The endpoint now treats only PostgreSQL `42P01` from the optional cleanup query as `{ status: "not_configured", removed: 0, failed: 0 }`, allowing reminders to operate without silently applying the storage migration. Every other cleanup exception or failed deletion still returns 500 for retry. The private bucket/table/policies remain a later explicitly reviewed phase.
+
 ## 2026-09-12 secure synchronization checkpoint
 
 The account-scoped device foundation is committed as `bed7e00`. A second verified local slice adds additive `syncOperationReceipts` and `syncConflicts` schemas/migration, a workspace-owner-protected bounded replay procedure, task field three-way merging, durable client retry/review states, and offline support for common task state/schedule/reservation changes. It does not reset or rewrite existing rows and it does not infer deletion from missing fields.

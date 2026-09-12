@@ -17,6 +17,11 @@ function configuredOrigin() {
   } catch { return null; }
 }
 
+function isStorageSchemaNotConfigured(reason: unknown) {
+  return typeof reason === "object" && reason !== null && "code" in reason
+    && (reason as { code?: unknown }).code === "42P01";
+}
+
 export async function handleReminderRequest(req: SchedulerRequest, res: SchedulerResponse) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET" && req.method !== "POST") {
@@ -38,7 +43,9 @@ export async function handleReminderRequest(req: SchedulerRequest, res: Schedule
     Promise.resolve().then(() => dispatchAllScheduledReminders(origin)),
     Promise.resolve().then(() => reconcileCancelledStorageUploads()),
   ]);
-  if (reminders.status === "rejected" || storageCleanup.status === "rejected" || storageCleanup.value.failed > 0) {
+  const storageNotConfigured = storageCleanup.status === "rejected"
+    && isStorageSchemaNotConfigured(storageCleanup.reason);
+  if (reminders.status === "rejected" || (storageCleanup.status === "rejected" && !storageNotConfigured) || (storageCleanup.status === "fulfilled" && storageCleanup.value.failed > 0)) {
     // Do not log request headers, storage paths, subscription URLs, or credentials.
     console.error("[Scheduled worker] Job failure", {
       remindersFailed: reminders.status === "rejected",
@@ -46,5 +53,10 @@ export async function handleReminderRequest(req: SchedulerRequest, res: Schedule
     });
     return res.status(500).json({ error: "Scheduled worker failed. Please retry." });
   }
-  return res.status(200).json({ reminders: reminders.value, storageCleanup: storageCleanup.value });
+  return res.status(200).json({
+    reminders: reminders.value,
+    storageCleanup: storageNotConfigured
+      ? { removed: 0, failed: 0, status: "not_configured" }
+      : storageCleanup.status === "fulfilled" ? storageCleanup.value : { removed: 0, failed: 0 },
+  });
 }

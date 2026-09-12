@@ -58,4 +58,15 @@ describe("authenticated scheduled worker", () => {
     await handleReminderRequest(request, res);
     expect(mocks.dispatch).toHaveBeenCalledTimes(1); expect(res.status).toHaveBeenCalledWith(500);
   });
+  it("keeps reminders operational while the separately deferred private-storage schema is absent", async () => {
+    mocks.cleanup.mockRejectedValueOnce(Object.assign(new Error("relation does not exist"), { code: "42P01" }));
+    const res = response();
+    await handleReminderRequest(request, res);
+    expect(mocks.dispatch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      reminders: { sent: 1, inspected: 2 },
+      storageCleanup: { removed: 0, failed: 0, status: "not_configured" },
+    });
+  });
 });
