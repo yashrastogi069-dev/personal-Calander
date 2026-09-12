@@ -6,6 +6,12 @@
   "functions": {
     "api/trpc/[...path].mjs": {
       "includeFiles": "dist/server/planner-app.mjs"
+    },
+    "api/calendar/[token].ics.mjs": {
+      "includeFiles": "dist/server/planner-app.mjs"
+    },
+    "api/scheduled/reminder.mjs": {
+      "includeFiles": "dist/server/planner-app.mjs"
     }
   },
   "rewrites": [
