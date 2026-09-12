@@ -65,7 +65,7 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 ## 2026-09-12 secure-sync implementation checkpoint
 
 - Commit `bed7e00` adds account/workspace-scoped IndexedDB snapshot, operation, conflict, and metadata stores. Cached snapshots mount only after authenticated workspace authorization; sign-out clears memory and hides the retained device cache.
-- The next local slice adds two additive backend tables, a bounded 25-operation replay route, idempotent receipts, task field three-way merge, and durable overlap conflicts. No remote DDL has been applied at this checkpoint.
+- The second slice adds two additive backend tables, a bounded 25-operation replay route, idempotent receipts, task field three-way merge, and durable overlap conflicts. Guarded migration `0003_good_lady_deathstrike.sql` was applied to the verified Supabase project in one transaction; workspace/task counts were unchanged.
 - Common task moves, completion, archive/restore, scheduling, and duration changes queue offline and update the matching device snapshot immediately. Unsupported entity writes remain online-only and are not falsely acknowledged.
 - Verification: TypeScript passed; the full suite passed 61 files / 258 tests with 3 intentional skips, and the final production build generated shell release `9c2868b93211e476` with 20 files. A synthetic 390x844 browser check queued one task operation in IndexedDB, displayed pending status, retained exact dark work-lane colors, had no horizontal overflow, and hid cached planner UI after sign-out.
 

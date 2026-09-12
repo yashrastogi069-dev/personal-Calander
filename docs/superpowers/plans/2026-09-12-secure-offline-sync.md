@@ -33,7 +33,7 @@ Date: 2026-09-12
 - [x] Implement pure three-way field merge tests first.
 - [x] Add an authenticated 25-operation tRPC task replay procedure reusing existing planning services.
 - [x] Support duplicate receipts, independent batch outcomes, retry state, stale-version re-merge, safe partial merges, and retained overlaps for task updates.
-- [ ] Re-audit advisors after schema changes.
+- [x] Apply the guarded additive migration and re-audit: row counts preserved; both tables have RLS; only expected server-only no-policy and pre-traffic unused-index notices were added.
 
 ## Task 5: Offline mutation coverage
 
