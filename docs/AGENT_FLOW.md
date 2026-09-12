@@ -4,7 +4,7 @@ Last updated: 2026-09-12
 
 ## Approved reliability roadmap
 
-The work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Phase 1 is deployed to Production; the physical-iPhone offline gate belongs to the user. Phase 2 is active on `dev/personal-calendar-workbench`; its contract and checklist are in `docs/superpowers/specs/2026-09-12-secure-offline-sync-design.md` and `docs/superpowers/plans/2026-09-12-secure-offline-sync.md`.
+The work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Phase 1 is deployed to Production. Phase 2 and Phase 3 are implementation-complete on `dev/personal-calendar-workbench` and are moving through Preview/Production gates; physical-iPhone offline and notification-delivery checks belong to the user. Phase 4 remains a separate design/function discussion.
 
 Approved data behavior: automatically merge non-overlapping fields; retain both values for overlapping conflicts; never silently delete; move explicit deletes to an indefinite recycle bin; require a separate confirmed permanent-delete action. Signing out preserves but hides the account-scoped device cache and unsynchronized work. Keep the initial synchronization design lean: full snapshot plus idempotent pending operations, not CRDTs or a complex incremental event stream.
 
@@ -75,7 +75,7 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 - Each overlapping task field retains base/device/server evidence. “Use this device” is version-guarded; “Keep online” performs no task write. A task changed after the conflict cannot be overwritten.
 - Local conflict evidence is removed only after the selected server resolution succeeds. Orphaned queued changes have a separate two-step explicit discard that does not delete the planner record.
 - Verification: 49 focused tests passed; then the complete suite passed 61 files / 258 tests with 3 intentional skips. TypeScript and the production build passed, generating PWA release `5ca7582c4a167c3b`. Desktop and 390x844 synthetic browser checks passed, including the phone conflict sheet, dark Task-lane colors, offline queue, and zero horizontal overflow.
-- Next Phase 2 work: broaden the operation contract beyond common task updates/create capture, consolidate archive/recycle-bin management, and run the Preview gate. Notification delivery remains gated until those sync semantics are complete.
+- Current release work: push the verified Phase 2/3 workbench commits, verify the immutable Vercel Preview and live endpoints, then merge/push `main` under the user's explicit authorization. After Production verification, hand the physical-iPhone offline and opt-in notification test to the user. Phase 4 begins only after that handoff.
 
 ## 2026-09-12 scoped quick-capture checkpoint
 

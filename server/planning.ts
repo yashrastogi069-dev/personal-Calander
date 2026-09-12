@@ -1063,6 +1063,14 @@ export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin:
   };
 }
 
+export async function getActiveCalendarFeed(scope: PlannerScope) {
+  const db = await requireDb();
+  return (await db.select().from(calendarFeeds).where(and(
+    eq(calendarFeeds.workspaceId, scope.workspaceId),
+    eq(calendarFeeds.isEnabled, 1),
+  )).limit(1))[0] ?? null;
+}
+
 export async function dispatchAllScheduledReminders(origin: string, now = new Date()) {
   return dispatchProjectReminderSweep(await requireDb(), origin, now);
 }

@@ -17,7 +17,7 @@ def fixtures():
     for i, title in enumerate(["Plan a focused week", "Review the calendar", "Make time for a walk"]):
         snapshot["tasks"].append({"id": f"preview-task-{i}", "workspaceId": workspace["id"], "title": title, "state": "not_started", "priority": "medium", "horizon": "daily", "categoryId": "preview-category", "scheduledLocalDate": "2026-09-06", "dueLocalDate": None, "estimateMinutes": 30, "sortOrder": i, "version": 1, "projectId": None, "goalId": None, "parentTaskId": None, "recurrenceRule": None, "scheduleMode": "manual", "plannedStartAt": None, "plannedEndAt": None})
     conflict = {"id": "preview-conflict-1", "workspaceId": workspace["id"], "operationId": "preview-operation-1", "entity": "task", "entityId": "preview-task-0", "field": "title", "baseValue": "Plan the week", "localValue": "Plan a focused week", "serverValue": "Plan a calm week", "serverVersion": 1, "state": "needs_review", "resolvedValue": None, "createdAt": "2026-09-06T08:00:00.000Z", "resolvedAt": None}
-    return {"planner.workspace.snapshot": snapshot, "planner.workspace.ensure": workspace, "planner.dashboard": {"workspace": workspace}, "planner.sync.conflicts": [conflict], "planner.notification.devices": [], "planner.reminder.rules": [], "planner.review.history": []}
+    return {"planner.workspace.snapshot": snapshot, "planner.workspace.ensure": workspace, "planner.dashboard": {"workspace": workspace}, "planner.sync.conflicts": [conflict], "planner.calendarFeed.current": None, "planner.notification.devices": [], "planner.reminder.rules": [], "planner.review.history": []}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -64,6 +64,15 @@ def main():
                     expect(page.get_by_role("heading", name="Make the planner yours", exact=True)).to_be_visible()
                     page.screenshot(path=str(args.output / "preview-linked-phone-settings.png"))
                     page.get_by_role("button", name="Done", exact=True).click()
+                if size == "phone":
+                    page.get_by_role("button", name="More", exact=True).click()
+                    page.get_by_role("button", name="Settings & Recycle Bin", exact=True).click()
+                else:
+                    page.get_by_role("button", name="Settings", exact=True).click()
+                recycle = page.get_by_role("dialog", name="Workspace settings & Recycle Bin")
+                expect(recycle).to_be_visible()
+                expect(recycle.get_by_text("Recycle Bin · kept indefinitely", exact=True)).to_be_visible()
+                page.keyboard.press("Escape")
                 page.get_by_role("button", name="Tasks", exact=True).click()
                 lanes = page.locator(".task-lane")
                 expect(lanes).to_have_count(3)
@@ -76,6 +85,12 @@ def main():
                 page.screenshot(path=str(task_path), full_page=True)
                 if size == "phone":
                     context.set_offline(True)
+                    page.get_by_role("button", name="Edit Review the calendar", exact=True).click()
+                    editor = page.get_by_role("dialog", name="Refine the commitment")
+                    editor.get_by_label("Task", exact=True).fill("Review calendar offline")
+                    editor.get_by_role("button", name="Save changes", exact=True).click()
+                    expect(page.get_by_text("Review calendar offline", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="Move Plan a focused week down in To do", exact=True).click()
                     page.get_by_role("button", name="Complete Plan a focused week", exact=True).click()
                     capture = page.get_by_label("Quickly capture a task", exact=True)
                     capture.fill("Captured while offline")
@@ -91,7 +106,7 @@ def main():
                         count.onsuccess = () => resolve(count.result);
                       };
                     })""")
-                    assert pending == 2, pending
+                    assert pending == 4, pending
                     result_offline = {"offlineTaskQueued": pending, "offlineScreenshot": str(args.output / "preview-linked-phone-offline-sync.png")}
                     page.screenshot(path=result_offline["offlineScreenshot"], full_page=True)
                 else:

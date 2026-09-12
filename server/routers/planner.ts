@@ -29,6 +29,7 @@ import {
   deleteCategory,
   disablePushSubscription,
   getDashboard,
+  getActiveCalendarFeed,
   getHabitPracticeEvidence,
   getReviewHistory,
   getPushDeviceForEndpoint,
@@ -458,6 +459,7 @@ export const plannerRouter = router({
     }),
   }),
   calendarFeed: router({
+    current: protectedProcedure.input(scope).query(async ({ input }) => getActiveCalendarFeed(input)),
     ensure: protectedProcedure.input(scope).mutation(async ({ input }) => ensureCalendarFeed(input)),
     revoke: protectedProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => revokeCalendarFeed(input, input)),
   }),
@@ -474,7 +476,7 @@ export const plannerRouter = router({
       const activated: string[] = [];
       try {
         for (const spec of approvedReminderSpecs) {
-          const rule = await prepareReminderRule(input, { type: spec.type, timezone: "Pacific/Auckland", schedule: spec.schedule });
+          const rule = await prepareReminderRule(input, { type: spec.type, timezone: input.timezone, schedule: spec.schedule });
           await setReminderRuleActivation(input, { id: rule.id, enabled: true });
           activated.push(rule.id);
         }

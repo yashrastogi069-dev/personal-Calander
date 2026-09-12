@@ -1,6 +1,6 @@
 # Reliable PWA, Sync, and Notifications Roadmap
 
-Status: Phase 1 deployed and online-verified; physical-iPhone offline gate delegated to the user. Phase 2 is active.
+Status: Phase 1 deployed; Phase 2 and Phase 3 implementation/infrastructure complete on the workbench release candidate, awaiting Preview and Production verification. Physical-iPhone offline and notification-delivery checks remain delegated to the user.
 
 Last updated: 2026-09-12
 
@@ -33,11 +33,15 @@ Use account-scoped IndexedDB storage for the latest workspace snapshot and an im
 
 The first release intentionally excludes CRDTs, real-time collaborative editing, complex incremental feeds, device administration, and diagnostic export. The approved contract and execution sequence are recorded in `docs/superpowers/specs/2026-09-12-secure-offline-sync-design.md` and `docs/superpowers/plans/2026-09-12-secure-offline-sync.md`. Unsupported offline actions remain visibly online-only until their complete implementation slice ships.
 
+Release-candidate scope: all account planner sections are retained in the scoped offline snapshot for reading. Task creation, full edits, state transitions, archive/restore, scheduling, reservations, quick capture, project-breakdown task creation, and visible reordering use the durable task queue. A fresh server refetch cannot hide pending/retry task work because those operations are deterministically overlaid; review-state overlaps remain unoverlaid and explicit. Other entity writes are deliberately connection-gated in this lean release, avoiding an unsafe half-sync implementation.
+
 ## Phase 3: phone notifications, reminders, and calendar bridges
 
 Notifications are device-specific and opt-in. Reminder rules are account data and synchronize through the backend. Activation requires a linked identity, healthy sync, a compatible installed PWA, an explicit user gesture, and a valid device subscription.
 
 The Apple Calendar bridge remains standards-based: a private revocable outbound calendar subscription, a read-only inbound ICS availability overlay, and one-off `.ics` export. Native EventKit and credential-based Apple account access are outside a web PWA and remain deferred.
+
+Release-candidate infrastructure: Production and Preview have the required VAPID/app-origin configuration; Production has a generated server-only scheduler secret matched through Supabase Vault. The exact independent Supabase project has Vault plus installed `pg_cron`/`pg_net`, and exactly one `personal-calendar-reminder-sweep` job runs every five minutes. Activation preserved planner counts. The database currently has zero subscriptions and zero reminder rules, so no delivery is claimed before the user connects the installed iPhone and enables a cadence.
 
 ## Phase 4: holistic phone UI/UX polish
 

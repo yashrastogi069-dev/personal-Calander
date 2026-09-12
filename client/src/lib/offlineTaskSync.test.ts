@@ -1,10 +1,41 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryPlannerSyncStore } from "./offlineSync";
-import { queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
+import { overlayPendingTaskOperations, queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
 
 const scope = { accountId: "account-a", workspaceId: "workspace-a" };
 
 describe("offline task replay", () => {
+  it("overlays pending and retry task work on a fresh server snapshot without applying review work", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskUpdate(store, scope, { id: "task-1", version: 2, title: "Online" }, { title: "Device" }, "update-1", "2026-09-12T08:00:00.000Z");
+    await queueTaskCreate(store, scope, { title: "Offline create", state: "not_started", sortOrder: 2 }, "create-1", "2026-09-12T08:01:00.000Z");
+    await queueTaskUpdate(store, scope, { id: "task-2", version: 1, title: "Review online" }, { title: "Review device" }, "review-1", "2026-09-12T08:02:00.000Z");
+    await store.markOperation(scope, "update-1", "retry", "network");
+    await store.markOperation(scope, "review-1", "needs_review", "conflict");
+
+    const overlaid = overlayPendingTaskOperations(
+      { tasks: [{ id: "task-1", title: "Online" }, { id: "task-2", title: "Review online" }] },
+      await store.listOperations(scope),
+    );
+
+    expect(overlaid.tasks).toEqual([
+      { id: "task-1", title: "Device" },
+      { id: "task-2", title: "Review online" },
+      expect.objectContaining({ id: "offline:create-1", clientRequestId: "create-1", title: "Offline create" }),
+    ]);
+  });
+
+  it("does not duplicate a queued create already returned by the server", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskCreate(store, scope, { title: "Captured", state: "not_started" }, "create-1", "2026-09-12T08:01:00.000Z");
+    const overlaid = overlayPendingTaskOperations(
+      { tasks: [{ id: "server-task", clientRequestId: "create-1", title: "Captured" }] },
+      await store.listOperations(scope),
+    );
+    expect(overlaid.tasks).toHaveLength(1);
+    expect(overlaid.tasks[0]?.id).toBe("server-task");
+  });
+
   it("queues an account-scoped idempotent task create", async () => {
     const store = new MemoryPlannerSyncStore();
     await queueTaskCreate(store, scope, { title: "Captured offline", scheduledLocalDate: "2026-09-12", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 }, "capture-1", "2026-09-12T09:00:00.000Z");

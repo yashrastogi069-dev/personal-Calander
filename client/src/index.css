@@ -199,7 +199,10 @@ html, body { background:#f6f7f8; color:#1b2422; }
 .task-lane-task > .task-row:first-child { border-top:1px solid #dce7e3; }
 .task-lane-task > .task-row:hover { background:#fff; }
 .task-drag-handle { position:absolute; z-index:1; top:17px; left:7px; color:#93a49f; pointer-events:none; }
-.task-lane-select { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px 8px 30px; color:#70817c; border:1px solid #dce7e3; border-top:0; border-radius:0 0 11px 11px; background:#f8fbfa; font-size:9px; }
+.task-order-actions { position:absolute; z-index:2; left:7px; bottom:6px; display:flex; gap:3px; }
+.task-order-actions button { display:grid; place-items:center; width:34px; height:34px; padding:0; color:#567068; border:1px solid #cfdfd9; border-radius:7px; background:#fff; }
+.task-order-actions button:disabled { opacity:.34; cursor:default; }
+.task-lane-select { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:46px; padding:6px 9px 6px 84px; color:#70817c; border:1px solid #dce7e3; border-top:0; border-radius:0 0 11px 11px; background:#f8fbfa; font-size:9px; }
 .task-lane-select select { min-width:102px; min-height:27px; padding:3px 22px 3px 7px; color:#31564b; border:1px solid #cfdfd9; border-radius:6px; background:#fff; font-size:10px; }
 .task-lane-select select:disabled { opacity:.62; cursor:wait; }
 .task-lane-empty { display:grid; place-items:center; min-height:148px; padding:18px; color:#81918c; border:1px dashed #cbdcd6; border-radius:10px; background:rgba(255,255,255,.54); font-size:10px; line-height:1.45; text-align:center; }
@@ -228,6 +231,9 @@ html, body { background:#f6f7f8; color:#1b2422; }
   .task-lane-task > .task-row { min-height:64px; padding-right:6px; }
   .task-lane-select { min-height:38px; padding-left:30px; font-size:10px; }
   .task-lane-select select { min-height:30px; font-size:11px; }
+  .task-order-actions { left:6px; bottom:5px; }
+  .task-order-actions button { width:44px; height:44px; }
+  .task-lane-select { min-height:54px; padding-left:102px; }
 }
 
 /* Phone-first planner refinement: preserve the desktop rail, but make the six
@@ -888,6 +894,7 @@ html, body { background:#e8ecea; color:#182420; }
 .task-drag-handle { color:rgba(255,255,255,.58); }
 .task-lane-select { color:var(--lane-muted); border-color:rgba(255,255,255,.17); background:rgba(0,0,0,.14); }
 .task-lane-select select { color:var(--lane-text); border-color:var(--lane-control-border); background:rgba(0,0,0,.18); }
+.task-order-actions button { color:var(--lane-text); border-color:var(--lane-control-border); background:rgba(0,0,0,.18); }
 .task-lane-select select option { color:#17201d; background:#fff; }
 .task-lane-empty { color:var(--lane-muted); border-color:rgba(255,255,255,.25); background:rgba(0,0,0,.11); }
 .task-lane-empty button { color:var(--lane-text); border-color:var(--lane-control-border); background:var(--lane-control); }

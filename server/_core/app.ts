@@ -19,7 +19,7 @@ export function createPlannerApp() {
       if (!feed) return res.status(404).type("text/plain").send("Calendar feed not found.");
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
       res.setHeader("Content-Disposition", "inline; filename=personal-calander.ics");
-      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Cache-Control", "private, no-cache, max-age=0, must-revalidate");
       return res.send(feed);
     } catch (error) {
       next(error);

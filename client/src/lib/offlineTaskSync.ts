@@ -9,6 +9,55 @@ import {
 type VersionedTask = Record<string, unknown> & { id: string; version: number };
 type TaskPatch = Record<string, unknown>;
 
+type TaskSnapshot = { tasks: Array<Record<string, unknown> & { id: string }> };
+
+export function overlayPendingTaskOperations<T extends TaskSnapshot>(snapshot: T, operations: PlannerOperation[]): T {
+  const tasks = snapshot.tasks.map(task => ({ ...task }));
+  for (const operation of operations) {
+    if (operation.entity !== "task" || operation.state === "needs_review") continue;
+    if (operation.kind === "update") {
+      const index = tasks.findIndex(task => task.id === operation.entityId);
+      if (index >= 0) tasks[index] = { ...tasks[index], ...operation.patch };
+      continue;
+    }
+    if (operation.kind !== "create") continue;
+    const requestId = operation.operationId;
+    const alreadyPresent = tasks.some(task =>
+      task.id === operation.entityId || task.clientRequestId === requestId
+    );
+    if (alreadyPresent) continue;
+    const createdAt = new Date(operation.createdAt);
+    tasks.push({
+      id: operation.entityId,
+      workspaceId: operation.workspaceId,
+      clientRequestId: requestId,
+      description: null,
+      categoryId: null,
+      goalId: null,
+      projectId: null,
+      parentTaskId: null,
+      dueLocalDate: null,
+      scheduledLocalDate: null,
+      plannedStartAt: null,
+      plannedEndAt: null,
+      estimateMinutes: null,
+      recurrenceRule: null,
+      recurrenceAnchor: null,
+      recurrenceUntilLocalDate: null,
+      completedAt: null,
+      archivedAt: null,
+      outcome: "none",
+      outcomeAt: null,
+      rescheduleCount: 0,
+      createdAt,
+      updatedAt: createdAt,
+      version: 1,
+      ...operation.patch,
+    });
+  }
+  return { ...snapshot, tasks };
+}
+
 type ReplayCompleted = {
   operationId: string;
   status: "completed";

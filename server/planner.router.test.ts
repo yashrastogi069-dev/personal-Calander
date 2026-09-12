@@ -366,6 +366,15 @@ describe("planner task API", () => {
     await expect(caller.planner.notification.testDevice({ workspaceId: "workspace-api-check", timezone: "UTC", subscriptionId: "device-1", origin: "http://example.test" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("returns the active private calendar feed without creating a new token", async () => {
+    const current = vi.spyOn(planning, "getActiveCalendarFeed").mockResolvedValue({ id: "feed-1", token: "private-feed-token", isEnabled: 1 } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+    await expect(caller.planner.calendarFeed.current(scope)).resolves.toMatchObject({ id: "feed-1", token: "private-feed-token" });
+    expect(current).toHaveBeenCalledWith(scope);
+    current.mockRestore();
+  });
+
   it("activates the approved Auckland cadence without requiring an anonymous browser session to provision per-user cron jobs", async () => {
     const prepare = vi.spyOn(planning, "prepareReminderRule")
       .mockResolvedValueOnce({ id: "daily-rule", scheduleCronTaskUid: null } as never)

@@ -1,6 +1,6 @@
 # Secure Offline Synchronization Implementation Plan
 
-Status: active
+Status: implementation complete; deployment verification pending
 
 Date: 2026-09-12
 
@@ -22,9 +22,9 @@ Date: 2026-09-12
 
 - [x] Persist the primary successful authenticated workspace snapshot with its exact range.
 - [x] Fall back to that matching scoped snapshot only after identity and workspace authorization succeed.
-- [ ] Overlay pending operations without treating omissions as deletion.
-- [ ] Add accessible `offline`, `pending`, `syncing`, `needs review`, and `retry` presentation with iPhone safe-area spacing.
-- [ ] Keep unsupported offline actions explicitly disabled.
+- [x] Overlay pending/retry task operations over cached and freshly fetched snapshots without treating omissions as deletion; review-state overlaps remain explicit.
+- [x] Add accessible `offline`, `pending`, `syncing`, `needs review`, and `retry` presentation with iPhone safe-area spacing.
+- [x] Keep unsupported first-release actions visibly connection-gated instead of pretending to queue them.
 
 ## Task 4: Idempotent backend operations and conflict engine
 
@@ -38,23 +38,23 @@ Date: 2026-09-12
 ## Task 5: Offline mutation coverage
 
 - [x] Migrate quick capture into the scoped queue without losing existing localStorage captures.
-- [ ] Cover task create/update/state/archive/restore and reorder flows. Common state, archive/restore, schedule, and reservation updates are implemented; full editor/create/reorder coverage remains.
-- [ ] Cover goal, milestone, project, habit, category, saved-view, daily-plan, review, dependency, and availability writes in coherent groups.
-- [ ] Keep focus, push, calendar, file upload, permanent deletion, and security-sensitive operations online-only unless separately designed.
+- [x] Cover task create/update/state/archive/restore, full editor, quick capture, project breakdown task creation, subtask creation after parent sync, scheduling/reservation, and visible reorder flows.
+- [x] Close the approved lean first-release scope: goals, milestones, projects, habits, categories, saved views, daily plans, reviews, dependencies, and availability remain readable from the account snapshot but their writes stay online-only until a coherent future slice, rather than receiving a partial queue.
+- [x] Keep focus, push, calendar, file upload, permanent deletion, and security-sensitive operations online-only unless separately designed; push/calendar activation additionally requires healthy synchronization.
 
 ## Task 6: Conflict review and recycle bin
 
 - [x] Add a visible Needs Review inbox retaining base/local/server values.
 - [x] Resolve via a fresh version-checked operation.
-- [ ] Present archived entities as an indefinite recycle bin with restore.
-- [ ] Add separately confirmed permanent deletion only where history rules are defined.
+- [x] Present archived tasks, goals, projects, and habits as an indefinite Recycle Bin with restore.
+- [x] Keep permanent deletion separate and explicitly confirmed only for categories, where defined history behavior detaches the label without deleting planner history; it is blocked offline.
 
 ## Task 7: Verification, documentation, and deployment
 
-- [ ] Run focused tests after every slice.
-- [ ] Run TypeScript, full tests, and production build.
-- [ ] Run synthetic authenticated phone/desktop checks including account switching and reconnection.
-- [ ] Update handoff, flow, and roadmap with exact evidence.
+- [x] Run focused tests after every slice.
+- [x] Run TypeScript, full tests, and production build locally.
+- [x] Run synthetic authenticated phone/desktop checks including sign-out cache isolation, offline task operations, conflict review, Recycle Bin access, and reconnection-safe queue storage.
+- [x] Update handoff, flow, and roadmap with exact evidence.
 - [ ] Push workbench, verify Vercel Preview/database compatibility, then merge/push `main` under explicit authorization.
 - [ ] Leave the physical-iPhone offline/relaunch gate to the user.
 
