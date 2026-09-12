@@ -38,6 +38,7 @@ import {
   type WorkspaceScope,
 } from "@/lib/workspace";
 import { useWorkspaceScope } from "@/contexts/WorkspaceContext";
+import { useOfflinePlannerSnapshot } from "@/hooks/useOfflinePlannerSnapshot";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
 import {
@@ -6291,6 +6292,11 @@ export default function Home() {
     { ...scope, ...range },
     { refetchInterval: 30_000 }
   );
+  const availableSnapshot = useOfflinePlannerSnapshot({
+    rangeStart: range.start,
+    rangeEnd: range.end,
+    onlineSnapshot: snapshotQuery.data,
+  });
   const dashboardQuery = trpc.planner.dashboard.useQuery(
     {
       ...scope,
@@ -6379,15 +6385,15 @@ export default function Home() {
     ensureWorkspace.mutate(scope);
   }, [scope]);
 
-  const snapshot = snapshotQuery.data
+  const snapshot = availableSnapshot.data
     ? {
-        ...snapshotQuery.data,
-        projects: snapshotQuery.data.projects.filter(
+        ...availableSnapshot.data,
+        projects: availableSnapshot.data.projects.filter(
           project => project.state !== "archived"
         ),
-        habitCheckIn: snapshotQuery.data.habitCheckIns,
+        habitCheckIn: availableSnapshot.data.habitCheckIns,
       }
-    : snapshotQuery.data;
+    : availableSnapshot.data;
   const activeTasks = useMemo(
     () =>
       (snapshot?.tasks ?? [])
@@ -6962,7 +6968,7 @@ export default function Home() {
     }
   };
 
-  if (snapshotQuery.error)
+  if (snapshotQuery.error && !snapshot)
     return (
       <div className="planner-error">
         <div>

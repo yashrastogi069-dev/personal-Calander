@@ -31,7 +31,7 @@ Deployment evidence: workbench Preview release `a19a367f5ecb20f4` and Production
 
 Use account-scoped IndexedDB storage for the latest workspace snapshot and an immutable queue of pending operations. Continue using existing backend ownership checks and record versions. Reconnect by replaying idempotent operations, resolving safe field merges, retaining overlapping conflicts for review, then downloading a fresh complete workspace snapshot.
 
-The first release intentionally excludes CRDTs, real-time collaborative editing, complex incremental feeds, device administration, and diagnostic export. A separate design and implementation plan will define exact schemas and supported offline mutations after Phase 1 passes its production gate.
+The first release intentionally excludes CRDTs, real-time collaborative editing, complex incremental feeds, device administration, and diagnostic export. The approved contract and execution sequence are recorded in `docs/superpowers/specs/2026-09-12-secure-offline-sync-design.md` and `docs/superpowers/plans/2026-09-12-secure-offline-sync.md`. Unsupported offline actions remain visibly online-only until their complete implementation slice ships.
 
 ## Phase 3: phone notifications, reminders, and calendar bridges
 

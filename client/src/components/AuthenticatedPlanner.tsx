@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { WorkspaceContext } from "@/contexts/WorkspaceContext";
+import { PlannerSyncScopeContext, WorkspaceContext } from "@/contexts/WorkspaceContext";
 import { trpc } from "@/lib/trpc";
 import { safeTimeZone } from "@/lib/workspace";
 import { SupabaseAuthGate } from "./SupabaseAuthGate";
@@ -32,6 +32,8 @@ export function AuthenticatedPlanner({ children }: { children: ReactNode }) {
     <Button onClick={() => void workspace.refetch()}>Check again</Button>{signOut}
   </main>;
   return <WorkspaceContext.Provider key={auth.user.id} value={scope}>
-    {children}<div className="px-5 py-3">{signOut}</div>
+    <PlannerSyncScopeContext.Provider value={{ accountId: auth.user.authUserId!, workspaceId: scope.workspaceId }}>
+      {children}<div className="px-5 py-3">{signOut}</div>
+    </PlannerSyncScopeContext.Provider>
   </WorkspaceContext.Provider>;
 }
