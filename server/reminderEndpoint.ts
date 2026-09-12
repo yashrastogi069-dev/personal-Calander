@@ -18,8 +18,12 @@ function configuredOrigin() {
 }
 
 function isStorageSchemaNotConfigured(reason: unknown) {
-  return typeof reason === "object" && reason !== null && "code" in reason
-    && (reason as { code?: unknown }).code === "42P01";
+  let current = reason;
+  for (let depth = 0; depth < 5 && typeof current === "object" && current !== null; depth += 1) {
+    if ("code" in current && (current as { code?: unknown }).code === "42P01") return true;
+    current = "cause" in current ? (current as { cause?: unknown }).cause : null;
+  }
+  return false;
 }
 
 export async function handleReminderRequest(req: SchedulerRequest, res: SchedulerResponse) {
