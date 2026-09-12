@@ -65,6 +65,20 @@ describe("offline planner synchronization", () => {
     await expect(store.listOperations(accountB)).resolves.toHaveLength(1);
   });
 
+  it("marks retry and review state without mutating another account's operation", async () => {
+    const store = new MemoryPlannerSyncStore();
+    const item = createPlannerOperation(accountA, {
+      operationId: "operation-state", entity: "task", entityId: "task-a", kind: "update",
+      baseVersion: 1, baseValues: { title: "A" }, patch: { title: "A2" }, createdAt: "2026-09-12T10:00:00.000Z",
+    });
+    await store.enqueue(item);
+    await store.markOperation(accountB, item.operationId, "retry", "network");
+    await store.markOperation(accountA, item.operationId, "needs_review", "not_found");
+    await expect(store.listOperations(accountA)).resolves.toEqual([
+      expect.objectContaining({ state: "needs_review", attempts: 1, lastErrorCode: "not_found" }),
+    ]);
+  });
+
   it("classifies safe, already-applied, and overlapping field edits without dropping values", () => {
     expect(classifyFieldMerge({ base: "Old", local: "Local", server: "Old" })).toEqual({ kind: "apply_local", value: "Local" });
     expect(classifyFieldMerge({ base: "Old", local: "Local", server: "Local" })).toEqual({ kind: "already_applied", value: "Local" });

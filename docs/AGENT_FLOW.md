@@ -4,7 +4,7 @@ Last updated: 2026-09-12
 
 ## Approved reliability roadmap
 
-The next work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Product rules are recorded in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`; Phase 1 is implemented and verified locally on `work/pwa-foundation`, with Preview and real-iPhone gates still pending.
+The work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Phase 1 is deployed to Production; the physical-iPhone offline gate belongs to the user. Phase 2 is active on `dev/personal-calendar-workbench`; its contract and checklist are in `docs/superpowers/specs/2026-09-12-secure-offline-sync-design.md` and `docs/superpowers/plans/2026-09-12-secure-offline-sync.md`.
 
 Approved data behavior: automatically merge non-overlapping fields; retain both values for overlapping conflicts; never silently delete; move explicit deletes to an indefinite recycle bin; require a separate confirmed permanent-delete action. Signing out preserves but hides the account-scoped device cache and unsynchronized work. Keep the initial synchronization design lean: full snapshot plus idempotent pending operations, not CRDTs or a complex incremental event stream.
 
@@ -61,5 +61,12 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 - Production: `https://personal-calander.vercel.app` returned 200 for root and `/api/health`; manifest exposes 5 icons and 2 shortcuts; active worker release `0962e8db7704ad8f` owns exactly 20 entries and no API/Supabase entry; online 390x844 render had no overflow or runtime errors.
 - The different Preview/Production release hashes are expected because their Vercel build environments produce different bundle bytes. Both were generated from the same source tree.
 - User owns the remaining physical-iPhone offline/relaunch/update gate. Continue Phase 2 on `dev/personal-calendar-workbench`; do not enable notification delivery until account sync passes.
+
+## 2026-09-12 secure-sync implementation checkpoint
+
+- Commit `bed7e00` adds account/workspace-scoped IndexedDB snapshot, operation, conflict, and metadata stores. Cached snapshots mount only after authenticated workspace authorization; sign-out clears memory and hides the retained device cache.
+- The next local slice adds two additive backend tables, a bounded 25-operation replay route, idempotent receipts, task field three-way merge, and durable overlap conflicts. No remote DDL has been applied at this checkpoint.
+- Common task moves, completion, archive/restore, scheduling, and duration changes queue offline and update the matching device snapshot immediately. Unsupported entity writes remain online-only and are not falsely acknowledged.
+- Verification: TypeScript passed; the full suite passed 61 files / 258 tests with 3 intentional skips, and the final production build generated shell release `9c2868b93211e476` with 20 files. A synthetic 390x844 browser check queued one task operation in IndexedDB, displayed pending status, retained exact dark work-lane colors, had no horizontal overflow, and hid cached planner UI after sign-out.
 
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.

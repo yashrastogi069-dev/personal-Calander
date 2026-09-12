@@ -670,6 +670,51 @@ export const pushDeliveries = pgTable(
   ]
 ).enableRLS();
 
+/** Durable idempotency receipt for a client operation replayed after reconnect. */
+export const syncOperationReceipts = pgTable(
+  "syncOperationReceipts",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    operationId: varchar("operationId", { length: 128 }).notNull(),
+    entity: varchar("entity", { length: 48 }).notNull(),
+    entityId: varchar("entityId", { length: 64 }).notNull(),
+    kind: varchar("kind", { length: 32 }).notNull(),
+    outcome: enumText("outcome", ["applied", "already_applied", "needs_review", "rejected"]).notNull(),
+    result: jsonb("result").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("sync_receipts_workspace_operation_unique").on(table.workspaceId, table.operationId),
+    index("sync_receipts_workspace_created_idx").on(table.workspaceId, table.createdAt),
+  ]
+).enableRLS();
+
+/** Lossless field-level values waiting for an explicit user resolution. */
+export const syncConflicts = pgTable(
+  "syncConflicts",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    operationId: varchar("operationId", { length: 128 }).notNull(),
+    entity: varchar("entity", { length: 48 }).notNull(),
+    entityId: varchar("entityId", { length: 64 }).notNull(),
+    field: varchar("field", { length: 80 }).notNull(),
+    baseValue: jsonb("baseValue"),
+    localValue: jsonb("localValue"),
+    serverValue: jsonb("serverValue"),
+    serverVersion: integer("serverVersion").notNull(),
+    state: enumText("state", ["needs_review", "resolved_local", "resolved_server"]).notNull().default("needs_review"),
+    resolvedValue: jsonb("resolvedValue"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    resolvedAt: timestamp("resolvedAt"),
+  },
+  table => [
+    uniqueIndex("sync_conflicts_operation_field_unique").on(table.workspaceId, table.operationId, table.field),
+    index("sync_conflicts_workspace_state_idx").on(table.workspaceId, table.state, table.createdAt),
+  ]
+).enableRLS();
+
 export const aiDrafts = pgTable(
   "aiDrafts",
   {
@@ -700,3 +745,5 @@ export type Habit = typeof habits.$inferSelect;
 export type HabitCheckIn = typeof habitCheckIns.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type PushDelivery = typeof pushDeliveries.$inferSelect;
+export type SyncOperationReceipt = typeof syncOperationReceipts.$inferSelect;
+export type SyncConflict = typeof syncConflicts.$inferSelect;

@@ -37,8 +37,10 @@ import {
   shiftLocalDate,
   type WorkspaceScope,
 } from "@/lib/workspace";
-import { useWorkspaceScope } from "@/contexts/WorkspaceContext";
+import { usePlannerSyncScope, useWorkspaceScope } from "@/contexts/WorkspaceContext";
 import { useOfflinePlannerSnapshot } from "@/hooks/useOfflinePlannerSnapshot";
+import { getBrowserPlannerSyncStore } from "@/lib/offlineSync";
+import { queueTaskUpdate, replayQueuedTaskUpdates } from "@/lib/offlineTaskSync";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
 import {
@@ -6234,6 +6236,8 @@ function AICompanion() {
 
 export default function Home() {
   const scope = useWorkspaceScope();
+  const plannerSyncScope = usePlannerSyncScope();
+  const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [selectedDate, setSelectedDate] = useState(today);
   const [surface, setSurface] = useState<Surface>(() => {
@@ -6319,6 +6323,10 @@ export default function Home() {
       utils.planner.dashboard.invalidate();
     },
   });
+  const replayTaskSync = trpc.planner.sync.replay.useMutation();
+  const replayTaskSyncRef = useRef(replayTaskSync.mutateAsync);
+  replayTaskSyncRef.current = replayTaskSync.mutateAsync;
+  const [syncSummary, setSyncSummary] = useState({ pending: 0, needsReview: 0, syncing: false, retry: false });
   const bulkSetTaskState = trpc.planner.task.bulkSetState.useMutation();
   const createGoal = trpc.planner.goal.create.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
@@ -6556,9 +6564,69 @@ export default function Home() {
     updateTaskFilter("deadline_risk");
     selectSurface("tasks");
   };
-  const invalidatePlan = () => {
+  const invalidatePlan = useCallback(() => {
     utils.planner.workspace.snapshot.invalidate();
     utils.planner.dashboard.invalidate();
+  }, [utils]);
+  const refreshSyncSummary = useCallback(async () => {
+    if (!plannerSyncStore) return;
+    const [operations, conflicts] = await Promise.all([
+      plannerSyncStore.listOperations(plannerSyncScope),
+      plannerSyncStore.listConflicts(plannerSyncScope),
+    ]);
+    setSyncSummary(current => ({
+      ...current,
+      pending: operations.filter(operation => operation.state !== "needs_review").length,
+      needsReview: operations.filter(operation => operation.state === "needs_review").length + conflicts.length,
+      retry: operations.some(operation => operation.state === "retry"),
+    }));
+  }, [plannerSyncScope, plannerSyncStore]);
+  const replayPendingTaskUpdates = useCallback(async () => {
+    if (!plannerSyncStore || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+    setSyncSummary(current => ({ ...current, syncing: true }));
+    const result = await replayQueuedTaskUpdates(plannerSyncStore, plannerSyncScope, operations =>
+      replayTaskSyncRef.current({ ...scope, operations: operations as Parameters<typeof replayTaskSync.mutateAsync>[0]["operations"] })
+    );
+    if (result.records.length) {
+      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
+        ...current,
+        tasks: current.tasks.map(task => result.records.find(record => record.id === task.id) ? { ...task, ...result.records.find(record => record.id === task.id) } : task),
+      } : current);
+      invalidatePlan();
+    }
+    setSyncSummary(current => ({ ...current, syncing: false, retry: result.retry > 0 }));
+    await refreshSyncSummary();
+  }, [invalidatePlan, plannerSyncScope, plannerSyncStore, range, scope, utils]);
+  useEffect(() => {
+    void refreshSyncSummary();
+    void replayPendingTaskUpdates();
+    const onOnline = () => { void replayPendingTaskUpdates(); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [refreshSyncSummary, replayPendingTaskUpdates]);
+  const persistTaskPatch = async (task: any, patch: Record<string, unknown>) => {
+    const updateCachedTask = (record: Record<string, unknown>) => {
+      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
+        ...current,
+        tasks: current.tasks.map(item => item.id === task.id ? { ...item, ...record } : item),
+      } : current);
+    };
+    const saveOffline = async () => {
+      if (!plannerSyncStore) throw new Error("Offline storage is unavailable on this device.");
+      await queueTaskUpdate(plannerSyncStore, plannerSyncScope, task, patch);
+      updateCachedTask(patch);
+      await refreshSyncSummary();
+      return { record: { ...task, ...patch }, queued: true };
+    };
+    if (typeof navigator !== "undefined" && !navigator.onLine) return saveOffline();
+    try {
+      const record = await updateTask.mutateAsync({ ...scope, id: task.id, expectedVersion: task.version, patch: patch as any });
+      updateCachedTask(record);
+      return { record, queued: false };
+    } catch (error) {
+      if (isRetryableCaptureError(error)) return saveOffline();
+      throw error;
+    }
   };
   const refreshOfflineCaptureCount = useCallback(() => {
     setOfflineCaptureCount(capturesForWorkspace(scope.workspaceId).length);
@@ -6645,31 +6713,16 @@ export default function Home() {
     if (task.state === nextState) return null;
     setOptimisticTaskStates(current => ({ ...current, [task.id]: nextState }));
     try {
-      const updated = await updateTask.mutateAsync({
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { state: nextState },
-      });
-      utils.planner.workspace.snapshot.setData(
-        { ...scope, ...range },
-        current =>
-          current
-            ? {
-                ...current,
-                tasks: current.tasks.map(item =>
-                  item.id === task.id ? { ...item, ...updated } : item
-                ),
-              }
-            : current
-      );
+      const result = await persistTaskPatch(task, { state: nextState });
       setOptimisticTaskStates(current => {
         const { [task.id]: _, ...remaining } = current;
         return remaining;
       });
       utils.planner.dashboard.invalidate();
       toast.success(
-        `${task.title} moved to ${taskBoardLanes.find(item => item.id === lane)?.label}.`
+        result.queued
+          ? `${task.title} moved on this device. It will sync when you are online.`
+          : `${task.title} moved to ${taskBoardLanes.find(item => item.id === lane)?.label}.`
       );
       return null;
     } catch (error) {
@@ -6686,27 +6739,12 @@ export default function Home() {
     moveTaskToLane(task, task.state === "completed" ? "todo" : "completed");
   const archiveTaskFromPhone = (task: any) => {
     if (task.state === "archived") return;
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { state: "archived" },
-      },
-      {
-        onSuccess: () => {
-          toast.success(
-            `${task.title} archived. Restore it from Archived work.`
-          );
-          invalidatePlan();
-        },
-        onError: error =>
-          toast.error(
-            error.message ||
-              "This task could not be archived. It remains unchanged."
-          ),
-      }
-    );
+    void persistTaskPatch(task, { state: "archived" }).then(result => {
+      toast.success(result.queued
+        ? `${task.title} moved to Archived on this device and will sync later.`
+        : `${task.title} archived. Restore it from Archived work.`);
+      if (!result.queued) invalidatePlan();
+    }).catch(error => toast.error(error instanceof Error ? error.message : "This task could not be archived. It remains unchanged."));
   };
   const archiveCompletedTasks = async (tasksToArchive: any[]) => {
     const batches = Array.from(
@@ -6734,43 +6772,19 @@ export default function Home() {
       return false;
     }
   };
-  const restoreArchivedTask = (task: any) =>
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { state: "not_started" },
-      },
-      {
-        onSuccess: () => toast.success(`${task.title} restored to To do.`),
-        onError: error =>
-          toast.error(
-            error.message ||
-              "This archived task could not be restored. Refresh and try again."
-          ),
-      }
-    );
+  const restoreArchivedTask = (task: any) => {
+    void persistTaskPatch(task, { state: "not_started" })
+      .then(result => toast.success(result.queued ? `${task.title} restored on this device and will sync later.` : `${task.title} restored to To do.`))
+      .catch(error => toast.error(error instanceof Error ? error.message : "This archived task could not be restored. Refresh and try again."));
+  };
   const scheduleTask = (id: string, date: string) => {
     const task = activeTasks.find(item => item.id === id);
     if (!task) return;
     setCalendarActionError(null);
     setLastCalendarMove({ id, date });
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { scheduledLocalDate: date },
-      },
-      {
-        onSuccess: () => toast.success(`${task.title} planned for ${date}.`),
-        onError: error =>
-          setCalendarActionError(
-            error.message || "This task could not be planned on the calendar."
-          ),
-      }
-    );
+    void persistTaskPatch(task, { scheduledLocalDate: date })
+      .then(result => toast.success(result.queued ? `${task.title} planned on this device and will sync later.` : `${task.title} planned for ${date}.`))
+      .catch(error => setCalendarActionError(error instanceof Error ? error.message : "This task could not be planned on the calendar."));
   };
   const resizeTaskReservation = (task: any, minutes: number) => {
     if (!task.plannedStartAt || !task.plannedEndAt) return;
@@ -6787,23 +6801,9 @@ export default function Home() {
       return;
     }
     setCalendarActionError(null);
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { plannedEndAt: nextEnd, estimateMinutes: nextDuration },
-      },
-      {
-        onSuccess: () =>
-          toast.success(`${task.title} now reserves ${nextDuration} minutes.`),
-        onError: error =>
-          setCalendarActionError(
-            error.message ||
-              "This reservation could not be resized. Refresh and try again."
-          ),
-      }
-    );
+    void persistTaskPatch(task, { plannedEndAt: nextEnd, estimateMinutes: nextDuration })
+      .then(result => toast.success(result.queued ? `${task.title}'s new duration is saved on this device.` : `${task.title} now reserves ${nextDuration} minutes.`))
+      .catch(error => setCalendarActionError(error instanceof Error ? error.message : "This reservation could not be resized. Refresh and try again."));
   };
   const retryCalendarMove = () => {
     if (lastCalendarMove)
@@ -7164,6 +7164,25 @@ export default function Home() {
         </div>
       </aside>
       <main className="planner-main">
+        {(availableSnapshot.isCached || syncSummary.pending > 0 || syncSummary.needsReview > 0 || syncSummary.syncing || syncSummary.retry) ? (
+          <section className="planner-sync-status" role="status" aria-live="polite">
+            <div>
+              <strong>{syncSummary.needsReview > 0 ? "Needs review" : syncSummary.syncing ? "Syncing saved work" : availableSnapshot.isCached ? "Using your saved planner" : "Work saved on this device"}</strong>
+              <span>
+                {syncSummary.needsReview > 0
+                  ? `${syncSummary.needsReview} change${syncSummary.needsReview === 1 ? "" : "s"} kept safely for review.`
+                  : syncSummary.syncing
+                    ? "Reconciling task changes without overwriting newer fields."
+                    : availableSnapshot.isCached && syncSummary.pending === 0
+                      ? "Showing the latest planner saved for this account and date range."
+                      : `${syncSummary.pending} task change${syncSummary.pending === 1 ? "" : "s"} waiting to sync.`}
+              </span>
+            </div>
+            {!syncSummary.syncing && typeof navigator !== "undefined" && navigator.onLine ? (
+              <Button size="sm" variant="outline" onClick={() => void replayPendingTaskUpdates()}>Sync now</Button>
+            ) : null}
+          </section>
+        ) : null}
         <header className="planner-topbar">
           <div>
             <p className="top-date">

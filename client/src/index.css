@@ -89,6 +89,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .workspace-pill strong, .workspace-pill small { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .workspace-pill strong { color:#d9dcd4; font-size:11px; font-weight:600; }.workspace-pill small { color:#6f766e; margin-top:2px; font:9px "IBM Plex Mono", monospace; }
 .planner-main { min-width:0; padding:0 34px 48px; overflow:hidden; }
+.planner-sync-status { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:14px 0 0; padding:11px 13px; border:1px solid rgba(40,93,82,.2); border-radius:16px; background:rgba(255,255,255,.72); box-shadow:0 8px 24px rgba(25,53,45,.07); backdrop-filter:blur(14px); }
+.planner-sync-status > div { display:grid; gap:2px; min-width:0; }
+.planner-sync-status strong { color:#1f4f45; font-size:13px; letter-spacing:.01em; }
+.planner-sync-status span { color:#53645e; font-size:12px; line-height:1.35; }
+.planner-sync-status button { min-height:40px; flex:none; }
 .destination-loading { display:grid; place-items:center; align-content:center; gap:14px; min-height:320px; margin-top:30px; border:1px solid rgba(198,240,106,.16); border-radius:16px; background:linear-gradient(135deg, rgba(198,240,106,.055), transparent 44%), #131614; color:#aeb7ab; text-align:center; }
 .destination-loading span { display:block; width:48px; height:3px; overflow:hidden; border-radius:999px; background:#2b332d; }
 .destination-loading span::after { content:""; display:block; width:58%; height:100%; border-radius:inherit; background:#c6f06a; transform:translateX(-78%); }
@@ -212,6 +217,8 @@ html, body { background:#f6f7f8; color:#1b2422; }
 /* Phone-first planner refinement: preserve the desktop rail, but make the six
    core planning surfaces legible and thumb-reachable on an installed PWA. */
 @media (max-width:680px) {
+  .planner-sync-status { align-items:flex-start; margin-top:10px; padding:12px; border-radius:14px; }
+  .planner-sync-status button { min-height:44px; }
   .planner-rail {
     position:fixed;
     inset:auto 0 0;

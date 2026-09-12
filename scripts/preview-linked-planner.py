@@ -34,6 +34,8 @@ def main():
                 context, page, errors = shared["new_page"](browser, size)
                 requests, unexpected = shared["install_preview"](context, args.url, "linked", fixtures())
                 page.goto(args.url, wait_until="networkidle")
+                if page.get_by_role("heading", name="Today", exact=True).count() == 0:
+                    raise AssertionError({"message": "Linked planner did not render", "runtimeErrors": errors, "requests": requests, "unexpected": unexpected, "body": page.locator("body").inner_text()[:1200]})
                 expect(page.get_by_role("heading", name="Today", exact=True)).to_be_visible(timeout=20000)
                 expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
                 assert "planner.workspace.snapshot" in requests, requests
@@ -59,13 +61,35 @@ def main():
                 assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "Task board overflows the viewport"
                 task_path = args.output / f"preview-linked-task-lanes-{size}.png"
                 page.screenshot(path=str(task_path), full_page=True)
+                if size == "phone":
+                    context.set_offline(True)
+                    page.get_by_role("button", name="Complete Plan a focused week", exact=True).click()
+                    expect(page.get_by_text("1 task change waiting to sync.", exact=True)).to_be_visible()
+                    pending = page.evaluate("""async () => await new Promise((resolve, reject) => {
+                      const request = indexedDB.open('personal-calander-planner-v1');
+                      request.onerror = () => reject(request.error);
+                      request.onsuccess = () => {
+                        const count = request.result.transaction('operations').objectStore('operations').count();
+                        count.onerror = () => reject(count.error);
+                        count.onsuccess = () => resolve(count.result);
+                      };
+                    })""")
+                    assert pending == 1, pending
+                    result_offline = {"offlineTaskQueued": pending, "offlineScreenshot": str(args.output / "preview-linked-phone-offline-sync.png")}
+                    page.screenshot(path=result_offline["offlineScreenshot"], full_page=True)
+                else:
+                    result_offline = {}
                 path = args.output / f"preview-linked-home-{size}.png"
                 page.screenshot(path=str(path), full_page=True)
                 result = {"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "taskLaneScreenshot": str(task_path), "taskLaneSurfaces": lane_surfaces, "requests": requests}
+                result.update(result_offline)
                 try:
                     page.get_by_role("button", name="Sign out", exact=True).click(timeout=1500)
                     expect(page.get_by_role("button", name="Continue with Google")).to_be_visible()
                     result["signOutPointerAccessible"] = True
+                    if size == "phone":
+                        expect(page.get_by_text("1 task change waiting to sync.", exact=True)).not_to_be_visible()
+                        result["signedOutCacheHidden"] = True
                 except PlaywrightTimeoutError:
                     # Visibility is required above. Report pointer obstruction separately
                     # without disguising it through forced clicks or changing app styles.

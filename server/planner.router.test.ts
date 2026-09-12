@@ -7,6 +7,7 @@ import type { TrpcContext } from "./_core/context";
 import * as planning from "./planning";
 import * as focus from "./focus";
 import * as scheduling from "./scheduling";
+import * as synchronization from "./sync";
 
 function createAuthenticatedContext(): TrpcContext {
   const now = new Date("2026-01-01T00:00:00.000Z");
@@ -28,6 +29,24 @@ function createAuthenticatedContext(): TrpcContext {
 }
 
 describe("planner task API", () => {
+  it("replays a bounded sync batch independently and preserves later operations after one rejection", async () => {
+    const replay = vi.spyOn(synchronization, "processTaskUpdateOperation")
+      .mockRejectedValueOnce(new Error("Task was not found in this workspace."))
+      .mockResolvedValueOnce({ operationId: "operation-2", outcome: "applied", appliedFields: ["title"], alreadyAppliedFields: [], conflicts: [], record: { id: "task-2", version: 2 } });
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const base = { entity: "task" as const, kind: "update" as const, baseVersion: 1, createdAt: "2026-09-12T10:00:00.000Z" };
+    const results = await caller.planner.sync.replay({ workspaceId: "workspace-api-check", timezone: "UTC", operations: [
+      { ...base, operationId: "operation-1", entityId: "task-1", baseValues: { title: "Old" }, patch: { title: "First" } },
+      { ...base, operationId: "operation-2", entityId: "task-2", baseValues: { title: "Old" }, patch: { title: "Second" } },
+    ] });
+
+    expect(results).toEqual([
+      { operationId: "operation-1", status: "rejected", code: "not_found" },
+      expect.objectContaining({ operationId: "operation-2", status: "completed", outcome: "applied" }),
+    ]);
+    expect(replay).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects planner access without a validated Supabase user", async () => {
     const caller = appRouter.createCaller({ ...createAuthenticatedContext(), user: null });
     await expect(caller.planner.workspace.snapshot({ workspaceId: "workspace-api-check", timezone: "UTC", start: "2026-08-24", end: "2026-08-24" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });

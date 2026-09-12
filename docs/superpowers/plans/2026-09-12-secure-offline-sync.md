@@ -28,17 +28,17 @@ Date: 2026-09-12
 
 ## Task 4: Idempotent backend operations and conflict engine
 
-- [ ] Add tested Drizzle schemas for workspace-scoped receipts and conflict records.
-- [ ] Generate and inspect an additive migration; never replay the baseline.
-- [ ] Implement pure three-way field merge tests first.
-- [ ] Add an authenticated bounded-batch tRPC procedure reusing existing planning services.
-- [ ] Support duplicates, partial success, retryable failures, stale versions, safe partial merges, and retained overlaps.
+- [x] Add tested Drizzle schemas for workspace-scoped receipts and conflict records.
+- [x] Generate and inspect an additive migration; it creates only two tables and four indexes.
+- [x] Implement pure three-way field merge tests first.
+- [x] Add an authenticated 25-operation tRPC task replay procedure reusing existing planning services.
+- [x] Support duplicate receipts, independent batch outcomes, retry state, stale-version re-merge, safe partial merges, and retained overlaps for task updates.
 - [ ] Re-audit advisors after schema changes.
 
 ## Task 5: Offline mutation coverage
 
 - [ ] Migrate quick capture into the scoped queue without losing existing localStorage captures.
-- [ ] Cover task create/update/state/archive/restore and reorder flows.
+- [ ] Cover task create/update/state/archive/restore and reorder flows. Common state, archive/restore, schedule, and reservation updates are implemented; full editor/create/reorder coverage remains.
 - [ ] Cover goal, milestone, project, habit, category, saved-view, daily-plan, review, dependency, and availability writes in coherent groups.
 - [ ] Keep focus, push, calendar, file upload, permanent deletion, and security-sensitive operations online-only unless separately designed.
 

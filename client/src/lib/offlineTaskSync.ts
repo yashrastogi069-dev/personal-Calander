@@ -1,0 +1,125 @@
+import {
+  createPlannerOperation,
+  type PlannerConflict,
+  type PlannerOperation,
+  type PlannerSyncScope,
+  type PlannerSyncStore,
+} from "./offlineSync";
+
+type VersionedTask = Record<string, unknown> & { id: string; version: number };
+type TaskPatch = Record<string, unknown>;
+
+type ReplayCompleted = {
+  operationId: string;
+  status: "completed";
+  outcome: "applied" | "already_applied" | "needs_review";
+  appliedFields: string[];
+  alreadyAppliedFields: string[];
+  conflicts: Array<{ field: string; baseValue: unknown; localValue: unknown; serverValue: unknown }>;
+  record: Record<string, unknown> & { version: number };
+};
+type ReplayRetry = { operationId: string; status: "retry"; code: string };
+type ReplayRejected = { operationId: string; status: "rejected"; code: string };
+export type TaskReplayResult = ReplayCompleted | ReplayRetry | ReplayRejected;
+export type TaskReplayOperation = {
+  operationId: string;
+  entity: "task";
+  entityId: string;
+  kind: "update";
+  baseVersion: number;
+  baseValues: Record<string, unknown>;
+  patch: Record<string, unknown>;
+  createdAt: string;
+};
+export type TaskReplay = (operations: TaskReplayOperation[]) => Promise<TaskReplayResult[]>;
+
+function operationId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `operation-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export async function queueTaskUpdate(
+  store: PlannerSyncStore,
+  scope: PlannerSyncScope,
+  task: VersionedTask,
+  patch: TaskPatch,
+  id = operationId(),
+  createdAt = new Date().toISOString(),
+) {
+  const baseValues = Object.fromEntries(Object.keys(patch).map(field => [field, task[field]]));
+  const operation = createPlannerOperation(scope, {
+    operationId: id,
+    entity: "task",
+    entityId: task.id,
+    kind: "update",
+    baseVersion: task.version,
+    baseValues,
+    patch,
+    createdAt,
+  });
+  await store.enqueue(operation);
+  return operation;
+}
+
+function replayInput(operation: PlannerOperation & { entity: "task"; kind: "update"; baseVersion: number }): TaskReplayOperation {
+  const { accountId: _accountId, workspaceId: _workspaceId, state: _state, attempts: _attempts, lastErrorCode: _lastErrorCode, ...input } = operation;
+  return input;
+}
+
+export async function replayQueuedTaskUpdates(store: PlannerSyncStore, scope: PlannerSyncScope, replay: TaskReplay) {
+  const operations = (await store.listOperations(scope)).filter((operation): operation is PlannerOperation & { entity: "task"; kind: "update"; baseVersion: number } => operation.entity === "task" && operation.kind === "update" && operation.baseVersion !== null && operation.state !== "needs_review").slice(0, 25);
+  if (!operations.length) return { completed: 0, needsReview: 0, retry: 0, records: [] as Record<string, unknown>[] };
+
+  let results: TaskReplayResult[];
+  try {
+    results = await replay(operations.map(replayInput));
+    if (!Array.isArray(results)) throw new Error("Synchronization returned an invalid response.");
+  } catch {
+    await Promise.all(operations.map(operation => store.markOperation(scope, operation.operationId, "retry", "network")));
+    return { completed: 0, needsReview: 0, retry: operations.length, records: [] as Record<string, unknown>[] };
+  }
+
+  const operationById = new Map(operations.map(operation => [operation.operationId, operation]));
+  const records: Record<string, unknown>[] = [];
+  let completed = 0;
+  let needsReview = 0;
+  let retry = 0;
+
+  for (const result of results) {
+    const operation = operationById.get(result.operationId);
+    if (!operation) continue;
+    if (result.status === "retry") {
+      await store.markOperation(scope, result.operationId, "retry", result.code);
+      retry += 1;
+      continue;
+    }
+    if (result.status === "rejected") {
+      await store.markOperation(scope, result.operationId, "needs_review", result.code);
+      needsReview += 1;
+      continue;
+    }
+    const serverVersion = result.record.version;
+    for (const conflict of result.conflicts) {
+      const retained: PlannerConflict = {
+        ...scope,
+        conflictId: `${result.operationId}:${conflict.field}`,
+        operationId: result.operationId,
+        entity: "task",
+        entityId: operation.entityId,
+        field: conflict.field,
+        baseValue: conflict.baseValue,
+        localValue: conflict.localValue,
+        serverValue: conflict.serverValue,
+        serverVersion,
+        createdAt: new Date().toISOString(),
+        state: "needs_review",
+      };
+      await store.putConflict(retained);
+    }
+    await store.acknowledge(scope, result.operationId);
+    records.push(result.record);
+    completed += 1;
+    if (result.outcome === "needs_review") needsReview += 1;
+  }
+  return { completed, needsReview, retry, records };
+}

@@ -3,6 +3,8 @@ export type PlannerSyncScope = {
   workspaceId: string;
 };
 
+export { classifyFieldMerge } from "@shared/syncMerge";
+
 export const plannerSyncEntities = [
   "workspace", "category", "goal", "milestone", "project", "task", "habit",
   "habit_check_in", "saved_view", "daily_check_in", "daily_plan", "daily_plan_item",
@@ -77,7 +79,7 @@ function scopedItemKey(scope: PlannerSyncScope, id: string) {
 
 export function createPlannerOperation(scope: PlannerSyncScope, input: NewPlannerOperation): PlannerOperation {
   if (!plannerSyncEntities.includes(input.entity)) throw new Error("Unsupported planner entity.");
-  if (!Number.isInteger(input.baseVersion ?? 0) || (input.baseVersion ?? 0) < 0) throw new Error("Base version must be a positive integer or null.");
+  if (input.baseVersion !== null && (!Number.isInteger(input.baseVersion) || input.baseVersion < 1)) throw new Error("Base version must be a positive integer or null.");
   if (!Object.keys(input.patch).length && input.kind !== "archive" && input.kind !== "restore" && input.kind !== "tombstone") {
     throw new Error("An operation patch cannot be empty.");
   }
@@ -92,35 +94,13 @@ export function createPlannerOperation(scope: PlannerSyncScope, input: NewPlanne
   });
 }
 
-function canonical(value: unknown): string {
-  if (value instanceof Date) return JSON.stringify({ $date: value.toISOString() });
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function valuesEqual(left: unknown, right: unknown) {
-  return Object.is(left, right) || canonical(left) === canonical(right);
-}
-
-export function classifyFieldMerge(input: { base: unknown; local: unknown; server: unknown }):
-  | { kind: "apply_local"; value: unknown }
-  | { kind: "already_applied"; value: unknown }
-  | { kind: "conflict"; base: unknown; local: unknown; server: unknown } {
-  if (valuesEqual(input.local, input.server)) return { kind: "already_applied", value: cloneValue(input.server) };
-  if (valuesEqual(input.base, input.server)) return { kind: "apply_local", value: cloneValue(input.local) };
-  return { kind: "conflict", base: cloneValue(input.base), local: cloneValue(input.local), server: cloneValue(input.server) };
-}
-
 export interface PlannerSyncStore {
   putSnapshot(scope: PlannerSyncScope, rangeStart: string, rangeEnd: string, snapshot: unknown, fetchedAt?: string): Promise<void>;
   getSnapshot(scope: PlannerSyncScope, rangeStart: string, rangeEnd: string): Promise<PlannerSnapshotRecord | null>;
   enqueue(operation: PlannerOperation): Promise<void>;
   listOperations(scope: PlannerSyncScope): Promise<PlannerOperation[]>;
   acknowledge(scope: PlannerSyncScope, operationId: string): Promise<void>;
+  markOperation(scope: PlannerSyncScope, operationId: string, state: PlannerOperationState, errorCode: string): Promise<void>;
   putConflict(conflict: PlannerConflict): Promise<void>;
   listConflicts(scope: PlannerSyncScope): Promise<PlannerConflict[]>;
 }
@@ -155,6 +135,12 @@ export class MemoryPlannerSyncStore implements PlannerSyncStore {
 
   async acknowledge(scope: PlannerSyncScope, operationId: string) {
     this.operations.delete(scopedItemKey(scope, operationId));
+  }
+
+  async markOperation(scope: PlannerSyncScope, operationId: string, state: PlannerOperationState, errorCode: string) {
+    const key = scopedItemKey(scope, operationId);
+    const current = this.operations.get(key);
+    if (current) this.operations.set(key, cloneValue({ ...current, state, attempts: current.attempts + 1, lastErrorCode: errorCode }));
   }
 
   async putConflict(conflict: PlannerConflict) {
@@ -221,7 +207,12 @@ export class IndexedDbPlannerSyncStore implements PlannerSyncStore {
     const existing = await this.request<StoredOperation | undefined>("operations", "readonly", store => store.get(key));
     if (existing) return;
     const record: StoredOperation = { ...cloneValue(operation), key, scopeKey: plannerScopeKey(operation) };
-    await this.request("operations", "readwrite", store => store.add(record));
+    try {
+      await this.request("operations", "readwrite", store => store.add(record));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "ConstraintError") return;
+      throw error;
+    }
   }
 
   async listOperations(scope: PlannerSyncScope) {
@@ -231,6 +222,13 @@ export class IndexedDbPlannerSyncStore implements PlannerSyncStore {
 
   async acknowledge(scope: PlannerSyncScope, operationId: string) {
     await this.request("operations", "readwrite", store => store.delete(scopedItemKey(scope, operationId)));
+  }
+
+  async markOperation(scope: PlannerSyncScope, operationId: string, state: PlannerOperationState, errorCode: string) {
+    const key = scopedItemKey(scope, operationId);
+    const current = await this.request<StoredOperation | undefined>("operations", "readonly", store => store.get(key));
+    if (!current) return;
+    await this.request("operations", "readwrite", store => store.put({ ...current, state, attempts: current.attempts + 1, lastErrorCode: errorCode }));
   }
 
   async putConflict(conflict: PlannerConflict) {

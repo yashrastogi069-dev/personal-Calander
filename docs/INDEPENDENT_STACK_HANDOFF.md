@@ -1,6 +1,14 @@
 # Independent stack: current workbench handoff
 
-> 2026-09-12 current note: the approved roadmap is documented in `PWA_SYNC_NOTIFICATIONS_ROADMAP.md`. Phase 1 is implemented and verified locally on the isolated `work/pwa-foundation` branch. It is not yet claimed Preview- or real-iPhone-complete. Phase 2 synchronization and Phase 3 notifications/integrations have not started.
+> 2026-09-12 current note: Phase 1 is deployed and online-verified in Production; the physical-iPhone offline/relaunch gate is delegated to the user. Phase 2 secure synchronization is active on `dev/personal-calendar-workbench`. Phase 3 notification delivery and calendar bridges remain gated on reliable sync.
+
+## 2026-09-12 secure synchronization checkpoint
+
+The account-scoped device foundation is committed as `bed7e00`. A second verified local slice adds additive `syncOperationReceipts` and `syncConflicts` schemas/migration, a workspace-owner-protected bounded replay procedure, task field three-way merging, durable client retry/review states, and offline support for common task state/schedule/reservation changes. It does not reset or rewrite existing rows and it does not infer deletion from missing fields.
+
+Local evidence: TypeScript passed; 61 test files / 258 tests passed with 3 intentional skips; the isolated migration test preserved an existing task and enforced workspace/operation receipt uniqueness; final production build release `9c2868b93211e476` contains 20 public shell files. Synthetic desktop and 390x844 phone browser checks passed. The phone check queued one offline task update in IndexedDB, showed the pending-sync surface, preserved the dark work-lane colors and zero horizontal overflow, then verified the planner cache was hidden after sign-out.
+
+The remote migration is intentionally not applied until this slice is committed and its live preflight confirms the two new table names are absent. Unsupported offline entities, conflict-choice UI, and the consolidated recycle-bin screen remain Phase 2 work. Existing Supabase advisor warnings are tracked separately; do not change roles or populated planner policies casually.
 
 ## 2026-09-12 reliable PWA implementation
 
