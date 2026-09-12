@@ -29,6 +29,7 @@ import {
   deleteCategory,
   disablePushSubscription,
   getDashboard,
+  getActiveCalendarFeed,
   getHabitPracticeEvidence,
   getReviewHistory,
   getPushDeviceForEndpoint,
@@ -71,6 +72,7 @@ import {
 import { approveScheduleProposal, createScheduleProposal, dismissScheduleProposal, undoScheduleProposal } from "../scheduling";
 import { invokeLLM } from "../_core/llm";
 import { finishFocusSession, pauseFocusSession, resumeFocusSession, startFocusSession } from "../focus";
+import { getOpenSyncConflicts, processTaskUpdateOperation, resolveSyncConflict } from "../sync";
 import { router } from "../_core/trpc";
 import { workspaceProcedure as protectedProcedure, workspaceScope as scope } from "../workspaceProcedure";
 
@@ -82,6 +84,74 @@ const approvedReminderSpecs = [
 const lifecycle = z.enum(["not_started", "in_progress", "blocked", "completed", "archived"]);
 const priority = z.enum(["none", "low", "medium", "high", "critical"]);
 const horizon = z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "someday"]);
+const syncTaskPatch = z.object({
+  title: z.string().trim().min(1).max(280).optional(),
+  description: z.string().max(10000).nullable().optional(),
+  state: lifecycle.optional(),
+  priority: priority.optional(),
+  horizon: horizon.optional(),
+  dueLocalDate: dateString.nullable().optional(),
+  scheduledLocalDate: dateString.nullable().optional(),
+  plannedStartAt: z.date().nullable().optional(),
+  plannedEndAt: z.date().nullable().optional(),
+  estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(),
+  scheduleMode: z.enum(["manual", "flexible", "pinned"]).optional(),
+  categoryId: z.string().max(64).nullable().optional(),
+  goalId: z.string().max(64).nullable().optional(),
+  projectId: z.string().max(64).nullable().optional(),
+  parentTaskId: z.string().max(64).nullable().optional(),
+  sortOrder: z.number().int().optional(),
+  recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(),
+  recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(),
+  recurrenceUntilLocalDate: dateString.nullable().optional(),
+}).refine(value => Object.keys(value).length > 0, { message: "A synchronization patch cannot be empty." });
+const syncTaskUpdateOperation = z.object({
+  operationId: z.string().min(8).max(128),
+  entity: z.literal("task"),
+  entityId: z.string().min(1).max(64),
+  kind: z.literal("update"),
+  baseVersion: z.number().int().positive(),
+  baseValues: z.record(z.string().max(80), z.unknown()),
+  patch: syncTaskPatch,
+  createdAt: z.string().datetime({ offset: true }),
+}).superRefine((operation, context) => {
+  for (const field of Object.keys(operation.patch)) {
+    if (!Object.prototype.hasOwnProperty.call(operation.baseValues, field)) {
+      context.addIssue({ code: "custom", path: ["baseValues", field], message: "A base value is required for every patched field." });
+    }
+  }
+});
+const syncTaskCreateOperation = z.object({
+  operationId: z.string().min(8).max(64),
+  entity: z.literal("task"),
+  entityId: z.string().min(1).max(64),
+  kind: z.literal("create"),
+  baseVersion: z.null(),
+  baseValues: z.object({}).strict(),
+  patch: z.object({
+    title: z.string().trim().min(1).max(280),
+    description: z.string().max(10000).nullable().optional(),
+    categoryId: z.string().max(64).nullable().optional(),
+    goalId: z.string().max(64).nullable().optional(),
+    projectId: z.string().max(64).nullable().optional(),
+    parentTaskId: z.string().max(64).nullable().optional(),
+    state: lifecycle.default("not_started"),
+    priority: priority.default("medium"),
+    horizon: horizon.default("daily"),
+    dueLocalDate: dateString.nullable().optional(),
+    scheduledLocalDate: dateString.nullable().optional(),
+    plannedStartAt: z.date().nullable().optional(),
+    plannedEndAt: z.date().nullable().optional(),
+    estimateMinutes: z.number().int().min(0).max(1440).nullable().optional(),
+    scheduleMode: z.enum(["manual", "flexible", "pinned"]).default("manual"),
+    sortOrder: z.number().int().default(0),
+    recurrenceRule: z.record(z.string(), z.unknown()).nullable().optional(),
+    recurrenceAnchor: z.enum(["scheduled", "completion"]).nullable().optional(),
+    recurrenceUntilLocalDate: dateString.nullable().optional(),
+  }).refine(value => !(value.plannedStartAt && value.plannedEndAt) || value.plannedEndAt > value.plannedStartAt, { message: "Reserved time must end after it starts." }),
+  createdAt: z.string().datetime({ offset: true }),
+});
+const syncTaskOperation = z.union([syncTaskUpdateOperation, syncTaskCreateOperation]);
 const aiDraft = z.object({
   kind: z.enum(["task", "goal"]),
   title: z.string().trim().min(1).max(280),
@@ -118,6 +188,45 @@ function plannerError(error: unknown): never {
 }
 
 export const plannerRouter = router({
+  sync: router({
+    conflicts: protectedProcedure.input(scope).query(async ({ input }) => {
+      return getOpenSyncConflicts({ workspaceId: input.workspaceId, timezone: input.timezone });
+    }),
+    resolve: protectedProcedure.input(scope.extend({
+      conflictId: z.string().min(1).max(64),
+      choice: z.enum(["local", "server"]),
+    })).mutation(async ({ input }) => {
+      try {
+        return await resolveSyncConflict(
+          { workspaceId: input.workspaceId, timezone: input.timezone },
+          { conflictId: input.conflictId, choice: input.choice },
+        );
+      } catch (error) {
+        return plannerError(error);
+      }
+    }),
+    replay: protectedProcedure.input(scope.extend({ operations: z.array(syncTaskOperation).min(1).max(25) })).mutation(async ({ input }) => {
+      const plannerScope = { workspaceId: input.workspaceId, timezone: input.timezone };
+      const results = [];
+      for (const operation of input.operations) {
+        try {
+          if (operation.kind === "create") {
+            const record = await createTask(plannerScope, { ...operation.patch, clientRequestId: operation.operationId });
+            results.push({ operationId: operation.operationId, status: "completed" as const, outcome: "applied" as const, appliedFields: Object.keys(operation.patch), alreadyAppliedFields: [], conflicts: [], record });
+            continue;
+          }
+          const result = await processTaskUpdateOperation(plannerScope, operation);
+          results.push({ status: "completed" as const, ...result });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "";
+          if (/not found/i.test(message)) results.push({ operationId: operation.operationId, status: "rejected" as const, code: "not_found" as const });
+          else if (error instanceof PlannerConflictError) results.push({ operationId: operation.operationId, status: "retry" as const, code: "concurrent_change" as const });
+          else results.push({ operationId: operation.operationId, status: "retry" as const, code: "temporarily_unavailable" as const });
+        }
+      }
+      return results;
+    }),
+  }),
   workspace: router({
     ensure: protectedProcedure.input(scope).mutation(async ({ input }) => ensureWorkspace(input)),
     update: protectedProcedure.input(scope.extend({ expectedVersion: z.number().int().positive(), name: z.string().trim().min(1).max(120).optional(), timezone: z.string().min(1).max(64).optional(), weekStartsOn: z.number().int().min(0).max(6).optional(), dailyCapacityMinutes: z.number().int().min(30).max(1440).optional(), planningDayStartsAt: z.string().regex(/^\d{2}:\d{2}$/).optional(), workdayStartsAt: z.string().regex(/^\d{2}:\d{2}$/).optional(), workdayEndsAt: z.string().regex(/^\d{2}:\d{2}$/).optional(), defaultBreakMinutes: z.number().int().min(0).max(240).optional(), preferredShutdownAt: z.string().regex(/^\d{2}:\d{2}$/).optional() })).mutation(async ({ input }) => {
@@ -350,6 +459,7 @@ export const plannerRouter = router({
     }),
   }),
   calendarFeed: router({
+    current: protectedProcedure.input(scope).query(async ({ input }) => getActiveCalendarFeed(input)),
     ensure: protectedProcedure.input(scope).mutation(async ({ input }) => ensureCalendarFeed(input)),
     revoke: protectedProcedure.input(scope.extend({ id: z.string() })).mutation(async ({ input }) => revokeCalendarFeed(input, input)),
   }),
@@ -366,7 +476,7 @@ export const plannerRouter = router({
       const activated: string[] = [];
       try {
         for (const spec of approvedReminderSpecs) {
-          const rule = await prepareReminderRule(input, { type: spec.type, timezone: "Pacific/Auckland", schedule: spec.schedule });
+          const rule = await prepareReminderRule(input, { type: spec.type, timezone: input.timezone, schedule: spec.schedule });
           await setReminderRuleActivation(input, { id: rule.id, enabled: true });
           activated.push(rule.id);
         }

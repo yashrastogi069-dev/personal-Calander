@@ -37,7 +37,7 @@ describe("PWA status presentation", () => {
     const html = render({ connectivity: "offline", message: "The secure service is unavailable." });
     expect(html).toContain('role="status"');
     expect(html).toContain("You’re offline");
-    expect(html).toContain("Quick captures stay on this device");
+    expect(html).toContain("supported task changes stay on this device");
     expect(html).toContain("Try again");
     expect(html).not.toContain('role="alert"');
   });

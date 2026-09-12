@@ -37,7 +37,10 @@ import {
   shiftLocalDate,
   type WorkspaceScope,
 } from "@/lib/workspace";
-import { useWorkspaceScope } from "@/contexts/WorkspaceContext";
+import { usePlannerSyncScope, useWorkspaceScope } from "@/contexts/WorkspaceContext";
+import { useOfflinePlannerSnapshot } from "@/hooks/useOfflinePlannerSnapshot";
+import { getBrowserPlannerSyncStore, type PlannerConflict, type PlannerOperation } from "@/lib/offlineSync";
+import { overlayPendingTaskOperations, queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "@/lib/offlineTaskSync";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
 import {
@@ -71,6 +74,7 @@ import {
   type GoalHealthTriageFilter,
 } from "@shared/goalHealthTriage";
 import { taskEditorSourceKey } from "@shared/taskEditor";
+import { nextTaskSortOrder } from "@shared/taskOrdering";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
@@ -479,6 +483,17 @@ function shortTime(date: Date | null) {
   }).format(new Date(date));
 }
 
+function formatSyncValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Not set";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "Saved value";
+  }
+}
+
 function dateTimeLocalValue(date: Date | null | undefined) {
   if (!date) return "";
   const value = new Date(date);
@@ -582,6 +597,8 @@ function TaskRow({
   onSchedule,
   onQuickReschedule,
   onArchive,
+  onUpdate,
+  onCreateSubtask,
 }: {
   task: any;
   categoryColor?: string;
@@ -592,6 +609,8 @@ function TaskRow({
   onSchedule?: (task: any, date: string) => void;
   onQuickReschedule?: (task: any, amount: number) => void;
   onArchive?: (task: any) => void;
+  onUpdate: (task: any, patch: Record<string, unknown>) => Promise<{ queued: boolean }>;
+  onCreateSubtask: (task: any, title: string) => Promise<{ queued: boolean }>;
 }) {
   const completed = task.state === "completed";
   const priority =
@@ -634,19 +653,7 @@ function TaskRow({
     task,
     localDateInTimezone(scope.timezone)
   );
-  const utils = trpc.useUtils();
-  const saveTask = trpc.planner.task.update.useMutation({
-    onSuccess: () => {
-      utils.planner.workspace.snapshot.invalidate();
-      utils.planner.dashboard.invalidate();
-    },
-  });
-  const createSubtask = trpc.planner.task.create.useMutation({
-    onSuccess: () => {
-      utils.planner.workspace.snapshot.invalidate();
-      utils.planner.dashboard.invalidate();
-    },
-  });
+  const [isSaving, setIsSaving] = useState(false);
 
   const editorSourceKey = taskEditorSourceKey(task);
   useEffect(() => {
@@ -713,53 +720,43 @@ function TaskRow({
           };
     const planFor =
       localDateForReservation(reservedStart) ?? (scheduledLocalDate || null);
+    setIsSaving(true);
     try {
-      await saveTask.mutateAsync({
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: {
-          title: submittedTitle,
-          dueLocalDate: dueLocalDate || null,
-          scheduledLocalDate: planFor,
-          plannedStartAt: reservedStart ? new Date(reservedStart) : null,
-          plannedEndAt: reservedEnd ? new Date(reservedEnd) : null,
-          estimateMinutes: estimateMinutes ? Number(estimateMinutes) : null,
-          projectId: projectId === "none" ? null : projectId,
-          scheduleMode,
-          state,
-          recurrenceRule,
-          recurrenceAnchor: recurrenceRule ? "scheduled" : null,
-          recurrenceUntilLocalDate: recurrenceRule
-            ? recurrenceUntil || null
-            : null,
-        },
+      const result = await onUpdate(task, {
+        title: submittedTitle,
+        dueLocalDate: dueLocalDate || null,
+        scheduledLocalDate: planFor,
+        plannedStartAt: reservedStart ? new Date(reservedStart) : null,
+        plannedEndAt: reservedEnd ? new Date(reservedEnd) : null,
+        estimateMinutes: estimateMinutes ? Number(estimateMinutes) : null,
+        projectId: projectId === "none" ? null : projectId,
+        scheduleMode,
+        state,
+        recurrenceRule,
+        recurrenceAnchor: recurrenceRule ? "scheduled" : null,
+        recurrenceUntilLocalDate: recurrenceRule ? recurrenceUntil || null : null,
       });
       setEditorOpen(false);
-      toast.success("Task details saved.");
+      toast.success(result.queued ? "Task details saved on this device." : "Task details saved.");
     } catch (error) {
       setFormError(
         error instanceof Error
           ? error.message
           : "This task could not be saved. Review the details and try again."
       );
+    } finally {
+      setIsSaving(false);
     }
   };
-  const addSubtask = () => {
+  const addSubtask = async () => {
     const subtaskTitle = window.prompt(`Add a subtask beneath “${task.title}”`);
     if (!subtaskTitle?.trim()) return;
-    createSubtask.mutate({
-      ...scope,
-      title: subtaskTitle.trim(),
-      parentTaskId: task.id,
-      goalId: task.goalId,
-      projectId: task.projectId,
-      categoryId: task.categoryId,
-      state: "not_started",
-      priority: task.priority,
-      horizon: task.horizon,
-      sortOrder: task.sortOrder + 1,
-    });
+    try {
+      const result = await onCreateSubtask(task, subtaskTitle.trim());
+      toast.success(result.queued ? "Subtask saved on this device." : "Subtask added.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "This subtask could not be saved.");
+    }
   };
   const toggleRecurrenceWeekday = (weekday: number) =>
     setRecurrenceWeekdays(current =>
@@ -776,26 +773,15 @@ function TaskRow({
         1) %
         priorityOrder.length
     ];
-  const cyclePriority = () =>
-    saveTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { priority: nextPriority },
-      },
-      {
-        onSuccess: () =>
-          toast.success(
-            `${task.title} priority is now ${priorityMeta[nextPriority].label}.`
-          ),
-        onError: error =>
-          toast.error(
-            error.message ||
-              "This priority could not be updated. Refresh the task and try again."
-          ),
-      }
-    );
+  const cyclePriority = () => {
+    setIsSaving(true);
+    void onUpdate(task, { priority: nextPriority })
+      .then(result => toast.success(result.queued
+        ? `${task.title} priority is saved on this device.`
+        : `${task.title} priority is now ${priorityMeta[nextPriority].label}.`))
+      .catch(error => toast.error(error instanceof Error ? error.message : "This priority could not be updated."))
+      .finally(() => setIsSaving(false));
+  };
 
   const clearPointerInteraction = () => {
     pointerStart.current = null;
@@ -918,7 +904,7 @@ function TaskRow({
               className="task-priority"
               aria-label={`Change priority for ${task.title}. Current ${priority.label}; next ${priorityMeta[nextPriority].label}.`}
               onClick={cyclePriority}
-              disabled={saveTask.isPending}
+              disabled={isSaving}
             >
               <Flag size={14} className={priority.className} />
             </button>
@@ -1242,9 +1228,9 @@ function TaskRow({
               <Button
                 type="submit"
                 className="primary-action"
-                disabled={saveTask.isPending}
+                disabled={isSaving}
               >
-                {saveTask.isPending ? "Saving…" : "Save changes"}
+                {isSaving ? "Saving…" : "Save changes"}
               </Button>
             </div>
           </form>
@@ -1495,6 +1481,9 @@ function TaskBoard({
   onCompose,
   onArchiveCompleted,
   onArchive,
+  onUpdate,
+  onCreateSubtask,
+  onReorder,
   isSearching,
 }: {
   tasks: any[];
@@ -1505,6 +1494,9 @@ function TaskBoard({
   onCompose: () => void;
   onArchiveCompleted: (tasks: any[]) => Promise<boolean>;
   onArchive: (task: any) => void;
+  onUpdate: (task: any, patch: Record<string, unknown>) => Promise<{ queued: boolean }>;
+  onCreateSubtask: (task: any, title: string) => Promise<{ queued: boolean }>;
+  onReorder: (task: any, direction: -1 | 1, laneTasks: any[]) => Promise<string | null>;
   isSearching: boolean;
 }) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -1691,7 +1683,23 @@ function TaskBoard({
                           });
                         }}
                         onArchive={onArchive}
+                        onUpdate={onUpdate}
+                        onCreateSubtask={onCreateSubtask}
                       />
+                      <div className="task-order-actions" aria-label={`Reorder ${task.title}`}>
+                        <button
+                          type="button"
+                          aria-label={`Move ${task.title} up in ${lane.label}`}
+                          disabled={laneTasks.indexOf(task) === 0}
+                          onClick={() => void onReorder(task, -1, laneTasks).then(message => { if (message) setActionError(message); })}
+                        ><ArrowUp size={14} /></button>
+                        <button
+                          type="button"
+                          aria-label={`Move ${task.title} down in ${lane.label}`}
+                          disabled={laneTasks.indexOf(task) === laneTasks.length - 1}
+                          onClick={() => void onReorder(task, 1, laneTasks).then(message => { if (message) setActionError(message); })}
+                        ><ArrowDown size={14} /></button>
+                      </div>
                       <label className="task-lane-select">
                         <span>Move to</span>
                         <select
@@ -2512,18 +2520,27 @@ function TaskTriagePanel() {
   );
 }
 
-function CalendarSubscriptionControl() {
+function CalendarSubscriptionControl({ syncReady }: { syncReady: boolean }) {
   const scope = useWorkspaceScope();
-  const [feed, setFeed] = useState<any>(null);
+  const [createdFeed, setCreatedFeed] = useState<any>(null);
+  const currentFeed = trpc.planner.calendarFeed.current.useQuery(scope);
   const ensure = trpc.planner.calendarFeed.ensure.useMutation({
-    onSuccess: setFeed,
+    onSuccess: feed => {
+      setCreatedFeed(feed);
+      void currentFeed.refetch();
+    },
   });
   const revoke = trpc.planner.calendarFeed.revoke.useMutation({
-    onSuccess: () => setFeed(null),
+    onSuccess: () => {
+      setCreatedFeed(null);
+      void currentFeed.refetch();
+    },
   });
+  const feed = createdFeed ?? currentFeed.data;
   const url = feed
     ? `${window.location.origin}/api/calendar/${feed.token}.ics`
     : null;
+  const appleUrl = url ? url.replace(/^https?:\/\//, "webcal://") : null;
   return (
     <div className="calendar-subscription">
       <span>iPhone Calendar</span>
@@ -2537,9 +2554,9 @@ function CalendarSubscriptionControl() {
             type="button"
             variant="ghost"
             onClick={() => ensure.mutate(scope)}
-            disabled={ensure.isPending}
+            disabled={ensure.isPending || !syncReady}
           >
-            {ensure.isPending ? "Creating…" : "Create link"}
+            {ensure.isPending ? "Creating…" : syncReady ? "Create link" : "Finish syncing first"}
           </Button>
         </>
       ) : (
@@ -2559,6 +2576,7 @@ function CalendarSubscriptionControl() {
             <a href={url ?? undefined} target="_blank" rel="noreferrer">
               Open .ics
             </a>
+            <a href={appleUrl ?? undefined}>Subscribe in Apple Calendar</a>
             <Button
               type="button"
               variant="ghost"
@@ -2581,7 +2599,7 @@ function vapidKeyToUint8Array(value: string) {
   return Uint8Array.from(raw, character => character.charCodeAt(0));
 }
 
-function BrowserNotificationControl() {
+function BrowserNotificationControl({ syncReady }: { syncReady: boolean }) {
   const scope = useWorkspaceScope();
   const utils = trpc.useUtils();
   const [permission, setPermission] = useState<
@@ -2631,7 +2649,7 @@ function BrowserNotificationControl() {
   const activateCadence = trpc.planner.reminder.activateApproved.useMutation({
     onSuccess: () => {
       setMessage(
-        "Daily 11:00 and Sunday 17:00 Pacific/Auckland reminders are now scheduled."
+        `Daily 11:00 and Sunday 17:00 reminders are now scheduled in ${scope.timezone.replaceAll("_", " ")}.`
       );
       utils.planner.reminder.rules.invalidate();
     },
@@ -2674,6 +2692,10 @@ function BrowserNotificationControl() {
     });
   };
   const enable = async () => {
+    if (!syncReady) {
+      setMessage("Finish syncing saved planner changes before connecting notifications.");
+      return;
+    }
     if (
       typeof Notification === "undefined" ||
       !navigator.serviceWorker ||
@@ -2851,7 +2873,8 @@ function BrowserNotificationControl() {
               devicePresentation.isBlocked ||
               isRequestingPermission ||
               enableDevice.isPending ||
-              currentDeviceQuery.isLoading
+              currentDeviceQuery.isLoading ||
+              !syncReady
             }
           >
             {isRequestingPermission ||
@@ -2865,7 +2888,7 @@ function BrowserNotificationControl() {
       <div className="reminder-cadence">
         <div>
           <b>Schedule</b>
-          <p>Daily 11:00 · Sunday 17:00 · New Zealand time</p>
+          <p>Daily 11:00 · Sunday 17:00 · {scope.timezone.replaceAll("_", " ")}</p>
         </div>
         {cadenceEnabled ? (
           <Button
@@ -2882,13 +2905,15 @@ function BrowserNotificationControl() {
             type="button"
             variant="ghost"
             onClick={() => activateCadence.mutate(scope)}
-            disabled={!currentDevice || activateCadence.isPending}
+            disabled={!currentDevice || activateCadence.isPending || !syncReady}
           >
             {activateCadence.isPending
               ? "Scheduling…"
-              : currentDevice
-                ? "Enable reminders"
-                : "Connect iPhone first"}
+              : !syncReady
+                ? "Finish syncing first"
+                : currentDevice
+                  ? "Enable reminders"
+                  : "Connect iPhone first"}
           </Button>
         )}
       </div>
@@ -2903,6 +2928,9 @@ function BrowserNotificationControl() {
         <p className="notification-feedback" role="status">
           {message}
         </p>
+      ) : null}
+      {!syncReady && !message ? (
+        <p className="notification-feedback" role="status">Notification setup unlocks when this account has no pending or review-required planner changes.</p>
       ) : null}
       {devices.data?.some(device => device.status === "expired") ? (
         <p className="notification-feedback" role="alert">
@@ -3046,6 +3074,9 @@ function FocusPanel({
   onToggle,
   onCompose,
   onArchive,
+  onUpdate,
+  onCreateSubtask,
+  syncReady,
 }: {
   tasks: any[];
   categories: any[];
@@ -3053,6 +3084,9 @@ function FocusPanel({
   onToggle: (task: any) => void;
   onCompose: () => void;
   onArchive: (task: any) => void;
+  onUpdate: (task: any, patch: Record<string, unknown>) => Promise<{ queued: boolean }>;
+  onCreateSubtask: (task: any, title: string) => Promise<{ queued: boolean }>;
+  syncReady: boolean;
 }) {
   const categoryColors = new Map(
     categories.map(category => [category.id, category.color])
@@ -3064,13 +3098,16 @@ function FocusPanel({
   const [rescheduleMessage, setRescheduleMessage] = useState<string | null>(
     null
   );
-  const utils = trpc.useUtils();
-  const reschedule = trpc.planner.task.update.useMutation({
-    onSuccess: () => {
-      utils.planner.workspace.snapshot.invalidate();
-      utils.planner.dashboard.invalidate();
+  const reschedule = {
+    mutate: (
+      input: { id: string; patch: Record<string, unknown>; [key: string]: unknown },
+      callbacks: { onSuccess: () => void; onError: (error: Error) => void },
+    ) => {
+      const task = tasks.find(item => item.id === input.id);
+      if (!task) return callbacks.onError(new Error("Task is no longer available."));
+      void onUpdate(task, input.patch).then(callbacks.onSuccess).catch(error => callbacks.onError(error instanceof Error ? error : new Error("This task could not be rescheduled.")));
     },
-  });
+  };
   const quickReschedule = (task: any, amount: number) => {
     const nextDate = shiftLocalDate(
       localDateInTimezone(scope.timezone),
@@ -3121,6 +3158,8 @@ function FocusPanel({
               onToggle={onToggle}
               onQuickReschedule={quickReschedule}
               onArchive={onArchive}
+              onUpdate={onUpdate}
+              onCreateSubtask={onCreateSubtask}
             />
           ))
         ) : (
@@ -3159,8 +3198,8 @@ function FocusPanel({
             detail="Calendar and this iPhone"
             className="mobile-connection-group"
           >
-            <CalendarSubscriptionControl />
-            <BrowserNotificationControl />
+            <CalendarSubscriptionControl syncReady={syncReady} />
+            <BrowserNotificationControl syncReady={syncReady} />
           </ResponsiveSupportGroup>
           <AICompanion />
         </>
@@ -3207,6 +3246,23 @@ function OfflineCaptureIndicator() {
         : `Offline mode. New quick captures stay on this device${queued ? ` · ${queued} waiting to sync` : ""}.`}
     </p>
   );
+}
+
+function useOnlineState() {
+  const [isOnline, setIsOnline] = useState(
+    () => typeof navigator === "undefined" || navigator.onLine !== false
+  );
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, []);
+  return isOnline;
 }
 
 function Timeline({
@@ -5390,6 +5446,7 @@ function Composer({
   onManageCategories: () => void;
 }) {
   const scope = useWorkspaceScope();
+  const isOnline = useOnlineState();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const projectWorkspace = trpc.planner.workspace.snapshot.useQuery(
     { ...scope, ...isoRange(today) },
@@ -5412,6 +5469,10 @@ function Composer({
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!isOnline && kind !== "task") {
+      setFormError(`Reconnect to create a ${label.toLowerCase()}. Task changes remain available offline.`);
+      return;
+    }
     const name = title.trim();
     if (!name) {
       setFormError(`Name this ${label.toLowerCase()} before creating it.`);
@@ -5604,9 +5665,9 @@ function Composer({
             <Button
               type="submit"
               className="primary-action"
-              disabled={isCreating}
+              disabled={isCreating || (!isOnline && kind !== "task")}
             >
-              {isCreating ? "Creating…" : `Create ${label}`}
+              {isCreating ? "Creating…" : !isOnline && kind !== "task" ? "Reconnect to create" : `Create ${label}`}
             </Button>
           </div>
         </form>
@@ -5662,7 +5723,7 @@ function CategoryManagerRow({
         disabled={busy}
         onClick={() => onDelete(category)}
       >
-        Remove
+        Delete permanently
       </Button>
     </li>
   );
@@ -5680,6 +5741,7 @@ function CategoryDialog({
   const [name, setName] = useState("");
   const [color, setColor] = useState("#7DB8E0");
   const scope = useWorkspaceScope();
+  const isOnline = useOnlineState();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(
     () => ({
@@ -5776,9 +5838,13 @@ function CategoryDialog({
     });
   };
   const deleteCategory = (category: any) => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("Reconnect before permanently deleting a category. Nothing was changed.");
+      return;
+    }
     if (
       window.confirm(
-        `Remove “${category.name}”? Existing tasks, goals, projects, and habits will keep their history but lose this category label.`
+        `Permanently delete “${category.name}”? This cannot be undone. Existing tasks, goals, projects, and habits keep their history but lose this category label.`
       )
     )
       remove.mutate({
@@ -5891,13 +5957,12 @@ function CategoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="composer-dialog category-manager-dialog">
         <DialogHeader>
-          <DialogTitle>Organize planning</DialogTitle>
+          <DialogTitle>Workspace settings &amp; Recycle Bin</DialogTitle>
           <DialogDescription>
-            Categories organize work by color. Removing a category detaches its
-            label; archiving an item removes it from active planning while
-            keeping history.
+            Organize categories and recover archived work in one place. Recycle Bin items are kept indefinitely until you restore them.
           </DialogDescription>
         </DialogHeader>
+        {!isOnline ? <p className="form-error" role="status">Reconnect to change categories or restore non-task records. Task archive and restore remain available from Tasks.</p> : null}
         <form className="composer-form category-create-form" onSubmit={submit}>
           <div className="field">
             <Label htmlFor="category-name">New category</Label>
@@ -5925,9 +5990,9 @@ function CategoryDialog({
           <Button
             type="submit"
             className="primary-action"
-            disabled={busy || !name.trim()}
+            disabled={busy || !name.trim() || !isOnline}
           >
-            Add category
+            {isOnline ? "Add category" : "Reconnect to add"}
           </Button>
         </form>
         <div className="category-manager-list">
@@ -5938,7 +6003,7 @@ function CategoryDialog({
                 <CategoryManagerRow
                   key={category.id}
                   category={category}
-                  busy={busy}
+                  busy={busy || !isOnline}
                   onUpdate={(current, patch) =>
                     update.mutate({
                       ...scope,
@@ -5978,7 +6043,7 @@ function CategoryDialog({
                     type="button"
                     variant="ghost"
                     className="danger-action"
-                    disabled={busy}
+                    disabled={busy || !isOnline}
                     onClick={() => archive(type, item)}
                   >
                     Archive
@@ -5991,10 +6056,9 @@ function CategoryDialog({
           )}
         </div>
         <div className="lifecycle-manager lifecycle-recovery">
-          <span>Restore archived work</span>
+          <span>Recycle Bin · kept indefinitely</span>
           <p>
-            Restore puts a record back into active planning as unfinished work.
-            It does not erase task, check-in, or review history.
+            Tasks, goals, projects, and habits stay here with their history. Restore returns an item to active planning; nothing is deleted automatically.
           </p>
           {workspace.isLoading ? (
             <p>Loading archived items…</p>
@@ -6009,7 +6073,7 @@ function CategoryDialog({
                   <Button
                     type="button"
                     variant="ghost"
-                    disabled={busy}
+                    disabled={busy || !isOnline}
                     onClick={() => restore(type, item)}
                   >
                     Restore
@@ -6233,6 +6297,8 @@ function AICompanion() {
 
 export default function Home() {
   const scope = useWorkspaceScope();
+  const plannerSyncScope = usePlannerSyncScope();
+  const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [selectedDate, setSelectedDate] = useState(today);
   const [surface, setSurface] = useState<Surface>(() => {
@@ -6287,10 +6353,22 @@ export default function Home() {
   const workspaceEnsured = useRef(false);
   const utils = trpc.useUtils();
   const range = useMemo(() => isoRange(today), [today]);
+  const [pendingOperations, setPendingOperations] = useState<PlannerOperation[]>([]);
   const snapshotQuery = trpc.planner.workspace.snapshot.useQuery(
     { ...scope, ...range },
     { refetchInterval: 30_000 }
   );
+  const storedSnapshot = useOfflinePlannerSnapshot({
+    rangeStart: range.start,
+    rangeEnd: range.end,
+    onlineSnapshot: snapshotQuery.data,
+  });
+  const availableSnapshot = useMemo(() => ({
+    ...storedSnapshot,
+    data: storedSnapshot.data
+      ? overlayPendingTaskOperations(storedSnapshot.data, pendingOperations)
+      : storedSnapshot.data,
+  }), [pendingOperations, storedSnapshot.data, storedSnapshot.isCached]);
   const dashboardQuery = trpc.planner.dashboard.useQuery(
     {
       ...scope,
@@ -6313,6 +6391,19 @@ export default function Home() {
       utils.planner.dashboard.invalidate();
     },
   });
+  const replayTaskSync = trpc.planner.sync.replay.useMutation();
+  const replayTaskSyncRef = useRef(replayTaskSync.mutateAsync);
+  replayTaskSyncRef.current = replayTaskSync.mutateAsync;
+  const [syncSummary, setSyncSummary] = useState({ pending: 0, needsReview: 0, syncing: false, retry: false });
+  const [syncReviewOpen, setSyncReviewOpen] = useState(false);
+  const [localSyncConflicts, setLocalSyncConflicts] = useState<PlannerConflict[]>([]);
+  const [reviewOperations, setReviewOperations] = useState<PlannerOperation[]>([]);
+  const [discardOperationId, setDiscardOperationId] = useState<string | null>(null);
+  const serverSyncConflicts = trpc.planner.sync.conflicts.useQuery(scope, {
+    enabled: typeof navigator === "undefined" || navigator.onLine,
+    refetchInterval: 30_000,
+  });
+  const resolveConflict = trpc.planner.sync.resolve.useMutation();
   const bulkSetTaskState = trpc.planner.task.bulkSetState.useMutation();
   const createGoal = trpc.planner.goal.create.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
@@ -6379,15 +6470,15 @@ export default function Home() {
     ensureWorkspace.mutate(scope);
   }, [scope]);
 
-  const snapshot = snapshotQuery.data
+  const snapshot = availableSnapshot.data
     ? {
-        ...snapshotQuery.data,
-        projects: snapshotQuery.data.projects.filter(
+        ...availableSnapshot.data,
+        projects: availableSnapshot.data.projects.filter(
           project => project.state !== "archived"
         ),
-        habitCheckIn: snapshotQuery.data.habitCheckIns,
+        habitCheckIn: availableSnapshot.data.habitCheckIns,
       }
-    : snapshotQuery.data;
+    : availableSnapshot.data;
   const activeTasks = useMemo(
     () =>
       (snapshot?.tasks ?? [])
@@ -6396,7 +6487,8 @@ export default function Home() {
             ? { ...task, state: optimisticTaskStates[task.id] }
             : task
         )
-        .filter(task => task.state !== "archived"),
+        .filter(task => task.state !== "archived")
+        .sort((left, right) => left.sortOrder - right.sortOrder || left.title.localeCompare(right.title)),
     [snapshot?.tasks, optimisticTaskStates]
   );
   const archivedTasks = useMemo(
@@ -6550,53 +6642,209 @@ export default function Home() {
     updateTaskFilter("deadline_risk");
     selectSurface("tasks");
   };
-  const invalidatePlan = () => {
+  const invalidatePlan = useCallback(() => {
     utils.planner.workspace.snapshot.invalidate();
     utils.planner.dashboard.invalidate();
+  }, [utils]);
+  const refreshSyncSummary = useCallback(async () => {
+    if (!plannerSyncStore) return;
+    const [operations, conflicts] = await Promise.all([
+      plannerSyncStore.listOperations(plannerSyncScope),
+      plannerSyncStore.listConflicts(plannerSyncScope),
+    ]);
+    setSyncSummary(current => ({
+      ...current,
+      pending: operations.filter(operation => operation.state !== "needs_review").length,
+      needsReview: operations.filter(operation => operation.state === "needs_review").length + conflicts.length,
+      retry: operations.some(operation => operation.state === "retry"),
+    }));
+    setLocalSyncConflicts(conflicts);
+    setPendingOperations(operations);
+    setReviewOperations(operations.filter(operation => operation.state === "needs_review"));
+  }, [plannerSyncScope, plannerSyncStore]);
+  const replayPendingTaskUpdates = useCallback(async () => {
+    if (!plannerSyncStore || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+    setSyncSummary(current => ({ ...current, syncing: true }));
+    const result = await replayQueuedTaskUpdates(plannerSyncStore, plannerSyncScope, operations =>
+      replayTaskSyncRef.current({ ...scope, operations: operations as Parameters<typeof replayTaskSync.mutateAsync>[0]["operations"] })
+    );
+    if (result.records.length) {
+      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => {
+        if (!current) return current;
+        const syncedRecords = result.records as typeof current.tasks;
+        return {
+          ...current,
+          tasks: [
+            ...current.tasks
+              .filter(task => !syncedRecords.some(record => record.clientRequestId && record.clientRequestId === task.clientRequestId && record.id !== task.id))
+              .map(task => syncedRecords.find(record => record.id === task.id) ? { ...task, ...syncedRecords.find(record => record.id === task.id) } : task),
+            ...syncedRecords.filter(record => !current.tasks.some(task => task.id === record.id)),
+          ],
+        };
+      });
+      invalidatePlan();
+    }
+    setSyncSummary(current => ({ ...current, syncing: false, retry: result.retry > 0 }));
+    await refreshSyncSummary();
+  }, [invalidatePlan, plannerSyncScope, plannerSyncStore, range, scope, utils]);
+  useEffect(() => {
+    void refreshSyncSummary();
+    void replayPendingTaskUpdates();
+    const onOnline = () => { void replayPendingTaskUpdates(); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [refreshSyncSummary, replayPendingTaskUpdates]);
+  useEffect(() => {
+    if (!serverSyncConflicts.data) return;
+    const conflictKeys = new Set([
+      ...localSyncConflicts.map(conflict => `${conflict.operationId}:${conflict.field}`),
+      ...serverSyncConflicts.data.map(conflict => `${conflict.operationId}:${conflict.field}`),
+    ]);
+    setSyncSummary(current => ({ ...current, needsReview: conflictKeys.size + reviewOperations.length }));
+  }, [localSyncConflicts, reviewOperations, serverSyncConflicts.data]);
+  const persistTaskPatch = async (task: any, patch: Record<string, unknown>) => {
+    const updateCachedTask = (record: Record<string, unknown>) => {
+      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
+        ...current,
+        tasks: current.tasks.map(item => item.id === task.id ? { ...item, ...record } : item),
+      } : current);
+    };
+    const saveOffline = async () => {
+      if (!plannerSyncStore) throw new Error("Offline storage is unavailable on this device.");
+      await queueTaskUpdate(plannerSyncStore, plannerSyncScope, task, patch);
+      updateCachedTask(patch);
+      await refreshSyncSummary();
+      return { record: { ...task, ...patch }, queued: true };
+    };
+    if (typeof navigator !== "undefined" && !navigator.onLine) return saveOffline();
+    try {
+      const record = await updateTask.mutateAsync({ ...scope, id: task.id, expectedVersion: task.version, patch: patch as any });
+      updateCachedTask(record);
+      return { record, queued: false };
+    } catch (error) {
+      if (isRetryableCaptureError(error)) return saveOffline();
+      throw error;
+    }
+  };
+  const persistTaskCreate = async (input: Record<string, any>, suppliedRequestId?: string) => {
+    const requestId = suppliedRequestId ?? (typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `task-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    const patch = {
+      state: "not_started",
+      priority: "medium",
+      horizon: "daily",
+      scheduleMode: "manual",
+      sortOrder: 0,
+      ...input,
+    };
+    const addCachedTask = (record: Record<string, any>) => {
+      utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current && !current.tasks.some(task => task.id === record.id || (record.clientRequestId && task.clientRequestId === record.clientRequestId)) ? {
+        ...current,
+        tasks: [...current.tasks, record as any],
+      } : current);
+    };
+    const saveOffline = async () => {
+      if (!plannerSyncStore) throw new Error("Offline storage is unavailable on this device.");
+      await queueTaskCreate(plannerSyncStore, plannerSyncScope, patch, requestId);
+      const now = new Date();
+      const record = {
+        id: `offline:${requestId}`, workspaceId: scope.workspaceId, clientRequestId: requestId,
+        description: null, categoryId: null, goalId: null, projectId: null, parentTaskId: null,
+        dueLocalDate: null, scheduledLocalDate: null, plannedStartAt: null, plannedEndAt: null,
+        estimateMinutes: null, recurrenceRule: null, recurrenceAnchor: null, recurrenceUntilLocalDate: null,
+        completedAt: null, archivedAt: null, outcome: "none", outcomeAt: null, rescheduleCount: 0,
+        createdAt: now, updatedAt: now, version: 1, ...patch,
+      };
+      addCachedTask(record);
+      await refreshSyncSummary();
+      return { record, queued: true };
+    };
+    if (typeof navigator !== "undefined" && !navigator.onLine) return saveOffline();
+    try {
+      const record = await createTask.mutateAsync({ ...scope, ...patch, clientRequestId: requestId } as any);
+      addCachedTask(record);
+      return { record, queued: false };
+    } catch (error) {
+      if (isRetryableCaptureError(error)) return saveOffline();
+      throw error;
+    }
+  };
+  const createSubtaskSafely = (parent: any, title: string) => {
+    if (String(parent.id).startsWith("offline:")) throw new Error("Sync the parent task before adding a subtask so the relationship cannot be lost.");
+    return persistTaskCreate({
+      title,
+      parentTaskId: parent.id,
+      goalId: parent.goalId,
+      projectId: parent.projectId,
+      categoryId: parent.categoryId,
+      priority: parent.priority,
+      horizon: parent.horizon,
+      sortOrder: parent.sortOrder + 1,
+    });
+  };
+  const resolveReviewedConflict = async (conflict: any, choice: "local" | "server") => {
+    try {
+      const result = await resolveConflict.mutateAsync({ ...scope, conflictId: conflict.id, choice });
+      if (plannerSyncStore) await plannerSyncStore.removeConflict(plannerSyncScope, conflict.operationId, conflict.field);
+      if (result.record) {
+        utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
+          ...current,
+          tasks: current.tasks.map(task => task.id === result.record?.id ? { ...task, ...result.record } : task),
+        } : current);
+      }
+      await Promise.all([serverSyncConflicts.refetch(), refreshSyncSummary()]);
+      invalidatePlan();
+      toast.success(choice === "local" ? "This device's value is now saved." : "The server value was kept.");
+    } catch (error) {
+      await serverSyncConflicts.refetch();
+      invalidatePlan();
+      toast.error(error instanceof Error && /changed/i.test(error.message)
+        ? "This item changed again. Fresh values are ready for review."
+        : "That choice could not be saved. Nothing was discarded.");
+    }
+  };
+  const discardReviewedOperation = async (operationId: string) => {
+    if (!plannerSyncStore) return;
+    await plannerSyncStore.acknowledge(plannerSyncScope, operationId);
+    setDiscardOperationId(null);
+    await refreshSyncSummary();
+    toast.success("The unsynced change was discarded. Existing planner data was not deleted.");
   };
   const refreshOfflineCaptureCount = useCallback(() => {
     setOfflineCaptureCount(capturesForWorkspace(scope.workspaceId).length);
     announceOfflineCaptureChange();
   }, [scope.workspaceId]);
   const replayOfflineCaptures = useCallback(async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const captures = capturesForWorkspace(scope.workspaceId);
     if (!captures.length) return;
-    let synced = 0;
+    if (!plannerSyncStore) return;
+    let migrated = 0;
     for (const capture of captures) {
       try {
-        await createTask.mutateAsync({
-          workspaceId: capture.workspaceId,
-          timezone: capture.timezone,
+        await queueTaskCreate(plannerSyncStore, plannerSyncScope, {
           title: capture.title,
           scheduledLocalDate: capture.scheduledLocalDate,
           state: "not_started",
           priority: "medium",
           horizon: "daily",
           sortOrder: 0,
-          clientRequestId: capture.id,
-        });
+        }, capture.id, capture.createdAt);
         removeOfflineTaskCapture(capture.id);
-        synced += 1;
-      } catch (error) {
-        if (!isRetryableCaptureError(error))
-          toast.error(
-            "A saved capture needs attention. Reopen it online and add it from the task composer."
-          );
+        migrated += 1;
+      } catch {
         break;
       }
     }
     refreshOfflineCaptureCount();
-    if (synced) {
-      toast.success(
-        `${synced} saved capture${synced === 1 ? "" : "s"} added to Today.`
-      );
-      invalidatePlan();
-    }
+    await refreshSyncSummary();
+    if (migrated && (typeof navigator === "undefined" || navigator.onLine)) await replayPendingTaskUpdates();
   }, [
-    createTask,
-    invalidatePlan,
+    plannerSyncScope,
+    plannerSyncStore,
+    refreshSyncSummary,
     refreshOfflineCaptureCount,
+    replayPendingTaskUpdates,
     scope.workspaceId,
   ]);
   useEffect(() => {
@@ -6639,31 +6887,16 @@ export default function Home() {
     if (task.state === nextState) return null;
     setOptimisticTaskStates(current => ({ ...current, [task.id]: nextState }));
     try {
-      const updated = await updateTask.mutateAsync({
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { state: nextState },
-      });
-      utils.planner.workspace.snapshot.setData(
-        { ...scope, ...range },
-        current =>
-          current
-            ? {
-                ...current,
-                tasks: current.tasks.map(item =>
-                  item.id === task.id ? { ...item, ...updated } : item
-                ),
-              }
-            : current
-      );
+      const result = await persistTaskPatch(task, { state: nextState });
       setOptimisticTaskStates(current => {
         const { [task.id]: _, ...remaining } = current;
         return remaining;
       });
       utils.planner.dashboard.invalidate();
       toast.success(
-        `${task.title} moved to ${taskBoardLanes.find(item => item.id === lane)?.label}.`
+        result.queued
+          ? `${task.title} moved on this device. It will sync when you are online.`
+          : `${task.title} moved to ${taskBoardLanes.find(item => item.id === lane)?.label}.`
       );
       return null;
     } catch (error) {
@@ -6678,31 +6911,42 @@ export default function Home() {
   };
   const toggleTask = (task: any) =>
     moveTaskToLane(task, task.state === "completed" ? "todo" : "completed");
+  const reorderTaskInLane = async (task: any, direction: -1 | 1, laneTasks: any[]): Promise<string | null> => {
+    const index = laneTasks.findIndex(item => item.id === task.id);
+    const neighborIndex = index + direction;
+    if (index < 0 || neighborIndex < 0 || neighborIndex >= laneTasks.length) return null;
+    const nextOrder = nextTaskSortOrder(laneTasks, task.id, direction);
+    if (nextOrder === null) return null;
+    try {
+      const result = await persistTaskPatch(task, { sortOrder: nextOrder });
+      toast.success(result.queued ? "Task order saved on this device." : "Task order updated.");
+      return null;
+    } catch (error) {
+      const message = taskActionRecoveryMessage(error);
+      toast.error(message);
+      return message;
+    }
+  };
   const archiveTaskFromPhone = (task: any) => {
     if (task.state === "archived") return;
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { state: "archived" },
-      },
-      {
-        onSuccess: () => {
-          toast.success(
-            `${task.title} archived. Restore it from Archived work.`
-          );
-          invalidatePlan();
-        },
-        onError: error =>
-          toast.error(
-            error.message ||
-              "This task could not be archived. It remains unchanged."
-          ),
-      }
-    );
+    void persistTaskPatch(task, { state: "archived" }).then(result => {
+      toast.success(result.queued
+        ? `${task.title} moved to Archived on this device and will sync later.`
+        : `${task.title} archived. Restore it from Archived work.`);
+      if (!result.queued) invalidatePlan();
+    }).catch(error => toast.error(error instanceof Error ? error.message : "This task could not be archived. It remains unchanged."));
   };
   const archiveCompletedTasks = async (tasksToArchive: any[]) => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        for (const task of tasksToArchive) await persistTaskPatch(task, { state: "archived" });
+        toast.success(`${tasksToArchive.length} completed task${tasksToArchive.length === 1 ? "" : "s"} moved to Archived on this device.`);
+        return true;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "The completed tasks could not all be saved offline.");
+        return false;
+      }
+    }
     const batches = Array.from(
       { length: Math.ceil(tasksToArchive.length / 100) },
       (_, index) => tasksToArchive.slice(index * 100, (index + 1) * 100)
@@ -6728,43 +6972,19 @@ export default function Home() {
       return false;
     }
   };
-  const restoreArchivedTask = (task: any) =>
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { state: "not_started" },
-      },
-      {
-        onSuccess: () => toast.success(`${task.title} restored to To do.`),
-        onError: error =>
-          toast.error(
-            error.message ||
-              "This archived task could not be restored. Refresh and try again."
-          ),
-      }
-    );
+  const restoreArchivedTask = (task: any) => {
+    void persistTaskPatch(task, { state: "not_started" })
+      .then(result => toast.success(result.queued ? `${task.title} restored on this device and will sync later.` : `${task.title} restored to To do.`))
+      .catch(error => toast.error(error instanceof Error ? error.message : "This archived task could not be restored. Refresh and try again."));
+  };
   const scheduleTask = (id: string, date: string) => {
     const task = activeTasks.find(item => item.id === id);
     if (!task) return;
     setCalendarActionError(null);
     setLastCalendarMove({ id, date });
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { scheduledLocalDate: date },
-      },
-      {
-        onSuccess: () => toast.success(`${task.title} planned for ${date}.`),
-        onError: error =>
-          setCalendarActionError(
-            error.message || "This task could not be planned on the calendar."
-          ),
-      }
-    );
+    void persistTaskPatch(task, { scheduledLocalDate: date })
+      .then(result => toast.success(result.queued ? `${task.title} planned on this device and will sync later.` : `${task.title} planned for ${date}.`))
+      .catch(error => setCalendarActionError(error instanceof Error ? error.message : "This task could not be planned on the calendar."));
   };
   const resizeTaskReservation = (task: any, minutes: number) => {
     if (!task.plannedStartAt || !task.plannedEndAt) return;
@@ -6781,29 +7001,42 @@ export default function Home() {
       return;
     }
     setCalendarActionError(null);
-    updateTask.mutate(
-      {
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { plannedEndAt: nextEnd, estimateMinutes: nextDuration },
-      },
-      {
-        onSuccess: () =>
-          toast.success(`${task.title} now reserves ${nextDuration} minutes.`),
-        onError: error =>
-          setCalendarActionError(
-            error.message ||
-              "This reservation could not be resized. Refresh and try again."
-          ),
-      }
-    );
+    void persistTaskPatch(task, { plannedEndAt: nextEnd, estimateMinutes: nextDuration })
+      .then(result => toast.success(result.queued ? `${task.title}'s new duration is saved on this device.` : `${task.title} now reserves ${nextDuration} minutes.`))
+      .catch(error => setCalendarActionError(error instanceof Error ? error.message : "This reservation could not be resized. Refresh and try again."));
   };
   const retryCalendarMove = () => {
     if (lastCalendarMove)
       scheduleTask(lastCalendarMove.id, lastCalendarMove.date);
   };
-  const createQuickTask = (event: FormEvent) => {
+  const saveQuickTaskOffline = async (capture: ReturnType<typeof createOfflineTaskCapture>) => {
+    if (!plannerSyncStore) {
+      if (!queueOfflineTaskCapture(capture)) throw new Error("This device could not save the capture locally.");
+      refreshOfflineCaptureCount();
+      return;
+    }
+    await queueTaskCreate(plannerSyncStore, plannerSyncScope, {
+      title: capture.title,
+      scheduledLocalDate: capture.scheduledLocalDate,
+      state: "not_started",
+      priority: "medium",
+      horizon: "daily",
+      sortOrder: 0,
+    }, capture.id, capture.createdAt);
+    utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current && !current.tasks.some(task => task.clientRequestId === capture.id) ? {
+      ...current,
+      tasks: [...current.tasks, {
+        id: `offline:${capture.id}`, workspaceId: scope.workspaceId, clientRequestId: capture.id,
+        title: capture.title, description: null, state: "not_started", priority: "medium", horizon: "daily",
+        scheduledLocalDate: capture.scheduledLocalDate, dueLocalDate: null, estimateMinutes: null, sortOrder: 0,
+        categoryId: null, goalId: null, projectId: null, parentTaskId: null, recurrenceRule: null,
+        scheduleMode: "manual", plannedStartAt: null, plannedEndAt: null, version: 1,
+        completedAt: null, archivedAt: null, createdAt: new Date(capture.createdAt), updatedAt: new Date(capture.createdAt),
+      } as any],
+    } : current);
+    await refreshSyncSummary();
+  };
+  const createQuickTask = async (event: FormEvent) => {
     event.preventDefault();
     const title = quickTitle.trim();
     if (!title || createTask.isPending) return;
@@ -6815,18 +7048,19 @@ export default function Home() {
     });
     setQuickTitle("");
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      if (queueOfflineTaskCapture(capture)) {
-        refreshOfflineCaptureCount();
+      try {
+        await saveQuickTaskOffline(capture);
         toast.message(
           "Saved on this device. It will be added to Today when you are online."
         );
-      } else
+      } catch {
         toast.error(
           "This device could not save the capture locally. Reconnect and try again."
         );
+      }
       return;
     }
-    void createTask
+    await createTask
       .mutateAsync({
         ...scope,
         title,
@@ -6838,12 +7072,14 @@ export default function Home() {
         clientRequestId: capture.id,
       })
       .then(() => toast.success("Added to Today."))
-      .catch(error => {
-        if (
-          isRetryableCaptureError(error) &&
-          queueOfflineTaskCapture(capture)
-        ) {
-          refreshOfflineCaptureCount();
+      .catch(async error => {
+        if (isRetryableCaptureError(error)) {
+          try {
+            await saveQuickTaskOffline(capture);
+          } catch {
+            toast.error("This device could not save the capture locally. Reconnect and try again.");
+            return;
+          }
           toast.message(
             "Saved on this device. It will retry when you are online."
           );
@@ -6873,8 +7109,7 @@ export default function Home() {
     habitSchedule: Record<string, unknown> | null;
   }) => {
     if (composerKind === "task")
-      await createTask.mutateAsync({
-        ...scope,
+      await persistTaskCreate({
         title: values.title,
         categoryId: values.categoryId,
         goalId: values.goalId,
@@ -6934,8 +7169,7 @@ export default function Home() {
     let created = 0;
     try {
       for (const draft of drafts) {
-        await createTask.mutateAsync({
-          ...scope,
+        await persistTaskCreate({
           title: draft.title.trim(),
           projectId: project.id,
           goalId: project.goalId ?? null,
@@ -6947,8 +7181,7 @@ export default function Home() {
           priority: "medium",
           horizon: "weekly",
           sortOrder: 0,
-          clientRequestId: draft.requestId,
-        });
+        }, draft.requestId);
         created += 1;
       }
       toast.success(
@@ -6962,7 +7195,7 @@ export default function Home() {
     }
   };
 
-  if (snapshotQuery.error)
+  if (snapshotQuery.error && !snapshot)
     return (
       <div className="planner-error">
         <div>
@@ -7140,7 +7373,7 @@ export default function Home() {
                   }}
                 >
                   <CircleDot size={18} />
-                  <span>Manage categories</span>
+                  <span>Settings &amp; Recycle Bin</span>
                   <ChevronRight size={18} />
                 </button>
               </div>
@@ -7158,6 +7391,27 @@ export default function Home() {
         </div>
       </aside>
       <main className="planner-main">
+        {(availableSnapshot.isCached || syncSummary.pending > 0 || syncSummary.needsReview > 0 || syncSummary.syncing || syncSummary.retry) ? (
+          <section className="planner-sync-status" role="status" aria-live="polite">
+            <div>
+              <strong>{syncSummary.needsReview > 0 ? "Needs review" : syncSummary.syncing ? "Syncing saved work" : availableSnapshot.isCached ? "Using your saved planner" : "Work saved on this device"}</strong>
+              <span>
+                {syncSummary.needsReview > 0
+                  ? `${syncSummary.needsReview} change${syncSummary.needsReview === 1 ? "" : "s"} kept safely for review.`
+                  : syncSummary.syncing
+                    ? "Reconciling task changes without overwriting newer fields."
+                    : availableSnapshot.isCached && syncSummary.pending === 0
+                      ? "Showing the latest planner saved for this account and date range."
+                      : `${syncSummary.pending} task change${syncSummary.pending === 1 ? "" : "s"} waiting to sync.`}
+              </span>
+            </div>
+            {syncSummary.needsReview > 0 ? (
+              <Button size="sm" variant="outline" onClick={() => setSyncReviewOpen(true)}>Review safely</Button>
+            ) : !syncSummary.syncing && typeof navigator !== "undefined" && navigator.onLine ? (
+              <Button size="sm" variant="outline" onClick={() => void replayPendingTaskUpdates()}>Sync now</Button>
+            ) : null}
+          </section>
+        ) : null}
         <header className="planner-topbar">
           <div>
             <p className="top-date">
@@ -7198,7 +7452,7 @@ export default function Home() {
               variant="ghost"
               onClick={() => setCategoryDialogOpen(true)}
             >
-              Categories
+              Settings
             </Button>
             <Button
               className="primary-action"
@@ -7219,6 +7473,9 @@ export default function Home() {
                 onToggle={toggleTask}
                 onCompose={() => openComposer("task")}
                 onArchive={archiveTaskFromPhone}
+                onUpdate={persistTaskPatch}
+                onCreateSubtask={createSubtaskSafely}
+                syncReady={!availableSnapshot.isCached && syncSummary.pending === 0 && syncSummary.needsReview === 0 && !syncSummary.retry && (typeof navigator === "undefined" || navigator.onLine)}
               />
               <Timeline
                 tasks={activeTasks}
@@ -7338,6 +7595,9 @@ export default function Home() {
               onCompose={() => openComposer("task")}
               onArchiveCompleted={archiveCompletedTasks}
               onArchive={archiveTaskFromPhone}
+              onUpdate={persistTaskPatch}
+              onCreateSubtask={createSubtaskSafely}
+              onReorder={reorderTaskInLane}
               isSearching={Boolean(taskSearch.trim())}
             />
             <TaskArchivePanel
@@ -7570,6 +7830,60 @@ export default function Home() {
         onOpenChange={setCategoryDialogOpen}
         categories={snapshot.categories}
       />
+      <Dialog open={syncReviewOpen} onOpenChange={open => { setSyncReviewOpen(open); if (!open) setDiscardOperationId(null); }}>
+        <DialogContent className="composer-dialog sync-review-dialog">
+          <DialogHeader>
+            <DialogTitle>Review saved changes</DialogTitle>
+            <DialogDescription>
+              Both versions stay available until you choose. Nothing here is deleted automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="sync-review-list">
+            {serverSyncConflicts.data?.map(conflict => (
+              <article className="sync-review-card" key={conflict.id}>
+                <div className="sync-review-heading">
+                  <span>{conflict.entity === "task" ? "Task" : conflict.entity}</span>
+                  <strong>{conflict.field.replace(/([A-Z])/g, " $1").replace(/^./, value => value.toUpperCase())}</strong>
+                </div>
+                <div className="sync-review-values">
+                  <div><small>This device</small><span>{formatSyncValue(conflict.localValue)}</span></div>
+                  <div><small>Saved online</small><span>{formatSyncValue(conflict.serverValue)}</span></div>
+                </div>
+                <div className="sync-review-actions">
+                  <Button variant="outline" disabled={resolveConflict.isPending} onClick={() => void resolveReviewedConflict(conflict, "server")}>Keep online</Button>
+                  <Button className="primary-action" disabled={resolveConflict.isPending} onClick={() => void resolveReviewedConflict(conflict, "local")}>Use this device</Button>
+                </div>
+              </article>
+            ))}
+            {localSyncConflicts.length > 0 && !serverSyncConflicts.data?.length ? (
+              <div className="sync-review-message">
+                <strong>{typeof navigator !== "undefined" && !navigator.onLine ? "Connect to compare both versions" : "Loading retained versions"}</strong>
+                <span>Your device copy remains stored safely.</span>
+              </div>
+            ) : null}
+            {reviewOperations.map(operation => (
+              <article className="sync-review-card" key={operation.operationId}>
+                <div className="sync-review-heading"><span>Unsynced task change</span><strong>Needs a decision</strong></div>
+                <p>{Object.entries(operation.patch).map(([field, value]) => `${field}: ${formatSyncValue(value)}`).join(" · ")}</p>
+                <small>The original item was not found online. Keep this change for later, or explicitly discard only this unsynced copy.</small>
+                <div className="sync-review-actions">
+                  {discardOperationId === operation.operationId ? (
+                    <>
+                      <Button variant="outline" onClick={() => setDiscardOperationId(null)}>Keep for later</Button>
+                      <Button variant="destructive" onClick={() => void discardReviewedOperation(operation.operationId)}>Confirm discard</Button>
+                    </>
+                  ) : (
+                    <Button variant="outline" onClick={() => setDiscardOperationId(operation.operationId)}>Discard unsynced change</Button>
+                  )}
+                </div>
+              </article>
+            ))}
+            {!serverSyncConflicts.isLoading && !serverSyncConflicts.data?.length && !localSyncConflicts.length && !reviewOperations.length ? (
+              <div className="sync-review-message"><strong>All caught up</strong><span>There are no retained conflicts to review.</span></div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
       <MobileCustomizationSheet
         open={mobileCustomizationOpen}
         onOpenChange={setMobileCustomizationOpen}

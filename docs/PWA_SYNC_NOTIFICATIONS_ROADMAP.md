@@ -1,6 +1,6 @@
 # Reliable PWA, Sync, and Notifications Roadmap
 
-Status: approved product direction; Phase 1 implemented and locally verified, Preview/device gates pending.
+Status: Phase 1 deployed; Phase 2 and Phase 3 implementation/infrastructure complete on the workbench release candidate, awaiting Preview and Production verification. Physical-iPhone offline and notification-delivery checks remain delegated to the user.
 
 Last updated: 2026-09-12
 
@@ -25,17 +25,23 @@ Detailed design: `docs/superpowers/specs/2026-09-12-reliable-pwa-foundation-desi
 
 Local implementation evidence (2026-09-12): deterministic release `a5f1f2018fa6b158`, 20 public shell files, full TypeScript/test/build gate, cached offline relaunch at desktop and 390x844, honest cold-offline behavior, explicit waiting-update activation, preservation of unrelated caches, and no API/private Cache Storage entries. Vercel Preview and real-iPhone installation remain required before Phase 1 is release-complete.
 
+Deployment evidence: workbench Preview release `a19a367f5ecb20f4` and Production release `0962e8db7704ad8f` both expose the complete manifest and 20-entry public shell without API/private cache entries. Production online phone rendering passed at 390x844. The user will perform the physical-iPhone offline/relaunch check; engineering proceeds to Phase 2 without claiming that device gate was automated.
+
 ## Phase 2: lean secure synchronization
 
 Use account-scoped IndexedDB storage for the latest workspace snapshot and an immutable queue of pending operations. Continue using existing backend ownership checks and record versions. Reconnect by replaying idempotent operations, resolving safe field merges, retaining overlapping conflicts for review, then downloading a fresh complete workspace snapshot.
 
-The first release intentionally excludes CRDTs, real-time collaborative editing, complex incremental feeds, device administration, and diagnostic export. A separate design and implementation plan will define exact schemas and supported offline mutations after Phase 1 passes its production gate.
+The first release intentionally excludes CRDTs, real-time collaborative editing, complex incremental feeds, device administration, and diagnostic export. The approved contract and execution sequence are recorded in `docs/superpowers/specs/2026-09-12-secure-offline-sync-design.md` and `docs/superpowers/plans/2026-09-12-secure-offline-sync.md`. Unsupported offline actions remain visibly online-only until their complete implementation slice ships.
+
+Release-candidate scope: all account planner sections are retained in the scoped offline snapshot for reading. Task creation, full edits, state transitions, archive/restore, scheduling, reservations, quick capture, project-breakdown task creation, and visible reordering use the durable task queue. A fresh server refetch cannot hide pending/retry task work because those operations are deterministically overlaid; review-state overlaps remain unoverlaid and explicit. Other entity writes are deliberately connection-gated in this lean release, avoiding an unsafe half-sync implementation.
 
 ## Phase 3: phone notifications, reminders, and calendar bridges
 
 Notifications are device-specific and opt-in. Reminder rules are account data and synchronize through the backend. Activation requires a linked identity, healthy sync, a compatible installed PWA, an explicit user gesture, and a valid device subscription.
 
 The Apple Calendar bridge remains standards-based: a private revocable outbound calendar subscription, a read-only inbound ICS availability overlay, and one-off `.ics` export. Native EventKit and credential-based Apple account access are outside a web PWA and remain deferred.
+
+Release-candidate infrastructure: Production and Preview have the required VAPID/app-origin configuration; Production has a generated server-only scheduler secret matched through Supabase Vault. The exact independent Supabase project has Vault plus installed `pg_cron`/`pg_net`, and exactly one `personal-calendar-reminder-sweep` job runs every five minutes. Activation preserved planner counts. The database currently has zero subscriptions and zero reminder rules, so no delivery is claimed before the user connects the installed iPhone and enables a cadence.
 
 ## Phase 4: holistic phone UI/UX polish
 

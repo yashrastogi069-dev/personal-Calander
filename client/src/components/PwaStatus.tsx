@@ -32,7 +32,7 @@ function contentFor(state: PwaState, actions: PwaActions): StatusContent | null 
       icon: WifiOff,
       eyebrow: "Connection paused",
       title: "You’re offline",
-      detail: "Quick captures stay on this device. Full offline planner sync arrives in the next phase.",
+      detail: "Your saved planner and supported task changes stay on this device until you reconnect.",
       tone: "offline",
       action: { label: "Try again", run: () => { void actions.retryConnection(); } },
     };

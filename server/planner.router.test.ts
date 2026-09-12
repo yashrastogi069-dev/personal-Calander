@@ -7,6 +7,7 @@ import type { TrpcContext } from "./_core/context";
 import * as planning from "./planning";
 import * as focus from "./focus";
 import * as scheduling from "./scheduling";
+import * as synchronization from "./sync";
 
 function createAuthenticatedContext(): TrpcContext {
   const now = new Date("2026-01-01T00:00:00.000Z");
@@ -28,6 +29,66 @@ function createAuthenticatedContext(): TrpcContext {
 }
 
 describe("planner task API", () => {
+  it("lists and resolves synchronization conflicts through the owned workspace boundary", async () => {
+    const conflict = {
+      id: "conflict-1",
+      workspaceId: "workspace-api-check",
+      operationId: "operation-1",
+      entity: "task",
+      entityId: "task-1",
+      field: "title",
+      baseValue: "Before",
+      localValue: "Device",
+      serverValue: "Phone",
+      serverVersion: 5,
+      state: "needs_review",
+      resolvedValue: null,
+      createdAt: new Date("2026-09-12T10:00:00.000Z"),
+      resolvedAt: null,
+    };
+    const list = vi.spyOn(synchronization, "getOpenSyncConflicts").mockResolvedValue([conflict] as never);
+    const resolve = vi.spyOn(synchronization, "resolveSyncConflict").mockResolvedValue({ ...conflict, state: "resolved_server", record: null } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+
+    await expect(caller.planner.sync.conflicts(scope)).resolves.toEqual([conflict]);
+    await expect(caller.planner.sync.resolve({ ...scope, conflictId: conflict.id, choice: "server" })).resolves.toMatchObject({ id: conflict.id, state: "resolved_server" });
+    expect(list).toHaveBeenCalledWith(scope);
+    expect(resolve).toHaveBeenCalledWith(scope, { conflictId: conflict.id, choice: "server" });
+    list.mockRestore(); resolve.mockRestore();
+  });
+
+  it("replays a bounded sync batch independently and preserves later operations after one rejection", async () => {
+    const replay = vi.spyOn(synchronization, "processTaskUpdateOperation")
+      .mockRejectedValueOnce(new Error("Task was not found in this workspace."))
+      .mockResolvedValueOnce({ operationId: "operation-2", outcome: "applied", appliedFields: ["title"], alreadyAppliedFields: [], conflicts: [], record: { id: "task-2", version: 2 } });
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const base = { entity: "task" as const, kind: "update" as const, baseVersion: 1, createdAt: "2026-09-12T10:00:00.000Z" };
+    const results = await caller.planner.sync.replay({ workspaceId: "workspace-api-check", timezone: "UTC", operations: [
+      { ...base, operationId: "operation-1", entityId: "task-1", baseValues: { title: "Old" }, patch: { title: "First" } },
+      { ...base, operationId: "operation-2", entityId: "task-2", baseValues: { title: "Old" }, patch: { title: "Second" } },
+    ] });
+
+    expect(results).toEqual([
+      { operationId: "operation-1", status: "rejected", code: "not_found" },
+      expect.objectContaining({ operationId: "operation-2", status: "completed", outcome: "applied" }),
+    ]);
+    expect(replay).toHaveBeenCalledTimes(2);
+  });
+
+  it("replays an offline task capture idempotently through its client request ID", async () => {
+    const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-created", clientRequestId: "capture-sync-1", title: "Captured offline", version: 1 } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const result = await caller.planner.sync.replay({ workspaceId: "workspace-api-check", timezone: "UTC", operations: [{
+      operationId: "capture-sync-1", entity: "task", entityId: "offline:capture-sync-1", kind: "create", baseVersion: null,
+      baseValues: {}, patch: { title: "Captured offline", scheduledLocalDate: "2026-09-12", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 },
+      createdAt: "2026-09-12T10:00:00.000Z",
+    }] });
+    expect(result).toEqual([expect.objectContaining({ operationId: "capture-sync-1", status: "completed", record: expect.objectContaining({ id: "task-created" }) })]);
+    expect(create).toHaveBeenCalledWith({ workspaceId: "workspace-api-check", timezone: "UTC" }, expect.objectContaining({ title: "Captured offline", clientRequestId: "capture-sync-1" }));
+    create.mockRestore();
+  });
+
   it("rejects planner access without a validated Supabase user", async () => {
     const caller = appRouter.createCaller({ ...createAuthenticatedContext(), user: null });
     await expect(caller.planner.workspace.snapshot({ workspaceId: "workspace-api-check", timezone: "UTC", start: "2026-08-24", end: "2026-08-24" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -303,6 +364,15 @@ describe("planner task API", () => {
   it("rejects an unsafe test-notification origin before a push can be sent", async () => {
     const caller = appRouter.createCaller(createAuthenticatedContext());
     await expect(caller.planner.notification.testDevice({ workspaceId: "workspace-api-check", timezone: "UTC", subscriptionId: "device-1", origin: "http://example.test" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("returns the active private calendar feed without creating a new token", async () => {
+    const current = vi.spyOn(planning, "getActiveCalendarFeed").mockResolvedValue({ id: "feed-1", token: "private-feed-token", isEnabled: 1 } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+    await expect(caller.planner.calendarFeed.current(scope)).resolves.toMatchObject({ id: "feed-1", token: "private-feed-token" });
+    expect(current).toHaveBeenCalledWith(scope);
+    current.mockRestore();
   });
 
   it("activates the approved Auckland cadence without requiring an anonymous browser session to provision per-user cron jobs", async () => {

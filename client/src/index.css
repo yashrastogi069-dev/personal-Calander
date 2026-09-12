@@ -89,6 +89,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .workspace-pill strong, .workspace-pill small { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .workspace-pill strong { color:#d9dcd4; font-size:11px; font-weight:600; }.workspace-pill small { color:#6f766e; margin-top:2px; font:9px "IBM Plex Mono", monospace; }
 .planner-main { min-width:0; padding:0 34px 48px; overflow:hidden; }
+.planner-sync-status { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:14px 0 0; padding:11px 13px; border:1px solid rgba(40,93,82,.2); border-radius:16px; background:rgba(255,255,255,.72); box-shadow:0 8px 24px rgba(25,53,45,.07); backdrop-filter:blur(14px); }
+.planner-sync-status > div { display:grid; gap:2px; min-width:0; }
+.planner-sync-status strong { color:#1f4f45; font-size:13px; letter-spacing:.01em; }
+.planner-sync-status span { color:#53645e; font-size:12px; line-height:1.35; }
+.planner-sync-status button { min-height:40px; flex:none; }
+.sync-review-dialog { max-width:38rem; }
+.sync-review-list { display:grid; gap:10px; max-height:min(62dvh, 34rem); overflow:auto; padding:3px 2px 4px; overscroll-behavior:contain; }
+.sync-review-card { display:grid; gap:11px; padding:14px; border:1px solid #d3ded9; border-radius:13px; background:#fbfcfb; }
+.sync-review-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.sync-review-heading span { color:#60746d; font:600 9px "IBM Plex Mono", monospace; letter-spacing:.06em; text-transform:uppercase; }
+.sync-review-heading strong { color:#254b41; font-size:12px; }
+.sync-review-values { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sync-review-values > div { display:grid; align-content:start; gap:6px; min-width:0; min-height:72px; padding:10px; border:1px solid #dde6e2; border-radius:10px; background:#f2f6f4; }
+.sync-review-values small, .sync-review-card > small { color:#657772; font-size:10px; line-height:1.45; }
+.sync-review-values span { overflow-wrap:anywhere; color:#203c35; font-size:12px; line-height:1.4; }
+.sync-review-card p { margin:0; overflow-wrap:anywhere; color:#29483f; font-size:11px; line-height:1.5; }
+.sync-review-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.sync-review-actions button { min-height:40px; }
+.sync-review-message { display:grid; gap:4px; padding:18px; border:1px dashed #cbdad4; border-radius:12px; background:#f5f8f6; text-align:center; }
+.sync-review-message strong { color:#294d43; font-size:13px; }
+.sync-review-message span { color:#697b75; font-size:11px; }
 .destination-loading { display:grid; place-items:center; align-content:center; gap:14px; min-height:320px; margin-top:30px; border:1px solid rgba(198,240,106,.16); border-radius:16px; background:linear-gradient(135deg, rgba(198,240,106,.055), transparent 44%), #131614; color:#aeb7ab; text-align:center; }
 .destination-loading span { display:block; width:48px; height:3px; overflow:hidden; border-radius:999px; background:#2b332d; }
 .destination-loading span::after { content:""; display:block; width:58%; height:100%; border-radius:inherit; background:#c6f06a; transform:translateX(-78%); }
@@ -178,7 +199,10 @@ html, body { background:#f6f7f8; color:#1b2422; }
 .task-lane-task > .task-row:first-child { border-top:1px solid #dce7e3; }
 .task-lane-task > .task-row:hover { background:#fff; }
 .task-drag-handle { position:absolute; z-index:1; top:17px; left:7px; color:#93a49f; pointer-events:none; }
-.task-lane-select { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px 8px 30px; color:#70817c; border:1px solid #dce7e3; border-top:0; border-radius:0 0 11px 11px; background:#f8fbfa; font-size:9px; }
+.task-order-actions { position:absolute; z-index:2; left:7px; bottom:6px; display:flex; gap:3px; }
+.task-order-actions button { display:grid; place-items:center; width:34px; height:34px; padding:0; color:#567068; border:1px solid #cfdfd9; border-radius:7px; background:#fff; }
+.task-order-actions button:disabled { opacity:.34; cursor:default; }
+.task-lane-select { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:46px; padding:6px 9px 6px 84px; color:#70817c; border:1px solid #dce7e3; border-top:0; border-radius:0 0 11px 11px; background:#f8fbfa; font-size:9px; }
 .task-lane-select select { min-width:102px; min-height:27px; padding:3px 22px 3px 7px; color:#31564b; border:1px solid #cfdfd9; border-radius:6px; background:#fff; font-size:10px; }
 .task-lane-select select:disabled { opacity:.62; cursor:wait; }
 .task-lane-empty { display:grid; place-items:center; min-height:148px; padding:18px; color:#81918c; border:1px dashed #cbdcd6; border-radius:10px; background:rgba(255,255,255,.54); font-size:10px; line-height:1.45; text-align:center; }
@@ -207,11 +231,21 @@ html, body { background:#f6f7f8; color:#1b2422; }
   .task-lane-task > .task-row { min-height:64px; padding-right:6px; }
   .task-lane-select { min-height:38px; padding-left:30px; font-size:10px; }
   .task-lane-select select { min-height:30px; font-size:11px; }
+  .task-order-actions { left:6px; bottom:5px; }
+  .task-order-actions button { width:44px; height:44px; }
+  .task-lane-select { min-height:54px; padding-left:102px; }
 }
 
 /* Phone-first planner refinement: preserve the desktop rail, but make the six
    core planning surfaces legible and thumb-reachable on an installed PWA. */
 @media (max-width:680px) {
+  .planner-sync-status { align-items:flex-start; margin-top:10px; padding:12px; border-radius:14px; }
+  .planner-sync-status button { min-height:44px; }
+  .sync-review-dialog { width:calc(100% - 1rem) !important; max-height:calc(100dvh - 1rem) !important; padding:18px 14px calc(14px + env(safe-area-inset-bottom)); border-radius:18px; }
+  .sync-review-list { max-height:calc(100dvh - 10rem); }
+  .sync-review-values { grid-template-columns:1fr; }
+  .sync-review-actions { display:grid; grid-template-columns:1fr 1fr; }
+  .sync-review-actions button { min-height:46px; white-space:normal; }
   .planner-rail {
     position:fixed;
     inset:auto 0 0;
@@ -860,6 +894,7 @@ html, body { background:#e8ecea; color:#182420; }
 .task-drag-handle { color:rgba(255,255,255,.58); }
 .task-lane-select { color:var(--lane-muted); border-color:rgba(255,255,255,.17); background:rgba(0,0,0,.14); }
 .task-lane-select select { color:var(--lane-text); border-color:var(--lane-control-border); background:rgba(0,0,0,.18); }
+.task-order-actions button { color:var(--lane-text); border-color:var(--lane-control-border); background:rgba(0,0,0,.18); }
 .task-lane-select select option { color:#17201d; background:#fff; }
 .task-lane-empty { color:var(--lane-muted); border-color:rgba(255,255,255,.25); background:rgba(0,0,0,.11); }
 .task-lane-empty button { color:var(--lane-text); border-color:var(--lane-control-border); background:var(--lane-control); }

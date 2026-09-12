@@ -16,7 +16,8 @@ def fixtures():
     snapshot["categories"] = [{"id": "preview-category", "name": "Personal", "color": "#C6F06A", "sortOrder": 0}]
     for i, title in enumerate(["Plan a focused week", "Review the calendar", "Make time for a walk"]):
         snapshot["tasks"].append({"id": f"preview-task-{i}", "workspaceId": workspace["id"], "title": title, "state": "not_started", "priority": "medium", "horizon": "daily", "categoryId": "preview-category", "scheduledLocalDate": "2026-09-06", "dueLocalDate": None, "estimateMinutes": 30, "sortOrder": i, "version": 1, "projectId": None, "goalId": None, "parentTaskId": None, "recurrenceRule": None, "scheduleMode": "manual", "plannedStartAt": None, "plannedEndAt": None})
-    return {"planner.workspace.snapshot": snapshot, "planner.workspace.ensure": workspace, "planner.dashboard": {"workspace": workspace}, "planner.notification.devices": [], "planner.reminder.rules": [], "planner.review.history": []}
+    conflict = {"id": "preview-conflict-1", "workspaceId": workspace["id"], "operationId": "preview-operation-1", "entity": "task", "entityId": "preview-task-0", "field": "title", "baseValue": "Plan the week", "localValue": "Plan a focused week", "serverValue": "Plan a calm week", "serverVersion": 1, "state": "needs_review", "resolvedValue": None, "createdAt": "2026-09-06T08:00:00.000Z", "resolvedAt": None}
+    return {"planner.workspace.snapshot": snapshot, "planner.workspace.ensure": workspace, "planner.dashboard": {"workspace": workspace}, "planner.sync.conflicts": [conflict], "planner.calendarFeed.current": None, "planner.notification.devices": [], "planner.reminder.rules": [], "planner.review.history": []}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -34,11 +35,25 @@ def main():
                 context, page, errors = shared["new_page"](browser, size)
                 requests, unexpected = shared["install_preview"](context, args.url, "linked", fixtures())
                 page.goto(args.url, wait_until="networkidle")
+                if page.get_by_role("heading", name="Today", exact=True).count() == 0:
+                    raise AssertionError({"message": "Linked planner did not render", "runtimeErrors": errors, "requests": requests, "unexpected": unexpected, "body": page.locator("body").inner_text()[:1200]})
                 expect(page.get_by_role("heading", name="Today", exact=True)).to_be_visible(timeout=20000)
                 expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
                 assert "planner.workspace.snapshot" in requests, requests
                 assert not unexpected, unexpected
                 shared["assert_layout"](page, errors)
+                expect(page.get_by_role("button", name="Review safely", exact=True)).to_be_visible()
+                page.get_by_role("button", name="Review safely", exact=True).click()
+                review = page.get_by_role("dialog", name="Review saved changes")
+                expect(review).to_be_visible()
+                expect(review.get_by_text("Plan a focused week", exact=True)).to_be_visible()
+                expect(review.get_by_text("Plan a calm week", exact=True)).to_be_visible()
+                expect(review.get_by_role("button", name="Keep online", exact=True)).to_be_visible()
+                expect(review.get_by_role("button", name="Use this device", exact=True)).to_be_visible()
+                if size == "phone":
+                    page.wait_for_timeout(300)
+                    page.screenshot(path=str(args.output / "preview-linked-phone-sync-review.png"))
+                page.keyboard.press("Escape")
                 if size == "phone":
                     page.get_by_role("button", name="More", exact=True).click()
                     expect(page.locator("#mobile-more-sheet")).to_be_visible()
@@ -49,6 +64,15 @@ def main():
                     expect(page.get_by_role("heading", name="Make the planner yours", exact=True)).to_be_visible()
                     page.screenshot(path=str(args.output / "preview-linked-phone-settings.png"))
                     page.get_by_role("button", name="Done", exact=True).click()
+                if size == "phone":
+                    page.get_by_role("button", name="More", exact=True).click()
+                    page.get_by_role("button", name="Settings & Recycle Bin", exact=True).click()
+                else:
+                    page.get_by_role("button", name="Settings", exact=True).click()
+                recycle = page.get_by_role("dialog", name="Workspace settings & Recycle Bin")
+                expect(recycle).to_be_visible()
+                expect(recycle.get_by_text("Recycle Bin · kept indefinitely", exact=True)).to_be_visible()
+                page.keyboard.press("Escape")
                 page.get_by_role("button", name="Tasks", exact=True).click()
                 lanes = page.locator(".task-lane")
                 expect(lanes).to_have_count(3)
@@ -59,13 +83,45 @@ def main():
                 assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "Task board overflows the viewport"
                 task_path = args.output / f"preview-linked-task-lanes-{size}.png"
                 page.screenshot(path=str(task_path), full_page=True)
+                if size == "phone":
+                    context.set_offline(True)
+                    page.get_by_role("button", name="Edit Review the calendar", exact=True).click()
+                    editor = page.get_by_role("dialog", name="Refine the commitment")
+                    editor.get_by_label("Task", exact=True).fill("Review calendar offline")
+                    editor.get_by_role("button", name="Save changes", exact=True).click()
+                    expect(page.get_by_text("Review calendar offline", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="Move Plan a focused week down in To do", exact=True).click()
+                    page.get_by_role("button", name="Complete Plan a focused week", exact=True).click()
+                    capture = page.get_by_label("Quickly capture a task", exact=True)
+                    capture.fill("Captured while offline")
+                    capture.press("Enter")
+                    expect(page.get_by_text("Captured while offline", exact=True)).to_be_visible()
+                    expect(page.get_by_text("Needs review", exact=True)).to_be_visible()
+                    pending = page.evaluate("""async () => await new Promise((resolve, reject) => {
+                      const request = indexedDB.open('personal-calander-planner-v1');
+                      request.onerror = () => reject(request.error);
+                      request.onsuccess = () => {
+                        const count = request.result.transaction('operations').objectStore('operations').count();
+                        count.onerror = () => reject(count.error);
+                        count.onsuccess = () => resolve(count.result);
+                      };
+                    })""")
+                    assert pending == 4, pending
+                    result_offline = {"offlineTaskQueued": pending, "offlineScreenshot": str(args.output / "preview-linked-phone-offline-sync.png")}
+                    page.screenshot(path=result_offline["offlineScreenshot"], full_page=True)
+                else:
+                    result_offline = {}
                 path = args.output / f"preview-linked-home-{size}.png"
                 page.screenshot(path=str(path), full_page=True)
                 result = {"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "taskLaneScreenshot": str(task_path), "taskLaneSurfaces": lane_surfaces, "requests": requests}
+                result.update(result_offline)
                 try:
                     page.get_by_role("button", name="Sign out", exact=True).click(timeout=1500)
                     expect(page.get_by_role("button", name="Continue with Google")).to_be_visible()
                     result["signOutPointerAccessible"] = True
+                    if size == "phone":
+                        expect(page.get_by_text("1 task change waiting to sync.", exact=True)).not_to_be_visible()
+                        result["signedOutCacheHidden"] = True
                 except PlaywrightTimeoutError:
                     # Visibility is required above. Report pointer obstruction separately
                     # without disguising it through forced clicks or changing app styles.
