@@ -14,6 +14,8 @@ The live independent Supabase project `dwiudauuuxzstbavkkqa` was configured thro
 
 Fresh local evidence: TypeScript passed; 63 Vitest files passed with 272 tests and 3 intentional environment skips; the production build generated PWA release `8228c8b27d46f581` with 20 public shell files. Synthetic desktop 1440x1000 and phone 390x844 checks passed with zero horizontal overflow, exact dark Task-lane colors, conflict choices, Settings/Recycle Bin access, four simultaneous offline task operations, and signed-out cache isolation. The inspected phone screenshot is outside Git at `C:/Users/win 10/AppData/Local/Temp/personal-calendar-phase23-final/preview-linked-home-phone.png`.
 
+Deployment packaging correction: the first `bc2ff69` Production canary found that the dedicated Calendar and reminder TypeScript functions referenced source modules omitted by Vercel's serverless package (`ERR_MODULE_NOT_FOUND`). Cron remained paused. Both routes now use the same generated `dist/server/planner-app.mjs` Express artifact as the working tRPC function, with explicit `includeFiles` entries and a regression test covering all three planner entrypoints. A new Preview and Production canary are required before enabling the scheduler.
+
 ## 2026-09-12 secure synchronization checkpoint
 
 The account-scoped device foundation is committed as `bed7e00`. A second verified local slice adds additive `syncOperationReceipts` and `syncConflicts` schemas/migration, a workspace-owner-protected bounded replay procedure, task field three-way merging, durable client retry/review states, and offline support for common task state/schedule/reservation changes. It does not reset or rewrite existing rows and it does not infer deletion from missing fields.
