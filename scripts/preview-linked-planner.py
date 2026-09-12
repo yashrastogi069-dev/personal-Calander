@@ -35,10 +35,14 @@ def main():
                 context, page, errors = shared["new_page"](browser, size)
                 requests, unexpected = shared["install_preview"](context, args.url, "linked", fixtures())
                 page.goto(args.url, wait_until="networkidle")
-                if page.get_by_role("heading", name="Today", exact=True).count() == 0:
-                    raise AssertionError({"message": "Linked planner did not render", "runtimeErrors": errors, "requests": requests, "unexpected": unexpected, "body": page.locator("body").inner_text()[:1200]})
-                expect(page.get_by_role("heading", name="Today", exact=True)).to_be_visible(timeout=20000)
-                expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
+                try:
+                    expect(page.get_by_role("heading", name="Today", exact=True)).to_be_visible(timeout=20000)
+                except AssertionError as error:
+                    raise AssertionError({"message": "Linked planner did not render", "runtimeErrors": errors, "requests": requests, "unexpected": unexpected, "body": page.locator("body").inner_text()[:1200]}) from error
+                if size == "phone":
+                    expect(page.get_by_role("button", name="More", exact=True)).to_be_visible()
+                else:
+                    expect(page.get_by_role("button", name="Settings", exact=True)).to_be_visible()
                 assert "planner.workspace.snapshot" in requests, requests
                 assert not unexpected, unexpected
                 shared["assert_layout"](page, errors)
@@ -61,21 +65,36 @@ def main():
                     assert overlay and overlay["height"] >= shared["SIZES"][size]["height"] - 2, overlay
                     page.screenshot(path=str(args.output / "preview-linked-phone-more-sheet.png"))
                     page.locator(".mobile-more-settings").click()
-                    expect(page.get_by_role("heading", name="Make the planner yours", exact=True)).to_be_visible()
+                    expect(page.locator("#settings-heading")).to_be_visible()
                     page.screenshot(path=str(args.output / "preview-linked-phone-settings.png"))
+                    page.get_by_role("button", name="Customize phone layout", exact=True).click()
+                    expect(page.get_by_role("heading", name="Make the planner yours", exact=True)).to_be_visible()
                     page.get_by_role("button", name="Done", exact=True).click()
-                if size == "phone":
-                    page.get_by_role("button", name="More", exact=True).click()
-                    page.get_by_role("button", name="Settings & Recycle Bin", exact=True).click()
                 else:
                     page.get_by_role("button", name="Settings", exact=True).click()
-                recycle = page.get_by_role("dialog", name="Workspace settings & Recycle Bin")
+                    expect(page.locator("#settings-heading")).to_be_visible()
+                    rail = page.locator(".planner-rail").bounding_box()
+                    page.locator(".planner-main").evaluate("element => { element.scrollTop = 600 }")
+                    rail_after_scroll = page.locator(".planner-rail").bounding_box()
+                    assert rail and rail_after_scroll and rail["y"] == rail_after_scroll["y"], (rail, rail_after_scroll)
+                    page.get_by_role("button", name="Collapse planning sidebar", exact=True).click()
+                    assert page.locator(".planner-shell").evaluate("element => element.classList.contains('is-rail-collapsed')")
+                    page.get_by_role("button", name="Expand planning sidebar", exact=True).click()
+                if size == "phone":
+                    page.get_by_role("button", name="More", exact=True).click()
+                    page.locator("#mobile-more-sheet").get_by_role("button", name="Categories & Recycle Bin", exact=True).click()
+                else:
+                    page.get_by_role("button", name="Categories", exact=True).click()
+                recycle = page.get_by_role("dialog", name="Categories & Recycle Bin")
                 expect(recycle).to_be_visible()
                 expect(recycle.get_by_text("Recycle Bin · kept indefinitely", exact=True)).to_be_visible()
                 page.keyboard.press("Escape")
                 page.get_by_role("button", name="Tasks", exact=True).click()
                 lanes = page.locator(".task-lane")
                 expect(lanes).to_have_count(3)
+                if size == "phone":
+                    expect(page.get_by_role("tab")).to_have_count(3)
+                    expect(page.locator(".task-lane:visible")).to_have_count(1)
                 lane_surfaces = lanes.evaluate_all(
                     "elements => elements.map(element => getComputedStyle(element).getPropertyValue('--lane-surface').trim())"
                 )
@@ -116,7 +135,14 @@ def main():
                 result = {"state": "linked-synthetic-data", "size": size, "screenshot": str(path), "taskLaneScreenshot": str(task_path), "taskLaneSurfaces": lane_surfaces, "requests": requests}
                 result.update(result_offline)
                 try:
-                    page.get_by_role("button", name="Sign out", exact=True).click(timeout=1500)
+                    if size == "phone":
+                        page.get_by_role("button", name="More", exact=True).click()
+                        page.locator(".mobile-more-settings").click()
+                    else:
+                        page.get_by_role("button", name="Settings", exact=True).click()
+                    expect(page.get_by_role("button", name="Sign out on this device", exact=True)).to_be_visible()
+                    page.once("dialog", lambda dialog: dialog.accept())
+                    page.get_by_role("button", name="Sign out on this device", exact=True).click(timeout=1500)
                     expect(page.get_by_role("button", name="Continue with Google")).to_be_visible()
                     result["signOutPointerAccessible"] = True
                     if size == "phone":

@@ -2,6 +2,14 @@
 
 Last updated: 2026-09-12
 
+## Current pre-Phase 4 workbench checkpoint
+
+- Work only on `dev/personal-calendar-workbench`; the user wants to inspect its Vercel Preview before any new `main` merge.
+- Settings is now a real planner destination and owns account, sync/offline, PWA/device, phone-layout, categories, calendar/reminders, and confirmed device sign-out controls.
+- The desktop rail remains fixed while the content pane scrolls and can be collapsed explicitly. Phone Tasks show one dark lane at a time through clear `To do` / `Doing` / `Done` tabs.
+- Local gate is green: TypeScript; 64/64 Vitest files (274 passed, 3 skipped); production client/PWA/Vercel bundle; synthetic desktop and 390x844 browser flows. Release: `ba8a0e16ab6ba54a`.
+- Do not claim physical iPhone delivery. Standards-based Web Push uses the browser-created subscription plus server VAPID credentials; no Apple Developer key is required. Apple Calendar is a private read-only `webcal://` feed. Native Apple Reminders writes would require a separate native/EventKit implementation.
+
 ## Approved reliability roadmap
 
 The work is decomposed into four gated phases: (1) reliable installable PWA shell, (2) lean account-scoped IndexedDB operation queue and backend synchronization, (3) opt-in phone notifications/reminders plus standards-based Apple Calendar bridges, and (4) holistic iPhone UI/UX polish. Phases 1–3 are deployed and engineering-verified in Production. Physical-iPhone offline/relaunch and opt-in notification-delivery checks belong to the user. Phase 4 remains a separate design/function discussion and has not started.
