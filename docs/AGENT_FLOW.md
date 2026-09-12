@@ -69,4 +69,12 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 - Common task moves, completion, archive/restore, scheduling, and duration changes queue offline and update the matching device snapshot immediately. Unsupported entity writes remain online-only and are not falsely acknowledged.
 - Verification: TypeScript passed; the full suite passed 61 files / 258 tests with 3 intentional skips, and the final production build generated shell release `9c2868b93211e476` with 20 files. A synthetic 390x844 browser check queued one task operation in IndexedDB, displayed pending status, retained exact dark work-lane colors, had no horizontal overflow, and hid cached planner UI after sign-out.
 
+## 2026-09-12 conflict-review checkpoint
+
+- Open server conflicts are listed through the authenticated owned-workspace router and now appear on another signed-in device, not only where the offline edit originated.
+- Each overlapping task field retains base/device/server evidence. “Use this device” is version-guarded; “Keep online” performs no task write. A task changed after the conflict cannot be overwritten.
+- Local conflict evidence is removed only after the selected server resolution succeeds. Orphaned queued changes have a separate two-step explicit discard that does not delete the planner record.
+- Verification: 49 focused tests passed; then the complete suite passed 61 files / 258 tests with 3 intentional skips. TypeScript and the production build passed, generating PWA release `5ca7582c4a167c3b`. Desktop and 390x844 synthetic browser checks passed, including the phone conflict sheet, dark Task-lane colors, offline queue, and zero horizontal overflow.
+- Next Phase 2 work: broaden the operation contract beyond common task updates/create capture, consolidate archive/recycle-bin management, and run the Preview gate. Notification delivery remains gated until those sync semantics are complete.
+
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.

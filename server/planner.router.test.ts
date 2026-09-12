@@ -29,6 +29,35 @@ function createAuthenticatedContext(): TrpcContext {
 }
 
 describe("planner task API", () => {
+  it("lists and resolves synchronization conflicts through the owned workspace boundary", async () => {
+    const conflict = {
+      id: "conflict-1",
+      workspaceId: "workspace-api-check",
+      operationId: "operation-1",
+      entity: "task",
+      entityId: "task-1",
+      field: "title",
+      baseValue: "Before",
+      localValue: "Device",
+      serverValue: "Phone",
+      serverVersion: 5,
+      state: "needs_review",
+      resolvedValue: null,
+      createdAt: new Date("2026-09-12T10:00:00.000Z"),
+      resolvedAt: null,
+    };
+    const list = vi.spyOn(synchronization, "getOpenSyncConflicts").mockResolvedValue([conflict] as never);
+    const resolve = vi.spyOn(synchronization, "resolveSyncConflict").mockResolvedValue({ ...conflict, state: "resolved_server", record: null } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+
+    await expect(caller.planner.sync.conflicts(scope)).resolves.toEqual([conflict]);
+    await expect(caller.planner.sync.resolve({ ...scope, conflictId: conflict.id, choice: "server" })).resolves.toMatchObject({ id: conflict.id, state: "resolved_server" });
+    expect(list).toHaveBeenCalledWith(scope);
+    expect(resolve).toHaveBeenCalledWith(scope, { conflictId: conflict.id, choice: "server" });
+    list.mockRestore(); resolve.mockRestore();
+  });
+
   it("replays a bounded sync batch independently and preserves later operations after one rejection", async () => {
     const replay = vi.spyOn(synchronization, "processTaskUpdateOperation")
       .mockRejectedValueOnce(new Error("Task was not found in this workspace."))

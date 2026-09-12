@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { syncConflicts, syncOperationReceipts, tasks } from "../drizzle/schema";
 import { mergeOperationPatch } from "../shared/syncMerge";
 import { getDb } from "./db";
-import { updateTask, type PlannerScope } from "./planning";
+import { PlannerConflictError, updateTask, type PlannerScope } from "./planning";
 
 export type SyncTaskUpdateOperation = {
   operationId: string;
@@ -48,6 +48,14 @@ const taskPatchFields = new Set([
   "plannedStartAt", "plannedEndAt", "estimateMinutes", "scheduleMode", "categoryId", "goalId", "projectId",
   "parentTaskId", "sortOrder", "recurrenceRule", "recurrenceAnchor", "recurrenceUntilLocalDate",
 ]);
+
+type StoredSyncConflict = typeof syncConflicts.$inferSelect;
+export type ConflictResolutionDependencies = {
+  findConflict(scope: PlannerScope, conflictId: string): Promise<StoredSyncConflict | null>;
+  findTask(scope: PlannerScope, entityId: string): Promise<TaskRecord | null>;
+  updateTask(scope: PlannerScope, input: TaskUpdateInput): Promise<TaskRecord>;
+  markResolved(scope: PlannerScope, conflictId: string, state: "resolved_local" | "resolved_server", value: unknown): Promise<void>;
+};
 
 function assertTaskOperation(operation: SyncTaskUpdateOperation) {
   if (!operation.operationId || !operation.entityId) throw new Error("Operation and entity IDs are required.");
@@ -112,6 +120,56 @@ const databaseDependencies: SyncDependencies = {
     return receipt.result as SyncOperationResult;
   },
 };
+
+const conflictDependencies: ConflictResolutionDependencies = {
+  async findConflict(scope, conflictId) {
+    const db = await requireDb();
+    return (await db.select().from(syncConflicts).where(and(eq(syncConflicts.workspaceId, scope.workspaceId), eq(syncConflicts.id, conflictId))).limit(1))[0] ?? null;
+  },
+  async findTask(scope, entityId) {
+    return databaseDependencies.findTask(scope, entityId);
+  },
+  async updateTask(scope, input) {
+    return databaseDependencies.updateTask(scope, input);
+  },
+  async markResolved(scope, conflictId, state, value) {
+    const db = await requireDb();
+    await db.update(syncConflicts).set({ state, resolvedValue: value === undefined ? null : value, resolvedAt: new Date() })
+      .where(and(eq(syncConflicts.workspaceId, scope.workspaceId), eq(syncConflicts.id, conflictId), eq(syncConflicts.state, "needs_review")));
+  },
+};
+
+export async function getOpenSyncConflicts(scope: PlannerScope) {
+  const db = await requireDb();
+  return db.select().from(syncConflicts)
+    .where(and(eq(syncConflicts.workspaceId, scope.workspaceId), eq(syncConflicts.state, "needs_review")))
+    .orderBy(asc(syncConflicts.createdAt));
+}
+
+export async function resolveSyncConflict(
+  scope: PlannerScope,
+  input: { conflictId: string; choice: "local" | "server" },
+  dependencies: ConflictResolutionDependencies = conflictDependencies,
+) {
+  const conflict = await dependencies.findConflict(scope, input.conflictId);
+  if (!conflict) throw new Error("Synchronization conflict was not found in this workspace.");
+  if (conflict.state !== "needs_review") return { ...conflict, record: null };
+  if (conflict.entity !== "task" || !taskPatchFields.has(conflict.field)) throw new Error("This conflict type is not supported yet.");
+  if (input.choice === "server") {
+    await dependencies.markResolved(scope, conflict.id, "resolved_server", conflict.serverValue);
+    return { ...conflict, state: "resolved_server" as const, resolvedValue: conflict.serverValue, resolvedAt: new Date(), record: null };
+  }
+  const current = await dependencies.findTask(scope, conflict.entityId);
+  if (!current) throw new Error("Task was not found in this workspace.");
+  if (current.version !== conflict.serverVersion) throw new PlannerConflictError(current);
+  const record = await dependencies.updateTask(scope, {
+    id: conflict.entityId,
+    expectedVersion: current.version,
+    patch: { [conflict.field]: conflict.localValue } as TaskUpdateInput["patch"],
+  });
+  await dependencies.markResolved(scope, conflict.id, "resolved_local", conflict.localValue);
+  return { ...conflict, state: "resolved_local" as const, resolvedValue: conflict.localValue, resolvedAt: new Date(), record };
+}
 
 export async function processTaskUpdateOperation(scope: PlannerScope, operation: SyncTaskUpdateOperation, dependencies: SyncDependencies = databaseDependencies) {
   assertTaskOperation(operation);

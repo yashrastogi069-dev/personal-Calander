@@ -110,5 +110,9 @@ describe("offline planner synchronization", () => {
       baseValue: "Original", localValue: "Device title", serverValue: "Phone title", state: "needs_review",
     })]);
     await expect(store.listConflicts(accountB)).resolves.toEqual([]);
+    await store.removeConflict(accountB, "operation-1", "title");
+    await expect(store.listConflicts(accountA)).resolves.toHaveLength(1);
+    await store.removeConflict(accountA, "operation-1", "title");
+    await expect(store.listConflicts(accountA)).resolves.toEqual([]);
   });
 });

@@ -39,7 +39,7 @@ import {
 } from "@/lib/workspace";
 import { usePlannerSyncScope, useWorkspaceScope } from "@/contexts/WorkspaceContext";
 import { useOfflinePlannerSnapshot } from "@/hooks/useOfflinePlannerSnapshot";
-import { getBrowserPlannerSyncStore } from "@/lib/offlineSync";
+import { getBrowserPlannerSyncStore, type PlannerConflict, type PlannerOperation } from "@/lib/offlineSync";
 import { queueTaskUpdate, replayQueuedTaskUpdates } from "@/lib/offlineTaskSync";
 import { trpc } from "@/lib/trpc";
 import { isHabitScheduledOnLocalDate } from "@shared/habitSchedule";
@@ -480,6 +480,17 @@ function shortTime(date: Date | null) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(date));
+}
+
+function formatSyncValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Not set";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "Saved value";
+  }
 }
 
 function dateTimeLocalValue(date: Date | null | undefined) {
@@ -6327,6 +6338,15 @@ export default function Home() {
   const replayTaskSyncRef = useRef(replayTaskSync.mutateAsync);
   replayTaskSyncRef.current = replayTaskSync.mutateAsync;
   const [syncSummary, setSyncSummary] = useState({ pending: 0, needsReview: 0, syncing: false, retry: false });
+  const [syncReviewOpen, setSyncReviewOpen] = useState(false);
+  const [localSyncConflicts, setLocalSyncConflicts] = useState<PlannerConflict[]>([]);
+  const [reviewOperations, setReviewOperations] = useState<PlannerOperation[]>([]);
+  const [discardOperationId, setDiscardOperationId] = useState<string | null>(null);
+  const serverSyncConflicts = trpc.planner.sync.conflicts.useQuery(scope, {
+    enabled: typeof navigator === "undefined" || navigator.onLine,
+    refetchInterval: 30_000,
+  });
+  const resolveConflict = trpc.planner.sync.resolve.useMutation();
   const bulkSetTaskState = trpc.planner.task.bulkSetState.useMutation();
   const createGoal = trpc.planner.goal.create.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
@@ -6580,6 +6600,8 @@ export default function Home() {
       needsReview: operations.filter(operation => operation.state === "needs_review").length + conflicts.length,
       retry: operations.some(operation => operation.state === "retry"),
     }));
+    setLocalSyncConflicts(conflicts);
+    setReviewOperations(operations.filter(operation => operation.state === "needs_review"));
   }, [plannerSyncScope, plannerSyncStore]);
   const replayPendingTaskUpdates = useCallback(async () => {
     if (!plannerSyncStore || (typeof navigator !== "undefined" && !navigator.onLine)) return;
@@ -6604,6 +6626,14 @@ export default function Home() {
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
   }, [refreshSyncSummary, replayPendingTaskUpdates]);
+  useEffect(() => {
+    if (!serverSyncConflicts.data) return;
+    const conflictKeys = new Set([
+      ...localSyncConflicts.map(conflict => `${conflict.operationId}:${conflict.field}`),
+      ...serverSyncConflicts.data.map(conflict => `${conflict.operationId}:${conflict.field}`),
+    ]);
+    setSyncSummary(current => ({ ...current, needsReview: conflictKeys.size + reviewOperations.length }));
+  }, [localSyncConflicts, reviewOperations, serverSyncConflicts.data]);
   const persistTaskPatch = async (task: any, patch: Record<string, unknown>) => {
     const updateCachedTask = (record: Record<string, unknown>) => {
       utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
@@ -6627,6 +6657,34 @@ export default function Home() {
       if (isRetryableCaptureError(error)) return saveOffline();
       throw error;
     }
+  };
+  const resolveReviewedConflict = async (conflict: any, choice: "local" | "server") => {
+    try {
+      const result = await resolveConflict.mutateAsync({ ...scope, conflictId: conflict.id, choice });
+      if (plannerSyncStore) await plannerSyncStore.removeConflict(plannerSyncScope, conflict.operationId, conflict.field);
+      if (result.record) {
+        utils.planner.workspace.snapshot.setData({ ...scope, ...range }, current => current ? {
+          ...current,
+          tasks: current.tasks.map(task => task.id === result.record?.id ? { ...task, ...result.record } : task),
+        } : current);
+      }
+      await Promise.all([serverSyncConflicts.refetch(), refreshSyncSummary()]);
+      invalidatePlan();
+      toast.success(choice === "local" ? "This device's value is now saved." : "The server value was kept.");
+    } catch (error) {
+      await serverSyncConflicts.refetch();
+      invalidatePlan();
+      toast.error(error instanceof Error && /changed/i.test(error.message)
+        ? "This item changed again. Fresh values are ready for review."
+        : "That choice could not be saved. Nothing was discarded.");
+    }
+  };
+  const discardReviewedOperation = async (operationId: string) => {
+    if (!plannerSyncStore) return;
+    await plannerSyncStore.acknowledge(plannerSyncScope, operationId);
+    setDiscardOperationId(null);
+    await refreshSyncSummary();
+    toast.success("The unsynced change was discarded. Existing planner data was not deleted.");
   };
   const refreshOfflineCaptureCount = useCallback(() => {
     setOfflineCaptureCount(capturesForWorkspace(scope.workspaceId).length);
@@ -7178,7 +7236,9 @@ export default function Home() {
                       : `${syncSummary.pending} task change${syncSummary.pending === 1 ? "" : "s"} waiting to sync.`}
               </span>
             </div>
-            {!syncSummary.syncing && typeof navigator !== "undefined" && navigator.onLine ? (
+            {syncSummary.needsReview > 0 ? (
+              <Button size="sm" variant="outline" onClick={() => setSyncReviewOpen(true)}>Review safely</Button>
+            ) : !syncSummary.syncing && typeof navigator !== "undefined" && navigator.onLine ? (
               <Button size="sm" variant="outline" onClick={() => void replayPendingTaskUpdates()}>Sync now</Button>
             ) : null}
           </section>
@@ -7595,6 +7655,60 @@ export default function Home() {
         onOpenChange={setCategoryDialogOpen}
         categories={snapshot.categories}
       />
+      <Dialog open={syncReviewOpen} onOpenChange={open => { setSyncReviewOpen(open); if (!open) setDiscardOperationId(null); }}>
+        <DialogContent className="composer-dialog sync-review-dialog">
+          <DialogHeader>
+            <DialogTitle>Review saved changes</DialogTitle>
+            <DialogDescription>
+              Both versions stay available until you choose. Nothing here is deleted automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="sync-review-list">
+            {serverSyncConflicts.data?.map(conflict => (
+              <article className="sync-review-card" key={conflict.id}>
+                <div className="sync-review-heading">
+                  <span>{conflict.entity === "task" ? "Task" : conflict.entity}</span>
+                  <strong>{conflict.field.replace(/([A-Z])/g, " $1").replace(/^./, value => value.toUpperCase())}</strong>
+                </div>
+                <div className="sync-review-values">
+                  <div><small>This device</small><span>{formatSyncValue(conflict.localValue)}</span></div>
+                  <div><small>Saved online</small><span>{formatSyncValue(conflict.serverValue)}</span></div>
+                </div>
+                <div className="sync-review-actions">
+                  <Button variant="outline" disabled={resolveConflict.isPending} onClick={() => void resolveReviewedConflict(conflict, "server")}>Keep online</Button>
+                  <Button className="primary-action" disabled={resolveConflict.isPending} onClick={() => void resolveReviewedConflict(conflict, "local")}>Use this device</Button>
+                </div>
+              </article>
+            ))}
+            {localSyncConflicts.length > 0 && !serverSyncConflicts.data?.length ? (
+              <div className="sync-review-message">
+                <strong>{typeof navigator !== "undefined" && !navigator.onLine ? "Connect to compare both versions" : "Loading retained versions"}</strong>
+                <span>Your device copy remains stored safely.</span>
+              </div>
+            ) : null}
+            {reviewOperations.map(operation => (
+              <article className="sync-review-card" key={operation.operationId}>
+                <div className="sync-review-heading"><span>Unsynced task change</span><strong>Needs a decision</strong></div>
+                <p>{Object.entries(operation.patch).map(([field, value]) => `${field}: ${formatSyncValue(value)}`).join(" · ")}</p>
+                <small>The original item was not found online. Keep this change for later, or explicitly discard only this unsynced copy.</small>
+                <div className="sync-review-actions">
+                  {discardOperationId === operation.operationId ? (
+                    <>
+                      <Button variant="outline" onClick={() => setDiscardOperationId(null)}>Keep for later</Button>
+                      <Button variant="destructive" onClick={() => void discardReviewedOperation(operation.operationId)}>Confirm discard</Button>
+                    </>
+                  ) : (
+                    <Button variant="outline" onClick={() => setDiscardOperationId(operation.operationId)}>Discard unsynced change</Button>
+                  )}
+                </div>
+              </article>
+            ))}
+            {!serverSyncConflicts.isLoading && !serverSyncConflicts.data?.length && !localSyncConflicts.length && !reviewOperations.length ? (
+              <div className="sync-review-message"><strong>All caught up</strong><span>There are no retained conflicts to review.</span></div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
       <MobileCustomizationSheet
         open={mobileCustomizationOpen}
         onOpenChange={setMobileCustomizationOpen}

@@ -94,6 +94,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .planner-sync-status strong { color:#1f4f45; font-size:13px; letter-spacing:.01em; }
 .planner-sync-status span { color:#53645e; font-size:12px; line-height:1.35; }
 .planner-sync-status button { min-height:40px; flex:none; }
+.sync-review-dialog { max-width:38rem; }
+.sync-review-list { display:grid; gap:10px; max-height:min(62dvh, 34rem); overflow:auto; padding:3px 2px 4px; overscroll-behavior:contain; }
+.sync-review-card { display:grid; gap:11px; padding:14px; border:1px solid #d3ded9; border-radius:13px; background:#fbfcfb; }
+.sync-review-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.sync-review-heading span { color:#60746d; font:600 9px "IBM Plex Mono", monospace; letter-spacing:.06em; text-transform:uppercase; }
+.sync-review-heading strong { color:#254b41; font-size:12px; }
+.sync-review-values { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sync-review-values > div { display:grid; align-content:start; gap:6px; min-width:0; min-height:72px; padding:10px; border:1px solid #dde6e2; border-radius:10px; background:#f2f6f4; }
+.sync-review-values small, .sync-review-card > small { color:#657772; font-size:10px; line-height:1.45; }
+.sync-review-values span { overflow-wrap:anywhere; color:#203c35; font-size:12px; line-height:1.4; }
+.sync-review-card p { margin:0; overflow-wrap:anywhere; color:#29483f; font-size:11px; line-height:1.5; }
+.sync-review-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.sync-review-actions button { min-height:40px; }
+.sync-review-message { display:grid; gap:4px; padding:18px; border:1px dashed #cbdad4; border-radius:12px; background:#f5f8f6; text-align:center; }
+.sync-review-message strong { color:#294d43; font-size:13px; }
+.sync-review-message span { color:#697b75; font-size:11px; }
 .destination-loading { display:grid; place-items:center; align-content:center; gap:14px; min-height:320px; margin-top:30px; border:1px solid rgba(198,240,106,.16); border-radius:16px; background:linear-gradient(135deg, rgba(198,240,106,.055), transparent 44%), #131614; color:#aeb7ab; text-align:center; }
 .destination-loading span { display:block; width:48px; height:3px; overflow:hidden; border-radius:999px; background:#2b332d; }
 .destination-loading span::after { content:""; display:block; width:58%; height:100%; border-radius:inherit; background:#c6f06a; transform:translateX(-78%); }
@@ -219,6 +235,11 @@ html, body { background:#f6f7f8; color:#1b2422; }
 @media (max-width:680px) {
   .planner-sync-status { align-items:flex-start; margin-top:10px; padding:12px; border-radius:14px; }
   .planner-sync-status button { min-height:44px; }
+  .sync-review-dialog { width:calc(100% - 1rem) !important; max-height:calc(100dvh - 1rem) !important; padding:18px 14px calc(14px + env(safe-area-inset-bottom)); border-radius:18px; }
+  .sync-review-list { max-height:calc(100dvh - 10rem); }
+  .sync-review-values { grid-template-columns:1fr; }
+  .sync-review-actions { display:grid; grid-template-columns:1fr 1fr; }
+  .sync-review-actions button { min-height:46px; white-space:normal; }
   .planner-rail {
     position:fixed;
     inset:auto 0 0;

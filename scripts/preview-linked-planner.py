@@ -16,7 +16,8 @@ def fixtures():
     snapshot["categories"] = [{"id": "preview-category", "name": "Personal", "color": "#C6F06A", "sortOrder": 0}]
     for i, title in enumerate(["Plan a focused week", "Review the calendar", "Make time for a walk"]):
         snapshot["tasks"].append({"id": f"preview-task-{i}", "workspaceId": workspace["id"], "title": title, "state": "not_started", "priority": "medium", "horizon": "daily", "categoryId": "preview-category", "scheduledLocalDate": "2026-09-06", "dueLocalDate": None, "estimateMinutes": 30, "sortOrder": i, "version": 1, "projectId": None, "goalId": None, "parentTaskId": None, "recurrenceRule": None, "scheduleMode": "manual", "plannedStartAt": None, "plannedEndAt": None})
-    return {"planner.workspace.snapshot": snapshot, "planner.workspace.ensure": workspace, "planner.dashboard": {"workspace": workspace}, "planner.notification.devices": [], "planner.reminder.rules": [], "planner.review.history": []}
+    conflict = {"id": "preview-conflict-1", "workspaceId": workspace["id"], "operationId": "preview-operation-1", "entity": "task", "entityId": "preview-task-0", "field": "title", "baseValue": "Plan the week", "localValue": "Plan a focused week", "serverValue": "Plan a calm week", "serverVersion": 1, "state": "needs_review", "resolvedValue": None, "createdAt": "2026-09-06T08:00:00.000Z", "resolvedAt": None}
+    return {"planner.workspace.snapshot": snapshot, "planner.workspace.ensure": workspace, "planner.dashboard": {"workspace": workspace}, "planner.sync.conflicts": [conflict], "planner.notification.devices": [], "planner.reminder.rules": [], "planner.review.history": []}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -41,6 +42,18 @@ def main():
                 assert "planner.workspace.snapshot" in requests, requests
                 assert not unexpected, unexpected
                 shared["assert_layout"](page, errors)
+                expect(page.get_by_role("button", name="Review safely", exact=True)).to_be_visible()
+                page.get_by_role("button", name="Review safely", exact=True).click()
+                review = page.get_by_role("dialog", name="Review saved changes")
+                expect(review).to_be_visible()
+                expect(review.get_by_text("Plan a focused week", exact=True)).to_be_visible()
+                expect(review.get_by_text("Plan a calm week", exact=True)).to_be_visible()
+                expect(review.get_by_role("button", name="Keep online", exact=True)).to_be_visible()
+                expect(review.get_by_role("button", name="Use this device", exact=True)).to_be_visible()
+                if size == "phone":
+                    page.wait_for_timeout(300)
+                    page.screenshot(path=str(args.output / "preview-linked-phone-sync-review.png"))
+                page.keyboard.press("Escape")
                 if size == "phone":
                     page.get_by_role("button", name="More", exact=True).click()
                     expect(page.locator("#mobile-more-sheet")).to_be_visible()
@@ -64,7 +77,7 @@ def main():
                 if size == "phone":
                     context.set_offline(True)
                     page.get_by_role("button", name="Complete Plan a focused week", exact=True).click()
-                    expect(page.get_by_text("1 task change waiting to sync.", exact=True)).to_be_visible()
+                    expect(page.get_by_text("Needs review", exact=True)).to_be_visible()
                     pending = page.evaluate("""async () => await new Promise((resolve, reject) => {
                       const request = indexedDB.open('personal-calander-planner-v1');
                       request.onerror = () => reject(request.error);

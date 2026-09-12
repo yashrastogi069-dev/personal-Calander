@@ -71,7 +71,7 @@ import {
 import { approveScheduleProposal, createScheduleProposal, dismissScheduleProposal, undoScheduleProposal } from "../scheduling";
 import { invokeLLM } from "../_core/llm";
 import { finishFocusSession, pauseFocusSession, resumeFocusSession, startFocusSession } from "../focus";
-import { processTaskUpdateOperation } from "../sync";
+import { getOpenSyncConflicts, processTaskUpdateOperation, resolveSyncConflict } from "../sync";
 import { router } from "../_core/trpc";
 import { workspaceProcedure as protectedProcedure, workspaceScope as scope } from "../workspaceProcedure";
 
@@ -157,6 +157,22 @@ function plannerError(error: unknown): never {
 
 export const plannerRouter = router({
   sync: router({
+    conflicts: protectedProcedure.input(scope).query(async ({ input }) => {
+      return getOpenSyncConflicts({ workspaceId: input.workspaceId, timezone: input.timezone });
+    }),
+    resolve: protectedProcedure.input(scope.extend({
+      conflictId: z.string().min(1).max(64),
+      choice: z.enum(["local", "server"]),
+    })).mutation(async ({ input }) => {
+      try {
+        return await resolveSyncConflict(
+          { workspaceId: input.workspaceId, timezone: input.timezone },
+          { conflictId: input.conflictId, choice: input.choice },
+        );
+      } catch (error) {
+        return plannerError(error);
+      }
+    }),
     replay: protectedProcedure.input(scope.extend({ operations: z.array(syncTaskOperation).min(1).max(25) })).mutation(async ({ input }) => {
       const plannerScope = { workspaceId: input.workspaceId, timezone: input.timezone };
       const results = [];

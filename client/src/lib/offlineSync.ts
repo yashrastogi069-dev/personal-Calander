@@ -103,6 +103,7 @@ export interface PlannerSyncStore {
   markOperation(scope: PlannerSyncScope, operationId: string, state: PlannerOperationState, errorCode: string): Promise<void>;
   putConflict(conflict: PlannerConflict): Promise<void>;
   listConflicts(scope: PlannerSyncScope): Promise<PlannerConflict[]>;
+  removeConflict(scope: PlannerSyncScope, operationId: string, field: string): Promise<void>;
 }
 
 export class MemoryPlannerSyncStore implements PlannerSyncStore {
@@ -153,6 +154,15 @@ export class MemoryPlannerSyncStore implements PlannerSyncStore {
       .filter(item => plannerScopeKey(item) === scopeKey)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
       .map(cloneValue);
+  }
+
+  async removeConflict(scope: PlannerSyncScope, operationId: string, field: string) {
+    const scopeKey = plannerScopeKey(scope);
+    for (const [key, conflict] of Array.from(this.conflicts.entries())) {
+      if (plannerScopeKey(conflict) === scopeKey && conflict.operationId === operationId && conflict.field === field) {
+        this.conflicts.delete(key);
+      }
+    }
   }
 }
 
@@ -239,6 +249,12 @@ export class IndexedDbPlannerSyncStore implements PlannerSyncStore {
   async listConflicts(scope: PlannerSyncScope) {
     const records = await this.request<StoredConflict[]>("conflicts", "readonly", store => store.index("scopeKey").getAll(plannerScopeKey(scope)));
     return records.sort((left, right) => left.createdAt.localeCompare(right.createdAt)).map(({ key: _key, scopeKey: _scopeKey, ...item }) => cloneValue(item));
+  }
+
+  async removeConflict(scope: PlannerSyncScope, operationId: string, field: string) {
+    const records = await this.request<StoredConflict[]>("conflicts", "readonly", store => store.index("scopeKey").getAll(plannerScopeKey(scope)));
+    const matching = records.filter(conflict => conflict.operationId === operationId && conflict.field === field);
+    await Promise.all(matching.map(conflict => this.request("conflicts", "readwrite", store => store.delete(conflict.key))));
   }
 }
 

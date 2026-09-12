@@ -10,6 +10,12 @@ Local evidence: TypeScript passed; 61 test files / 258 tests passed with 3 inten
 
 The remote migration was applied only after a clean preflight. `scripts/apply-secure-sync-migration.mjs` verified the exact project and SQL hash, rejected destructive statements, created both tables transactionally, and proved workspace/task counts unchanged. Postflight found both tables with RLS enabled. Their no-policy and unused-index advisor notices are expected because synchronization is server-only and traffic has not started; do not add direct-browser policies. Unsupported offline entities, conflict-choice UI, and the consolidated recycle-bin screen remain Phase 2 work. Existing unrelated advisor warnings remain tracked separately.
 
+### Conflict-review slice
+
+Overlapping task fields now have an explicit workspace-owner-protected review path. The server lists only open conflicts in the active workspace. “Use this device” applies the retained device value only when the task still has the exact recorded server version; a later edit produces a fresh conflict instead of being overwritten. “Keep online” resolves the conflict without writing the task. The phone dialog presents both values with 46px actions. Server conflicts surface across signed-in devices, while the account-scoped IndexedDB copy remains available offline. Orphaned unsynced operations remain retained by default and require a separate two-step “Confirm discard”; this removes only that queued change and never deletes an online planner record.
+
+Verification: 49 focused sync/router/storage tests passed, followed by the complete 61-file suite with 258 passing tests and 3 intentional skips. TypeScript and the production client build passed; generated PWA release `5ca7582c4a167c3b` contains 20 shell files. Synthetic desktop 1440x1000 and phone 390x844 checks passed with no horizontal overflow, preserved the exact dark Task-lane palette, queued an offline task change, and rendered the conflict choices correctly. The inspected phone screenshot is outside Git at `C:/Users/win 10/AppData/Local/Temp/personal-calendar-sync-review/preview-linked-phone-sync-review.png`.
+
 ## 2026-09-12 reliable PWA implementation
 
 The isolated `work/pwa-foundation` branch implements Phase 1 without changing the database, planner IDs, workspace ownership, authentication records, or server data. Commits `5eb764d..10a7344` provide:

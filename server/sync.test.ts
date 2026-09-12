@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { processTaskUpdateOperation, type SyncTaskUpdateOperation } from "./sync";
+import { processTaskUpdateOperation, resolveSyncConflict, type SyncTaskUpdateOperation } from "./sync";
 
 const scope = { workspaceId: "workspace-sync-test", timezone: "UTC" };
 const operation: SyncTaskUpdateOperation = {
@@ -57,5 +57,45 @@ describe("idempotent task synchronization", () => {
     const deps = dependencies({ findTask: vi.fn().mockResolvedValue(null) });
     await expect(processTaskUpdateOperation(scope, operation, deps)).rejects.toThrow("Task was not found");
     expect(deps.saveReceipt).not.toHaveBeenCalled();
+  });
+});
+
+describe("explicit conflict resolution", () => {
+  const conflict = {
+    id: "conflict-1", workspaceId: scope.workspaceId, operationId: "operation-1", entity: "task", entityId: "task-1",
+    field: "title", baseValue: "Before", localValue: "Device", serverValue: "Phone", serverVersion: 5,
+    state: "needs_review", resolvedValue: null, createdAt: new Date(), resolvedAt: null,
+  };
+
+  it("applies the retained device value only at the recorded server version", async () => {
+    const deps = {
+      findConflict: vi.fn().mockResolvedValue(conflict),
+      findTask: vi.fn().mockResolvedValue({ id: "task-1", workspaceId: scope.workspaceId, title: "Phone", version: 5 }),
+      updateTask: vi.fn().mockResolvedValue({ id: "task-1", workspaceId: scope.workspaceId, title: "Device", version: 6 }),
+      markResolved: vi.fn().mockResolvedValue(undefined),
+    } as any;
+    await expect(resolveSyncConflict(scope, { conflictId: "conflict-1", choice: "local" }, deps)).resolves.toMatchObject({ state: "resolved_local", record: { title: "Device", version: 6 } });
+    expect(deps.updateTask).toHaveBeenCalledWith(scope, { id: "task-1", expectedVersion: 5, patch: { title: "Device" } });
+    expect(deps.markResolved).toHaveBeenCalledWith(scope, "conflict-1", "resolved_local", "Device");
+  });
+
+  it("keeps the server side without writing the task", async () => {
+    const deps = {
+      findConflict: vi.fn().mockResolvedValue(conflict),
+      findTask: vi.fn(), updateTask: vi.fn(), markResolved: vi.fn().mockResolvedValue(undefined),
+    } as any;
+    await expect(resolveSyncConflict(scope, { conflictId: "conflict-1", choice: "server" }, deps)).resolves.toMatchObject({ state: "resolved_server", record: null });
+    expect(deps.updateTask).not.toHaveBeenCalled();
+    expect(deps.markResolved).toHaveBeenCalledWith(scope, "conflict-1", "resolved_server", "Phone");
+  });
+
+  it("does not overwrite a task that changed again after the conflict", async () => {
+    const deps = {
+      findConflict: vi.fn().mockResolvedValue(conflict),
+      findTask: vi.fn().mockResolvedValue({ id: "task-1", workspaceId: scope.workspaceId, title: "Newer", version: 6 }),
+      updateTask: vi.fn(), markResolved: vi.fn(),
+    } as any;
+    await expect(resolveSyncConflict(scope, { conflictId: "conflict-1", choice: "local" }, deps)).rejects.toMatchObject({ current: expect.objectContaining({ version: 6 }) });
+    expect(deps.markResolved).not.toHaveBeenCalled();
   });
 });
