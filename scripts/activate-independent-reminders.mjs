@@ -8,6 +8,7 @@ import pg from "pg";
 const expectedProjectRef = "dwiudauuuxzstbavkkqa";
 const appOrigin = "https://personal-calander.vercel.app";
 const endpoint = `${appOrigin}/api/scheduled/reminder`;
+const activateScheduler = process.argv.includes("--activate");
 const npxCli = process.platform === "win32"
   ? join(dirname(process.execPath), "node_modules", "npm", "bin", "npx-cli.js")
   : null;
@@ -105,8 +106,8 @@ async function main() {
     }
 
     const oldJobs = await client.query("select jobid from cron.job where jobname = 'personal-calendar-reminder-sweep'");
-    for (const row of oldJobs.rows) await client.query("select cron.unschedule($1)", [row.jobid]);
-    await client.query(`select cron.schedule('personal-calendar-reminder-sweep', '*/5 * * * *', $job$
+    for (const row of oldJobs.rows) await client.query("select cron.unschedule($1::bigint)", [row.jobid]);
+    const scheduled = await client.query(`select cron.schedule('personal-calendar-reminder-sweep', '*/5 * * * *', $job$
       select net.http_post(
         url := (select decrypted_secret from vault.decrypted_secrets where name = 'personal_calendar_reminder_url'),
         headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization',
@@ -115,6 +116,9 @@ async function main() {
         timeout_milliseconds := 55000
       );
     $job$)`);
+    if (!activateScheduler) {
+      await client.query("select cron.alter_job(job_id := $1::bigint, active := false)", [scheduled.rows[0].schedule]);
+    }
     await client.query("commit");
 
     const after = plannerCounts((await client.query(countSql)).rows[0]);
@@ -123,8 +127,9 @@ async function main() {
       exists(select 1 from pg_extension where extname='pg_cron') as pg_cron,
       exists(select 1 from pg_extension where extname='pg_net') as pg_net,
       (select count(*)::int from vault.secrets where name in ('personal_calendar_reminder_url','personal_calendar_reminder_secret')) as vault_names,
-      (select count(*)::int from cron.job where jobname='personal-calendar-reminder-sweep') as cron_jobs`)).rows[0];
-    console.log(JSON.stringify({ activated: true, projectRef: expectedProjectRef, plannerCounts: after, postflight }));
+      (select count(*)::int from cron.job where jobname='personal-calendar-reminder-sweep') as cron_jobs,
+      (select bool_and(active) from cron.job where jobname='personal-calendar-reminder-sweep') as scheduler_active`)).rows[0];
+    console.log(JSON.stringify({ configured: true, activateScheduler, projectRef: expectedProjectRef, plannerCounts: after, postflight }));
   } catch (error) {
     await client.query("rollback").catch(() => {});
     throw error;
