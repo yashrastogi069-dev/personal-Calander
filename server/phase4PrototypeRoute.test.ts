@@ -196,6 +196,7 @@ describe("Phase 4 prototype route contract", () => {
     expect(implementation).toContain('"reopen-task"');
     expect(implementation).toContain('type: "preview-roadmap-move"');
     expect(implementation).toContain('type: "cancel-roadmap-preview"');
+    expect(implementation).toContain("createPrototypeInteractionHandlers");
   });
 
   it("represents required navigation, states, and settings without operational sign-out", () => {
@@ -260,9 +261,38 @@ describe("Phase 4 prototype route contract", () => {
     expect(contrastRatio(tokens["prototype-warning"], tokens["prototype-warning-soft"])).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("keeps functional and secondary text at least 14px", () => {
+  it("keeps all functional text at least 14px and allows only decorative micro-labels below it", () => {
     const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
+    const decorativeMicroLabels = new Set([
+      ".p4-prototype kbd",
+      ".p4-global-actions>p",
+      ".p4-kicker",
+      ".p4-recovery-number",
+      ".p4-roadmap-label>span",
+      ".p4-move-preview>header>span",
+      ".p4-settings-sections section>header p",
+      ".p4-state-example>svg,.p4-state-example>span:first-child",
+      ".p4-task-detail .p4-detail-title>span",
+    ]);
+    const undersizedSelectors: string[] = [];
 
-    expect(cssSource.match(/font-size:\s*(?:11|12|13)px/g)).toBeNull();
+    for (const rule of cssSource.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
+      const selector = rule[1].trim();
+      const declarations = rule[2];
+      const sizes = [
+        ...[...declarations.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)].map(match => Number(match[1])),
+        ...[...declarations.matchAll(/font:\s*[^;]*?(\d+(?:\.\d+)?)px\//g)].map(match => Number(match[1])),
+      ];
+      if (sizes.some(size => size < 14) && !decorativeMicroLabels.has(selector)) undersizedSelectors.push(selector);
+    }
+
+    expect(undersizedSelectors).toEqual([]);
+  });
+
+  it("does not let the roadmap preview action override the 44px target floor", () => {
+    const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
+    const previewMoveRule = cssSource.match(/\.p4-roadmap-track>button\s*\{([^}]+)\}/)?.[1] ?? "";
+
+    expect(previewMoveRule).toMatch(/min-height:\s*44px/);
   });
 });

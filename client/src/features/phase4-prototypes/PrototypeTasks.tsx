@@ -8,11 +8,12 @@ type PrototypeTasksProps = {
   dispatch: Dispatch<PrototypeAction>;
   selectedLane: PrototypeLane;
   onSelectedLaneChange: (lane: PrototypeLane) => void;
+  onOpenTaskDetail: (taskId: string) => void;
 };
 
 type TaskRecord = (typeof phase4PrototypeFixture.tasks)[number];
 
-function TaskRow({ task, done, dispatch }: { task: TaskRecord; done: boolean; dispatch: Dispatch<PrototypeAction> }) {
+function TaskRow({ task, done, dispatch, onOpenTaskDetail }: { task: TaskRecord; done: boolean; dispatch: Dispatch<PrototypeAction>; onOpenTaskDetail: (taskId: string) => void }) {
   const estimate = task.effortMinutes === null ? "Estimate unknown" : `${task.effortMinutes} min`;
   return (
     <article className={done ? "p4-board-task is-complete" : "p4-board-task"}>
@@ -25,7 +26,7 @@ function TaskRow({ task, done, dispatch }: { task: TaskRecord; done: boolean; di
       >
         {done ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}
       </button>
-      <button className="p4-board-task-main" type="button" onClick={() => dispatch({ type: "open-task-detail", taskId: task.id })}>
+      <button className="p4-board-task-main" type="button" onClick={() => onOpenTaskDetail(task.id)}>
         <strong>{task.title}</strong><small>{estimate} · {task.kind}</small>
       </button>
       <button className="p4-icon-button" type="button" aria-label={`More options for ${task.title}`}><MoreHorizontal aria-hidden="true" /></button>
@@ -33,7 +34,7 @@ function TaskRow({ task, done, dispatch }: { task: TaskRecord; done: boolean; di
   );
 }
 
-export default function PrototypeTasks({ state, dispatch, selectedLane, onSelectedLaneChange }: PrototypeTasksProps) {
+export default function PrototypeTasks({ state, dispatch, selectedLane, onSelectedLaneChange, onOpenTaskDetail }: PrototypeTasksProps) {
   const [mode, setMode] = useState<"board" | "list">("board");
   const tasks = phase4PrototypeFixture.tasks;
   const doneIds = state.completedTaskIds;
@@ -67,17 +68,17 @@ export default function PrototypeTasks({ state, dispatch, selectedLane, onSelect
           <section className={selectedLane === "todo" ? "p4-lane p4-lane-todo is-selected" : "p4-lane p4-lane-todo"} data-lane="todo" aria-labelledby="p4-lane-todo-title">
             <header><div><i /><h3 id="p4-lane-todo-title">To do</h3></div><span>{todo.length}</span></header>
             <p>Clear candidates for the next commitment.</p>
-            <div>{todo.map(task => <TaskRow key={task.id} task={task} done={false} dispatch={dispatch} />)}</div>
+            <div>{todo.map(task => <TaskRow key={task.id} task={task} done={false} dispatch={dispatch} onOpenTaskDetail={onOpenTaskDetail} />)}</div>
           </section>
           <section className={selectedLane === "doing" ? "p4-lane p4-lane-doing is-selected" : "p4-lane p4-lane-doing"} data-lane="doing" aria-labelledby="p4-lane-doing-title">
             <header><div><i /><h3 id="p4-lane-doing-title">Doing</h3></div><span>{doing.length}</span></header>
             <p>Active, waiting, or already in motion.</p>
-            <div>{doing.map(task => <TaskRow key={task.id} task={task} done={false} dispatch={dispatch} />)}</div>
+            <div>{doing.map(task => <TaskRow key={task.id} task={task} done={false} dispatch={dispatch} onOpenTaskDetail={onOpenTaskDetail} />)}</div>
           </section>
           <section className={selectedLane === "done" ? "p4-lane p4-lane-done is-selected" : "p4-lane p4-lane-done"} data-lane="done" aria-labelledby="p4-lane-done-title">
             <header><div><i /><h3 id="p4-lane-done-title">Done</h3></div><span>{done.length}</span></header>
             <p>Finished work remains available as evidence.</p>
-            <div>{done.length ? done.map(task => <TaskRow key={task.id} task={task} done dispatch={dispatch} />) : <div className="p4-lane-empty"><Check aria-hidden="true" /><strong>No completions yet</strong><span>Completed tasks will settle here.</span></div>}</div>
+            <div>{done.length ? done.map(task => <TaskRow key={task.id} task={task} done dispatch={dispatch} onOpenTaskDetail={onOpenTaskDetail} />) : <div className="p4-lane-empty"><Check aria-hidden="true" /><strong>No completions yet</strong><span>Completed tasks will settle here.</span></div>}</div>
           </section>
         </section>
       ) : (
@@ -88,7 +89,7 @@ export default function PrototypeTasks({ state, dispatch, selectedLane, onSelect
             return (
               <article key={task.id}>
                 <button type="button" className="p4-task-check" aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => dispatch({ type: completed ? "reopen-task" : "complete-task", taskId: task.id })}>{completed ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}</button>
-                <button type="button" onClick={() => dispatch({ type: "open-task-detail", taskId: task.id })}><strong>{task.title}</strong><small>{task.kind}</small></button>
+                <button type="button" onClick={() => onOpenTaskDetail(task.id)}><strong>{task.title}</strong><small>{task.kind}</small></button>
                 <time dateTime={task.scheduledLocalDate}>14 Sep</time>
                 <span>{task.effortMinutes === null ? "Unknown" : `${task.effortMinutes} min`}</span>
               </article>

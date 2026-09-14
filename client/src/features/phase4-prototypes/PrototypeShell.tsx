@@ -20,10 +20,12 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, type Dispatch, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type Dispatch, type ReactNode } from "react";
 import {
+  createPrototypeInteractionHandlers,
   phase4PrototypeFixture,
   type PrototypeAction,
+  type PrototypePreviewViewport,
   type PrototypeState,
 } from "@shared/phase4Prototype";
 import PrototypeRoadmap from "./PrototypeRoadmap";
@@ -33,7 +35,7 @@ import PrototypeToday from "./PrototypeToday";
 
 export type PrototypeVariant = "a" | "b" | "c";
 export type PrototypeDensity = "comfortable" | "compact";
-export type PrototypeViewport = "phone" | "desktop";
+export type PrototypeViewport = PrototypePreviewViewport;
 export type PrototypeLane = "todo" | "doing" | "done";
 
 type PrototypeShellProps = {
@@ -152,7 +154,11 @@ export default function PrototypeShell({
   onRecoveryChoice,
   onSelectedLaneChange,
 }: PrototypeShellProps) {
-  const closeSheet = useCallback(() => dispatch({ type: "close-sheet" }), [dispatch]);
+  const interactions = useMemo(
+    () => createPrototypeInteractionHandlers(dispatch, onViewportChange),
+    [dispatch, onViewportChange],
+  );
+  const closeSheet = interactions.closeSheet;
   const closeRecovery = useCallback(() => dispatch({ type: "close-recovery" }), [dispatch]);
   const showToday = () => dispatch({ type: "set-view", view: "today" });
   const showTasks = () => dispatch({ type: "set-view", view: "tasks" });
@@ -202,7 +208,7 @@ export default function PrototypeShell({
         </nav>
         <div className="p4-global-actions" aria-label="Global actions">
           <p>Global</p>
-          <button type="button" data-testid="open-capture" onClick={() => dispatch({ type: "open-sheet", sheet: "capture" })}>
+          <button type="button" data-testid="open-capture" onClick={interactions.openCapture}>
             <Plus aria-hidden="true" /><span>Capture</span><kbd>C</kbd>
           </button>
           <button type="button" aria-disabled="true" title="Represented for visual review">
@@ -220,7 +226,7 @@ export default function PrototypeShell({
       <div className="p4-workspace">
         <header className="p4-topbar">
           <div className="p4-mobile-brand" aria-hidden="true"><span>Daymark</span></div>
-          <button className="p4-phone-capture" type="button" data-testid="phone-open-capture" onClick={() => dispatch({ type: "open-sheet", sheet: "capture" })} aria-label="Capture a task">
+          <button className="p4-phone-capture" type="button" data-testid="phone-open-capture" onClick={interactions.openCapture} aria-label="Capture a task">
             <Plus aria-hidden="true" />
           </button>
           <div className="p4-view-title">
@@ -238,10 +244,10 @@ export default function PrototypeShell({
               <button type="button" data-testid="density-compact" aria-pressed={density === "compact"} onClick={() => onDensityChange("compact")}><SlidersHorizontal aria-hidden="true" /><span>Compact</span></button>
             </div>
             <div className="p4-segment p4-viewport-switch" aria-label="Preview viewport">
-              <button type="button" aria-pressed={viewport === "desktop"} onClick={() => onViewportChange("desktop")}>Desktop</button>
-              <button type="button" data-testid="viewport-phone" aria-pressed={viewport === "phone"} onClick={() => onViewportChange("phone")}>Phone</button>
+              <button type="button" aria-pressed={viewport === "desktop"} onClick={interactions.showDesktop}>Desktop</button>
+              <button type="button" data-testid="viewport-phone" aria-pressed={viewport === "phone"} onClick={interactions.showPhone}>Phone</button>
             </div>
-            <button className="p4-capture-top" type="button" onClick={() => dispatch({ type: "open-sheet", sheet: "capture" })}>
+            <button className="p4-capture-top" type="button" onClick={interactions.openCapture}>
               <Plus aria-hidden="true" /> Capture
             </button>
           </div>
@@ -259,6 +265,7 @@ export default function PrototypeShell({
               state={state}
               dispatch={dispatch}
               recoveryChoice={recoveryChoice}
+              onOpenTaskDetail={interactions.openTaskDetail}
             />
           )}
           {state.view === "tasks" && (
@@ -267,6 +274,7 @@ export default function PrototypeShell({
               dispatch={dispatch}
               selectedLane={selectedLane}
               onSelectedLaneChange={onSelectedLaneChange}
+              onOpenTaskDetail={interactions.openTaskDetail}
             />
           )}
           {state.view === "roadmap" && <PrototypeRoadmap state={state} dispatch={dispatch} />}
@@ -323,7 +331,7 @@ export default function PrototypeShell({
           </nav>
           <div className="p4-more-viewport" aria-label="Preview frame">
             <span>Preview frame</span>
-            <button type="button" data-testid="more-viewport-desktop" onClick={() => { onViewportChange("desktop"); closeSheet(); }}>Return to desktop</button>
+            <button type="button" data-testid="more-viewport-desktop" onClick={() => { interactions.showDesktop(); closeSheet(); }}>Return to desktop</button>
           </div>
         </PrototypeOverlay>
       )}

@@ -249,6 +249,29 @@ export type PrototypeAction =
   | { type: "preview-roadmap-move"; projectId: string; startLocalDate: string; dueLocalDate: string }
   | { type: "cancel-roadmap-preview" };
 
+export type PrototypePreviewViewport = "phone" | "desktop";
+
+export type PrototypeInteractionHandlers = {
+  openCapture: () => void;
+  closeSheet: () => void;
+  showDesktop: () => void;
+  showPhone: () => void;
+  openTaskDetail: (taskId: string) => void;
+};
+
+export function createPrototypeInteractionHandlers(
+  dispatch: (action: PrototypeAction) => void,
+  onViewportChange: (viewport: PrototypePreviewViewport) => void,
+): PrototypeInteractionHandlers {
+  return {
+    openCapture: () => dispatch({ type: "open-sheet", sheet: "capture" }),
+    closeSheet: () => dispatch({ type: "close-sheet" }),
+    showDesktop: () => onViewportChange("desktop"),
+    showPhone: () => onViewportChange("phone"),
+    openTaskDetail: taskId => dispatch({ type: "open-task-detail", taskId }),
+  };
+}
+
 function freezeState(state: PrototypeState): PrototypeState {
   return deepFreeze({
     ...state,

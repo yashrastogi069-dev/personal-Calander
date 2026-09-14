@@ -7,6 +7,7 @@ import {
   type PrototypeAction,
   type PrototypeState,
 } from "@shared/phase4Prototype";
+import * as prototypeModule from "@shared/phase4Prototype";
 
 describe("Phase 4 prototype parity", () => {
   it("uses identical mixed-life records in all three variants", () => {
@@ -227,6 +228,43 @@ describe("Phase 4 prototype parity", () => {
       sheet: null,
       selectedTaskId: null,
     });
+  });
+
+  it("drives capture, viewport, and selected-task state through the handlers bound to prototype controls", () => {
+    type PortableHandlers = {
+      openCapture: () => void;
+      closeSheet: () => void;
+      showDesktop: () => void;
+      showPhone: () => void;
+      openTaskDetail: (taskId: string) => void;
+    };
+    const createHandlers = (prototypeModule as unknown as {
+      createPrototypeInteractionHandlers?: (
+        dispatch: (action: PrototypeAction) => void,
+        onViewportChange: (viewport: "phone" | "desktop") => void,
+      ) => PortableHandlers;
+    }).createPrototypeInteractionHandlers;
+
+    expect(createHandlers).toBeTypeOf("function");
+    if (!createHandlers) return;
+
+    let state = createPrototypeState();
+    let viewport: "phone" | "desktop" = "phone";
+    const handlers = createHandlers(
+      action => { state = reducePrototypeState(state, action); },
+      nextViewport => { viewport = nextViewport; },
+    );
+
+    handlers.openCapture();
+    expect(state).toMatchObject({ sheet: "capture", selectedTaskId: null });
+    handlers.closeSheet();
+    expect(state).toMatchObject({ sheet: null, selectedTaskId: null });
+    handlers.showDesktop();
+    expect(viewport).toBe("desktop");
+    handlers.showPhone();
+    expect(viewport).toBe("phone");
+    handlers.openTaskDetail("buy-groceries");
+    expect(state).toMatchObject({ sheet: "task", selectedTaskId: "buy-groceries" });
   });
 
   it("deeply freezes fixture data", () => {
