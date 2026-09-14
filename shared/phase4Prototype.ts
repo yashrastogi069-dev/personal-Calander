@@ -228,6 +228,7 @@ export type PrototypeState = {
   completedTaskIds: readonly string[];
   recoveryCommitmentId: string | null;
   sheet: "task" | "capture" | "settings" | null;
+  selectedTaskId: string | null;
   roadmapPreview: null | {
     projectId: string;
     startLocalDate: string;
@@ -243,6 +244,7 @@ export type PrototypeAction =
   | { type: "open-recovery"; commitmentId: string }
   | { type: "close-recovery" }
   | { type: "open-sheet"; sheet: Exclude<PrototypeState["sheet"], null> }
+  | { type: "open-task-detail"; taskId: string }
   | { type: "close-sheet" }
   | { type: "preview-roadmap-move"; projectId: string; startLocalDate: string; dueLocalDate: string }
   | { type: "cancel-roadmap-preview" };
@@ -267,6 +269,7 @@ export function createPrototypeState(): PrototypeState {
     completedTaskIds: [],
     recoveryCommitmentId: null,
     sheet: null,
+    selectedTaskId: null,
     roadmapPreview: null,
   });
 }
@@ -296,8 +299,15 @@ export function reducePrototypeState(state: PrototypeState, action: PrototypeAct
       return state.recoveryCommitmentId === null ? state : freezeState({ ...state, recoveryCommitmentId: null });
     case "open-sheet":
       return action.sheet === state.sheet ? state : freezeState({ ...state, sheet: action.sheet });
+    case "open-task-detail":
+      if (!phase4PrototypeFixture.tasks.some(task => task.id === action.taskId)) return state;
+      return state.sheet === "task" && state.selectedTaskId === action.taskId
+        ? state
+        : freezeState({ ...state, sheet: "task", selectedTaskId: action.taskId });
     case "close-sheet":
-      return state.sheet === null ? state : freezeState({ ...state, sheet: null });
+      return state.sheet === null && state.selectedTaskId === null
+        ? state
+        : freezeState({ ...state, sheet: null, selectedTaskId: null });
     case "preview-roadmap-move": {
       if (!phase4PrototypeFixture.projects.some(project => project.id === action.projectId)) return state;
       const unchangedFields = phase4PrototypeFixture.roadmap.movePreview.unchangedFields;

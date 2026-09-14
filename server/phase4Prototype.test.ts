@@ -4,6 +4,7 @@ import {
   phase4PrototypeFixture,
   phase4PrototypeVariants,
   reducePrototypeState,
+  type PrototypeAction,
   type PrototypeState,
 } from "@shared/phase4Prototype";
 
@@ -56,6 +57,7 @@ describe("Phase 4 prototype parity", () => {
       recoveryCommitmentId: null,
       sheet: null,
       roadmapPreview: null,
+      selectedTaskId: null,
     });
     expect(Object.isFrozen(first)).toBe(true);
     expect(Object.isFrozen(first.completedTaskIds)).toBe(true);
@@ -182,6 +184,26 @@ describe("Phase 4 prototype parity", () => {
         startLocalDate: "2026-10-01",
         dueLocalDate: "2026-12-15",
       }),
+    ).toBe(initial);
+  });
+
+  it("opens the clicked fixture task and clears its identity when detail closes", () => {
+    const initial = createPrototypeState();
+    const opened = reducePrototypeState(initial, {
+      type: "open-task-detail",
+      taskId: "buy-groceries",
+    } as PrototypeAction);
+
+    expect(opened).toMatchObject({ sheet: "task", selectedTaskId: "buy-groceries" });
+    expect(reducePrototypeState(opened, { type: "close-sheet" })).toMatchObject({
+      sheet: null,
+      selectedTaskId: null,
+    });
+    expect(
+      reducePrototypeState(initial, {
+        type: "open-task-detail",
+        taskId: "missing",
+      } as PrototypeAction),
     ).toBe(initial);
   });
 

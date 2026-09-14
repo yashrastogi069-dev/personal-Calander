@@ -150,6 +150,7 @@ export default function PrototypeShell({
   const showRoadmap = () => dispatch({ type: "set-view", view: "roadmap" });
   const showSettings = () => dispatch({ type: "set-view", view: "settings" });
   const title = { today: "Today", tasks: "Tasks", roadmap: "Roadmap", settings: "Settings" }[state.view];
+  const selectedTask = phase4PrototypeFixture.tasks.find(task => task.id === state.selectedTaskId) ?? null;
 
   return (
     <div
@@ -197,6 +198,9 @@ export default function PrototypeShell({
       <div className="p4-workspace">
         <header className="p4-topbar">
           <div className="p4-mobile-brand" aria-hidden="true"><span>Daymark</span></div>
+          <button className="p4-phone-capture" type="button" data-testid="phone-open-capture" onClick={() => dispatch({ type: "open-sheet", sheet: "capture" })} aria-label="Capture a task">
+            <Plus aria-hidden="true" />
+          </button>
           <div className="p4-view-title">
             <p>Monday · 14 September</p>
             <h1>{title}</h1>
@@ -213,7 +217,7 @@ export default function PrototypeShell({
             </div>
             <div className="p4-segment p4-viewport-switch" aria-label="Preview viewport">
               <button type="button" aria-pressed={viewport === "desktop"} onClick={() => onViewportChange("desktop")}>Desktop</button>
-              <button type="button" aria-pressed={viewport === "phone"} onClick={() => onViewportChange("phone")}>Phone</button>
+              <button type="button" data-testid="viewport-phone" aria-pressed={viewport === "phone"} onClick={() => onViewportChange("phone")}>Phone</button>
             </div>
             <button className="p4-capture-top" type="button" onClick={() => dispatch({ type: "open-sheet", sheet: "capture" })}>
               <Plus aria-hidden="true" /> Capture
@@ -268,17 +272,17 @@ export default function PrototypeShell({
         </PrototypeOverlay>
       )}
 
-      {state.sheet === "task" && (
+      {state.sheet === "task" && selectedTask && (
         <PrototypeOverlay title="Task detail" description="All advanced fields stay available away from the scan-friendly row." labelledBy="p4-task-detail-title" closeTestId="close-task-detail" onClose={closeSheet} side>
-          <div className="p4-task-detail">
-            <div className="p4-detail-title"><span>Document reading</span><h3>{phase4PrototypeFixture.tasks[1].title}</h3></div>
+          <div className="p4-task-detail" data-selected-task-id={selectedTask.id}>
+            <div className="p4-detail-title"><span>{selectedTask.kind}</span><h3>{selectedTask.title}</h3></div>
             <dl>
               <div><dt>Lifecycle</dt><dd>Open · To do</dd></div>
               <div><dt>Priority / horizon</dt><dd>Medium · This week</dd></div>
               <div><dt>Due by</dt><dd>Not set</dd></div>
               <div><dt>Plan for</dt><dd>14 Sep 2026</dd></div>
               <div><dt>Reserved time</dt><dd>Not reserved</dd></div>
-              <div><dt>Estimate</dt><dd>Unknown — not counted as zero</dd></div>
+              <div><dt>Estimate</dt><dd>{selectedTask.effortMinutes === null ? "Unknown — not counted as zero" : `${selectedTask.effortMinutes} minutes`}</dd></div>
               <div><dt>Schedule mode / order</dt><dd>Flexible · 02</dd></div>
               <div><dt>Recurrence / occurrence</dt><dd>None · single task</dd></div>
               <div><dt>Parent / subtasks</dt><dd>No parent · 2 subtasks</dd></div>
@@ -299,6 +303,10 @@ export default function PrototypeShell({
             <button type="button" onClick={showToday}><Archive aria-hidden="true" /><span>Review</span><ChevronRight aria-hidden="true" /></button>
             <button type="button" data-testid="view-settings" onClick={() => { showSettings(); closeSheet(); }}><Settings aria-hidden="true" /><span>Settings</span><ChevronRight aria-hidden="true" /></button>
           </nav>
+          <div className="p4-more-viewport" aria-label="Preview frame">
+            <span>Preview frame</span>
+            <button type="button" data-testid="more-viewport-desktop" onClick={() => { onViewportChange("desktop"); closeSheet(); }}>Return to desktop</button>
+          </div>
         </PrototypeOverlay>
       )}
 

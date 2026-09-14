@@ -92,7 +92,7 @@ export default function PrototypeToday({ state, dispatch, recoveryChoice }: Prot
             >
               {isComplete ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}
             </button>
-            <button className="p4-row-main" type="button" data-testid="open-task-detail" onClick={() => dispatch({ type: "open-sheet", sheet: "task" })}>
+            <button className="p4-row-main" type="button" data-testid="open-task-detail" onClick={() => dispatch({ type: "open-task-detail", taskId })}>
               <span>{phase4PrototypeFixture.tasks[1].title}</span>
               <small>Unknown estimate · planned today</small>
             </button>

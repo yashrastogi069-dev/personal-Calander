@@ -25,7 +25,7 @@ function TaskRow({ task, done, dispatch }: { task: TaskRecord; done: boolean; di
       >
         {done ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}
       </button>
-      <button className="p4-board-task-main" type="button" onClick={() => dispatch({ type: "open-sheet", sheet: "task" })}>
+      <button className="p4-board-task-main" type="button" onClick={() => dispatch({ type: "open-task-detail", taskId: task.id })}>
         <strong>{task.title}</strong><small>{estimate} · {task.kind}</small>
       </button>
       <button className="p4-icon-button" type="button" aria-label={`More options for ${task.title}`}><MoreHorizontal aria-hidden="true" /></button>
@@ -56,10 +56,10 @@ export default function PrototypeTasks({ state, dispatch, selectedLane, onSelect
         <button type="button" aria-disabled="true">Saved views <ChevronRight aria-hidden="true" /></button>
       </div>
 
-      <div className="p4-phone-lanes" role="tablist" aria-label="Task status lane">
-        <button role="tab" type="button" aria-selected={selectedLane === "todo"} onClick={() => onSelectedLaneChange("todo")}>To do <span>{todo.length}</span></button>
-        <button role="tab" type="button" aria-selected={selectedLane === "doing"} onClick={() => onSelectedLaneChange("doing")}>Doing <span>{doing.length}</span></button>
-        <button role="tab" type="button" aria-selected={selectedLane === "done"} onClick={() => onSelectedLaneChange("done")}>Done <span>{done.length}</span></button>
+      <div className="p4-phone-lanes" role="group" aria-label="Task status lane">
+        <button type="button" aria-pressed={selectedLane === "todo"} onClick={() => onSelectedLaneChange("todo")}>To do <span>{todo.length}</span></button>
+        <button type="button" aria-pressed={selectedLane === "doing"} onClick={() => onSelectedLaneChange("doing")}>Doing <span>{doing.length}</span></button>
+        <button type="button" aria-pressed={selectedLane === "done"} onClick={() => onSelectedLaneChange("done")}>Done <span>{done.length}</span></button>
       </div>
 
       {mode === "board" ? (
@@ -88,7 +88,7 @@ export default function PrototypeTasks({ state, dispatch, selectedLane, onSelect
             return (
               <article key={task.id}>
                 <button type="button" className="p4-task-check" aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => dispatch({ type: completed ? "reopen-task" : "complete-task", taskId: task.id })}>{completed ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}</button>
-                <button type="button" onClick={() => dispatch({ type: "open-sheet", sheet: "task" })}><strong>{task.title}</strong><small>{task.kind}</small></button>
+                <button type="button" onClick={() => dispatch({ type: "open-task-detail", taskId: task.id })}><strong>{task.title}</strong><small>{task.kind}</small></button>
                 <time dateTime={task.scheduledLocalDate}>14 Sep</time>
                 <span>{task.effortMinutes === null ? "Unknown" : `${task.effortMinutes} min`}</span>
               </article>
