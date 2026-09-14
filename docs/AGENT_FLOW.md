@@ -2,6 +2,22 @@
 
 Last updated: 2026-09-12
 
+## Phase 4 discovery
+
+The read-only critical audit is recorded in `PHASE4_DESIGN_AUDIT.md`. Current verdict: technically strong, visually and structurally not yet category-leading. Do not start broad styling before settling the product promise, primary audience, five-or-six-item navigation model, Today composition, visual direction, and density. Physical iPhone More scrolling and bottom-safe Settings sign-out remain verified Phase 4 defects. Notifications and reminders stay last.
+
+Owner scenario recorded 2026-09-14: the product must handle one mixed personal day containing habits, daily tasks, meetings/appointments, documents and replies, meals/groceries/home decisions, and monthly/quarterly/yearly goals. Validate Phase 4 against interruptions and changing capacity, not just an ideal time-boxed workday. Apple Calendar is the first calendar context; Gmail remains a future integration boundary unless separately scoped. Preserve all current capabilities while reducing simultaneous exposure through grouping and progressive disclosure.
+
+Primary Phase 4 outcome: protect follow-through. Missed habits, deferred work, interruptions, unclear next actions, and neglected long-term goals must enter an explicit recovery/review loop. Favor consistent return over punishing perfect-streak mechanics. Plan a small configurable accountability level, with structured guidance as the default and stricter/gentler behavior available without silently changing planner records. Long-term goals need milestones, workstreams/projects, next actions, timelines, evidence, stalled-state visibility, and recurring review while preserving existing flexible relationships.
+
+Owner approved Strict accountability mode: unresolved commitments persist until explicitly resolved as Done, Reschedule, Reduce, Pause, or Abandon. Do not lock access to the application. Reduce/Pause must capture a revised scope or review point; preserve all decision history and never silently mutate or remove the underlying item.
+
+Owner approved both long-term intention types: finishable Outcome goals and continuing Directions. Phase 4 should add project-manager-style Overview/List-or-Board/Timeline views over existing goal/project/task records. Recommended home architecture is a `Today / Overview` switch: Today executes; Overview orients with a bounded, reorderable command dashboard. Do not build a freeform enterprise widget canvas or duplicate planner records. Phone Overview is a prioritized briefing; desktop may use a composed grid.
+
+Phase 5 boundary: the owner wants deeper recording, understanding, and analytics. Keep implementation out of Phase 4, but preserve the event/history semantics required for it. The discovery backlog is in `PHASE5_ANALYTICS_BACKLOG.md`. Use Astra selectively for complex/high-risk architecture and review work; use GPT-5.6 Sol High for implementation after the approved design contract.
+
+Phase 4 baseline verified 2026-09-14 before implementation: direct TypeScript compilation passed; 64/64 Vitest files passed with 274 tests and 3 expected skips; Vite production build passed at 1,299.28 kB / 371.09 kB gzip for the main bundle with the known large-chunk warning; PWA shell generation passed with release `ba8a0e16ab6ba54a` and 20 files. The repository pnpm launcher attempted a registry-verified version switch and failed before compilation because registry verification/fetch was unavailable; direct checked-in `node_modules/.bin` executables were used without disabling that security check. Vitest/esbuild requires permission to spawn local worker processes in the managed Windows environment.
+
 ## Current pre-Phase 4 workbench checkpoint
 
 - Work only on `dev/personal-calendar-workbench`; the user wants to inspect its Vercel Preview before any new `main` merge.
@@ -92,3 +108,12 @@ Pre-merge visual gate: the Task board restores the exact R20/main dark state pal
 - Complete tests, TypeScript, production build release `84daa9a657fc24cc`, and desktop/390x844 browser checks passed. The phone test retained two independent operations—one create and one update—without overflow.
 
 Before each external/data-changing phase: refresh the relevant live audit, preserve records, make only scoped changes, and add the exact verification result to `INDEPENDENT_STACK_HANDOFF.md` and this file.
+
+## 2026-09-14 Phase 4 visual-gate checkpoint
+
+- Phase 4 research, audit, product architecture, capability ledger, implementation spec, 23-task execution plan, and Phase 5 analytics backlog are recorded in the `PHASE4_*` documents and `docs/superpowers/` plan/spec files. Today remains the execution home; Overview is the bounded orientation layer; long-term goals use Outcome/Direction semantics, projects, milestones, dependencies, and explicit review/recovery.
+- Tasks 1–3 are complete through commit `07a0bc8` on `dev/personal-calendar-workbench`. The isolated authenticated `/phase4-prototypes` route contains three feature-parity directions over one immutable synthetic fixture: A Verdigris Workbench, B Quiet Agenda, and C Night Instrument. It has no planner/backend/offline/account mutation path.
+- Task 3 final verification: 31/31 focused tests, TypeScript, and production build passed. Independent review confirmed truthful task detail, portable JSX-bound interaction handlers, single auth boundary, A/B contrast, exact R20 lane colors, 14px functional text, 44×44px targets, reduced motion, and source isolation. The existing large main-chunk warning remains.
+- Task 4 local preview harness is implemented but intentionally uncommitted until the owner visual decision. Authoritative synthetic Chromium evidence is `%TEMP%\personal-calendar-phase4-prototypes-fix1-clean-20260914-220312`: 13/13 harness self-tests, 18/18 browser scenarios, 38/38 manifest entries, both densities across all core views, zero runtime/console/unexpected/planner requests or overflow, and minimum 44×44px targets / 14px functional text / 5.034:1 sampled contrast. Fresh independent review returned 0 Critical, 0 Important, 0 Minor.
+- Current gate: owner must select A/B/C, lane treatment, default density, and motion refinement. Recommended production direction is A as the default light architecture with exact R20 lanes, C as the selectable dark theme, comfortable default density, and the tested short sheet transition with reduced-motion fallback. Selection authorizes production styling only; it does not authorize schema migration, push, deployment, merge, feature removal, data mutation, or integrations.
+- Phase 5 analytics remains deferred. Preserve provenance/history/event semantics during Phase 4; do not build analytics surfaces yet.
