@@ -4,6 +4,7 @@ import {
   phase4PrototypeFixture,
   phase4PrototypeVariants,
   reducePrototypeState,
+  type PrototypeState,
 } from "@shared/phase4Prototype";
 
 describe("Phase 4 prototype parity", () => {
@@ -83,6 +84,49 @@ describe("Phase 4 prototype parity", () => {
     expect(capture.sheet).toBe("capture");
     expect(closed.sheet).toBeNull();
     expect(initial).toEqual(createPrototypeState());
+  });
+
+  it("does not freeze nested references owned by a mutable caller", () => {
+    const completedTaskIds = ["read-lease"];
+    const unchangedFields = ["goal.dueLocalDate"];
+    const roadmapPreview = {
+      projectId: "project-quarterly",
+      startLocalDate: "2026-10-01",
+      dueLocalDate: "2026-12-15",
+      unchangedFields,
+    };
+    const mutableState: PrototypeState = {
+      view: "today",
+      completedTaskIds,
+      recoveryCommitmentId: "commitment-reply",
+      sheet: "task",
+      roadmapPreview,
+    };
+
+    const next = reducePrototypeState(mutableState, { type: "set-view", view: "tasks" });
+
+    expect(next).toEqual({ ...mutableState, view: "tasks" });
+    expect(next.completedTaskIds).not.toBe(completedTaskIds);
+    expect(next.roadmapPreview).not.toBe(roadmapPreview);
+    expect(next.roadmapPreview?.unchangedFields).not.toBe(unchangedFields);
+    expect(Object.isFrozen(next.completedTaskIds)).toBe(true);
+    expect(Object.isFrozen(next.roadmapPreview)).toBe(true);
+    expect(Object.isFrozen(next.roadmapPreview?.unchangedFields)).toBe(true);
+    expect(Object.isFrozen(completedTaskIds)).toBe(false);
+    expect(Object.isFrozen(roadmapPreview)).toBe(false);
+    expect(Object.isFrozen(unchangedFields)).toBe(false);
+    expect(mutableState).toEqual({
+      view: "today",
+      completedTaskIds: ["read-lease"],
+      recoveryCommitmentId: "commitment-reply",
+      sheet: "task",
+      roadmapPreview: {
+        projectId: "project-quarterly",
+        startLocalDate: "2026-10-01",
+        dueLocalDate: "2026-12-15",
+        unchangedFields: ["goal.dueLocalDate"],
+      },
+    });
   });
 
   it("previews recovery and roadmap changes without mutating fixture records", () => {

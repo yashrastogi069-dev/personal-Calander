@@ -248,7 +248,17 @@ export type PrototypeAction =
   | { type: "cancel-roadmap-preview" };
 
 function freezeState(state: PrototypeState): PrototypeState {
-  return deepFreeze(state) as PrototypeState;
+  return deepFreeze({
+    ...state,
+    completedTaskIds: [...state.completedTaskIds],
+    roadmapPreview:
+      state.roadmapPreview === null
+        ? null
+        : {
+            ...state.roadmapPreview,
+            unchangedFields: [...state.roadmapPreview.unchangedFields],
+          },
+  }) as PrototypeState;
 }
 
 export function createPrototypeState(): PrototypeState {
