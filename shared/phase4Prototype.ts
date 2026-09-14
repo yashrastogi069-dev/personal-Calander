@@ -243,7 +243,7 @@ export type PrototypeAction =
   | { type: "reopen-task"; taskId: string }
   | { type: "open-recovery"; commitmentId: string }
   | { type: "close-recovery" }
-  | { type: "open-sheet"; sheet: Exclude<PrototypeState["sheet"], null> }
+  | { type: "open-sheet"; sheet: Exclude<PrototypeState["sheet"], "task" | null> }
   | { type: "open-task-detail"; taskId: string }
   | { type: "close-sheet" }
   | { type: "preview-roadmap-move"; projectId: string; startLocalDate: string; dueLocalDate: string }
@@ -298,7 +298,9 @@ export function reducePrototypeState(state: PrototypeState, action: PrototypeAct
     case "close-recovery":
       return state.recoveryCommitmentId === null ? state : freezeState({ ...state, recoveryCommitmentId: null });
     case "open-sheet":
-      return action.sheet === state.sheet ? state : freezeState({ ...state, sheet: action.sheet });
+      return action.sheet === state.sheet && state.selectedTaskId === null
+        ? state
+        : freezeState({ ...state, sheet: action.sheet, selectedTaskId: null });
     case "open-task-detail":
       if (!phase4PrototypeFixture.tasks.some(task => task.id === action.taskId)) return state;
       return state.sheet === "task" && state.selectedTaskId === action.taskId

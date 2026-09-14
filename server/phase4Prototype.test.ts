@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createPrototypeState,
   phase4PrototypeFixture,
@@ -102,6 +102,7 @@ describe("Phase 4 prototype parity", () => {
       completedTaskIds,
       recoveryCommitmentId: "commitment-reply",
       sheet: "task",
+      selectedTaskId: "read-lease",
       roadmapPreview,
     };
 
@@ -122,6 +123,7 @@ describe("Phase 4 prototype parity", () => {
       completedTaskIds: ["read-lease"],
       recoveryCommitmentId: "commitment-reply",
       sheet: "task",
+      selectedTaskId: "read-lease",
       roadmapPreview: {
         projectId: "project-quarterly",
         startLocalDate: "2026-10-01",
@@ -205,6 +207,26 @@ describe("Phase 4 prototype parity", () => {
         taskId: "missing",
       } as PrototypeAction),
     ).toBe(initial);
+  });
+
+  it("allows generic sheet actions only for non-task sheets and cannot retain a stale task identity", () => {
+    type OpenSheet = Extract<PrototypeAction, { type: "open-sheet" }>;
+    expectTypeOf<OpenSheet["sheet"]>().toEqualTypeOf<"capture" | "settings">();
+
+    const task = reducePrototypeState(createPrototypeState(), {
+      type: "open-task-detail",
+      taskId: "reply-samira",
+    });
+    const capture = reducePrototypeState(task, { type: "open-sheet", sheet: "capture" });
+    const settings = reducePrototypeState(task, { type: "open-sheet", sheet: "settings" });
+
+    expect(task).toMatchObject({ sheet: "task", selectedTaskId: "reply-samira" });
+    expect(capture).toMatchObject({ sheet: "capture", selectedTaskId: null });
+    expect(settings).toMatchObject({ sheet: "settings", selectedTaskId: null });
+    expect(reducePrototypeState(task, { type: "close-sheet" })).toMatchObject({
+      sheet: null,
+      selectedTaskId: null,
+    });
   });
 
   it("deeply freezes fixture data", () => {

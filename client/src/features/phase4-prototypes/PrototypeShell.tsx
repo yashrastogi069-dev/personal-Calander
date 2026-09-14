@@ -70,6 +70,15 @@ const desktopDestinations = [
   { label: "Review", icon: Archive, view: "today" as const },
 ];
 
+function formatPrototypeDate(localDate: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${localDate}T00:00:00Z`));
+}
+
 function PrototypeOverlay({ title, description, labelledBy, closeTestId, onClose, children, side }: OverlayProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -151,6 +160,19 @@ export default function PrototypeShell({
   const showSettings = () => dispatch({ type: "set-view", view: "settings" });
   const title = { today: "Today", tasks: "Tasks", roadmap: "Roadmap", settings: "Settings" }[state.view];
   const selectedTask = phase4PrototypeFixture.tasks.find(task => task.id === state.selectedTaskId) ?? null;
+  const selectedGoal = selectedTask && "goalId" in selectedTask
+    ? phase4PrototypeFixture.goals.find(goal => goal.id === selectedTask.goalId) ?? null
+    : null;
+  const selectedWaitingFor = selectedTask && phase4PrototypeFixture.waitingFor.taskId === selectedTask.id
+    ? phase4PrototypeFixture.waitingFor
+    : null;
+  const selectedTaskState = selectedTask
+    ? state.completedTaskIds.includes(selectedTask.id)
+      ? "Completed"
+      : selectedTask.state === "waiting"
+        ? "Waiting"
+        : "Open"
+    : null;
 
   return (
     <div
@@ -273,22 +295,18 @@ export default function PrototypeShell({
       )}
 
       {state.sheet === "task" && selectedTask && (
-        <PrototypeOverlay title="Task detail" description="All advanced fields stay available away from the scan-friendly row." labelledBy="p4-task-detail-title" closeTestId="close-task-detail" onClose={closeSheet} side>
+        <PrototypeOverlay title="Task detail" description="Available task fields stay readable away from the scan-friendly row." labelledBy="p4-task-detail-title" closeTestId="close-task-detail" onClose={closeSheet} side>
           <div className="p4-task-detail" data-selected-task-id={selectedTask.id}>
             <div className="p4-detail-title"><span>{selectedTask.kind}</span><h3>{selectedTask.title}</h3></div>
             <dl>
-              <div><dt>Lifecycle</dt><dd>Open · To do</dd></div>
-              <div><dt>Priority / horizon</dt><dd>Medium · This week</dd></div>
-              <div><dt>Due by</dt><dd>Not set</dd></div>
-              <div><dt>Plan for</dt><dd>14 Sep 2026</dd></div>
-              <div><dt>Reserved time</dt><dd>Not reserved</dd></div>
+              <div><dt>State</dt><dd>{selectedTaskState}</dd></div>
+              <div><dt>Plan for</dt><dd>{formatPrototypeDate(selectedTask.scheduledLocalDate)}</dd></div>
               <div><dt>Estimate</dt><dd>{selectedTask.effortMinutes === null ? "Unknown — not counted as zero" : `${selectedTask.effortMinutes} minutes`}</dd></div>
-              <div><dt>Schedule mode / order</dt><dd>Flexible · 02</dd></div>
-              <div><dt>Recurrence / occurrence</dt><dd>None · single task</dd></div>
-              <div><dt>Parent / subtasks</dt><dd>No parent · 2 subtasks</dd></div>
-              <div><dt>Project / goal / category</dt><dd>Home move · Settle into the new home · Admin</dd></div>
-              <div><dt>Outcome / dependencies</dt><dd>Questions marked · waiting on landlord</dd></div>
-              <div><dt>Template / version</dt><dd>Document review · v7</dd></div>
+              {selectedGoal && <div><dt>Goal</dt><dd>{selectedGoal.title}</dd></div>}
+              {selectedWaitingFor && <>
+                <div><dt>Waiting for</dt><dd>{selectedWaitingFor.person}</dd></div>
+                <div><dt>Follow up</dt><dd>{formatPrototypeDate(selectedWaitingFor.followUpLocalDate)}</dd></div>
+              </>}
             </dl>
             <div className="p4-detail-warning"><Archive aria-hidden="true" /><span>Archive keeps history and linked evidence. Conflict review preserves both versions.</span></div>
             <button className="p4-secondary-button" type="button" onClick={closeSheet}>Done reviewing</button>

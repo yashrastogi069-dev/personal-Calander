@@ -121,15 +121,34 @@ describe("Phase 4 prototype route contract", () => {
   });
 
   it("renders detail for the selected task instead of a hard-coded fixture row", () => {
-    const selectedTaskState = {
-      ...createPrototypeState(),
-      sheet: "task",
-      selectedTaskId: "buy-groceries",
-    } as PrototypeState;
+    const selectedTaskState = reducePrototypeState(createPrototypeState(), {
+      type: "open-task-detail",
+      taskId: "reply-samira",
+    });
     const html = renderPrototype(selectedTaskState, "a", "desktop");
 
+    expect(html).toContain('data-selected-task-id="reply-samira"');
+    expect(html).toContain("Reply to Samira about the contractor estimate");
+    expect(html).toContain("Waiting");
+    expect(html).not.toContain("Open Â· To do");
+    expect(html).not.toContain("Home move Â· Settle into the new home Â· Admin");
+    expect(html).not.toContain("Document review Â· v7");
+  });
+
+  it("renders a completed selected task as completed rather than open", () => {
+    const completed = reducePrototypeState(createPrototypeState(), {
+      type: "complete-task",
+      taskId: "buy-groceries",
+    });
+    const selected = reducePrototypeState(completed, {
+      type: "open-task-detail",
+      taskId: "buy-groceries",
+    });
+    const html = renderPrototype(selected, "b", "desktop");
+
     expect(html).toContain('data-selected-task-id="buy-groceries"');
-    expect(html).toContain("Buy groceries for the week");
+    expect(html).toContain("Completed");
+    expect(html).not.toContain("<dd>Open</dd>");
   });
 
   it("renders a way back to desktop inside the phone More directory", () => {
@@ -239,5 +258,11 @@ describe("Phase 4 prototype route contract", () => {
       expect(contrastRatio(tokens["prototype-muted"], background)).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrastRatio(tokens["prototype-warning"], tokens["prototype-warning-soft"])).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps functional and secondary text at least 14px", () => {
+    const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
+
+    expect(cssSource.match(/font-size:\s*(?:11|12|13)px/g)).toBeNull();
   });
 });
