@@ -313,4 +313,13 @@ describe("Phase 4 prototype route contract", () => {
     expect(boardCheckRule).toMatch(/width:\s*44px/);
     expect(boardCheckRule).toMatch(/min-width:\s*44px/);
   });
+
+  it("keeps every roadmap scale segment target at least 44px wide under the phone cascade", () => {
+    const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
+    const baseScaleRule = cssSource.match(/\.p4-mode-switch button\s*\{([^}]+)\}/)?.[1] ?? "";
+    const phoneScaleRule = cssSource.match(/\.p4-prototype:not\(\[data-prototype-viewport="desktop"\]\) \.p4-mode-switch button\s*\{([^}]+)\}/)?.[1] ?? "";
+
+    expect(baseScaleRule).toMatch(/min-width:\s*44px/);
+    expect(phoneScaleRule).not.toMatch(/(?:min-)?width:\s*(?:[0-3]?\d|4[0-3](?:\.\d+)?)px/);
+  });
 });
