@@ -1,0 +1,135 @@
+.planner-sheet-content {
+  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  transform: none;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--ink);
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-elevated);
+  box-shadow: 0 24px 70px rgb(12 19 23 / 28%);
+  animation-duration: var(--motion-sheet);
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.planner-sheet-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(18px + env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right)) 18px
+    max(18px, env(safe-area-inset-left));
+  color: var(--ink);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-elevated);
+  text-align: left;
+}
+
+.planner-sheet-heading {
+  min-width: 0;
+}
+
+.planner-sheet-title {
+  color: var(--ink);
+  font-size: clamp(20px, 5vw, 26px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.planner-sheet-description {
+  margin-top: 6px;
+  max-width: 56ch;
+  color: var(--ink-muted);
+  font-size: var(--font-size-secondary);
+  line-height: 1.45;
+}
+
+.planner-sheet-close {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.planner-sheet-close:hover {
+  color: var(--ink);
+  background: var(--selection);
+}
+
+.planner-sheet-close:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.planner-sheet-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.planner-sheet-body {
+  min-height: 0;
+  padding: 20px max(18px, env(safe-area-inset-right)) 24px
+    max(18px, env(safe-area-inset-left));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-elevated);
+  scrollbar-gutter: stable;
+}
+
+.planner-sheet-footer {
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px max(18px, env(safe-area-inset-right))
+    calc(14px + env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left));
+  border-top: 1px solid var(--border);
+  background: var(--surface-elevated);
+}
+
+.planner-sheet-footer button,
+.planner-sheet-footer a[href] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (min-width: 768px) {
+  .planner-sheet-content {
+    inset: 0 0 0 auto;
+    left: auto;
+    width: min(32rem, 100vw);
+    border-left: 1px solid var(--border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planner-sheet-content,
+  .planner-sheet-content[data-state="open"],
+  .planner-sheet-content[data-state="closed"] {
+    animation-duration: var(--motion-sheet-reduced);
+    transition-duration: var(--motion-sheet-reduced);
+  }
+}

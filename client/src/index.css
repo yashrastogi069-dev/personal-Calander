@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./features/shell/phase4-tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -58,7 +59,7 @@
 
 * { border-color: var(--border); }
 html { background: var(--background); color-scheme: light; }
-body { margin: 0; min-width: 320px; min-height: 100dvh; background: var(--background); color: var(--foreground); font-family: "Onest", ui-sans-serif, system-ui, sans-serif; accent-color: var(--primary); }
+body { margin: 0; min-width: 320px; min-height: 100dvh; background: var(--background); color: var(--foreground); font-family: "Onest", ui-sans-serif, system-ui, sans-serif; font-size: 16px; accent-color: var(--primary); }
 button, input, select { font: inherit; }
 button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href] { cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a[href]:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }

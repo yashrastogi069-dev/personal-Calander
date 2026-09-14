@@ -41,9 +41,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="system"
-      >
+      <ThemeProvider defaultTheme="system" switchable>
         <TooltipProvider>
           <Toaster />
           <PwaStatus />

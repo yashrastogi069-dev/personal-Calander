@@ -1,0 +1,55 @@
+/* Phase 4 foundation: Variant A by day, resolved Variant C at night. */
+html:root {
+  --surface: #ede9df;
+  --surface-elevated: #fffdf8;
+  --ink: #18211f;
+  --ink-muted: #56625e;
+  --border: #cbd2cb;
+  --accent: #286b5e;
+  --selection: #dbeae3;
+  --completion: #246650;
+  --warning: #85501e;
+  --destructive: #a33f3f;
+  --focus-ring: #1775a4;
+
+  --font-size-body: 16px;
+  --font-size-secondary: 14px;
+  --motion-sheet: 180ms;
+  --motion-sheet-reduced: 0.00001s;
+
+  /* Compatibility aliases for the existing component and Tailwind vocabulary. */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-elevated);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--selection);
+  --secondary-foreground: var(--ink);
+  --muted: var(--selection);
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: #ffffff;
+  --destructive-foreground: #ffffff;
+  --input: var(--border);
+  --ring: var(--focus-ring);
+}
+
+html:root.dark {
+  --surface: #0c1317;
+  --surface-elevated: #17242a;
+  --ink: #f1ebdf;
+  --ink-muted: #aab5b3;
+  --border: #304149;
+  --accent: #70bab2;
+  --selection: #183b3b;
+  --completion: #83c4a4;
+  --warning: #e1ad6b;
+  --destructive: #ee8b82;
+  --focus-ring: #8bd4df;
+  --primary-foreground: #0c1317;
+  --secondary-foreground: var(--ink);
+  --accent-foreground: #0c1317;
+  --destructive-foreground: #0c1317;
+}
