@@ -175,6 +175,6 @@ This borrows the useful aggregation principle from [monday.com's Overview widget
 
 ## Decisions needed from the owner
 
-The questions in the associated Phase 4 discussion determine the final information architecture, visual character, and default workflow. Do not begin broad interface implementation until the first product-direction answers are recorded. 
-         
+The questions in the associated Phase 4 discussion determine the final information architecture, visual character, and default workflow. Do not begin broad interface implementation until the first product-direction answers are recorded.
+
 1B, 2C (with a more deeper usecases in real life basically hael the user in any way), 3C, 4C, 5A and 5C (Look i want to preserve all the features, I would want any removal of any feature because I personally feel giving all the features is imp), 6A but plans is also for long term planing or we can something else for longterm planing, 7A, 8A and 8B its imp, 9B but i am not sure with this where this make more sense, 10C, 11B, 12C and B as well, 13C But i am not sure with this do some more research for this its IMP understand what others are doing and how we can do this, 14A, 15A, 16A to be honest i an not sure for this as well what you can do you show me some smaple when you start working on this and then we can do something by looking visually, 17A But other option should be actuly better than this, 18C i did dark because i want more cleaity and visibility if you do something else that has these two things you can show that as well, 19B give option to user as well, 20C. Wok on wed brach only and I want you to make this plan with astra and then switch to 5.6 sole High for everything.
