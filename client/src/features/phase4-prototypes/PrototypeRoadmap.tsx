@@ -53,7 +53,7 @@ export default function PrototypeRoadmap({ state, dispatch }: PrototypeRoadmapPr
         <section className="p4-move-preview" aria-live="polite" aria-labelledby="p4-preview-title">
           <header><span><CalendarDays aria-hidden="true" />Change preview</span><button className="p4-icon-button" type="button" data-testid="cancel-roadmap-move" onClick={() => dispatch({ type: "cancel-roadmap-preview" })} aria-label="Cancel roadmap move"><X aria-hidden="true" /></button></header>
           <h3 id="p4-preview-title">Quarterly planning refresh</h3>
-          <div><span><small>Current</small>20 Sep → 30 Nov</span><MoveRight aria-hidden="true" /><span><small>Proposed</small>01 Oct → 15 Dec</span></div>
+          <div><span><span className="p4-move-label">Current</span>20 Sep → 30 Nov</span><MoveRight aria-hidden="true" /><span><span className="p4-move-label">Proposed</span>01 Oct → 15 Dec</span></div>
           <p><Check aria-hidden="true" />Goal due date stays unchanged. The dependency will need review; no child task moves automatically.</p>
           <button type="button" disabled>Apply dates · disabled in prototype</button>
         </section>

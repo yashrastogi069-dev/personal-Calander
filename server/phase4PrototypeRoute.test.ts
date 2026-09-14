@@ -30,6 +30,22 @@ function source(relativePath: string) {
   return existsSync(absolutePath) ? readFileSync(absolutePath, "utf8") : "";
 }
 
+function undersizedTextSelectors(cssSource: string, decorativeSelectors = new Set<string>()) {
+  const selectors: string[] = [];
+
+  for (const rule of cssSource.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
+    const selector = rule[1].trim();
+    const declarations = rule[2];
+    const sizes = [
+      ...[...declarations.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)].map(match => Number(match[1])),
+      ...[...declarations.matchAll(/font:\s*[^;]*?(\d+(?:\.\d+)?)px(?:\/[^\s;]+)?(?=\s|;|$)/g)].map(match => Number(match[1])),
+    ];
+    if (sizes.some(size => size < 14) && !decorativeSelectors.has(selector)) selectors.push(selector);
+  }
+
+  return selectors;
+}
+
 function renderPrototype(
   state: PrototypeState,
   variant: PrototypeVariant = "a",
@@ -263,30 +279,24 @@ describe("Phase 4 prototype route contract", () => {
 
   it("keeps all functional text at least 14px and allows only decorative micro-labels below it", () => {
     const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
-    const decorativeMicroLabels = new Set([
-      ".p4-prototype kbd",
-      ".p4-global-actions>p",
-      ".p4-kicker",
-      ".p4-recovery-number",
-      ".p4-roadmap-label>span",
-      ".p4-move-preview>header>span",
-      ".p4-settings-sections section>header p",
-      ".p4-state-example>svg,.p4-state-example>span:first-child",
-      ".p4-task-detail .p4-detail-title>span",
-    ]);
-    const undersizedSelectors: string[] = [];
+    expect(undersizedTextSelectors(cssSource)).toEqual([]);
+  });
 
-    for (const rule of cssSource.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
-      const selector = rule[1].trim();
-      const declarations = rule[2];
-      const sizes = [
-        ...[...declarations.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)].map(match => Number(match[1])),
-        ...[...declarations.matchAll(/font:\s*[^;]*?(\d+(?:\.\d+)?)px\//g)].map(match => Number(match[1])),
-      ];
-      if (sizes.some(size => size < 14) && !decorativeMicroLabels.has(selector)) undersizedSelectors.push(selector);
-    }
+  it("detects undersized font declarations in slashless and line-height shorthand forms", () => {
+    const cssFixture = ".slashless{font:12px sans-serif}.with-line-height{font:600 13px/1 sans-serif}.ok{font:14px sans-serif}";
 
-    expect(undersizedSelectors).toEqual([]);
+    expect(undersizedTextSelectors(cssFixture)).toEqual([".slashless", ".with-line-height"]);
+  });
+
+  it("neutralizes semantic UA downsizing and gives roadmap comparison labels an explicit size", () => {
+    const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
+    const roadmapSource = source("client/src/features/phase4-prototypes/PrototypeRoadmap.tsx");
+
+    expect(cssSource).toMatch(/\.p4-prototype small,\.p4-prototype sub,\.p4-prototype sup\s*\{[^}]*font-size:\s*inherit/);
+    expect(roadmapSource).not.toMatch(/<small>(Current|Proposed)<\/small>/);
+    expect(roadmapSource).toContain('className="p4-move-label">Current');
+    expect(roadmapSource).toContain('className="p4-move-label">Proposed');
+    expect(cssSource.match(/\.p4-move-label\s*\{([^}]+)\}/)?.[1] ?? "").toMatch(/font-size:\s*14px/);
   });
 
   it("does not let the roadmap preview action override the 44px target floor", () => {
@@ -294,5 +304,13 @@ describe("Phase 4 prototype route contract", () => {
     const previewMoveRule = cssSource.match(/\.p4-roadmap-track>button\s*\{([^}]+)\}/)?.[1] ?? "";
 
     expect(previewMoveRule).toMatch(/min-height:\s*44px/);
+  });
+
+  it("keeps the board completion control at least 44px after cascade overrides", () => {
+    const cssSource = source("client/src/features/phase4-prototypes/phase4-prototypes.css");
+    const boardCheckRule = cssSource.match(/\.p4-board-task \.p4-task-check\s*\{([^}]+)\}/)?.[1] ?? "";
+
+    expect(boardCheckRule).toMatch(/width:\s*44px/);
+    expect(boardCheckRule).toMatch(/min-width:\s*44px/);
   });
 });
