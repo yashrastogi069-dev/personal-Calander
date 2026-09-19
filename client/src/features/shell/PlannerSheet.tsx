@@ -23,9 +23,20 @@ export interface PlannerSheetProps {
 export function isEligibleReturnFocusTarget(
   element: HTMLElement | null
 ): element is HTMLElement {
+  if (!element?.isConnected) return false;
+
+  try {
+    if (
+      typeof getComputedStyle === "function" &&
+      getComputedStyle(element).visibility === "hidden"
+    )
+      return false;
+  } catch {
+    return false;
+  }
+
   return Boolean(
-    element?.isConnected &&
-      !element.hidden &&
+    !element.hidden &&
       !(element as HTMLButtonElement).disabled &&
       element.getAttribute("aria-disabled") !== "true" &&
       element.getAttribute("aria-hidden") !== "true" &&

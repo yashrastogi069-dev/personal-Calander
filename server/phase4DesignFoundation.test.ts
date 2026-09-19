@@ -402,36 +402,47 @@ describe("Phase 4 design foundation", () => {
     expect(typeof focusContract.restorePlannerSheetFocus).toBe("function");
     if (!focusContract.isEligibleReturnFocusTarget || !focusContract.restorePlannerSheetFocus) return;
 
-    const target = (overrides: Record<string, unknown> = {}) => ({
-      isConnected: true,
-      hidden: false,
-      disabled: false,
-      getAttribute: () => null,
-      getClientRects: () => [{ width: 44, height: 44 }],
-      matches: () => true,
-      closest: () => null,
-      focus: () => undefined,
-      ...overrides,
-    }) as unknown as HTMLElement;
+    const originalGetComputedStyle = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = element =>
+      (element as unknown as { computedStyle?: CSSStyleDeclaration }).computedStyle ??
+      ({ visibility: "visible" } as CSSStyleDeclaration);
 
-    for (const invalid of [
-      target({ isConnected: false }),
-      target({ hidden: true }),
-      target({ disabled: true }),
-      target({ getAttribute: (name: string) => name === "aria-disabled" ? "true" : null }),
-      target({ getClientRects: () => [] }),
-      target({ matches: () => false }),
-      target({ closest: () => ({ inert: true }) }),
-    ]) expect(focusContract.isEligibleReturnFocusTarget(invalid)).toBe(false);
+    try {
+      const target = (overrides: Record<string, unknown> = {}) => ({
+        isConnected: true,
+        hidden: false,
+        disabled: false,
+        getAttribute: () => null,
+        getClientRects: () => [{ width: 44, height: 44 }],
+        matches: () => true,
+        closest: () => null,
+        focus: () => undefined,
+        computedStyle: { visibility: "visible" },
+        ...overrides,
+      }) as unknown as HTMLElement;
 
-    let prevented = false;
-    let focused = false;
-    const validTarget = target({ focus: () => { focused = true; } });
-    expect(focusContract.restorePlannerSheetFocus({ preventDefault: () => { prevented = true; } }, validTarget)).toBe(true);
-    expect({ prevented, focused }).toEqual({ prevented: true, focused: true });
+      for (const invalid of [
+        target({ isConnected: false }),
+        target({ hidden: true }),
+        target({ disabled: true }),
+        target({ getAttribute: (name: string) => name === "aria-disabled" ? "true" : null }),
+        target({ getClientRects: () => [] }),
+        target({ matches: () => false }),
+        target({ closest: () => ({ inert: true }) }),
+        target({ computedStyle: { visibility: "hidden" } }),
+      ]) expect(focusContract.isEligibleReturnFocusTarget(invalid)).toBe(false);
 
-    prevented = false;
-    expect(focusContract.restorePlannerSheetFocus({ preventDefault: () => { prevented = true; } }, target({ hidden: true }))).toBe(false);
-    expect(prevented).toBe(false);
+      let prevented = false;
+      let focused = false;
+      const validTarget = target({ focus: () => { focused = true; } });
+      expect(focusContract.restorePlannerSheetFocus({ preventDefault: () => { prevented = true; } }, validTarget)).toBe(true);
+      expect({ prevented, focused }).toEqual({ prevented: true, focused: true });
+
+      prevented = false;
+      expect(focusContract.restorePlannerSheetFocus({ preventDefault: () => { prevented = true; } }, target({ computedStyle: { visibility: "hidden" } }))).toBe(false);
+      expect(prevented).toBe(false);
+    } finally {
+      globalThis.getComputedStyle = originalGetComputedStyle;
+    }
   });
 });
