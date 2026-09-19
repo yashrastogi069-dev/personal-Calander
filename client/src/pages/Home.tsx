@@ -9,7 +9,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -90,13 +89,32 @@ import { nextTaskSortOrder } from "@shared/taskOrdering";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
+import {
+  DestinationBoundary,
+  DestinationLoading,
+} from "@/features/shell/DestinationBoundary";
+import { PlannerShell } from "@/features/shell/PlannerShell";
+import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
 import { useAuthenticatedAccount } from "@/components/AuthenticatedPlanner";
 import { usePwa } from "@/contexts/PwaContext";
-import {
-  mobilePlannerDestinations,
-  type MobilePlannerDestination,
-} from "@shared/mobileNavigation";
+import type { MobilePlannerDestination } from "@shared/mobileNavigation";
 import { pwaEntryFromSearch } from "@shared/pwaEntry";
+import {
+  resolveLegacyPlannerAlias,
+  type GlobalPlannerAction,
+  type PlannerLocationTarget,
+} from "@shared/phase4Navigation";
+import type {
+  Phase4Preferences,
+  PlannerPreferenceShortcut,
+} from "@shared/phase4Preferences";
+import {
+  parsePlannerLocation,
+  plannerLocationWithAction,
+  subscribeToPlannerLocation,
+  writePlannerLocation,
+  type PlannerLocation,
+} from "@/lib/plannerLocation";
 import {
   ArrowDown,
   ArrowDownUp,
@@ -120,8 +138,6 @@ import {
   Loader2,
   LogOut,
   MoreHorizontal,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   RefreshCw,
   Search,
@@ -198,27 +214,6 @@ const PlanWorkspace = lazy(() =>
   }))
 );
 
-function DestinationLoading({ label }: { label: string }) {
-  return (
-    <section
-      className="destination-loading"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="destination-loading-heading">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-8 w-48" />
-      </div>
-      <div className="destination-loading-grid">
-        <Skeleton className="h-28 rounded-[1.25rem]" />
-        <Skeleton className="h-28 rounded-[1.25rem]" />
-        <Skeleton className="h-52 rounded-[1.25rem]" />
-      </div>
-      <p className="sr-only">Opening {label}…</p>
-    </section>
-  );
-}
-
 type Surface = MobilePlannerDestination;
 type ComposerKind = "task" | "goal" | "project" | "habit";
 type CalendarMode = "Day" | "Week" | "Month" | "Quarter" | "Year";
@@ -240,6 +235,79 @@ const navItems: { id: Surface; label: string; icon: typeof Grid2X2 }[] = [
   { id: "settings", label: "Settings", icon: Settings2 },
 ];
 
+function defaultPlannerLocation(): PlannerLocation {
+  return {
+    destination: "home",
+    view: "today",
+    query: "",
+    taskQuery: "",
+    taskFilter: "all",
+    selectedRecord: null,
+  };
+}
+
+function surfaceFromPlannerLocation(location: PlannerLocationTarget): Surface {
+  if (location.destination === "home") {
+    if (location.view === "search") return "search";
+    if (location.view === "focus") return "focus";
+    return "today";
+  }
+  if (location.destination === "tasks")
+    return location.view === "inbox" && location.action === "capture"
+      ? "capture"
+      : "tasks";
+  if (location.destination === "plan")
+    return location.view === "calendar" ? "calendar" : "plan";
+  if (location.destination === "intentions")
+    return location.view === "projects" ? "projects" : "goals";
+  if (location.destination === "habits") return "habits";
+  if (location.destination === "review")
+    return location.view === "insights" ? "insights" : "review";
+  return location.view === "connections" ? "connections" : "settings";
+}
+
+function targetForSurface(surface: Surface): PlannerLocationTarget {
+  return (
+    resolveLegacyPlannerAlias(surface) ?? {
+      destination: "home",
+      view: "today",
+    }
+  );
+}
+
+function surfaceForPreferenceShortcut(
+  shortcut: PlannerPreferenceShortcut
+): Surface {
+  if (shortcut.legacyId) return shortcut.legacyId;
+  return surfaceFromPlannerLocation(shortcut);
+}
+
+function mobilePreferencesFromPhase4(
+  preferences: Phase4Preferences
+): MobilePreferences {
+  return normalizeMobilePreferences({
+    order: preferences.order.map(surfaceForPreferenceShortcut),
+    primary: preferences.primary.map(surfaceForPreferenceShortcut),
+    density: preferences.density,
+  });
+}
+
+function phase4PreferencesFromMobile(
+  mobile: MobilePreferences,
+  current: Phase4Preferences
+): Phase4Preferences {
+  const shortcut = (surface: Surface): PlannerPreferenceShortcut => ({
+    ...targetForSurface(surface),
+    legacyId: surface,
+  });
+  return {
+    ...current,
+    order: mobile.order.map(shortcut),
+    primary: mobile.primary.map(shortcut),
+    density: mobile.density,
+  };
+}
+
 const defaultMobilePrimaryIds = [
   "today",
   "tasks",
@@ -252,10 +320,6 @@ type MobilePreferences = {
   primary: Surface[];
   density: MobileDensity;
 };
-
-function mobilePreferencesStorageKey(workspaceId: string) {
-  return `personal-calander:mobile-preferences:${workspaceId}`;
-}
 
 function normalizeMobilePreferences(
   value: Partial<MobilePreferences> | null
@@ -276,20 +340,6 @@ function normalizeMobilePreferences(
     primary: primary.length ? primary : defaultMobilePrimaryIds,
     density: value?.density === "compact" ? "compact" : "comfortable",
   };
-}
-
-function readMobilePreferences(workspaceId: string): MobilePreferences {
-  if (typeof window === "undefined") return normalizeMobilePreferences(null);
-  try {
-    return normalizeMobilePreferences(
-      JSON.parse(
-        window.localStorage.getItem(mobilePreferencesStorageKey(workspaceId)) ??
-          "null"
-      )
-    );
-  } catch {
-    return normalizeMobilePreferences(null);
-  }
 }
 
 function MobileCustomizationSheet({
@@ -569,25 +619,6 @@ function EmptyState({
     </button>
   ) : (
     <div className="empty-state">{content}</div>
-  );
-}
-
-function LoadingBoard() {
-  return (
-    <div
-      className="planner-loading"
-      aria-busy="true"
-      aria-label="Loading planning workspace"
-    >
-      <div className="loading-rail" />
-      <main className="loading-main">
-        <div className="loading-top" />
-        <div className="loading-columns">
-          <div />
-          <div />
-        </div>
-      </main>
-    </div>
   );
 }
 
@@ -6762,31 +6793,24 @@ export default function Home() {
   const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [selectedDate, setSelectedDate] = useState(today);
-  const [surface, setSurface] = useState<Surface>(() => {
-    const requested =
-      typeof window === "undefined"
-        ? null
-        : new URLSearchParams(window.location.search).get("surface");
-    return mobilePlannerDestinations.some(
-      destination => destination.id === requested
-    )
-      ? (requested as Surface)
-      : "today";
-  });
+  const [plannerLocation, setPlannerLocation] = useState<PlannerLocation>(() =>
+    typeof window === "undefined"
+      ? defaultPlannerLocation()
+      : parsePlannerLocation(new URL(window.location.href))
+  );
+  const surface = surfaceFromPlannerLocation(plannerLocation);
+  const { preferences, setPreferences } = usePlannerPreferences(
+    scope.workspaceId
+  );
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState(() =>
     typeof window === "undefined"
       ? ""
       : (new URLSearchParams(window.location.search).get("q") ?? "")
   );
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [mobileCustomizationOpen, setMobileCustomizationOpen] = useState(false);
-  const [railCollapsed, setRailCollapsed] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.localStorage.getItem("personal-calander:rail-collapsed") === "true"
-  );
-  const [mobilePreferences, setMobilePreferences] = useState<MobilePreferences>(
-    () => readMobilePreferences(scope.workspaceId)
+  const mobilePreferences = useMemo(
+    () => mobilePreferencesFromPhase4(preferences),
+    [preferences]
   );
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("Day");
   const [composerOpen, setComposerOpen] = useState(
@@ -6818,12 +6842,6 @@ export default function Home() {
   >({});
   const workspaceEnsured = useRef(false);
   const utils = trpc.useUtils();
-  useEffect(() => {
-    window.localStorage.setItem(
-      "personal-calander:rail-collapsed",
-      String(railCollapsed)
-    );
-  }, [railCollapsed]);
   const range = useMemo(() => isoRange(today), [today]);
   const [pendingOperations, setPendingOperations] = useState<
     PlannerOperation[]
@@ -6923,17 +6941,11 @@ export default function Home() {
     | { kind: "clear"; habitId: string; localDate: string }
     | null
   >(null);
-  useEffect(() => {
-    setMobilePreferences(readMobilePreferences(scope.workspaceId));
-  }, [scope.workspaceId]);
   const saveMobilePreferences = (next: MobilePreferences) => {
     const normalized = normalizeMobilePreferences(next);
-    setMobilePreferences(normalized);
-    if (typeof window !== "undefined")
-      window.localStorage.setItem(
-        mobilePreferencesStorageKey(scope.workspaceId),
-        JSON.stringify(normalized)
-      );
+    setPreferences(current =>
+      phase4PreferencesFromMobile(normalized, current)
+    );
   };
   const refreshHabitData = async () => {
     setHabitActionError(null);
@@ -7032,7 +7044,10 @@ export default function Home() {
     }
     if (!pwaEntry.composeTask && url.searchParams.get("create") !== "task")
       return;
-    setSurface("tasks");
+    const target = targetForSurface("tasks");
+    setPlannerLocation(current =>
+      plannerLocationWithAction({ ...current, ...target }, target.action)
+    );
     setComposerKind("task");
     setComposerOpen(true);
     setComposerIntentHydrated(true);
@@ -7052,8 +7067,10 @@ export default function Home() {
   useEffect(() => {
     const composeHabit = () => openComposer("habit");
     const openHabitTracker = () => {
-      setSurface("habits");
-      setMobileMoreOpen(false);
+      const target = targetForSurface("habits");
+      setPlannerLocation(current =>
+        plannerLocationWithAction({ ...current, ...target }, target.action)
+      );
     };
     window.addEventListener("personal-calander:compose-habit", composeHabit);
     window.addEventListener("personal-calander:open-habits", openHabitTracker);
@@ -7068,18 +7085,30 @@ export default function Home() {
       );
     };
   }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    return subscribeToPlannerLocation(window, setPlannerLocation);
+  }, []);
+  const navigatePlanner = useCallback((target: PlannerLocationTarget) => {
+    setPlannerLocation(current =>
+      plannerLocationWithAction({ ...current, ...target }, target.action)
+    );
+    if (typeof window !== "undefined")
+      writePlannerLocation(new URL(window.location.href), target, window.history);
+  }, []);
   const selectSurface = (nextSurface: Surface) => {
-    if (nextSurface === "calendar" && typeof window !== "undefined") {
-      window.location.assign("/calendar");
+    navigatePlanner(targetForSurface(nextSurface));
+  };
+  const runGlobalAction = (action: GlobalPlannerAction) => {
+    if (action === "capture") {
+      openComposer("task");
       return;
     }
-    setSurface(nextSurface);
-    setMobileMoreOpen(false);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("surface", nextSurface);
-      window.history.replaceState(null, "", url);
-    }
+    navigatePlanner(
+      action === "search"
+        ? { destination: "home", view: "search", action }
+        : { destination: "home", view: "focus", action }
+    );
   };
   const updateWorkspaceSearchQuery = useCallback((query: string) => {
     setWorkspaceSearchQuery(query);
@@ -7950,23 +7979,46 @@ export default function Home() {
     }
   };
 
-  if (snapshotQuery.error && !snapshot)
-    return (
-      <div className="planner-error">
-        <div>
-          <p className="eyebrow">Connection interrupted</p>
-          <h1>Planning data could not load.</h1>
-          <p>{snapshotQuery.error.message}</p>
-          <Button onClick={() => snapshotQuery.refetch()}>Try again</Button>
-        </div>
-      </div>
-    );
-  if (snapshotQuery.isLoading || !snapshot) return <LoadingBoard />;
-
   const surfaceTitle =
     surface === "today"
       ? "Today"
       : (navItems.find(item => item.id === surface)?.label ?? "Planner");
+  if (!snapshot) {
+    return (
+      <PlannerShell
+        location={plannerLocation}
+        preferences={preferences}
+        timezone={scope.timezone}
+        title={surfaceTitle}
+        dateLabel={displayLocalDate(today, scope.timezone, {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}
+        onNavigate={navigatePlanner}
+        onPreferencesChange={setPreferences}
+        onGlobalAction={runGlobalAction}
+        globalActionsDisabled
+      >
+        <DestinationBoundary
+          destinationLabel={surfaceTitle}
+          readError={snapshotQuery.error}
+          confirmedContent={false}
+          onRetry={() => void snapshotQuery.refetch()}
+        >
+          {snapshotQuery.isLoading ? (
+            <DestinationLoading label={surfaceTitle} />
+          ) : (
+            <section className="destination-unavailable" aria-live="polite">
+              <p>Your planner data has not been changed.</p>
+            </section>
+          )}
+        </DestinationBoundary>
+      </PlannerShell>
+    );
+  }
+
   const modeCopy: Record<CalendarMode, string> = {
     Day: "Make one focused day believable.",
     Week: "Balance commitments across the week.",
@@ -7976,19 +8028,6 @@ export default function Home() {
   };
 
   const habitPending = habitCheckIn.isPending || clearHabitCheckIn.isPending;
-  const orderedMobileDestinations = mobilePreferences.order
-    .map(id => navItems.find(item => item.id === id))
-    .filter(Boolean) as typeof navItems;
-  const mobilePrimaryDestinations = orderedMobileDestinations.filter(item =>
-    mobilePreferences.primary.includes(item.id)
-  );
-  const mobileMoreDestinations = orderedMobileDestinations.filter(
-    item =>
-      !mobilePreferences.primary.includes(item.id) && item.id !== "settings"
-  );
-  const moreIsActive =
-    mobileMoreDestinations.some(item => item.id === surface) ||
-    surface === "settings";
   const settingsSyncReady =
     !availableSnapshot.isCached &&
     syncSummary.pending === 0 &&
@@ -7996,216 +8035,47 @@ export default function Home() {
     !syncSummary.retry &&
     (typeof navigator === "undefined" || navigator.onLine);
   return (
-    <div
-      className={cn(
-        "planner-shell",
-        railCollapsed && "is-rail-collapsed",
-        mobilePreferences.density === "compact" && "mobile-density-compact"
-      )}
+    <PlannerShell
+      location={plannerLocation}
+      preferences={preferences}
+      timezone={scope.timezone}
+      title={surfaceTitle}
+      dateLabel={displayLocalDate(today, scope.timezone, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })}
+      onNavigate={navigatePlanner}
+      onPreferencesChange={setPreferences}
+      onGlobalAction={runGlobalAction}
+      quickCapture={
+        <form className="quick-capture" onSubmit={createQuickTask}>
+          <Plus size={19} />
+          <Input
+            value={quickTitle}
+            onChange={event => setQuickTitle(event.target.value)}
+            placeholder="Capture a task for today…"
+            aria-label="Quickly capture a task"
+          />
+          <kbd>↵</kbd>
+        </form>
+      }
+      utilityActions={
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setCategoryDialogOpen(true)}
+        >
+          Categories
+        </Button>
+      }
     >
-      <aside className="planner-rail">
-        <div className="planner-rail-heading">
-          <div className="brand-lockup">
-            <span className="brand-mark">
-              <span />
-            </span>
-            <span>
-              Personal
-              <br />
-              <b>Calendar</b>
-            </span>
-          </div>
-          <button
-            type="button"
-            className="rail-collapse-button"
-            aria-label={
-              railCollapsed
-                ? "Expand planning sidebar"
-                : "Collapse planning sidebar"
-            }
-            aria-expanded={!railCollapsed}
-            onClick={() => setRailCollapsed(value => !value)}
-          >
-            {railCollapsed ? (
-              <PanelLeftOpen size={18} />
-            ) : (
-              <PanelLeftClose size={18} />
-            )}
-          </button>
-        </div>
-        <nav aria-label="Planning views" className="planner-nav">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              className={cn(surface === item.id && "is-active")}
-              aria-label={railCollapsed ? item.label : undefined}
-              title={railCollapsed ? item.label : undefined}
-              onClick={() => selectSurface(item.id)}
-            >
-              <item.icon size={18} strokeWidth={1.75} />
-              <span>{item.label}</span>
-              {item.id === "today" &&
-              focusTasks.filter(task => task.state !== "completed").length ? (
-                <i>
-                  {focusTasks.filter(task => task.state !== "completed").length}
-                </i>
-              ) : null}
-            </button>
-          ))}
-        </nav>
-        <nav aria-label="Phone planning views" className="mobile-planner-nav">
-          {mobilePrimaryDestinations.map(item => {
-            return (
-              <button
-                key={item.id}
-                className={cn(surface === item.id && "is-active")}
-                onClick={() => selectSurface(item.id)}
-              >
-                <item.icon size={20} strokeWidth={1.8} />
-                <span>{item.label}</span>
-                {item.id === "today" &&
-                focusTasks.filter(task => task.state !== "completed").length ? (
-                  <i>
-                    {
-                      focusTasks.filter(task => task.state !== "completed")
-                        .length
-                    }
-                  </i>
-                ) : null}
-              </button>
-            );
-          })}
-          <button
-            className={cn((moreIsActive || mobileMoreOpen) && "is-active")}
-            aria-controls="mobile-more-sheet"
-            aria-expanded={mobileMoreOpen}
-            onClick={() => setMobileMoreOpen(open => !open)}
-          >
-            <MoreHorizontal size={21} strokeWidth={1.8} />
-            <span>More</span>
-          </button>
-        </nav>
-        {mobileMoreOpen ? (
-          <div className="mobile-more-layer">
-            <button
-              className="mobile-more-scrim"
-              aria-label="Close More planning menu"
-              onClick={() => setMobileMoreOpen(false)}
-            />
-            <section
-              id="mobile-more-sheet"
-              className="mobile-more-sheet"
-              aria-label="More planning views"
-            >
-              <div className="mobile-more-handle" aria-hidden="true" />
-              <div className="mobile-more-heading">
-                <div>
-                  <span>More planning</span>
-                  <p>Keep your rhythm and reflect on the work.</p>
-                </div>
-                <button
-                  className="icon-quiet"
-                  aria-label="Close More planning menu"
-                  onClick={() => setMobileMoreOpen(false)}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              {!mobilePreferences.primary.includes("settings") ? (
-                <button
-                  type="button"
-                  className="mobile-more-settings"
-                  onClick={() => {
-                    selectSurface("settings");
-                  }}
-                >
-                  <span className="mobile-more-settings-icon">
-                    <Settings2 size={18} />
-                  </span>
-                  <span>
-                    <b>Settings</b>
-                    <small>Account, sync, app, and connections</small>
-                  </span>
-                  <ChevronRight size={18} />
-                </button>
-              ) : null}
-              <div className="mobile-more-destinations">
-                {mobileMoreDestinations.map(item => {
-                  return (
-                    <button
-                      key={item.id}
-                      className={cn(surface === item.id && "is-active")}
-                      onClick={() => selectSurface(item.id)}
-                    >
-                      <item.icon size={21} strokeWidth={1.8} />
-                      <span>
-                        <b>{item.label}</b>
-                        <small>
-                          {item.id === "habits"
-                            ? "Track daily rhythm"
-                            : item.id === "goals"
-                              ? "Link work to outcomes"
-                              : item.id === "projects"
-                                ? "Sequence finite work"
-                                : item.id === "focus"
-                                  ? "Protect attention"
-                                  : item.id === "capture"
-                                    ? "Review a parsed thought"
-                                    : item.id === "connections"
-                                      ? "Read calendar availability"
-                                      : item.id === "search"
-                                        ? "Find planning records"
-                                        : item.id === "insights"
-                                          ? "Read planning evidence"
-                                          : item.id === "review"
-                                            ? "Close the week deliberately"
-                                            : item.id === "settings"
-                                              ? "Account and app controls"
-                                              : "Keep this destination close"}
-                        </small>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mobile-more-utility">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCategoryDialogOpen(true);
-                    setMobileMoreOpen(false);
-                  }}
-                >
-                  <CircleDot size={18} />
-                  <span>Categories &amp; Recycle Bin</span>
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </section>
-          </div>
-        ) : null}
-        <div className="rail-footer">
-          <button
-            type="button"
-            className={cn(
-              "workspace-pill",
-              surface === "settings" && "is-active"
-            )}
-            aria-label="Open account settings"
-            title={railCollapsed ? "Personal space settings" : undefined}
-            onClick={() => selectSurface("settings")}
-          >
-            <span className="workspace-avatar">P</span>
-            <div>
-              <strong>Personal space</strong>
-              <small>{scope.timezone.replace("_", " ")}</small>
-            </div>
-            <Settings2 className="workspace-settings-icon" size={16} />
-          </button>
-        </div>
-      </aside>
-      <main className="planner-main">
+      <DestinationBoundary
+        destinationLabel={surfaceTitle}
+        readError={snapshotQuery.error}
+        onRetry={() => void snapshotQuery.refetch()}
+      >
         {availableSnapshot.isCached ||
         syncSummary.pending > 0 ||
         syncSummary.needsReview > 0 ||
@@ -8257,56 +8127,6 @@ export default function Home() {
             ) : null}
           </section>
         ) : null}
-        <header className="planner-topbar">
-          <div>
-            <p className="top-date">
-              {displayLocalDate(today, scope.timezone, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
-            <h1>{surfaceTitle}</h1>
-          </div>
-          <form className="quick-capture" onSubmit={createQuickTask}>
-            <Plus size={19} />
-            <Input
-              value={quickTitle}
-              onChange={event => setQuickTitle(event.target.value)}
-              placeholder="Capture a task for today…"
-              aria-label="Quickly capture a task"
-            />
-            <kbd>↵</kbd>
-          </form>
-          <div className="top-actions">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className="icon-quiet"
-                  aria-label="Search workspace"
-                  onClick={() => selectSurface("search")}
-                >
-                  <Search size={19} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Search tasks</TooltipContent>
-            </Tooltip>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setCategoryDialogOpen(true)}
-            >
-              Categories
-            </Button>
-            <Button
-              className="primary-action"
-              onClick={() => openComposer("task")}
-            >
-              <Plus size={18} /> New
-            </Button>
-          </div>
-        </header>
         {surface === "today" ? (
           <div className="today-canvas">
             <OfflineCaptureIndicator />
@@ -8664,7 +8484,7 @@ export default function Home() {
             onManageCategories={() => setCategoryDialogOpen(true)}
           />
         ) : null}
-      </main>
+      </DestinationBoundary>
       <Composer
         open={composerOpen}
         kind={composerKind}
@@ -8823,7 +8643,7 @@ export default function Home() {
         preferences={mobilePreferences}
         onChange={saveMobilePreferences}
       />
-    </div>
+    </PlannerShell>
   );
 }
 

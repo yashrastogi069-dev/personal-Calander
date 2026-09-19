@@ -11,8 +11,6 @@ import { sanitizeAnalyticsEvent } from "./lib/deploymentAnalytics";
 import PwaStatus from "./components/PwaStatus";
 import { lazy, Suspense } from "react";
 
-import CalendarExecution from "./pages/CalendarExecution";
-
 const Phase4Prototypes = lazy(() => import("./pages/Phase4Prototypes"));
 
 function Router() {
@@ -24,7 +22,7 @@ function Router() {
           <Phase4Prototypes />
         </Suspense>
       </Route>
-      <Route path={"/calendar"}><CalendarExecution /></Route>
+      <Route path={"/calendar"} component={Home} />
       <Route path={"/"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
