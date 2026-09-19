@@ -3,8 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import { phase4DefaultPreferences } from "@shared/phase4Preferences";
-import { PlannerRail } from "@/features/shell/PlannerRail";
-import { PhoneNavigation } from "@/features/shell/PhoneNavigation";
+import {
+  PlannerRail,
+  shellSecondaryTargets,
+} from "@/features/shell/PlannerRail";
+import {
+  movePlannerShortcut,
+  PhoneNavigation,
+  togglePlannerPrimaryShortcut,
+} from "@/features/shell/PhoneNavigation";
 import { GlobalActions } from "@/features/shell/GlobalActions";
 import {
   DestinationBoundary,
@@ -13,6 +20,7 @@ import {
 import { PlannerShell } from "@/features/shell/PlannerShell";
 import appSource from "../client/src/App.tsx?raw";
 import homeSource from "../client/src/pages/Home.tsx?raw";
+import calendarExecutionSource from "../client/src/pages/CalendarExecution.tsx?raw";
 
 const today = { destination: "home", view: "today" } as const;
 
@@ -21,6 +29,68 @@ describe("Phase 4 stable planner shell", () => {
     expect(appSource.match(/<AuthenticatedPlanner\b/g)).toHaveLength(1);
     expect(homeSource).toContain("parsePlannerLocation");
     expect(homeSource).not.toContain("window.location.assign");
+  });
+
+  it("preserves the dedicated Calendar execution route and its safe actions", () => {
+    expect(appSource).toContain(
+      'import CalendarExecution from "./pages/CalendarExecution"'
+    );
+    expect(appSource).toContain(
+      '<Route path={"/calendar"}><CalendarExecution /></Route>'
+    );
+    expect(calendarExecutionSource).toContain("rolloverPreview");
+    expect(calendarExecutionSource).toContain(
+      "patch: { plannedStartAt: null, plannedEndAt: null }"
+    );
+    expect(calendarExecutionSource).toContain("CalendarExecutionWorkspace");
+    expect(calendarExecutionSource).not.toContain("window.location.assign");
+  });
+
+  it("keeps every legacy child view and Categories utility reachable", () => {
+    expect(shellSecondaryTargets).toEqual([
+      { label: "Calendar", destination: "plan", view: "calendar" },
+      { label: "Goals", destination: "intentions", view: "outcomes" },
+      {
+        label: "Connections",
+        destination: "settings",
+        view: "connections",
+      },
+      { label: "Insights", destination: "review", view: "insights" },
+      {
+        label: "Categories & Recycle Bin",
+        destination: "settings",
+        view: "categories",
+      },
+    ]);
+  });
+
+  it("reorders and pins canonical shortcuts without flattening child views", () => {
+    const preferences = {
+      ...phase4DefaultPreferences,
+      order: [
+        { destination: "plan", view: "calendar" },
+        { destination: "review", view: "history" },
+        { destination: "home", view: "focus", action: "focus" },
+      ],
+      primary: [{ destination: "review", view: "history" }],
+    } as const;
+
+    const moved = movePlannerShortcut(preferences, "review/history", -1);
+    expect(moved.order).toEqual([
+      { destination: "review", view: "history" },
+      { destination: "plan", view: "calendar" },
+      { destination: "home", view: "focus", action: "focus" },
+    ]);
+
+    const pinned = togglePlannerPrimaryShortcut(
+      moved,
+      moved.order[2],
+      4
+    );
+    expect(pinned.primary).toEqual([
+      { destination: "review", view: "history" },
+      { destination: "home", view: "focus", action: "focus" },
+    ]);
   });
 
   it("renders six grouped desktop destinations in an independent scroll owner", () => {

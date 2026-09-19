@@ -20,7 +20,11 @@ import type {
   PlannerPreferenceShortcut,
 } from "@shared/phase4Preferences";
 import { PlannerSheet } from "./PlannerSheet";
-import { labelForPlannerTarget, targetForDestination } from "./PlannerRail";
+import {
+  labelForPlannerTarget,
+  shellSecondaryTargets,
+  targetForDestination,
+} from "./PlannerRail";
 
 const icons: Record<Phase4DestinationId | "settings", LucideIcon> = {
   home: Grid2X2,
@@ -32,17 +36,60 @@ const icons: Record<Phase4DestinationId | "settings", LucideIcon> = {
   settings: Settings2,
 };
 
-function targetKey(target: Pick<PlannerLocationTarget, "destination" | "view">) {
+export function plannerShortcutKey(
+  target: Pick<PlannerLocationTarget, "destination" | "view">
+) {
   return `${target.destination}/${target.view}`;
 }
 function uniqueTargets(targets: readonly PlannerPreferenceShortcut[]) {
   const seen = new Set<string>();
   return targets.filter(target => {
-    const key = targetKey(target);
+    const key = plannerShortcutKey(target);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
+
+export function movePlannerShortcut(
+  preferences: Phase4Preferences,
+  key: string,
+  direction: -1 | 1
+): Phase4Preferences {
+  const index = preferences.order.findIndex(
+    shortcut => plannerShortcutKey(shortcut) === key
+  );
+  const nextIndex = index + direction;
+  if (index < 0 || nextIndex < 0 || nextIndex >= preferences.order.length)
+    return preferences;
+  const order = [...preferences.order];
+  [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
+  return { ...preferences, order };
+}
+
+export function togglePlannerPrimaryShortcut(
+  preferences: Phase4Preferences,
+  shortcut: PlannerPreferenceShortcut,
+  maximum = 4
+): Phase4Preferences {
+  const key = plannerShortcutKey(shortcut);
+  const pinned = preferences.primary.some(
+    candidate => plannerShortcutKey(candidate) === key
+  );
+  if (pinned) {
+    if (preferences.primary.length === 1) return preferences;
+    return {
+      ...preferences,
+      primary: preferences.primary.filter(
+        candidate => plannerShortcutKey(candidate) !== key
+      ),
+    };
+  }
+  const primary =
+    preferences.primary.length >= maximum
+      ? [...preferences.primary.slice(0, maximum - 1), shortcut]
+      : [...preferences.primary, shortcut];
+  return { ...preferences, primary };
 }
 
 function isActive(
@@ -85,15 +132,16 @@ export function PhoneNavigation({
     [preferences.order, preferences.primary]
   );
   const moreTargets = useMemo(() => {
-    const primaryKeys = new Set(primary.map(targetKey));
+    const primaryKeys = new Set(primary.map(plannerShortcutKey));
     const canonical = [
       ...phase4Destinations.map(destination => ({
         ...targetForDestination(destination.id),
       })),
+      ...shellSecondaryTargets.map(({ label: _label, ...target }) => target),
       { destination: "settings", view: "account" } as const,
     ];
     return uniqueTargets([...preferences.order, ...canonical]).filter(
-      target => !primaryKeys.has(targetKey(target))
+      target => !primaryKeys.has(plannerShortcutKey(target))
     );
   }, [preferences.order, primary]);
   const moreIsActive = moreTargets.some(target => isActive(location, target));
@@ -112,7 +160,7 @@ export function PhoneNavigation({
           const active = isActive(location, target);
           return (
             <button
-              key={targetKey(target)}
+              key={plannerShortcutKey(target)}
               type="button"
               className={active ? "is-active" : undefined}
               aria-current={active ? "page" : undefined}
@@ -154,7 +202,7 @@ export function PhoneNavigation({
             const active = isActive(location, target);
             return (
               <button
-                key={targetKey(target)}
+                key={plannerShortcutKey(target)}
                 type="button"
                 className={active ? "is-active" : undefined}
                 aria-current={active ? "page" : undefined}

@@ -1,12 +1,17 @@
 import {
+  BarChart3,
+  CalendarDays,
+  CircleDot,
   Flag,
   Grid2X2,
   Inbox,
+  Link2,
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
   Settings2,
   Sparkles,
+  Target,
   TimerReset,
   type LucideIcon,
 } from "lucide-react";
@@ -15,6 +20,29 @@ import {
   type Phase4DestinationId,
   type PlannerLocationTarget,
 } from "@shared/phase4Navigation";
+
+export const shellSecondaryTargets = [
+  { label: "Calendar", destination: "plan", view: "calendar" },
+  { label: "Goals", destination: "intentions", view: "outcomes" },
+  { label: "Connections", destination: "settings", view: "connections" },
+  { label: "Insights", destination: "review", view: "insights" },
+  {
+    label: "Categories & Recycle Bin",
+    destination: "settings",
+    view: "categories",
+  },
+] as const satisfies readonly ({ label: string } & PlannerLocationTarget)[];
+
+const secondaryIcons: Record<
+  (typeof shellSecondaryTargets)[number]["label"],
+  LucideIcon
+> = {
+  Calendar: CalendarDays,
+  Goals: Target,
+  Connections: Link2,
+  Insights: BarChart3,
+  "Categories & Recycle Bin": CircleDot,
+};
 
 const icons: Record<Phase4DestinationId, LucideIcon> = {
   home: Grid2X2,
@@ -40,6 +68,11 @@ export function targetForDestination(
   return { destination, view: defaultView[destination] };
 }
 export function labelForPlannerTarget(target: PlannerLocationTarget) {
+  const secondary = shellSecondaryTargets.find(
+    item =>
+      item.destination === target.destination && item.view === target.view
+  );
+  if (secondary) return secondary.label;
   if (target.destination === "settings") return "Settings";
   return (
     phase4Destinations.find(item => item.id === target.destination)?.label ??
@@ -109,6 +142,33 @@ export function PlannerRail({
             </button>
           );
         })}
+        <div
+          className="planner-nav-secondary"
+          role="group"
+          aria-label="Planning view shortcuts"
+        >
+          <span className="planner-nav-section-label">Views</span>
+          {shellSecondaryTargets.map(item => {
+            const Icon = secondaryIcons[item.label];
+            const active =
+              location.destination === item.destination &&
+              location.view === item.view;
+            return (
+              <button
+                key={`${item.destination}/${item.view}`}
+                type="button"
+                className={active ? "is-active" : undefined}
+                aria-current={active ? "page" : undefined}
+                aria-label={collapsed ? item.label : undefined}
+                title={collapsed ? item.label : undefined}
+                onClick={() => onNavigate(item)}
+              >
+                <Icon aria-hidden="true" size={17} strokeWidth={1.75} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       <div className="rail-footer">

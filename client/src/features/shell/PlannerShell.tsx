@@ -16,6 +16,7 @@ export type PlannerShellProps = {
   timezone: string;
   title: string;
   dateLabel: string;
+  selectedRecord?: string | null;
   onNavigate: (target: PlannerLocationTarget) => void;
   onPreferencesChange: (preferences: Phase4Preferences) => void;
   onGlobalAction: (action: GlobalPlannerAction) => void;
@@ -32,6 +33,7 @@ export function PlannerShell({
   timezone,
   title,
   dateLabel,
+  selectedRecord,
   onNavigate,
   onPreferencesChange,
   onGlobalAction,
@@ -61,7 +63,11 @@ export function PlannerShell({
           })
         }
       />
-      <main className="planner-main" data-scroll-owner="destination">
+      <main
+        className="planner-main"
+        data-scroll-owner="destination"
+        data-selected-record={selectedRecord ?? undefined}
+      >
         {syncStatus}
         <header className="planner-topbar">
           <div>

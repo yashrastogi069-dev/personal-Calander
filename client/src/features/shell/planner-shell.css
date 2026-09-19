@@ -6,6 +6,31 @@
   min-height: 0;
 }
 
+.phase4-planner-shell .planner-nav {
+  grid-template-rows: none;
+  align-content: start;
+}
+
+.planner-nav-secondary {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.planner-nav-section-label {
+  padding: 0 12px 5px;
+  color: var(--ink-subtle);
+  font: 650 9px/1.2 "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planner-shell.is-rail-collapsed .planner-nav-section-label {
+  display: none;
+}
+
 .phase4-global-actions {
   display: flex;
   align-items: center;

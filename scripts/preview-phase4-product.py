@@ -100,15 +100,55 @@ def current_location(page) -> dict:
     )
 
 
-def wait_for_destination(page, destination: str) -> None:
+def wait_for_target(page, destination: str, view: str | None = None) -> None:
     page.wait_for_function(
-        "expected => new URL(location.href).searchParams.get('destination') === expected",
-        arg=destination,
+        """expected => {
+          const url = new URL(location.href);
+          return url.searchParams.get('destination') === expected.destination &&
+            (!expected.view || url.searchParams.get('view') === expected.view);
+        }""",
+        arg={"destination": destination, "view": view},
     )
 
 
 def click_destination(page, label: str) -> None:
-    page.get_by_role("button", name=label, exact=True).first.click()
+    sheet = page.get_by_role("dialog", name="More planning")
+    if sheet.is_visible():
+        sheet.wait_for(state="hidden")
+    for candidate in page.get_by_role("button", name=label, exact=True).all():
+        if candidate.is_visible() and candidate.evaluate(
+            "element => element.closest('[role=dialog]') === null"
+        ):
+            candidate.click()
+            return
+    more = page.get_by_role("button", name="More", exact=True)
+    more.click()
+    sheet.wait_for(state="visible")
+    sheet.get_by_role("button", name=label, exact=True).click()
+
+
+def wait_for_parameter(page, name: str, value: str) -> None:
+    page.wait_for_function(
+        "expected => new URL(location.href).searchParams.get(expected.name) === expected.value",
+        arg={"name": name, "value": value},
+    )
+
+
+def replace_record_and_notify(page, record: str) -> None:
+    page.evaluate(
+        """record => {
+          const url = new URL(location.href);
+          url.searchParams.set('record', record);
+          history.replaceState(null, '', url.href);
+          dispatchEvent(new PopStateEvent('popstate'));
+        }""",
+        record,
+    )
+    page.locator('[data-scroll-owner="destination"]').wait_for()
+    page.wait_for_function(
+        "expected => document.querySelector('[data-scroll-owner=\"destination\"]')?.dataset.selectedRecord === expected",
+        arg=record,
+    )
 
 
 def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
@@ -133,8 +173,10 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         if message.type == "error" and "favicon" not in message.text.lower()
         else None,
     )
+    fixtures = linked["fixtures"]()
+    fixtures["planner.search.workspace"] = []
     requests, unexpected = auth["install_preview"](
-        context, url, "linked", linked["fixtures"]()
+        context, url, "linked", fixtures
     )
     result: dict = {
         "scenario": "shell-navigation",
@@ -156,20 +198,104 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         shell.evaluate("element => element.dataset.harnessMountToken = 'stable-shell'")
 
         click_destination(page, "Tasks")
-        wait_for_destination(page, "tasks")
+        wait_for_target(page, "tasks", "list")
         tasks_location = current_location(page)
         tasks_focus = active_focus_owner(page)
 
         click_destination(page, "Plan")
-        wait_for_destination(page, "plan")
+        wait_for_target(page, "plan", "daily")
         plan_location = current_location(page)
 
         page.go_back()
-        wait_for_destination(page, "tasks")
+        wait_for_target(page, "tasks", "list")
         back_location = current_location(page)
         page.go_forward()
-        wait_for_destination(page, "plan")
+        wait_for_target(page, "plan", "daily")
         forward_location = current_location(page)
+
+        click_destination(page, "Search")
+        wait_for_target(page, "home", "search")
+        workspace_search = page.get_by_label("Search this workspace", exact=True)
+        workspace_search.fill("alpha planning")
+        wait_for_parameter(page, "q", "alpha planning")
+        search_alpha_location = current_location(page)
+
+        click_destination(page, "Tasks")
+        wait_for_target(page, "tasks", "list")
+        task_search = page.locator("[data-task-search]")
+        task_search.fill("lease")
+        wait_for_parameter(page, "taskQ", "lease")
+        page.locator(".filter-group").get_by_role(
+            "button", name="Today", exact=True
+        ).click()
+        wait_for_parameter(page, "taskFilter", "today")
+        replace_record_and_notify(page, "record-one")
+        tasks_one_location = current_location(page)
+
+        click_destination(page, "Search")
+        wait_for_target(page, "home", "search")
+        workspace_search = page.get_by_label("Search this workspace", exact=True)
+        workspace_search.fill("beta planning")
+        wait_for_parameter(page, "q", "beta planning")
+        search_beta_location = current_location(page)
+
+        click_destination(page, "Tasks")
+        wait_for_target(page, "tasks", "list")
+        task_search = page.locator("[data-task-search]")
+        task_search.fill("budget")
+        wait_for_parameter(page, "taskQ", "budget")
+        page.locator(".filter-group").get_by_role(
+            "button", name="Deadline risk", exact=True
+        ).click()
+        wait_for_parameter(page, "taskFilter", "deadline_risk")
+        replace_record_and_notify(page, "record-two")
+        tasks_two_location = current_location(page)
+
+        page.go_back()
+        wait_for_target(page, "home", "search")
+        assert page.get_by_label("Search this workspace", exact=True).input_value() == "beta planning"
+        page.go_back()
+        wait_for_target(page, "tasks", "list")
+        assert page.locator("[data-task-search]").input_value() == "lease"
+        assert page.locator(".filter-group").get_by_role(
+            "button", name="Today", exact=True
+        ).get_attribute("class") == "is-active"
+        assert page.locator('[data-scroll-owner="destination"]').get_attribute(
+            "data-selected-record"
+        ) == "record-one"
+        page.go_back()
+        wait_for_target(page, "home", "search")
+        assert page.get_by_label("Search this workspace", exact=True).input_value() == "alpha planning"
+        page.go_forward()
+        wait_for_target(page, "tasks", "list")
+        assert page.locator("[data-task-search]").input_value() == "lease"
+        page.go_forward()
+        wait_for_target(page, "home", "search")
+        assert page.get_by_label("Search this workspace", exact=True).input_value() == "beta planning"
+        page.go_forward()
+        wait_for_target(page, "tasks", "list")
+        assert page.locator("[data-task-search]").input_value() == "budget"
+        assert page.locator('[data-scroll-owner="destination"]').get_attribute(
+            "data-selected-record"
+        ) == "record-two"
+
+        reachable = []
+        for label, destination, view in (
+            ("Calendar", "plan", "calendar"),
+            ("Goals", "intentions", "outcomes"),
+            ("Connections", "settings", "connections"),
+            ("Insights", "review", "insights"),
+        ):
+            click_destination(page, label)
+            wait_for_target(page, destination, view)
+            reachable.append(label)
+        click_destination(page, "Categories & Recycle Bin")
+        wait_for_target(page, "settings", "categories")
+        page.get_by_role("dialog", name="Categories & Recycle Bin").wait_for(
+            state="visible"
+        )
+        reachable.append("Categories & Recycle Bin")
+        page.keyboard.press("Escape")
 
         stable_shell = shell.evaluate(
             "element => element.dataset.harnessMountToken === 'stable-shell'"
@@ -190,6 +316,12 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
                 "planLocation": plan_location,
                 "backLocation": back_location,
                 "forwardLocation": forward_location,
+                "searchAlphaLocation": search_alpha_location,
+                "tasksOneLocation": tasks_one_location,
+                "searchBetaLocation": search_beta_location,
+                "tasksTwoLocation": tasks_two_location,
+                "historyRenderedState": True,
+                "reachableChildViews": reachable,
                 "focusOwner": tasks_focus,
                 "stableShell": stable_shell,
                 "overflow": metrics,

@@ -65,7 +65,6 @@ import {
 import { taskActionRecoveryMessage } from "@shared/taskActionFeedback";
 import {
   searchWithTaskBoardView,
-  taskBoardViewFromSearch,
   type TaskBoardFilter,
 } from "@shared/taskBoardUrl";
 import {
@@ -94,6 +93,12 @@ import {
   DestinationLoading,
 } from "@/features/shell/DestinationBoundary";
 import { PlannerShell } from "@/features/shell/PlannerShell";
+import {
+  movePlannerShortcut,
+  plannerShortcutKey,
+  togglePlannerPrimaryShortcut,
+} from "@/features/shell/PhoneNavigation";
+import { labelForPlannerTarget } from "@/features/shell/PlannerRail";
 import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
 import { useAuthenticatedAccount } from "@/components/AuthenticatedPlanner";
 import { usePwa } from "@/contexts/PwaContext";
@@ -108,6 +113,7 @@ import type {
   Phase4Preferences,
   PlannerPreferenceShortcut,
 } from "@shared/phase4Preferences";
+import { phase4DefaultPreferences } from "@shared/phase4Preferences";
 import {
   parsePlannerLocation,
   plannerLocationWithAction,
@@ -275,71 +281,11 @@ function targetForSurface(surface: Surface): PlannerLocationTarget {
   );
 }
 
-function surfaceForPreferenceShortcut(
-  shortcut: PlannerPreferenceShortcut
-): Surface {
-  if (shortcut.legacyId) return shortcut.legacyId;
-  return surfaceFromPlannerLocation(shortcut);
-}
-
-function mobilePreferencesFromPhase4(
-  preferences: Phase4Preferences
-): MobilePreferences {
-  return normalizeMobilePreferences({
-    order: preferences.order.map(surfaceForPreferenceShortcut),
-    primary: preferences.primary.map(surfaceForPreferenceShortcut),
-    density: preferences.density,
-  });
-}
-
-function phase4PreferencesFromMobile(
-  mobile: MobilePreferences,
-  current: Phase4Preferences
-): Phase4Preferences {
-  const shortcut = (surface: Surface): PlannerPreferenceShortcut => ({
-    ...targetForSurface(surface),
-    legacyId: surface,
-  });
-  return {
-    ...current,
-    order: mobile.order.map(shortcut),
-    primary: mobile.primary.map(shortcut),
-    density: mobile.density,
-  };
-}
-
-const defaultMobilePrimaryIds = [
-  "today",
-  "tasks",
-  "calendar",
-  "goals",
-] as Surface[];
-type MobileDensity = "comfortable" | "compact";
-type MobilePreferences = {
-  order: Surface[];
-  primary: Surface[];
-  density: MobileDensity;
-};
-
-function normalizeMobilePreferences(
-  value: Partial<MobilePreferences> | null
-): MobilePreferences {
-  const validIds = navItems.map(item => item.id);
-  const requestedOrder = Array.isArray(value?.order)
-    ? value.order.filter((id): id is Surface =>
-        validIds.includes(id as Surface)
-      )
-    : [];
-  const order = Array.from(new Set([...requestedOrder, ...validIds]));
-  const requestedPrimary = Array.isArray(value?.primary)
-    ? value.primary.filter((id): id is Surface => order.includes(id as Surface))
-    : defaultMobilePrimaryIds;
-  const primary = Array.from(new Set(requestedPrimary)).slice(0, 4);
-  return {
-    order,
-    primary: primary.length ? primary : defaultMobilePrimaryIds,
-    density: value?.density === "compact" ? "compact" : "comfortable",
-  };
+function taskFilterFromPlannerLocation(location: PlannerLocation) {
+  return location.taskFilter === "today" ||
+    location.taskFilter === "deadline_risk"
+    ? location.taskFilter
+    : "all";
 }
 
 function MobileCustomizationSheet({
@@ -350,42 +296,42 @@ function MobileCustomizationSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  preferences: MobilePreferences;
-  onChange: (next: MobilePreferences) => void;
+  preferences: Phase4Preferences;
+  onChange: (next: Phase4Preferences) => void;
 }) {
   if (!open) return null;
-  const orderedItems = preferences.order
-    .map(id => navItems.find(item => item.id === id))
-    .filter(Boolean) as typeof navItems;
-  const move = (id: Surface, direction: -1 | 1) => {
-    const index = preferences.order.indexOf(id);
-    const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= preferences.order.length)
-      return;
-    const order = [...preferences.order];
-    [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
-    onChange({ ...preferences, order });
+  const orderedItems = preferences.order.map(shortcut => {
+    const surface = surfaceFromPlannerLocation(shortcut);
+    const item = navItems.find(candidate => candidate.id === surface);
+    return {
+      shortcut,
+      icon: item?.icon ?? Grid2X2,
+      label: shortcut.legacyId
+        ? (item?.label ?? labelForPlannerTarget(shortcut))
+        : labelForPlannerTarget(shortcut),
+    };
+  });
+  const move = (shortcut: PlannerPreferenceShortcut, direction: -1 | 1) => {
+    onChange(
+      movePlannerShortcut(
+        preferences,
+        plannerShortcutKey(shortcut),
+        direction
+      )
+    );
   };
-  const togglePinned = (id: Surface) => {
-    const isPinned = preferences.primary.includes(id);
-    if (isPinned) {
-      if (preferences.primary.length === 1) {
-        toast.message(
-          "Keep one destination in the tab bar. More is always available."
-        );
-        return;
-      }
-      onChange({
-        ...preferences,
-        primary: preferences.primary.filter(item => item !== id),
-      });
+  const togglePinned = (shortcut: PlannerPreferenceShortcut) => {
+    const key = plannerShortcutKey(shortcut);
+    const isPinned = preferences.primary.some(
+      item => plannerShortcutKey(item) === key
+    );
+    if (isPinned && preferences.primary.length === 1) {
+      toast.message(
+        "Keep one destination in the tab bar. More is always available."
+      );
       return;
     }
-    const primary =
-      preferences.primary.length === 4
-        ? [...preferences.primary.slice(0, 3), id]
-        : [...preferences.primary, id];
-    onChange({ ...preferences, primary });
+    onChange(togglePlannerPrimaryShortcut(preferences, shortcut));
   };
   return (
     <div className="mobile-customize-layer" role="presentation">
@@ -465,9 +411,12 @@ function MobileCustomizationSheet({
           <ol>
             {orderedItems.map((item, index) => {
               const Icon = item.icon;
-              const pinned = preferences.primary.includes(item.id);
+              const key = plannerShortcutKey(item.shortcut);
+              const pinned = preferences.primary.some(
+                shortcut => plannerShortcutKey(shortcut) === key
+              );
               return (
-                <li key={item.id}>
+                <li key={key}>
                   <span className="mobile-destination-icon">
                     <Icon size={18} />
                   </span>
@@ -479,7 +428,7 @@ function MobileCustomizationSheet({
                     type="button"
                     className={cn("mobile-pin-button", pinned && "is-pinned")}
                     aria-pressed={pinned}
-                    onClick={() => togglePinned(item.id)}
+                    onClick={() => togglePinned(item.shortcut)}
                   >
                     {pinned ? "Pinned" : "Pin"}
                   </button>
@@ -488,7 +437,7 @@ function MobileCustomizationSheet({
                       type="button"
                       aria-label={`Move ${item.label} up`}
                       disabled={index === 0}
-                      onClick={() => move(item.id, -1)}
+                      onClick={() => move(item.shortcut, -1)}
                     >
                       <ArrowUp size={16} />
                     </button>
@@ -496,7 +445,7 @@ function MobileCustomizationSheet({
                       type="button"
                       aria-label={`Move ${item.label} down`}
                       disabled={index === orderedItems.length - 1}
-                      onClick={() => move(item.id, 1)}
+                      onClick={() => move(item.shortcut, 1)}
                     >
                       <ArrowDown size={16} />
                     </button>
@@ -509,7 +458,7 @@ function MobileCustomizationSheet({
         <div className="mobile-customize-actions">
           <button
             type="button"
-            onClick={() => onChange(normalizeMobilePreferences(null))}
+            onClick={() => onChange(structuredClone(phase4DefaultPreferences))}
           >
             Reset phone layout
           </button>
@@ -6802,16 +6751,8 @@ export default function Home() {
   const { preferences, setPreferences } = usePlannerPreferences(
     scope.workspaceId
   );
-  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : (new URLSearchParams(window.location.search).get("q") ?? "")
-  );
+  const workspaceSearchQuery = plannerLocation.query;
   const [mobileCustomizationOpen, setMobileCustomizationOpen] = useState(false);
-  const mobilePreferences = useMemo(
-    () => mobilePreferencesFromPhase4(preferences),
-    [preferences]
-  );
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("Day");
   const [composerOpen, setComposerOpen] = useState(
     () =>
@@ -6827,16 +6768,9 @@ export default function Home() {
   const [offlineCaptureCount, setOfflineCaptureCount] = useState(
     () => capturesForWorkspace(scope.workspaceId).length
   );
-  const [taskSearch, setTaskSearch] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : taskBoardViewFromSearch(window.location.search).query
-  );
-  const [taskFilter, setTaskFilter] = useState<TaskBoardFilter>(() =>
-    typeof window === "undefined"
-      ? "all"
-      : taskBoardViewFromSearch(window.location.search).filter
-  );
+  const taskSearch = plannerLocation.taskQuery;
+  const taskFilter: TaskBoardFilter =
+    taskFilterFromPlannerLocation(plannerLocation);
   const [optimisticTaskStates, setOptimisticTaskStates] = useState<
     Record<string, string>
   >({});
@@ -6941,12 +6875,6 @@ export default function Home() {
     | { kind: "clear"; habitId: string; localDate: string }
     | null
   >(null);
-  const saveMobilePreferences = (next: MobilePreferences) => {
-    const normalized = normalizeMobilePreferences(next);
-    setPreferences(current =>
-      phase4PreferencesFromMobile(normalized, current)
-    );
-  };
   const refreshHabitData = async () => {
     setHabitActionError(null);
     setLastHabitAction(null);
@@ -7093,6 +7021,8 @@ export default function Home() {
     setPlannerLocation(current =>
       plannerLocationWithAction({ ...current, ...target }, target.action)
     );
+    if (target.destination === "settings" && target.view === "categories")
+      setCategoryDialogOpen(true);
     if (typeof window !== "undefined")
       writePlannerLocation(new URL(window.location.href), target, window.history);
   }, []);
@@ -7111,7 +7041,7 @@ export default function Home() {
     );
   };
   const updateWorkspaceSearchQuery = useCallback((query: string) => {
-    setWorkspaceSearchQuery(query);
+    setPlannerLocation(current => ({ ...current, query }));
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       if (query) url.searchParams.set("q", query);
@@ -7135,6 +7065,11 @@ export default function Home() {
     );
   const updateTaskBoardUrl = useCallback(
     (view: { query: string; filter: TaskBoardFilter }) => {
+      setPlannerLocation(current => ({
+        ...current,
+        taskQuery: view.query,
+        taskFilter: view.filter,
+      }));
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.search = searchWithTaskBoardView(url.search, view);
@@ -7144,11 +7079,9 @@ export default function Home() {
     []
   );
   const updateTaskSearch = (query: string) => {
-    setTaskSearch(query);
     updateTaskBoardUrl({ query, filter: taskFilter });
   };
   const updateTaskFilter = (filter: TaskBoardFilter) => {
-    setTaskFilter(filter);
     updateTaskBoardUrl({ query: taskSearch, filter });
   };
   const focusTaskSearch = () => {
@@ -7990,6 +7923,7 @@ export default function Home() {
         preferences={preferences}
         timezone={scope.timezone}
         title={surfaceTitle}
+        selectedRecord={plannerLocation.selectedRecord}
         dateLabel={displayLocalDate(today, scope.timezone, {
           weekday: "long",
           month: "long",
@@ -8040,6 +7974,7 @@ export default function Home() {
       preferences={preferences}
       timezone={scope.timezone}
       title={surfaceTitle}
+      selectedRecord={plannerLocation.selectedRecord}
       dateLabel={displayLocalDate(today, scope.timezone, {
         weekday: "long",
         month: "long",
@@ -8640,8 +8575,8 @@ export default function Home() {
       <MobileCustomizationSheet
         open={mobileCustomizationOpen}
         onOpenChange={setMobileCustomizationOpen}
-        preferences={mobilePreferences}
-        onChange={saveMobilePreferences}
+        preferences={preferences}
+        onChange={setPreferences}
       />
     </PlannerShell>
   );
