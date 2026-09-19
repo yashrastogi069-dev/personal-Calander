@@ -88,6 +88,7 @@ import { nextTaskSortOrder } from "@shared/taskOrdering";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
+import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace";
 import {
   DestinationBoundary,
   DestinationLoading,
@@ -178,7 +179,6 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
 
 const FocusWorkspace = lazy(() =>
   import("@/features/focus/FocusWorkspace").then(module => ({
@@ -6738,7 +6738,6 @@ function SettingsSurface({
 }
 
 export default function Home() {
-  const [, routerNavigate] = useLocation();
   const scope = useWorkspaceScope();
   const plannerSyncScope = usePlannerSyncScope();
   const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
@@ -6822,6 +6821,12 @@ export default function Home() {
       utils.planner.dashboard.invalidate();
     },
   });
+  const rolloverDate = useMemo(() => shiftLocalDate(today, -1), [today]);
+  const rolloverPreview = trpc.planner.task.rolloverPreview.useQuery(
+    { ...scope, fromLocalDate: rolloverDate },
+    { enabled: surface === "calendar" }
+  );
+  const applyRollover = trpc.planner.task.applyRollover.useMutation();
   const replayTaskSync = trpc.planner.sync.replay.useMutation();
   const replayTaskSyncRef = useRef(replayTaskSync.mutateAsync);
   replayTaskSyncRef.current = replayTaskSync.mutateAsync;
@@ -7020,10 +7025,6 @@ export default function Home() {
     return subscribeToPlannerLocation(window, setPlannerLocation);
   }, []);
   const navigatePlanner = useCallback((target: PlannerLocationTarget) => {
-    if (target.destination === "plan" && target.view === "calendar") {
-      routerNavigate("/calendar");
-      return;
-    }
     setPlannerLocation(current =>
       plannerLocationWithAction({ ...current, ...target }, target.action)
     );
@@ -7031,7 +7032,7 @@ export default function Home() {
       setCategoryDialogOpen(true);
     if (typeof window !== "undefined")
       writePlannerLocation(new URL(window.location.href), target, window.history);
-  }, [routerNavigate]);
+  }, []);
   const selectSurface = (nextSurface: Surface) => {
     navigatePlanner(targetForSurface(nextSurface));
   };
@@ -7528,6 +7529,62 @@ export default function Home() {
   };
   const toggleTask = (task: any) =>
     moveTaskToLane(task, task.state === "completed" ? "todo" : "completed");
+  const completeCalendarTask = async (task: any) => {
+    try {
+      await persistTaskPatch(task, { state: "completed" });
+      return null;
+    } catch (error) {
+      return error instanceof Error && error.message
+        ? error.message
+        : "This task could not be completed. Its calendar block remains unchanged.";
+    }
+  };
+  const unreserveCalendarTask = async (task: any) => {
+    try {
+      const result = await persistTaskPatch(task, {
+        plannedStartAt: null,
+        plannedEndAt: null,
+      });
+      toast.success(
+        result.queued
+          ? `${task.title} returned to unreserved work on this device and will sync later.`
+          : `${task.title} returned to unreserved work. Its task, Plan for date, estimate, and links were kept.`
+      );
+      return null;
+    } catch (error) {
+      return error instanceof Error && error.message
+        ? error.message
+        : "Time could not be removed. The task was left unchanged; refresh and try again.";
+    }
+  };
+  const applyMorningRollover = async () => {
+    const candidates = rolloverPreview.data?.candidates ?? [];
+    if (!candidates.length) return;
+    try {
+      const result = await applyRollover.mutateAsync({
+        ...scope,
+        fromLocalDate: rolloverDate,
+        tasks: candidates.map(item => ({
+          id: item.id,
+          expectedVersion: item.expectedVersion,
+        })),
+      });
+      await Promise.all([
+        utils.planner.workspace.snapshot.invalidate(),
+        utils.planner.dashboard.invalidate(),
+        rolloverPreview.refetch(),
+      ]);
+      toast.success(
+        `${result.applied} unfinished reservation${result.applied === 1 ? "" : "s"} returned to unreserved work. Task state, Plan for date, and recurrence were kept.`
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Morning rollover could not be applied. No task was changed; refresh and try again."
+      );
+    }
+  };
   const reorderTaskInLane = async (
     task: any,
     direction: -1 | 1,
@@ -8214,6 +8271,22 @@ export default function Home() {
         ) : null}
         {surface === "calendar" ? (
           <section className="calendar-surface">
+            <CalendarExecutionWorkspace
+              scope={scope}
+              snapshot={{ ...snapshot, tasks: activeTasks }}
+              today={today}
+              rolloverPreview={rolloverPreview.data}
+              rolloverLoading={rolloverPreview.isLoading}
+              rolloverPending={applyRollover.isPending}
+              onApplyMorningRollover={applyMorningRollover}
+              onOpenTasks={focusTaskSearch}
+              onCreateTask={() => {
+                selectSurface("tasks");
+                openComposer("task");
+              }}
+              onComplete={completeCalendarTask}
+              onUnreserve={unreserveCalendarTask}
+            />
             <div className="calendar-toolbar">
               <div className="calendar-mode-tabs">
                 {(
@@ -8230,21 +8303,7 @@ export default function Home() {
               </div>
               <p>{modeCopy[calendarMode]}</p>
             </div>
-            {calendarMode === "Day" ? (
-              <Timeline
-                tasks={activeTasks}
-                selectedDate={selectedDate}
-                onMoveDay={amount =>
-                  setSelectedDate(date => shiftLocalDate(date, amount))
-                }
-                onDrop={scheduleTask}
-                onOpenTasks={focusTaskSearch}
-                onComplete={toggleTask}
-                onResize={resizeTaskReservation}
-                scheduleError={calendarActionError}
-                onRetrySchedule={retryCalendarMove}
-              />
-            ) : (
+            {calendarMode !== "Day" ? (
               <CalendarMatrix
                 mode={calendarMode}
                 anchor={selectedDate}
@@ -8256,7 +8315,7 @@ export default function Home() {
                 }
                 onOpenTasks={focusTaskSearch}
               />
-            )}
+            ) : null}
           </section>
         ) : null}
         {surface === "goals" ? (

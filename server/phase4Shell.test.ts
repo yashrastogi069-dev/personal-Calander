@@ -51,10 +51,14 @@ describe("Phase 4 stable planner shell", () => {
     expect(calendarWorkspaceSource).not.toContain("window.location.assign");
   });
 
-  it("routes the canonical Calendar shell target to the full execution workspace", () => {
-    expect(homeSource).toContain('routerNavigate("/calendar")');
-    expect(homeSource).toContain('target.destination === "plan"');
-    expect(homeSource).toContain('target.view === "calendar"');
+  it("renders the full execution Calendar inside the canonical mounted shell", () => {
+    expect(homeSource).toContain(
+      'import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace"'
+    );
+    expect(homeSource).toMatch(
+      /surface === "calendar"[\s\S]*?<CalendarExecutionWorkspace/
+    );
+    expect(homeSource).not.toContain('routerNavigate("/calendar")');
     expect(calendarExecutionSource).toContain("CalendarExecutionWorkspace");
   });
 

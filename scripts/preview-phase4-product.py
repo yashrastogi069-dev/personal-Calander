@@ -289,11 +289,14 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
 
         reachable = []
         click_destination(page, "Calendar")
-        page.wait_for_url(lambda target: urlparse(target).path == "/calendar")
-        page.get_by_role("heading", name="Execution calendar", exact=True).wait_for()
+        wait_for_target(page, "plan", "calendar")
+        page.get_by_role("heading", name="Reserve real focus time", exact=True).wait_for()
         page.get_by_role("heading", name="Morning rollover", exact=True).wait_for()
         page.get_by_label("Calendar keyboard shortcuts", exact=True).wait_for()
         calendar_execution_location = current_location(page)
+        assert shell.evaluate(
+            "element => element.dataset.harnessMountToken === 'stable-shell'"
+        )
         page.go_back()
         wait_for_target(page, "tasks", "list")
         assert page.locator("[data-task-search]").input_value() == "budget"
@@ -301,8 +304,11 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
             "data-selected-record"
         ) == "record-two"
         page.go_forward()
-        page.wait_for_url(lambda target: urlparse(target).path == "/calendar")
-        page.get_by_role("heading", name="Execution calendar", exact=True).wait_for()
+        wait_for_target(page, "plan", "calendar")
+        page.get_by_role("heading", name="Reserve real focus time", exact=True).wait_for()
+        assert shell.evaluate(
+            "element => element.dataset.harnessMountToken === 'stable-shell'"
+        )
         page.go_back()
         wait_for_target(page, "tasks", "list")
         reachable.append("Calendar")
