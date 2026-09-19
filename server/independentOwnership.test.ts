@@ -10,6 +10,7 @@ import { appRouter } from "./routers";
 
 const baseline = readFileSync(new URL("../supabase/migrations/0000_loving_madrox.sql", import.meta.url), "utf8");
 const upgrade = readFileSync(new URL("../supabase/migrations/0001_independent_ownership.sql", import.meta.url), "utf8");
+const phase4Upgrade = readFileSync(new URL("../supabase/migrations/0004_phase4_product_model.sql", import.meta.url), "utf8");
 const previousRename = readFileSync(new URL("../drizzle/0013_supabase_identity.sql", import.meta.url), "utf8");
 const database = new PGlite();
 function context(userId: number, authUserId: string): TrpcContext {
@@ -29,6 +30,8 @@ describe("independent PostgreSQL ownership migration", () => {
       INSERT INTO workspaces (id) VALUES ('existing-workspace-a'), ('existing-workspace-b');
       INSERT INTO tasks (id, "workspaceId", title) VALUES ('existing-task', 'existing-workspace-a', 'Keep my planning data');`);
     await database.exec(upgrade);
+    // Keep this isolated PGlite fixture aligned with the schema imported by the router.
+    await database.exec(phase4Upgrade);
     mocks.getDb.mockResolvedValue(drizzle(database));
   }, 30_000);
   afterAll(() => database.close());

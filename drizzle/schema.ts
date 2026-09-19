@@ -48,6 +48,7 @@ export const workspaces = pgTable("workspaces", {
   workdayEndsAt: varchar("workdayEndsAt", { length: 5 }).notNull().default("17:00"),
   defaultBreakMinutes: integer("defaultBreakMinutes").notNull().default(30),
   preferredShutdownAt: varchar("preferredShutdownAt", { length: 5 }).notNull().default("17:30"),
+  accountabilityLevel: enumText("accountabilityLevel", ["gentle", "structured", "strict"]).notNull().default("structured"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   version: integer("version").notNull().default(1),
@@ -99,6 +100,11 @@ export const goals = pgTable(
     parentGoalId: varchar("parentGoalId", { length: 64 }),
     title: varchar("title", { length: 280 }).notNull(),
     description: text("description"),
+    intentionKind: enumText("intentionKind", ["outcome", "direction"]),
+    successCriteria: text("successCriteria"),
+    standards: text("standards"),
+    reviewCadence: enumText("reviewCadence", ["weekly", "monthly", "quarterly", "yearly"]),
+    nextReviewLocalDate: varchar("nextReviewLocalDate", { length: 10 }),
     state: enumText("state", lifecycleStates).notNull().default("not_started"),
     priority: enumText("priority", priorities).notNull().default("medium"),
     horizon: enumText("horizon", horizons).notNull().default("yearly"),
@@ -158,6 +164,9 @@ export const projects = pgTable(
     categoryId: varchar("categoryId", { length: 64 }),
     title: varchar("title", { length: 280 }).notNull(),
     description: text("description"),
+    riskLevel: enumText("riskLevel", ["none", "watch", "at_risk", "blocked"]).notNull().default("none"),
+    riskNote: text("riskNote"),
+    nextReviewLocalDate: varchar("nextReviewLocalDate", { length: 10 }),
     state: enumText("state", lifecycleStates).notNull().default("not_started"),
     priority: enumText("priority", priorities).notNull().default("medium"),
     horizon: enumText("horizon", horizons).notNull().default("quarterly"),
@@ -252,6 +261,24 @@ export const taskDependencies = pgTable(
   table => [
     index("task_dependencies_workspace_task_idx").on(table.workspaceId, table.taskId),
     uniqueIndex("task_dependency_unique").on(table.taskId, table.dependsOnTaskId),
+  ]
+).enableRLS();
+
+export const projectDependencies = pgTable(
+  "projectDependencies",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    projectId: varchar("projectId", { length: 64 }).notNull(),
+    dependsOnProjectId: varchar("dependsOnProjectId", { length: 64 }).notNull(),
+    dependencyType: enumText("dependencyType", ["hard", "soft"]).notNull().default("hard"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  table => [
+    index("project_dependencies_workspace_project_idx").on(table.workspaceId, table.projectId),
+    uniqueIndex("project_dependency_unique").on(table.projectId, table.dependsOnProjectId),
   ]
 ).enableRLS();
 
@@ -383,6 +410,32 @@ export const dailyPlanItems = pgTable(
   table => [
     uniqueIndex("daily_plan_item_unique").on(table.dailyPlanId, table.taskId),
     index("daily_plan_items_workspace_plan_idx").on(table.workspaceId, table.dailyPlanId),
+  ]
+).enableRLS();
+
+export const commitmentResolutions = pgTable(
+  "commitmentResolutions",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    operationId: varchar("operationId", { length: 128 }).notNull(),
+    dailyPlanItemId: varchar("dailyPlanItemId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    occurrenceId: varchar("occurrenceId", { length: 64 }),
+    action: enumText("action", ["done", "reschedule", "reduce", "pause", "abandon"]).notNull(),
+    originalScope: text("originalScope").notNull(),
+    revisedScope: text("revisedScope"),
+    resolvedToLocalDate: varchar("resolvedToLocalDate", { length: 10 }),
+    returnLocalDate: varchar("returnLocalDate", { length: 10 }),
+    decisionNote: text("decisionNote"),
+    timezone: varchar("timezone", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  table => [
+    uniqueIndex("commitment_resolutions_workspace_operation_unique").on(table.workspaceId, table.operationId),
+    index("commitment_resolutions_workspace_item_idx").on(table.workspaceId, table.dailyPlanItemId),
   ]
 ).enableRLS();
 
