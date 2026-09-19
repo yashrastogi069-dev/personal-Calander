@@ -20,12 +20,29 @@ export interface PlannerSheetProps {
   footer?: ReactNode;
 }
 
-function canReceiveFocus(element: HTMLElement | null): element is HTMLElement {
+export function isEligibleReturnFocusTarget(
+  element: HTMLElement | null
+): element is HTMLElement {
   return Boolean(
     element?.isConnected &&
+      !element.hidden &&
       !(element as HTMLButtonElement).disabled &&
-      element.getAttribute("aria-disabled") !== "true"
+      element.getAttribute("aria-disabled") !== "true" &&
+      element.getAttribute("aria-hidden") !== "true" &&
+      element.getClientRects().length > 0 &&
+      element.matches(":not([hidden])") &&
+      !element.closest("[inert]")
   );
+}
+
+export function restorePlannerSheetFocus(
+  event: { preventDefault: () => void },
+  element: HTMLElement | null
+) {
+  if (!isEligibleReturnFocusTarget(element)) return false;
+  event.preventDefault();
+  element.focus();
+  return true;
 }
 
 export function PlannerSheet({
@@ -41,17 +58,12 @@ export function PlannerSheet({
 
   const handleOpenAutoFocus = useCallback((event: Event) => {
     event.preventDefault();
-    if (canReceiveFocus(closeButtonRef.current)) closeButtonRef.current.focus();
+    if (isEligibleReturnFocusTarget(closeButtonRef.current)) closeButtonRef.current.focus();
   }, []);
 
   const handleCloseAutoFocus = useCallback(
     (event: Event) => {
-      event.preventDefault();
-      const returnTarget = returnFocusRef.current;
-
-      queueMicrotask(() => {
-        if (canReceiveFocus(returnTarget)) returnTarget.focus();
-      });
+      restorePlannerSheetFocus(event, returnFocusRef.current);
     },
     [returnFocusRef]
   );

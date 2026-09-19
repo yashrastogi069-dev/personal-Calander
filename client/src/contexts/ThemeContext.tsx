@@ -7,9 +7,63 @@ import React, {
   useState,
 } from "react";
 
-type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark" | "system";
 
-type ResolvedTheme = "light" | "dark";
+export type ResolvedTheme = "light" | "dark";
+
+export function isTheme(value: unknown): value is Theme {
+  return value === "light" || value === "dark" || value === "system";
+}
+
+export function resolveTheme(theme: Theme, prefersDark: boolean): ResolvedTheme {
+  if (theme !== "system") return theme;
+  return prefersDark ? "dark" : "light";
+}
+
+export function getThemeApplication(theme: Theme, prefersDark: boolean) {
+  const resolvedTheme = resolveTheme(theme, prefersDark);
+  return {
+    theme,
+    resolvedTheme,
+    dark: resolvedTheme === "dark",
+    colorScheme: resolvedTheme,
+  };
+}
+
+export function readStoredTheme(
+  read: () => unknown,
+  fallback: Theme
+): Theme {
+  try {
+    const stored = read();
+    return stored === "light" || stored === "dark" || stored === "system"
+      ? stored
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function persistTheme(
+  write: (theme: Theme) => void,
+  theme: unknown
+): boolean {
+  if (!isTheme(theme)) return false;
+  try {
+    write(theme);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function selectTheme(
+  current: Theme,
+  requested: unknown,
+  switchable: boolean
+): Theme {
+  return switchable && isTheme(requested) ? requested : current;
+}
 
 interface ThemeContextType {
   theme: Theme;
@@ -34,45 +88,34 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const [theme, setSelectedTheme] = useState<Theme>(() => {
     if (switchable && typeof window !== "undefined") {
-      const stored = window.localStorage.getItem("theme");
-      return stored === "light" || stored === "dark" || stored === "system"
-        ? stored
-        : defaultTheme;
+      return readStoredTheme(() => window.localStorage.getItem("theme"), defaultTheme);
     }
     return defaultTheme;
   });
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    if (theme !== "system") return theme;
-    if (typeof window === "undefined") return "light";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+    const prefersDark =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return resolveTheme(theme, prefersDark);
   });
 
   const setTheme = useCallback(
     (nextTheme: Theme) => {
-      if (
-        !switchable ||
-        (nextTheme !== "light" &&
-          nextTheme !== "dark" &&
-          nextTheme !== "system")
-      )
-        return;
-      setSelectedTheme(nextTheme);
+      if (!switchable || !isTheme(nextTheme)) return;
+      setSelectedTheme(selectTheme(theme, nextTheme, switchable));
     },
-    [switchable]
+    [switchable, theme]
   );
 
   useEffect(() => {
     const root = document.documentElement;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = (nextTheme: Theme) => {
-      const resolved: ResolvedTheme =
-        nextTheme === "system" ? (media.matches ? "dark" : "light") : nextTheme;
-      root.classList.toggle("dark", resolved === "dark");
-      root.dataset.theme = nextTheme;
-      root.style.colorScheme = resolved;
-      setResolvedTheme(resolved);
+      const application = getThemeApplication(nextTheme, media.matches);
+      root.classList.toggle("dark", application.dark);
+      root.dataset.theme = application.theme;
+      root.style.colorScheme = application.colorScheme;
+      setResolvedTheme(application.resolvedTheme);
     };
     apply(theme);
     const onSystemChange = () => {
@@ -84,7 +127,7 @@ export function ThemeProvider({
 
   useEffect(() => {
     if (switchable && typeof window !== "undefined")
-      window.localStorage.setItem("theme", theme);
+      persistTheme(nextTheme => window.localStorage.setItem("theme", nextTheme), theme);
   }, [theme, switchable]);
 
   const toggleTheme = useMemo(

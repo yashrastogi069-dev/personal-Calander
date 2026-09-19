@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { Toaster } from "../client/src/components/ui/sonner";
+import * as ThemeModule from "../client/src/contexts/ThemeContext";
+import * as PlannerSheetModule from "../client/src/features/shell/PlannerSheet";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -15,6 +20,94 @@ function declarationsFor(css: string, selector: string) {
     css.match(new RegExp(`${escapedSelector}\\s*\\{([^}]+)\\}`))?.[1] ?? ""
   );
 }
+
+function declarationMap(declarations: string) {
+  return Object.fromEntries(
+    [...declarations.matchAll(/([\w-]+)\s*:\s*([^;]+);?/g)].map(match => [
+      match[1],
+      match[2].trim(),
+    ])
+  );
+}
+
+function selectorSpecificity(selector: string) {
+  const ids = selector.match(/#[\w-]+/g)?.length ?? 0;
+  const classesAndPseudoClasses =
+    selector.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g)?.length ?? 0;
+  const elements = selector.match(/\b(?:html|body)\b/g)?.length ?? 0;
+  return ids * 100 + classesAndPseudoClasses * 10 + elements;
+}
+
+function rootSelectorMatches(selector: string, dark: boolean) {
+  const candidate = selector.trim();
+  if (!candidate || /[\s>+~]/.test(candidate) || candidate.startsWith("@")) return false;
+  if (candidate.includes(".dark") && !dark) return false;
+  const remainder = candidate
+    .replace(/^html/, "")
+    .replace(/:root/g, "")
+    .replace(/\.dark/g, "");
+  return remainder === "" && (candidate.includes(":root") || candidate.startsWith("html") || candidate === ".dark");
+}
+
+function resolvedRootProperties(css: string, dark: boolean) {
+  const cascaded = new Map<string, { specificity: number; order: number; value: string }>();
+  let order = 0;
+
+  for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const declarations = declarationMap(rule[2]);
+    for (const selector of rule[1].split(",")) {
+      if (!rootSelectorMatches(selector, dark)) continue;
+      const specificity = selectorSpecificity(selector);
+      for (const [name, value] of Object.entries(declarations)) {
+        if (!name.startsWith("--")) continue;
+        const existing = cascaded.get(name);
+        if (!existing || specificity > existing.specificity || (specificity === existing.specificity && order > existing.order)) {
+          cascaded.set(name, { specificity, order, value });
+        }
+      }
+      order += 1;
+    }
+  }
+
+  const resolve = (name: string, seen = new Set<string>()): string => {
+    if (seen.has(name)) return "";
+    const value = cascaded.get(name)?.value ?? "";
+    const nextSeen = new Set(seen).add(name);
+    return value.replace(/var\((--[\w-]+)\)/g, (_match, variable: string) => resolve(variable, nextSeen));
+  };
+
+  return new Proxy({} as Record<string, string>, {
+    get: (_target, property: string) => resolve(property),
+  });
+}
+
+type ThemeContract = {
+  isTheme: (value: unknown) => boolean;
+  resolveTheme: (theme: "light" | "dark" | "system", prefersDark: boolean) => "light" | "dark";
+  getThemeApplication: (
+    theme: "light" | "dark" | "system",
+    prefersDark: boolean
+  ) => { theme: "light" | "dark" | "system"; resolvedTheme: "light" | "dark"; dark: boolean; colorScheme: "light" | "dark" };
+  readStoredTheme: (read: () => unknown, fallback: "light" | "dark" | "system") => "light" | "dark" | "system";
+  persistTheme: (write: (theme: "light" | "dark" | "system") => void, theme: unknown) => boolean;
+  selectTheme: (
+    current: "light" | "dark" | "system",
+    requested: unknown,
+    switchable: boolean
+  ) => "light" | "dark" | "system";
+};
+
+const themeContract = ThemeModule as unknown as Partial<ThemeContract>;
+
+type FocusContract = {
+  isEligibleReturnFocusTarget: (element: HTMLElement | null) => boolean;
+  restorePlannerSheetFocus: (
+    event: { preventDefault: () => void },
+    element: HTMLElement | null
+  ) => boolean;
+};
+
+const focusContract = PlannerSheetModule as unknown as Partial<FocusContract>;
 
 const tokenPath = "client/src/features/shell/phase4-tokens.css";
 const sheetPath = "client/src/features/shell/PlannerSheet.tsx";
@@ -71,6 +164,50 @@ describe("Phase 4 design foundation", () => {
     expect(css).not.toMatch(
       /--[\w-]*(?:todo|doing|done|in-progress|completed)[\w-]*\s*:/i
     );
+  });
+
+  it("keeps semantic aliases authoritative after the ordered legacy cascade", () => {
+    const tokens = source(tokenPath);
+    const indexCss = source("client/src/index.css");
+    const expandedCss = indexCss.replace(
+      /@import\s+["']\.\/features\/shell\/phase4-tokens\.css["'];/,
+      tokens
+    ).replace(/@import\s+[^;]+;/g, "");
+    const light = resolvedRootProperties(expandedCss, false);
+    const dark = resolvedRootProperties(expandedCss, true);
+
+    expect({
+      background: light["--background"],
+      foreground: light["--foreground"],
+      primary: light["--primary"],
+      border: light["--border"],
+      destructive: light["--destructive"],
+      ring: light["--ring"],
+    }).toEqual({
+      background: "#ede9df",
+      foreground: "#18211f",
+      primary: "#286b5e",
+      border: "#cbd2cb",
+      destructive: "#a33f3f",
+      ring: "#1775a4",
+    });
+    expect({
+      background: dark["--background"],
+      foreground: dark["--foreground"],
+      card: dark["--card"],
+      primary: dark["--primary"],
+      border: dark["--border"],
+      destructive: dark["--destructive"],
+      ring: dark["--ring"],
+    }).toEqual({
+      background: "#0c1317",
+      foreground: "#f1ebdf",
+      card: "#17242a",
+      primary: "#70bab2",
+      border: "#304149",
+      destructive: "#ee8b82",
+      ring: "#8bd4df",
+    });
   });
 
   it("preserves the exact R20 lane palette in its existing scoped rules", () => {
@@ -145,6 +282,57 @@ describe("Phase 4 design foundation", () => {
     expect(theme).not.toMatch(/planner|workspace|indexedDB|trpc|supabase/i);
   });
 
+  it("validates, selects, and resolves theme values through production helpers", () => {
+    expect(typeof themeContract.isTheme).toBe("function");
+    expect(typeof themeContract.resolveTheme).toBe("function");
+    expect(typeof themeContract.getThemeApplication).toBe("function");
+    expect(typeof themeContract.selectTheme).toBe("function");
+    if (!themeContract.isTheme || !themeContract.resolveTheme || !themeContract.getThemeApplication || !themeContract.selectTheme) return;
+
+    expect(["light", "dark", "system"].map(themeContract.isTheme)).toEqual([true, true, true]);
+    expect(["", "auto", null, 1].map(themeContract.isTheme)).toEqual([false, false, false, false]);
+    expect(themeContract.selectTheme("light", "dark", true)).toBe("dark");
+    expect(themeContract.selectTheme("light", "auto", true)).toBe("light");
+    expect(themeContract.selectTheme("light", "dark", false)).toBe("light");
+    expect(themeContract.resolveTheme("system", false)).toBe("light");
+    expect(themeContract.resolveTheme("system", true)).toBe("dark");
+    expect(themeContract.resolveTheme("dark", false)).toBe("dark");
+    expect(themeContract.getThemeApplication("system", true)).toEqual({
+      theme: "system",
+      resolvedTheme: "dark",
+      dark: true,
+      colorScheme: "dark",
+    });
+  });
+
+  it("falls back safely when theme storage is invalid or denied", () => {
+    expect(typeof themeContract.readStoredTheme).toBe("function");
+    expect(typeof themeContract.persistTheme).toBe("function");
+    if (!themeContract.readStoredTheme || !themeContract.persistTheme) return;
+
+    expect(themeContract.readStoredTheme(() => "dark", "system")).toBe("dark");
+    expect(themeContract.readStoredTheme(() => "auto", "system")).toBe("system");
+    expect(themeContract.readStoredTheme(() => { throw new Error("denied"); }, "light")).toBe("light");
+
+    let stored = "";
+    expect(themeContract.persistTheme(value => { stored = value; }, "system")).toBe(true);
+    expect(stored).toBe("system");
+    expect(themeContract.persistTheme(() => { stored = "invalid"; }, "auto")).toBe(false);
+    expect(stored).toBe("system");
+    expect(themeContract.persistTheme(() => { throw new Error("denied"); }, "dark")).toBe(false);
+  });
+
+  it("renders Sonner with the custom provider's resolved theme", () => {
+    const html = renderToStaticMarkup(
+      createElement(ThemeModule.ThemeProvider, {
+        defaultTheme: "dark",
+        children: createElement(Toaster),
+      })
+    );
+
+    expect(html).toContain('data-sonner-theme="dark"');
+  });
+
   it("enables system switching without duplicating the authenticated boundary", () => {
     const app = source("client/src/App.tsx");
 
@@ -194,5 +382,56 @@ describe("Phase 4 design foundation", () => {
       /\.planner-sheet-description\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/
     );
     expect(css).toContain("100dvh");
+  });
+
+  it("resets Tailwind's individual translation while retaining viewport anchoring", () => {
+    const css = source(sheetCssPath);
+    const declarations = declarationMap(declarationsFor(css, ".planner-sheet-content"));
+
+    expect(declarations.translate).toBe("none");
+    expect(declarations.transform).toBe("none");
+    expect(declarations.inset).toBe("0");
+    expect(declarations.top).toBe("0");
+    expect(declarations.left).toBe("0");
+    expect(declarations.width).toBe("100vw");
+    expect(declarations.height).toBe("100dvh");
+  });
+
+  it("restores focus only to a connected, visible, enabled focus target", () => {
+    expect(typeof focusContract.isEligibleReturnFocusTarget).toBe("function");
+    expect(typeof focusContract.restorePlannerSheetFocus).toBe("function");
+    if (!focusContract.isEligibleReturnFocusTarget || !focusContract.restorePlannerSheetFocus) return;
+
+    const target = (overrides: Record<string, unknown> = {}) => ({
+      isConnected: true,
+      hidden: false,
+      disabled: false,
+      getAttribute: () => null,
+      getClientRects: () => [{ width: 44, height: 44 }],
+      matches: () => true,
+      closest: () => null,
+      focus: () => undefined,
+      ...overrides,
+    }) as unknown as HTMLElement;
+
+    for (const invalid of [
+      target({ isConnected: false }),
+      target({ hidden: true }),
+      target({ disabled: true }),
+      target({ getAttribute: (name: string) => name === "aria-disabled" ? "true" : null }),
+      target({ getClientRects: () => [] }),
+      target({ matches: () => false }),
+      target({ closest: () => ({ inert: true }) }),
+    ]) expect(focusContract.isEligibleReturnFocusTarget(invalid)).toBe(false);
+
+    let prevented = false;
+    let focused = false;
+    const validTarget = target({ focus: () => { focused = true; } });
+    expect(focusContract.restorePlannerSheetFocus({ preventDefault: () => { prevented = true; } }, validTarget)).toBe(true);
+    expect({ prevented, focused }).toEqual({ prevented: true, focused: true });
+
+    prevented = false;
+    expect(focusContract.restorePlannerSheetFocus({ preventDefault: () => { prevented = true; } }, target({ hidden: true }))).toBe(false);
+    expect(prevented).toBe(false);
   });
 });

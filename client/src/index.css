@@ -1766,3 +1766,42 @@ button, input, select, textarea { font-size:15px; font-weight:600; }
   .task-lane-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:14px 0 12px; padding:4px; border:1px solid #c7d9d0; border-radius:16px; background:#dfeae4; box-shadow:inset 0 1px 2px rgba(22,59,45,.05); }.task-lane-tab { display:grid; grid-template-columns:8px minmax(0,1fr) auto; min-width:0; min-height:48px; align-items:center; gap:6px; padding:7px 8px; color:#536d62; border:0; border-radius:12px; background:transparent; cursor:pointer; transition:color 160ms var(--ease-out),background 160ms var(--ease-out),box-shadow 160ms var(--ease-out); }.task-lane-tab > span { width:8px; height:8px; border-radius:999px; background:var(--tab-accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--tab-accent) 18%,transparent); }.task-lane-tab b { overflow:hidden; font-size:11px; font-weight:800; text-align:left; text-overflow:ellipsis; white-space:nowrap; }.task-lane-tab small { display:grid; min-width:21px; height:21px; place-items:center; border-radius:999px; background:rgba(24,63,49,.08); font:800 10px/1 "IBM Plex Mono",monospace; }.task-lane-tab-todo { --tab-accent:#6e9bc8; }.task-lane-tab-in_progress { --tab-accent:#318f88; }.task-lane-tab-completed { --tab-accent:#3b8d6e; }.task-lane-tab.is-active { color:#f8fffb; background:#214c3d; box-shadow:0 5px 13px rgba(25,68,51,.19); }.task-lane-tab.is-active small { background:rgba(255,255,255,.15); }.task-lane.is-mobile-hidden { display:none; }.task-lane-grid { display:block; }
 }
 @media (prefers-reduced-motion:reduce) { .planner-shell,.rail-collapse-button,.task-lane-tab { transition:none; } }
+
+/* The legacy stylesheet intentionally remains intact; these semantic aliases win its older roots. */
+html:root {
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-elevated);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--selection);
+  --secondary-foreground: var(--ink);
+  --muted: var(--selection);
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: #ffffff;
+  --destructive-foreground: #ffffff;
+  --input: var(--border);
+  --ring: var(--focus-ring);
+}
+
+html:root.dark {
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-elevated);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: #0c1317;
+  --secondary: var(--selection);
+  --secondary-foreground: var(--ink);
+  --muted: var(--selection);
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: #0c1317;
+  --destructive-foreground: #0c1317;
+  --input: var(--border);
+  --ring: var(--focus-ring);
+}
