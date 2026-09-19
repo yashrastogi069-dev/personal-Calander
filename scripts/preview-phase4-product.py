@@ -175,6 +175,10 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
     )
     fixtures = linked["fixtures"]()
     fixtures["planner.search.workspace"] = []
+    fixtures["planner.task.rolloverPreview"] = {
+        "fromLocalDate": "2026-09-19",
+        "candidates": [],
+    }
     requests, unexpected = auth["install_preview"](
         context, url, "linked", fixtures
     )
@@ -279,9 +283,31 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
             "data-selected-record"
         ) == "record-two"
 
+        stable_shell = shell.evaluate(
+            "element => element.dataset.harnessMountToken === 'stable-shell'"
+        )
+
         reachable = []
+        click_destination(page, "Calendar")
+        page.wait_for_url(lambda target: urlparse(target).path == "/calendar")
+        page.get_by_role("heading", name="Execution calendar", exact=True).wait_for()
+        page.get_by_role("heading", name="Morning rollover", exact=True).wait_for()
+        page.get_by_label("Calendar keyboard shortcuts", exact=True).wait_for()
+        calendar_execution_location = current_location(page)
+        page.go_back()
+        wait_for_target(page, "tasks", "list")
+        assert page.locator("[data-task-search]").input_value() == "budget"
+        assert page.locator('[data-scroll-owner="destination"]').get_attribute(
+            "data-selected-record"
+        ) == "record-two"
+        page.go_forward()
+        page.wait_for_url(lambda target: urlparse(target).path == "/calendar")
+        page.get_by_role("heading", name="Execution calendar", exact=True).wait_for()
+        page.go_back()
+        wait_for_target(page, "tasks", "list")
+        reachable.append("Calendar")
+
         for label, destination, view in (
-            ("Calendar", "plan", "calendar"),
             ("Goals", "intentions", "outcomes"),
             ("Connections", "settings", "connections"),
             ("Insights", "review", "insights"),
@@ -297,9 +323,6 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         reachable.append("Categories & Recycle Bin")
         page.keyboard.press("Escape")
 
-        stable_shell = shell.evaluate(
-            "element => element.dataset.harnessMountToken === 'stable-shell'"
-        )
         metrics = overflow_metrics(page)
         screenshot = output / f"shell-navigation-{width}.png"
         page.screenshot(path=str(screenshot), full_page=True)
@@ -320,6 +343,8 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
                 "tasksOneLocation": tasks_one_location,
                 "searchBetaLocation": search_beta_location,
                 "tasksTwoLocation": tasks_two_location,
+                "calendarExecutionLocation": calendar_execution_location,
+                "calendarHistoryRoundTrip": True,
                 "historyRenderedState": True,
                 "reachableChildViews": reachable,
                 "focusOwner": tasks_focus,

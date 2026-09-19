@@ -216,9 +216,13 @@ describe("Phase 4 device preference migration", () => {
     );
 
     expect(migrated.status).toBe("migrated");
-    expect(migrated.preferences.order.map(item => item.legacyId)).toEqual(
-      allLegacyIds
-    );
+    expect(
+      migrated.preferences.order.slice(0, allLegacyIds.length).map(item => item.legacyId)
+    ).toEqual(allLegacyIds);
+    expect(migrated.preferences.order.at(-1)).toMatchObject({
+      destination: "settings",
+      view: "categories",
+    });
     expect(migrated.preferences.primary.map(item => item.legacyId)).toEqual([
       "calendar",
       "habits",
@@ -251,7 +255,15 @@ describe("Phase 4 device preference migration", () => {
 
     expect(
       migrated.preferences.order.map(item => `${item.destination}/${item.view}`)
-    ).toEqual(["plan/calendar", "plan/daily", "review/history"]);
+    ).toEqual([
+      "plan/calendar",
+      "plan/daily",
+      "review/history",
+      "intentions/outcomes",
+      "settings/connections",
+      "review/insights",
+      "settings/categories",
+    ]);
     expect(migrated.preferences.overview).toEqual({
       order: ["attention", "schedule"],
       hidden: ["schedule"],

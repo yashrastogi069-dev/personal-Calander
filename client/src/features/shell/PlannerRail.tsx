@@ -126,7 +126,10 @@ export function PlannerRail({
       <nav aria-label="Planning destinations" className="planner-nav">
         {phase4Destinations.map(item => {
           const Icon = icons[item.id];
-          const active = location.destination === item.id;
+          const target = targetForDestination(item.id);
+          const active =
+            location.destination === target.destination &&
+            location.view === target.view;
           return (
             <button
               key={item.id}
@@ -135,7 +138,7 @@ export function PlannerRail({
               aria-current={active ? "page" : undefined}
               aria-label={collapsed ? item.label : undefined}
               title={collapsed ? item.label : undefined}
-              onClick={() => onNavigate(targetForDestination(item.id))}
+              onClick={() => onNavigate(target)}
             >
               <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
               <span>{item.label}</span>

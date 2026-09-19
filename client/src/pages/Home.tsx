@@ -178,6 +178,7 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 
 const FocusWorkspace = lazy(() =>
   import("@/features/focus/FocusWorkspace").then(module => ({
@@ -6737,6 +6738,7 @@ function SettingsSurface({
 }
 
 export default function Home() {
+  const [, routerNavigate] = useLocation();
   const scope = useWorkspaceScope();
   const plannerSyncScope = usePlannerSyncScope();
   const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
@@ -7018,6 +7020,10 @@ export default function Home() {
     return subscribeToPlannerLocation(window, setPlannerLocation);
   }, []);
   const navigatePlanner = useCallback((target: PlannerLocationTarget) => {
+    if (target.destination === "plan" && target.view === "calendar") {
+      routerNavigate("/calendar");
+      return;
+    }
     setPlannerLocation(current =>
       plannerLocationWithAction({ ...current, ...target }, target.action)
     );
@@ -7025,7 +7031,7 @@ export default function Home() {
       setCategoryDialogOpen(true);
     if (typeof window !== "undefined")
       writePlannerLocation(new URL(window.location.href), target, window.history);
-  }, []);
+  }, [routerNavigate]);
   const selectSurface = (nextSurface: Surface) => {
     navigatePlanner(targetForSurface(nextSurface));
   };

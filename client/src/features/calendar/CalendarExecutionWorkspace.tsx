@@ -39,7 +39,7 @@ function isEditableShortcutTarget(target: EventTarget | null) {
   return target.matches("input, textarea, select, [contenteditable=true]") || Boolean(target.closest("[role=dialog]"));
 }
 
-export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPreview, rolloverLoading, rolloverPending, onApplyMorningRollover, onOpenTasks, onComplete, onUnreserve }: { scope: WorkspaceScope; snapshot: CalendarExecutionSnapshot; today: string; rolloverPreview?: { fromLocalDate: string; candidates: Array<{ id: string; expectedVersion: number; rescheduleCount: number }> }; rolloverLoading: boolean; rolloverPending: boolean; onApplyMorningRollover: () => Promise<void>; onOpenTasks: () => void; onComplete: (task: any) => Promise<string | null>; onUnreserve: (task: any) => Promise<string | null> }) {
+export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPreview, rolloverLoading, rolloverPending, onApplyMorningRollover, onOpenTasks, onCreateTask, onComplete, onUnreserve }: { scope: WorkspaceScope; snapshot: CalendarExecutionSnapshot; today: string; rolloverPreview?: { fromLocalDate: string; candidates: Array<{ id: string; expectedVersion: number; rescheduleCount: number }> }; rolloverLoading: boolean; rolloverPending: boolean; onApplyMorningRollover: () => Promise<void>; onOpenTasks: () => void; onCreateTask: () => void; onComplete: (task: any) => Promise<string | null>; onUnreserve: (task: any) => Promise<string | null> }) {
   const utils = trpc.useUtils();
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -175,7 +175,7 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
       }
       if (command === "new-task") {
         event.preventDefault();
-        window.location.assign("/?surface=tasks&create=task");
+        onCreateTask();
       } else if (command === "today") {
         event.preventDefault();
         setSelectedDate(today);
@@ -188,7 +188,7 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
   return <section className="calendar-execution" aria-labelledby="calendar-execution-heading">
     <header className="calendar-execution-header">
       <div><h2 id="calendar-execution-heading">Reserve real focus time</h2><p>Tasks own their calendar blocks. Drag or select an inbox task, then place it deliberately; completing the task removes its block.</p></div>
-      <div className="calendar-execution-header-actions"><button type="button" className="calendar-create-task" onClick={() => window.location.assign("/?surface=tasks&create=task")}><Plus size={15} /> Add task</button><div className="calendar-execution-day-controls"><button type="button" aria-label="Previous calendar day" onClick={() => setSelectedDate(date => shiftLocalDate(date, -1))}><ChevronLeft size={17} /></button><strong>{displayLocalDate(selectedDate, scope.timezone, { weekday: "short", month: "short", day: "numeric" })}</strong><button type="button" aria-label="Next calendar day" onClick={() => setSelectedDate(date => shiftLocalDate(date, 1))}><ChevronRight size={17} /></button></div></div>
+      <div className="calendar-execution-header-actions"><button type="button" className="calendar-create-task" onClick={onCreateTask}><Plus size={15} /> Add task</button><div className="calendar-execution-day-controls"><button type="button" aria-label="Previous calendar day" onClick={() => setSelectedDate(date => shiftLocalDate(date, -1))}><ChevronLeft size={17} /></button><strong>{displayLocalDate(selectedDate, scope.timezone, { weekday: "short", month: "short", day: "numeric" })}</strong><button type="button" aria-label="Next calendar day" onClick={() => setSelectedDate(date => shiftLocalDate(date, 1))}><ChevronRight size={17} /></button></div></div>
     </header>
     <nav className="calendar-date-rail" aria-label="Choose a nearby calendar day" onPointerDown={recordCalendarPointerStart} onPointerUp={resolveCalendarSwipe} onPointerCancel={() => { calendarPointerStart.current = null; }}>{nearbyDates.map(date => <button type="button" key={date} className={cn(date === selectedDate && "is-selected", date === today && "is-today")} aria-current={date === selectedDate ? "date" : undefined} onClick={() => setSelectedDate(date)}><span>{displayLocalDate(date, scope.timezone, { weekday: "short" })}</span><b>{displayLocalDate(date, scope.timezone, { day: "numeric" })}</b><small>{date === today ? "Today" : date === selectedDate ? "Selected" : ""}</small></button>)}</nav>
     <div className="calendar-execution-note"><CalendarDays size={16} /><span><b>Manual reservation</b> changes only this task’s plan and time block. Flexible proposals remain review-first.</span></div>

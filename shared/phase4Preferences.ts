@@ -37,6 +37,14 @@ export type Phase4PreferenceMigrationOptions = {
   railCollapsedRaw?: string | null;
 };
 
+export const phase4SecondaryShortcutTargets = [
+  { destination: "plan", view: "calendar" },
+  { destination: "intentions", view: "outcomes" },
+  { destination: "settings", view: "connections" },
+  { destination: "review", view: "insights" },
+  { destination: "settings", view: "categories" },
+] as const satisfies readonly PlannerPreferenceShortcut[];
+
 const defaultShortcutTargets: PlannerPreferenceShortcut[] = [
   { destination: "home", view: "today" },
   { destination: "tasks", view: "list" },
@@ -46,6 +54,7 @@ const defaultShortcutTargets: PlannerPreferenceShortcut[] = [
   { destination: "review", view: "rituals" },
   { destination: "home", view: "focus", action: "focus", legacyId: "focus" },
   { destination: "settings", view: "account", legacyId: "settings" },
+  ...phase4SecondaryShortcutTargets,
 ];
 
 export const phase4DefaultPreferences: Phase4Preferences = {
@@ -147,7 +156,11 @@ function migrateCurrent(
   options: Phase4PreferenceMigrationOptions
 ): Phase4Preferences {
   const defaults = cloneDefaults();
-  const order = shortcutArray(value.order);
+  const storedOrder = shortcutArray(value.order);
+  const order = uniqueTargets([
+    ...(storedOrder.length ? storedOrder : defaults.order),
+    ...phase4SecondaryShortcutTargets,
+  ]);
   const primary = shortcutArray(value.primary);
   const overviewValue =
     value.overview && typeof value.overview === "object"
@@ -155,7 +168,7 @@ function migrateCurrent(
       : null;
   return {
     version: 1,
-    order: order.length ? order : defaults.order,
+    order,
     primary: primary.length ? primary : defaults.primary,
     density: value.density === "compact" ? "compact" : "comfortable",
     railCollapsed: railCollapsedFrom(

@@ -2,7 +2,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
-import { phase4DefaultPreferences } from "@shared/phase4Preferences";
+import {
+  migratePhase4Preferences,
+  phase4DefaultPreferences,
+} from "@shared/phase4Preferences";
 import {
   PlannerRail,
   shellSecondaryTargets,
@@ -21,6 +24,7 @@ import { PlannerShell } from "@/features/shell/PlannerShell";
 import appSource from "../client/src/App.tsx?raw";
 import homeSource from "../client/src/pages/Home.tsx?raw";
 import calendarExecutionSource from "../client/src/pages/CalendarExecution.tsx?raw";
+import calendarWorkspaceSource from "../client/src/features/calendar/CalendarExecutionWorkspace.tsx?raw";
 
 const today = { destination: "home", view: "today" } as const;
 
@@ -44,6 +48,14 @@ describe("Phase 4 stable planner shell", () => {
     );
     expect(calendarExecutionSource).toContain("CalendarExecutionWorkspace");
     expect(calendarExecutionSource).not.toContain("window.location.assign");
+    expect(calendarWorkspaceSource).not.toContain("window.location.assign");
+  });
+
+  it("routes the canonical Calendar shell target to the full execution workspace", () => {
+    expect(homeSource).toContain('routerNavigate("/calendar")');
+    expect(homeSource).toContain('target.destination === "plan"');
+    expect(homeSource).toContain('target.view === "calendar"');
+    expect(calendarExecutionSource).toContain("CalendarExecutionWorkspace");
   });
 
   it("keeps every legacy child view and Categories utility reachable", () => {
@@ -62,6 +74,25 @@ describe("Phase 4 stable planner shell", () => {
         view: "categories",
       },
     ]);
+  });
+
+  it("makes every secondary target reorderable for default and existing preferences", () => {
+    const secondaryKeys = shellSecondaryTargets.map(
+      target => `${target.destination}/${target.view}`
+    );
+    const defaultKeys = phase4DefaultPreferences.order.map(
+      target => `${target.destination}/${target.view}`
+    );
+    const migratedKeys = migratePhase4Preferences(
+      JSON.stringify({
+        version: 1,
+        order: [{ destination: "home", view: "today" }],
+        primary: [{ destination: "home", view: "today" }],
+      })
+    ).preferences.order.map(target => `${target.destination}/${target.view}`);
+
+    expect(defaultKeys).toEqual(expect.arrayContaining(secondaryKeys));
+    expect(migratedKeys).toEqual(expect.arrayContaining(secondaryKeys));
   });
 
   it("reorders and pins canonical shortcuts without flattening child views", () => {
@@ -112,6 +143,21 @@ describe("Phase 4 stable planner shell", () => {
     expect(html).toContain("Habits");
     expect(html).toContain("Review");
     expect(html).toContain("Personal space");
+  });
+
+  it("marks only the exact active destination and view as the current page", () => {
+    const html = renderToStaticMarkup(
+      createElement(PlannerRail, {
+        location: { destination: "plan", view: "calendar" },
+        collapsed: false,
+        timezone: "Asia/Calcutta",
+        onNavigate: vi.fn(),
+        onToggleCollapsed: vi.fn(),
+      })
+    );
+
+    expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(1);
+    expect(html).toMatch(/aria-current="page"[^>]*><svg[^>]*>[\s\S]*?<span>Calendar<\/span>/);
   });
 
   it("keeps exactly five visible phone controls including More", () => {
