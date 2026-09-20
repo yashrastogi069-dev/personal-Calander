@@ -1,16 +1,16 @@
 # Phase 4 visual prototype selection
 
-**Selection: PROVISIONAL PRODUCTION DIRECTION — OWNER MAY OVERRIDE BEFORE PUSH OR DEPLOYMENT**
+**Selection: OWNER-APPROVED PRODUCTION DIRECTION — VARIANT A COLOURS**
 
-This document records the reversible design decision used to continue the active Phase 4 implementation loop. It is based on the validated prototypes, competitive research, the owner's earlier preference for clarity and dark task lanes, and the owner's instruction to continue autonomously. The owner may override it before any push or deployment.
+This document records the owner's approved design direction for the active Phase 4 implementation loop. Variant A supplies the production colour language. Futuristic character must come from clear spatial hierarchy, restrained depth, precise motion, responsive interaction, and high-quality states rather than glow, novelty typography, or reduced legibility.
 
 ## Decision record
 
-- Chosen variant: **A — Verdigris Workbench for the default light architecture; C — Night Instrument supplies the selectable dark theme**
+- Chosen variant: **A — Verdigris Workbench colours and architecture. Any selectable dark appearance must be an accessible A-derived adaptation, not a switch to Variant C's colour direction.**
 - Lane treatment: **retain the exact R20 dark To do / Doing / Done gradients in both themes**
 - Default density: **comfortable; compact remains a user setting**
 - Motion refinements: **retain the shared short 180ms sheet transition and the tested near-immediate reduced-motion equivalent**
-- Decision/date/notes: **provisional designer decision, 2026-09-14; owner may override before push or deployment**
+- Decision/date/notes: **owner-approved, 2026-09-21; Variant A colours are binding for production Phase 4 work**
 
 This decision authorizes local production styling work only. It does **not** authorize schema migration, deployment, push, merge, feature removal, planner-data mutation, database reset/baseline replay, or external integrations.
 
