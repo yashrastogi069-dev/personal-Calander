@@ -14,6 +14,7 @@ export type TodayTask = {
   plannedStartAt?: DateValue | null;
   plannedEndAt?: DateValue | null;
   estimateMinutes?: number | null;
+  sortOrder?: number;
   completedAt?: DateValue | null;
   archivedAt?: DateValue | null;
   recurrenceRule?: unknown;
@@ -181,6 +182,23 @@ function completionSortValue(value: DateValue | null) {
   return Number.isFinite(milliseconds) ? milliseconds : Number.MAX_SAFE_INTEGER;
 }
 
+function compareText(left: string, right: string) {
+  return left.localeCompare(right, "en", { sensitivity: "base" });
+}
+
+function compareOptionalLocalDate(left: string | null | undefined, right: string | null | undefined) {
+  if (left && right) return left.localeCompare(right);
+  if (left) return -1;
+  if (right) return 1;
+  return 0;
+}
+
+function compareTaskOrder(left: TodayTask, right: TodayTask) {
+  const leftOrder = typeof left.sortOrder === "number" ? left.sortOrder : Number.MAX_SAFE_INTEGER;
+  const rightOrder = typeof right.sortOrder === "number" ? right.sortOrder : Number.MAX_SAFE_INTEGER;
+  return leftOrder - rightOrder || compareText(left.title, right.title) || left.id.localeCompare(right.id);
+}
+
 /** Builds a deterministic, read-only view of a planning day without creating or changing planner records. */
 export function projectToday(input: TodayProjectionInput): TodayProjection {
   const { localDate, workspace } = input;
@@ -199,12 +217,25 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const earlierPlanDateById = new Map(
     input.dailyPlans.filter(plan => plan.localDate < localDate && plan.state !== "archived").map(plan => [plan.id, plan.localDate]),
   );
-  const recovery: TodayRecoveryRow[] = input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
+  const recoveryCandidates: TodayRecoveryRow[] = input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
     const fromLocalDate = earlierPlanDateById.get(item.dailyPlanId);
     const task = taskById.get(item.taskId);
     if (!fromLocalDate || item.state !== "committed" || resolvedItemIds.has(item.id) || !task || !isOpenTask(task)) return [];
     return [{ kind: "task", recordId: task.id, title: task.title, dailyPlanItemId: item.id, fromLocalDate }];
-  }).sort((left, right) => right.fromLocalDate.localeCompare(left.fromLocalDate) || left.recordId.localeCompare(right.recordId));
+  }).sort((left, right) => {
+    const leftTask = taskById.get(left.recordId)!;
+    const rightTask = taskById.get(right.recordId)!;
+    return right.fromLocalDate.localeCompare(left.fromLocalDate)
+      || compareTaskOrder(leftTask, rightTask)
+      || left.dailyPlanItemId.localeCompare(right.dailyPlanItemId);
+  });
+  const recovery: TodayRecoveryRow[] = [];
+  const recoveredTaskIds = new Set<string>();
+  for (const candidate of recoveryCandidates) {
+    if (recoveredTaskIds.has(candidate.recordId)) continue;
+    recoveredTaskIds.add(candidate.recordId);
+    recovery.push(candidate);
+  }
   const recoveryTaskIds = new Set(recovery.map(item => item.recordId));
 
   const taskTimeline: TodayTaskRow[] = [];
@@ -257,6 +288,20 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
     }
   }
 
+  flexible.sort((left, right) => {
+    const leftTask = taskById.get(left.recordId)!;
+    const rightTask = taskById.get(right.recordId)!;
+    return compareOptionalLocalDate(leftTask.scheduledLocalDate, rightTask.scheduledLocalDate)
+      || compareOptionalLocalDate(leftTask.dueLocalDate, rightTask.dueLocalDate)
+      || compareTaskOrder(leftTask, rightTask);
+  });
+  attention.sort((left, right) => {
+    const leftTask = taskById.get(left.recordId)!;
+    const rightTask = taskById.get(right.recordId)!;
+    return compareOptionalLocalDate(leftTask.dueLocalDate, rightTask.dueLocalDate)
+      || compareTaskOrder(leftTask, rightTask);
+  });
+
   const activeEvents = input.externalEvents
     .filter(event => event.status === "active" && eventTouchesLocalDate(event, localDate, workspace.timezone));
   const appointmentTimeline: TodayAppointmentRow[] = activeEvents.map(event => ({
@@ -270,7 +315,12 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   }));
   const timeline = [...taskTimeline, ...appointmentTimeline].sort((left, right) => {
     const timeDifference = dateValue(left.startsAt as DateValue).getTime() - dateValue(right.startsAt as DateValue).getTime();
-    return timeDifference || left.recordId.localeCompare(right.recordId);
+    if (timeDifference) return timeDifference;
+    if (left.kind === "task" && right.kind === "task") {
+      const taskOrder = compareTaskOrder(taskById.get(left.recordId)!, taskById.get(right.recordId)!);
+      if (taskOrder) return taskOrder;
+    }
+    return compareText(left.title, right.title) || left.recordId.localeCompare(right.recordId) || left.kind.localeCompare(right.kind);
   });
 
   const checkInByHabitId = new Map(
@@ -302,7 +352,20 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
     if (!habit) continue;
     completionEvidence.push({ kind: "habit", recordId: habit.id, evidenceId: checkIn.id, title: habit.name, completedAt: checkIn.completedAt ?? null });
   }
-  completionEvidence.sort((left, right) => completionSortValue(left.completedAt) - completionSortValue(right.completedAt) || left.evidenceId.localeCompare(right.evidenceId));
+  completionEvidence.sort((left, right) => {
+    const timeDifference = completionSortValue(left.completedAt) - completionSortValue(right.completedAt);
+    if (timeDifference) return timeDifference;
+    const leftTask = left.kind === "task" || left.kind === "task_occurrence" ? taskById.get(left.recordId) : undefined;
+    const rightTask = right.kind === "task" || right.kind === "task_occurrence" ? taskById.get(right.recordId) : undefined;
+    if (leftTask && rightTask) {
+      const taskOrder = compareTaskOrder(leftTask, rightTask);
+      if (taskOrder) return taskOrder;
+    }
+    return compareText(left.title, right.title)
+      || left.recordId.localeCompare(right.recordId)
+      || left.evidenceId.localeCompare(right.evidenceId)
+      || left.kind.localeCompare(right.kind);
+  });
 
   const availabilityException = input.planningAvailabilityExceptions.find(exception => exception.localDate === localDate);
   const workdayStartsAt = availabilityException?.isUnavailable ? "00:00" : availabilityException?.workdayStartsAt ?? workspace.workdayStartsAt;

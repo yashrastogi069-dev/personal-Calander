@@ -218,4 +218,57 @@ describe("projectToday", () => {
     expect(projectToday(input).capacity).toMatchObject({ workdayMinutes: 300, breakMinutes: 45, availableMinutes: 255 });
     expect(input.workspace.workdayStartsAt).toBe("09:00");
   });
+
+  it("returns the same total ordering when source arrays arrive in a different order", () => {
+    const tasks = [
+      task({ id: "task-flex-z", title: "Zulu flexible", scheduledLocalDate: localDate, dueLocalDate: "2026-09-25", estimateMinutes: 10, sortOrder: 0 }),
+      task({ id: "task-attention-later", title: "Alpha due later", dueLocalDate: localDate, estimateMinutes: 20 }),
+      task({ id: "task-flex-a", title: "Alpha flexible", scheduledLocalDate: localDate, dueLocalDate: "2026-09-21", estimateMinutes: 30, sortOrder: 1 }),
+      task({ id: "task-attention-earlier", title: "Zulu overdue", dueLocalDate: "2026-09-19", estimateMinutes: 40 }),
+      task({ id: "task-recovery-b", title: "Beta recovery", estimateMinutes: 50 }),
+      task({ id: "task-recovery-a", title: "Alpha recovery", estimateMinutes: 60 }),
+      task({ id: "task-complete-z", title: "Zulu complete", state: "completed", completedAt: "2026-09-20T11:00:00.000Z" }),
+      task({ id: "task-complete-a", title: "Alpha complete", state: "completed", completedAt: "2026-09-20T11:00:00.000Z" }),
+    ];
+    const dailyPlans = [{ id: "plan-old", localDate: "2026-09-18", state: "closed" }];
+    const dailyPlanItems = [
+      { id: "item-b", dailyPlanId: "plan-old", taskId: "task-recovery-b", position: 1, state: "committed" },
+      { id: "item-a", dailyPlanId: "plan-old", taskId: "task-recovery-a", position: 0, state: "committed" },
+    ];
+    const events = [
+      { id: "event-z", title: "Zulu appointment", startsAt: "2026-09-20T13:00:00.000Z", endsAt: "2026-09-20T14:00:00.000Z", status: "active" },
+      { id: "event-a", title: "Alpha appointment", startsAt: "2026-09-20T13:00:00.000Z", endsAt: "2026-09-20T13:30:00.000Z", status: "active" },
+    ];
+    const first = baseInput({ tasks, dailyPlans, dailyPlanItems, externalEvents: events });
+    const permuted = baseInput({
+      tasks: [...tasks].reverse(),
+      dailyPlans: [...dailyPlans].reverse(),
+      dailyPlanItems: [...dailyPlanItems].reverse(),
+      externalEvents: [...events].reverse(),
+    });
+
+    expect(projectToday(permuted)).toEqual(projectToday(first));
+    expect(projectToday(first).flexible.map(row => row.recordId)).toEqual(["task-flex-a", "task-flex-z"]);
+    expect(projectToday(first).attention.map(row => row.recordId)).toEqual(["task-attention-earlier", "task-attention-later"]);
+    expect(projectToday(first).recovery.map(row => row.recordId)).toEqual(["task-recovery-a", "task-recovery-b"]);
+    expect(projectToday(first).completionEvidence.map(row => row.recordId)).toEqual(["task-complete-a", "task-complete-z"]);
+  });
+
+  it("collapses repeated unresolved historic commitments to the latest one for a task", () => {
+    const input = baseInput({
+      tasks: [task({ id: "task-repeated", title: "One real task" })],
+      dailyPlans: [
+        { id: "plan-older", localDate: "2026-09-17", state: "closed" },
+        { id: "plan-latest", localDate: "2026-09-19", state: "closed" },
+      ],
+      dailyPlanItems: [
+        { id: "item-older", dailyPlanId: "plan-older", taskId: "task-repeated", position: 0, state: "committed" },
+        { id: "item-latest", dailyPlanId: "plan-latest", taskId: "task-repeated", position: 0, state: "committed" },
+      ],
+    });
+
+    expect(projectToday(input).recovery).toEqual([
+      expect.objectContaining({ recordId: "task-repeated", dailyPlanItemId: "item-latest", fromLocalDate: "2026-09-19" }),
+    ]);
+  });
 });
