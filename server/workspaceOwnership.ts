@@ -2,11 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { workspaces } from "../drizzle/schema";
 import { getDb } from "./db";
+import { establishedWorkspaceColumns } from "./phase4SchemaCompatibility";
 
 export async function getAccountWorkspace(userId: number) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The planner database is not configured." });
-  const [workspace] = await db.select().from(workspaces)
+  const [workspace] = await db.select(establishedWorkspaceColumns).from(workspaces)
     .where(eq(workspaces.ownerUserId, userId)).limit(1);
   return workspace ?? null;
 }

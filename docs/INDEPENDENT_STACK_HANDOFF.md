@@ -1,5 +1,9 @@
 # Independent stack: current workbench handoff
 
+## 2026-09-21 Preview schema-compatibility repair
+
+The workbench Preview returned `500` for `auth.workspace` because source schema definitions from the deferred Phase 4 migration caused ordinary reads to select `workspaces.accountabilityLevel` before that additive migration had been approved or applied. The database error was `42703: column "accountabilityLevel" does not exist`; this was a code/schema ordering error, not a lost workspace, account, or planner record. The repair makes ordinary workspace, goal, and project reads explicitly select only the established database columns until the reviewed Phase 4 migration is separately approved and applied. An isolated pre-migration PGlite regression test proves authenticated workspace loading and the initial snapshot succeed without the optional schema. No database, environment variable, or existing record is changed by this repair.
+
 > 2026-09-12 current note: Phase 1 is deployed and online-verified in Production. Phase 2 secure synchronization and Phase 3 notification/calendar implementation are complete on `dev/personal-calendar-workbench` and awaiting final Preview/Production gates. Physical-iPhone offline/relaunch and notification-delivery checks are delegated to the user. Phase 4 remains separate.
 
 ## 2026-09-12 pre-Phase 4 settings and navigation correction

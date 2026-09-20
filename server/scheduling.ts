@@ -5,6 +5,7 @@ import { firstFreeSlot } from "../shared/planningAvailability";
 import { proposalExplanation, schedulingEligibility } from "../shared/schedulingPolicy";
 import { getDb } from "./db";
 import { PlannerConflictError, type PlannerScope } from "./planning";
+import { establishedWorkspaceColumns } from "./phase4SchemaCompatibility";
 
 async function requireDb() {
   const db = await getDb();
@@ -20,7 +21,7 @@ export async function createScheduleProposal(scope: PlannerScope, input: { taskI
   const db = await requireDb();
   const [task, workspace, existing, exception] = await Promise.all([
     db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.taskId))).limit(1),
-    db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1),
+    db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1),
     db.select().from(scheduleProposals).where(and(eq(scheduleProposals.workspaceId, scope.workspaceId), eq(scheduleProposals.taskId, input.taskId), eq(scheduleProposals.localDate, input.localDate), eq(scheduleProposals.state, "proposed"))).limit(1),
     db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), eq(planningAvailabilityExceptions.localDate, input.localDate))).limit(1),
   ]);

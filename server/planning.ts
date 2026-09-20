@@ -32,6 +32,7 @@ import {
   workspaces,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { establishedGoalColumns, establishedProjectColumns, establishedWorkspaceColumns } from "./phase4SchemaCompatibility";
 import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
@@ -62,8 +63,8 @@ async function requireDb() {
 
 async function assertScopedRecordLinks(db: Awaited<ReturnType<typeof requireDb>>, scope: PlannerScope, input: { goalId?: string | null; projectId?: string | null; categoryId?: string | null; parentTaskId?: string | null; taskId?: string }) {
   const [goal, project, category, parentTask] = await Promise.all([
-    input.goalId ? db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.goalId))).limit(1) : Promise.resolve([]),
-    input.projectId ? db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.projectId))).limit(1) : Promise.resolve([]),
+    input.goalId ? db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.goalId))).limit(1) : Promise.resolve([]),
+    input.projectId ? db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.projectId))).limit(1) : Promise.resolve([]),
     input.categoryId ? db.select().from(categories).where(and(eq(categories.workspaceId, scope.workspaceId), eq(categories.id, input.categoryId))).limit(1) : Promise.resolve([]),
     input.parentTaskId ? db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.parentTaskId))).limit(1) : Promise.resolve([]),
   ]);
@@ -77,26 +78,26 @@ async function assertScopedRecordLinks(db: Awaited<ReturnType<typeof requireDb>>
 
 export async function ensureWorkspace(scope: PlannerScope) {
   const db = await requireDb();
-  const current = await db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1);
+  const current = await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1);
   if (current[0]) return current[0];
 
   await db.insert(workspaces).values({
     id: scope.workspaceId,
     timezone: scope.timezone,
   });
-  return (await db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
+  return (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
 }
 
 export async function updateWorkspace(scope: PlannerScope, input: { name?: string; timezone?: string; weekStartsOn?: number; dailyCapacityMinutes?: number; planningDayStartsAt?: string; workdayStartsAt?: string; workdayEndsAt?: string; defaultBreakMinutes?: number; preferredShutdownAt?: string; expectedVersion: number }) {
   const db = await requireDb();
-  const existing = (await db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0];
+  const existing = (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0];
   if (!existing) throw new Error("Workspace was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db
     .update(workspaces)
     .set({ ...input, version: input.expectedVersion + 1 })
     .where(and(eq(workspaces.id, scope.workspaceId), eq(workspaces.version, input.expectedVersion)));
-  return (await db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
+  return (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
 }
 
 export async function upsertPlanningAvailabilityException(scope: PlannerScope, input: { localDate: string; expectedVersion?: number; isUnavailable?: boolean; workdayStartsAt?: string | null; workdayEndsAt?: string | null; breakMinutes?: number | null; note?: string | null }) {
@@ -135,9 +136,9 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
   const workspace = await ensureWorkspace(scope);
   const [categoryRows, goalRows, milestoneRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows, planRows, planItemRows, objectiveRows, focusRows, templateRows, proposalRows, dependencyRows, integrationRows, availabilityExceptionRows] = await Promise.all([
     db.select().from(categories).where(eq(categories.workspaceId, scope.workspaceId)).orderBy(asc(categories.sortOrder), asc(categories.name)),
-    db.select().from(goals).where(eq(goals.workspaceId, scope.workspaceId)).orderBy(desc(goals.updatedAt)),
+    db.select(establishedGoalColumns).from(goals).where(eq(goals.workspaceId, scope.workspaceId)).orderBy(desc(goals.updatedAt)),
     db.select().from(goalMilestones).where(eq(goalMilestones.workspaceId, scope.workspaceId)).orderBy(asc(goalMilestones.dueLocalDate), desc(goalMilestones.updatedAt)),
-    db.select().from(projects).where(eq(projects.workspaceId, scope.workspaceId)).orderBy(desc(projects.updatedAt)),
+    db.select(establishedProjectColumns).from(projects).where(eq(projects.workspaceId, scope.workspaceId)).orderBy(desc(projects.updatedAt)),
     db.select().from(tasks).where(eq(tasks.workspaceId, scope.workspaceId)).orderBy(asc(tasks.sortOrder), desc(tasks.updatedAt)),
     db.select().from(habits).where(eq(habits.workspaceId, scope.workspaceId)).orderBy(desc(habits.updatedAt)),
     db.select().from(habitCheckIns).where(and(eq(habitCheckIns.workspaceId, scope.workspaceId), gte(habitCheckIns.localDate, range.start), lte(habitCheckIns.localDate, range.end))),
@@ -225,16 +226,16 @@ export async function createGoal(scope: PlannerScope, input: Omit<typeof goals.$
   await assertScopedRecordLinks(db, scope, { categoryId: input.categoryId });
   const id = nanoid();
   await db.insert(goals).values({ id, workspaceId: scope.workspaceId, ...input });
-  return (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, id))).limit(1))[0]!;
+  return (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, id))).limit(1))[0]!;
 }
 
 export async function archiveGoal(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
   const db = await requireDb();
-  const existing = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
+  const existing = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Goal was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(goals).set({ state: "archived", archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion)));
-  const updated = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
+  const updated = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
 }
@@ -242,11 +243,11 @@ export async function archiveGoal(scope: PlannerScope, input: { id: string; expe
 /** Restores an archived goal as unfinished work while preserving every linked history record. */
 export async function restoreGoal(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
   const db = await requireDb();
-  const existing = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
+  const existing = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Goal was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(goals).set({ state: "not_started", completedAt: null, archivedAt: null, version: input.expectedVersion + 1 }).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion)));
-  const updated = (await db.select().from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
+  const updated = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
 }
@@ -284,16 +285,16 @@ export async function createProject(scope: PlannerScope, input: Omit<typeof proj
   await assertScopedRecordLinks(db, scope, { goalId: input.goalId, categoryId: input.categoryId });
   const id = nanoid();
   await db.insert(projects).values({ id, workspaceId: scope.workspaceId, ...input });
-  return (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, id))).limit(1))[0]!;
+  return (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, id))).limit(1))[0]!;
 }
 
 export async function archiveProject(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
   const db = await requireDb();
-  const existing = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
+  const existing = (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Project was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(projects).set({ state: "archived", archivedAt: new Date(), version: input.expectedVersion + 1 }).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id), eq(projects.version, input.expectedVersion)));
-  const updated = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
+  const updated = (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
 }
@@ -301,11 +302,11 @@ export async function archiveProject(scope: PlannerScope, input: { id: string; e
 /** Restores an archived project as unfinished work while retaining linked task history. */
 export async function restoreProject(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
   const db = await requireDb();
-  const existing = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
+  const existing = (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Project was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await db.update(projects).set({ state: "not_started", completedAt: null, archivedAt: null, version: input.expectedVersion + 1 }).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id), eq(projects.version, input.expectedVersion)));
-  const updated = (await db.select().from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
+  const updated = (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
   if (updated.version === existing.version) throw new PlannerConflictError(updated);
   return updated;
 }
@@ -407,7 +408,7 @@ export async function reserveTask(scope: PlannerScope, input: { id: string; expe
     db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1),
     db.select().from(tasks).where(eq(tasks.workspaceId, scope.workspaceId)),
     db.select().from(externalEvents).where(and(eq(externalEvents.workspaceId, scope.workspaceId), eq(externalEvents.status, "active"))),
-    db.select().from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1),
+    db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1),
     db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), eq(planningAvailabilityExceptions.localDate, input.localDate))).limit(1),
   ]);
   const existing = task[0];
