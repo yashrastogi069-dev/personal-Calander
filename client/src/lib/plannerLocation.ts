@@ -13,6 +13,7 @@ export type PlannerLocation = PlannerLocationTarget & {
   query: string;
   taskQuery: string;
   taskFilter: string;
+  taskSort: string;
   selectedRecord: string | null;
 };
 
@@ -20,6 +21,7 @@ export type PlannerLocationUpdate = PlannerLocationTarget & {
   query?: string | null;
   taskQuery?: string | null;
   taskFilter?: string | null;
+  taskSort?: string | null;
   selectedRecord?: string | null;
 };
 
@@ -75,6 +77,7 @@ export function parsePlannerLocation(url: URL): PlannerLocation {
     query: url.searchParams.get("q") ?? "",
     taskQuery: url.searchParams.get("taskQ") ?? "",
     taskFilter: url.searchParams.get("taskFilter") ?? "all",
+    taskSort: url.searchParams.get("taskSort") ?? "manual",
     selectedRecord: url.searchParams.get("record"),
   };
 }
@@ -111,6 +114,7 @@ export function writePlannerLocation(
   setOptionalParameter(url.searchParams, "q", next.query);
   setOptionalParameter(url.searchParams, "taskQ", next.taskQuery);
   setOptionalParameter(url.searchParams, "taskFilter", next.taskFilter);
+  setOptionalParameter(url.searchParams, "taskSort", next.taskSort);
   setOptionalParameter(url.searchParams, "record", next.selectedRecord);
   history?.pushState(null, "", url.href);
   return url;

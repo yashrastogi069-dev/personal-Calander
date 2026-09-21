@@ -130,7 +130,7 @@
 .task-workspace-empty button { margin-top: .35rem; padding: .55rem .85rem; color: var(--accent); font-weight: 800; }
 
 .task-undo { position: sticky; top: .5rem; z-index: 8; display: flex; align-items: center; gap: .6rem; padding: .55rem .65rem .55rem 1rem; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: .9rem; background: var(--surface-elevated, var(--card)); box-shadow: 0 .75rem 2rem color-mix(in srgb, var(--ink) 10%, transparent); }
-.task-undo span { flex: 1; font-size: .85rem; font-weight: 700; }
+.task-undo span { flex: 1; font-size: var(--font-size-secondary); font-weight: 700; }
 .task-undo button { padding: .45rem .7rem; color: var(--accent); font-weight: 800; }
 
 .task-workspace .task-board { min-width: 0; }
@@ -148,6 +148,9 @@
 .task-workspace .task-lane .canonical-task-detail-action { color: var(--lane-text); border-color: var(--lane-control-border); background: var(--lane-control); }
 .task-workspace .task-lane .canonical-task-check.is-checked { color: var(--lane-depth); background: #fff; }
 .task-workspace .task-lane-task { min-width: 0; }
+.task-workspace .task-lane-tab b,
+.task-workspace .task-lane-tab small { font-size: var(--font-size-secondary); }
+.task-workspace .task-lane-tab small { min-width: 24px; height: 24px; }
 .task-workspace .task-lane-select select,
 .task-workspace .task-order-actions button { min-height: 44px; }
 .task-workspace .task-lane-select,
@@ -155,6 +158,7 @@
 .task-workspace .task-lane-select select,
 .task-workspace .task-order-actions button { font-size: inherit; }
 .task-workspace .task-archive-completed { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 44px; padding: .55rem .75rem; color: var(--lane-text); border: 1px solid var(--lane-control-border); border-radius: .7rem; background: var(--lane-control); font-weight: 800; }
+.task-sort-guidance { margin: .65rem 0; padding: .7rem .8rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--selection, var(--muted)); color: var(--ink-muted); font-size: var(--font-size-secondary); line-height: 1.5; }
 
 .task-saved-views { display: grid; gap: .75rem; }
 .task-saved-views > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .65rem; }
@@ -174,6 +178,10 @@
 .task-detail-section select,
 .task-detail-inline-create > select,
 .capture-sheet-form select { width: 100%; min-height: 44px; padding: .6rem .7rem; color: var(--ink, var(--foreground)); border: 1px solid var(--border); border-radius: .7rem; background: var(--surface-elevated, var(--card)); }
+.task-detail-form input:not([type="checkbox"]),
+.capture-sheet-form input:not([type="checkbox"]),
+.task-detail-form button,
+.capture-sheet-form button { min-height: 44px; }
 .task-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .75rem; }
 .task-detail-fact { display: grid; align-content: center; gap: .25rem; min-height: 66px; padding: .65rem; border: 1px solid var(--border); border-radius: .7rem; }
 .task-detail-fact span { color: var(--ink-muted); font-size: var(--font-size-secondary); }
@@ -224,6 +232,10 @@
 .search-record-detail dt { color: var(--ink-muted); font-size: var(--font-size-secondary); }
 .search-record-detail dd { margin: .25rem 0 0; overflow-wrap: anywhere; font-weight: 750; }
 .search-record-detail p { margin: 0; color: var(--ink-muted); line-height: 1.55; }
+.search-record-state { display: grid; gap: .65rem; padding: 1rem; border: 1px solid var(--border); border-radius: .85rem; background: var(--selection, var(--muted)); color: var(--ink-muted); font-size: var(--font-size-secondary); line-height: 1.5; }
+.search-record-state p { margin: 0; }
+.search-record-state button { min-width: 44px; min-height: 44px; justify-self: start; padding: .55rem .8rem; color: var(--accent); font-weight: 800; }
+.search-record-state.is-error { border-color: color-mix(in srgb, var(--destructive) 45%, var(--border)); }
 
 @media (max-width: 680px) {
   .task-workspace { padding-top: .5rem; padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }

@@ -32,6 +32,7 @@ import {
   getActiveCalendarFeed,
   getHabitPracticeEvidence,
   getReviewHistory,
+  getSearchRecord,
   getPushDeviceForEndpoint,
   getPushDevices,
   getWorkspaceSnapshot,
@@ -456,6 +457,10 @@ export const plannerRouter = router({
     workspace: protectedProcedure.input(scope.extend({ query: z.string().trim().min(2).max(160), limit: z.number().int().min(1).max(40).default(20) })).query(async ({ input }) => {
       const { workspaceId, timezone, ...search } = input;
       return searchWorkspace({ workspaceId, timezone }, search);
+    }),
+    record: protectedProcedure.input(scope.extend({ entity: z.enum(["task", "goal", "project", "habit", "review"]), id: z.string().min(1).max(191) })).query(async ({ input }) => {
+      const { workspaceId, timezone, ...record } = input;
+      return getSearchRecord({ workspaceId, timezone }, record);
     }),
   }),
   calendarFeed: router({

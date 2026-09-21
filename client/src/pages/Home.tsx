@@ -103,6 +103,7 @@ import { labelForPlannerTarget } from "@/features/shell/PlannerRail";
 import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
 import {
   TaskWorkspace,
+  type TaskWorkspaceSort,
   type TaskWorkspaceView,
 } from "@/features/tasks/TaskWorkspace";
 import { CaptureSheet } from "@/features/tasks/CaptureSheet";
@@ -260,6 +261,7 @@ function defaultPlannerLocation(): PlannerLocation {
     query: "",
     taskQuery: "",
     taskFilter: "all",
+    taskSort: "manual",
     selectedRecord: null,
   };
 }
@@ -299,6 +301,15 @@ function taskFilterFromPlannerLocation(location: PlannerLocation) {
     location.taskFilter === "deadline_risk"
     ? location.taskFilter
     : "all";
+}
+
+function taskSortFromPlannerLocation(location: PlannerLocation): TaskWorkspaceSort {
+  return location.taskSort === "priority" ||
+    location.taskSort === "due" ||
+    location.taskSort === "scheduled" ||
+    location.taskSort === "created"
+    ? location.taskSort
+    : "manual";
 }
 
 function MobileCustomizationSheet({
@@ -6789,6 +6800,7 @@ export default function Home() {
   const taskSearch = plannerLocation.taskQuery;
   const taskFilter: TaskBoardFilter =
     taskFilterFromPlannerLocation(plannerLocation);
+  const taskSort = taskSortFromPlannerLocation(plannerLocation);
   const [optimisticTaskStates, setOptimisticTaskStates] = useState<
     Record<string, string>
   >({});
@@ -7089,6 +7101,7 @@ export default function Home() {
       query: workspaceSearchQuery,
       taskQuery: taskSearch,
       taskFilter,
+      taskSort,
     });
     setPlannerLocation(current => ({ ...current, ...next } as PlannerLocation));
     if (typeof window !== "undefined")
@@ -7132,15 +7145,18 @@ export default function Home() {
       writePlannerLocation(new URL(window.location.href), next, window.history);
   };
   const updateTaskBoardUrl = useCallback(
-    (view: { query: string; filter: TaskBoardFilter }) => {
+    (view: { query: string; filter: TaskBoardFilter; sort: TaskWorkspaceSort }) => {
       setPlannerLocation(current => ({
         ...current,
         taskQuery: view.query,
         taskFilter: view.filter,
+        taskSort: view.sort,
       }));
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.search = searchWithTaskBoardView(url.search, view);
+        if (view.sort === "manual") url.searchParams.delete("taskSort");
+        else url.searchParams.set("taskSort", view.sort);
         window.history.replaceState(null, "", url);
       }
     },
@@ -7155,7 +7171,7 @@ export default function Home() {
     );
   };
   const focusDeadlineRisk = () => {
-    updateTaskBoardUrl({ query: "", filter: "deadline_risk" });
+    updateTaskBoardUrl({ query: "", filter: "deadline_risk", sort: taskSort });
     selectSurface("tasks");
   };
   const invalidatePlan = useCallback(() => {
@@ -8330,7 +8346,7 @@ export default function Home() {
               today={today}
               snapshot={snapshot}
               onCreateTask={persistTaskCreate}
-              initialThought={naturalCaptureThought}
+              thought={naturalCaptureThought}
               onThoughtChange={setNaturalCaptureThought}
             />
           </Suspense>
@@ -8364,6 +8380,7 @@ export default function Home() {
             timezone={scope.timezone}
             query={taskSearch}
             filter={taskFilter}
+            sort={taskSort}
             selectedRecordId={plannerLocation.selectedRecord}
             pendingTaskIds={
               new Set(pendingOperations.map(operation => operation.entityId))
@@ -8635,7 +8652,7 @@ export default function Home() {
         target={plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) !== "task"
           ? { entity: searchEntityForLocation(plannerLocation)!, id: plannerLocation.selectedRecord }
           : null}
-        snapshot={snapshot}
+        scope={scope}
         returnFocusRef={searchRecordFocusRef}
         onOpenChange={open => { if (!open) updateSelectedRecord(null); }}
       />

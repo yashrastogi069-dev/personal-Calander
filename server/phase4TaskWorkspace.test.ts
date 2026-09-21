@@ -3,6 +3,8 @@ import {
   adaptSavedTaskView,
   inboxTasks,
   resetTaskWorkspaceState,
+  runTaskReorder,
+  TASK_REORDER_GUIDANCE,
   taskRowsForWorkspace,
   taskUndoPatch,
   tasksForWorkspaceView,
@@ -17,9 +19,10 @@ import {
 import {
   searchEntityForLocation,
   searchOpenLocation,
-  searchRecordFromSnapshot,
+  searchRecordDetailState,
 } from "../client/src/features/search/WorkspaceSearchWorkspace";
-import { writePlannerLocation } from "../client/src/lib/plannerLocation";
+import { parsePlannerLocation, writePlannerLocation } from "../client/src/lib/plannerLocation";
+import { captureDraftAfterThoughtChange } from "../client/src/features/capture/NaturalLanguageCaptureWorkspace";
 import {
   recurrenceRuleFromDraft,
   runDependencyAction,
@@ -140,7 +143,7 @@ describe("Phase 4 canonical task workspace", () => {
   it("opens the exact search record while retaining the query and filters", () => {
     expect(searchOpenLocation(
       { entity: "task", id: "task-42" },
-      { query: "lease", taskQuery: "urgent", taskFilter: "deadline_risk" },
+      { query: "lease", taskQuery: "urgent", taskFilter: "deadline_risk", taskSort: "due" },
     )).toEqual({
       destination: "tasks",
       view: "list",
@@ -148,6 +151,7 @@ describe("Phase 4 canonical task workspace", () => {
       query: "lease",
       taskQuery: "urgent",
       taskFilter: "deadline_risk",
+      taskSort: "due",
     });
   });
 
@@ -160,32 +164,70 @@ describe("Phase 4 canonical task workspace", () => {
   ] as const)("opens an exact %s record in its owning destination", (entity, destination, view) => {
     const location = searchOpenLocation(
       { entity, id: `${entity}-42` },
-      { query: "lease", taskQuery: "urgent", taskFilter: "open" },
+      { query: "lease", taskQuery: "urgent", taskFilter: "open", taskSort: "priority" },
     );
 
     expect(location).toMatchObject({ destination, view, selectedRecord: `${entity}-42`, query: "lease" });
     expect(searchEntityForLocation(location)).toBe(entity);
   });
 
-  it("resolves the exact non-task Search record from the canonical snapshot", () => {
-    const snapshot = {
-      tasks: [],
-      goals: [{ id: "goal-1", title: "Goal" }],
-      projects: [{ id: "project-1", title: "Project" }],
-      habits: [{ id: "habit-1", name: "Habit" }],
-      reviewSessions: [{ id: "review-1", kind: "weekly", periodStartLocalDate: "2026-09-14", periodEndLocalDate: "2026-09-20" }],
-    };
+  it("resolves archived projects and out-of-range reviews from the scoped Search record response", () => {
+    expect(searchRecordDetailState(
+      { entity: "project", id: "project-archived" },
+      { data: { id: "project-archived", title: "Archived launch", state: "archived", version: 8 }, isLoading: false, error: null },
+    )).toEqual({
+      status: "ready",
+      record: { id: "project-archived", title: "Archived launch", state: "archived", version: 8 },
+    });
+    expect(searchRecordDetailState(
+      { entity: "review", id: "review-2024" },
+      { data: { id: "review-2024", kind: "annual", state: "completed", periodStartLocalDate: "2024-01-01", periodEndLocalDate: "2024-12-31" }, isLoading: false, error: null },
+    )).toEqual({
+      status: "ready",
+      record: expect.objectContaining({ id: "review-2024", title: "Annual review · 2024-01-01 to 2024-12-31" }),
+    });
+  });
 
-    expect(searchRecordFromSnapshot(snapshot, { entity: "goal", id: "goal-1" })).toMatchObject({ id: "goal-1", title: "Goal" });
-    expect(searchRecordFromSnapshot(snapshot, { entity: "project", id: "project-1" })).toMatchObject({ id: "project-1", title: "Project" });
-    expect(searchRecordFromSnapshot(snapshot, { entity: "habit", id: "habit-1" })).toMatchObject({ id: "habit-1", title: "Habit" });
-    expect(searchRecordFromSnapshot(snapshot, { entity: "review", id: "review-1" })).toMatchObject({ id: "review-1", title: "Weekly review · 2026-09-14 to 2026-09-20" });
+  it("shows explicit loading, unavailable, and error states for exact Search records", () => {
+    const target = { entity: "project", id: "missing-project" } as const;
+    expect(searchRecordDetailState(target, { data: undefined, isLoading: true, error: null })).toEqual({ status: "loading" });
+    expect(searchRecordDetailState(target, { data: null, isLoading: false, error: null })).toEqual({ status: "unavailable" });
+    expect(searchRecordDetailState(target, { data: undefined, isLoading: false, error: new Error("Read failed") })).toEqual({ status: "error", message: "Read failed" });
   });
 
   it("carries the current Capture thought into interpretation and reports queued persistence", () => {
     expect(captureInterpretationHandoff("  Pay the lease Friday  ")).toBe("  Pay the lease Friday  ");
     expect(capturePersistenceMessage({ queued: true })).toBe("Saved on this device · waiting to sync.");
     expect(capturePersistenceMessage({ queued: false })).toBe("Saved.");
+  });
+
+  it("invalidates stale interpretation when a same-mounted Capture receives a new handoff", () => {
+    const staleDraft = { title: "Old parsed title", notes: [] } as any;
+
+    expect(captureDraftAfterThoughtChange("Old thought", "New thought", staleDraft)).toBeNull();
+    expect(captureDraftAfterThoughtChange("New thought", "New thought", staleDraft)).toBe(staleDraft);
+  });
+
+  it("blocks the actual manual reorder action under derived sorting", async () => {
+    let calls = 0;
+    expect(await runTaskReorder("priority", async () => { calls += 1; })).toBe(false);
+    expect(calls).toBe(0);
+    expect(TASK_REORDER_GUIDANCE).toContain("Manual");
+
+    expect(await runTaskReorder("manual", async () => { calls += 1; })).toBe(true);
+    expect(calls).toBe(1);
+  });
+
+  it("persists task sort in planner navigation state without changing saved-view configuration", () => {
+    const written = writePlannerLocation(new URL("https://app.test/?destination=tasks&view=board"), {
+      destination: "tasks",
+      view: "board",
+      taskSort: "scheduled",
+    });
+
+    expect(written.searchParams.get("taskSort")).toBe("scheduled");
+    expect(parsePlannerLocation(written).taskSort).toBe("scheduled");
+    expect(adaptSavedTaskView({ filter: "open", sort: "created" })).toEqual({ filter: "open", sort: "created", query: "" });
   });
 
   it("provides keyboard movement for the Capture tabs", () => {

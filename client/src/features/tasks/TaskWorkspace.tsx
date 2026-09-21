@@ -37,6 +37,14 @@ type TaskLike = {
 
 export type TaskWorkspaceSort = "manual" | "priority" | "due" | "scheduled" | "created";
 
+export const TASK_REORDER_GUIDANCE = "Move up and down use Manual order. Switch Order to Manual to rearrange this lane.";
+
+export async function runTaskReorder(sort: TaskWorkspaceSort, action: () => Promise<unknown>) {
+  if (sort !== "manual") return false;
+  await action();
+  return true;
+}
+
 export type TaskWorkspaceState = {
   view: TaskWorkspaceView;
   query: string;
@@ -136,12 +144,13 @@ export type TaskWorkspaceProps = {
   timezone: string;
   query: string;
   filter: TaskBoardFilter;
+  sort: TaskWorkspaceSort;
   selectedRecordId?: string | null;
   pendingTaskIds?: ReadonlySet<string>;
   conflictCountByTask?: ReadonlyMap<string, number>;
   isOnline?: boolean;
   onViewChange: (view: TaskWorkspaceView) => void;
-  onViewStateChange: (state: { query: string; filter: TaskBoardFilter }) => void;
+  onViewStateChange: (state: { query: string; filter: TaskBoardFilter; sort: TaskWorkspaceSort }) => void;
   onSelectedRecordChange: (recordId: string | null) => void;
   onCapture: () => void;
   onUpdate: (task: any, patch: Record<string, unknown>) => Promise<TaskMutationResult>;
@@ -164,6 +173,7 @@ export function TaskWorkspace({
   timezone,
   query,
   filter,
+  sort,
   selectedRecordId,
   pendingTaskIds = new Set(),
   conflictCountByTask = new Map(),
@@ -183,7 +193,6 @@ export function TaskWorkspace({
   const [expandedLanes, setExpandedLanes] = useState<Partial<Record<TaskBoardLaneId, boolean>>>({});
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dropLane, setDropLane] = useState<TaskBoardLaneId | null>(null);
-  const [sort, setSort] = useState<TaskWorkspaceSort>("manual");
   const [undo, setUndo] = useState<{ label: string; task: any; patch: Record<string, unknown> } | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const selectedTask = tasks.find(task => task.id === selectedRecordId) ?? null;
@@ -326,11 +335,11 @@ export function TaskWorkspace({
 
       {view !== "saved" ? (
         <div className="task-workspace-toolbar">
-          <label className="task-search"><Search aria-hidden="true" size={18} /><Input data-task-search value={query} onChange={event => onViewStateChange({ query: event.target.value, filter })} placeholder="Search tasks" aria-label="Search tasks" /></label>
+          <label className="task-search"><Search aria-hidden="true" size={18} /><Input data-task-search value={query} onChange={event => onViewStateChange({ query: event.target.value, filter, sort })} placeholder="Search tasks" aria-label="Search tasks" /></label>
           {view !== "archive" && view !== "inbox" ? (
             <><div className="filter-group" aria-label="Task filters">
-              {(["all", "open", "today", "deadline_risk"] as TaskBoardFilter[]).map(item => <button key={item} type="button" className={cn(filter === item && "is-active")} onClick={() => onViewStateChange({ query, filter: item })}>{item === "deadline_risk" ? "Deadline risk" : item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
-            </div><label className="task-sort">Order<select value={sort} onChange={event => setSort(event.target.value as TaskWorkspaceSort)}><option value="manual">Manual</option><option value="priority">Priority</option><option value="due">Due date</option><option value="scheduled">Planned date</option><option value="created">Newest</option></select></label></>
+              {(["all", "open", "today", "deadline_risk"] as TaskBoardFilter[]).map(item => <button key={item} type="button" className={cn(filter === item && "is-active")} onClick={() => onViewStateChange({ query, filter: item, sort })}>{item === "deadline_risk" ? "Deadline risk" : item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
+            </div><label className="task-sort">Order<select value={sort} onChange={event => onViewStateChange({ query, filter, sort: event.target.value as TaskWorkspaceSort })}><option value="manual">Manual</option><option value="priority">Priority</option><option value="due">Due date</option><option value="scheduled">Planned date</option><option value="created">Newest</option></select></label></>
           ) : null}
         </div>
       ) : null}
@@ -353,17 +362,18 @@ export function TaskWorkspace({
           onOpenDetail={openDetail}
           onCapture={onCapture}
           queryActive={Boolean(query.trim())}
-          onResetQuery={() => onViewStateChange({ query: "", filter })}
+          onResetQuery={() => onViewStateChange({ query: "", filter, sort })}
         />
       ) : null}
 
       {view === "list" ? (
-        filtered.length ? <div className="canonical-task-list" role="list">{filtered.map(renderRow)}</div> : <div className="task-workspace-empty"><List aria-hidden="true" size={24} /><h3>No task matches this view</h3><p>Reset the search or filter to return to the complete list.</p>{query || filter !== "all" ? <button type="button" onClick={() => onViewStateChange(resetTaskWorkspaceState())}>Reset task filters</button> : <button type="button" onClick={onCapture}>Capture a task</button>}</div>
+        filtered.length ? <div className="canonical-task-list" role="list">{filtered.map(renderRow)}</div> : <div className="task-workspace-empty"><List aria-hidden="true" size={24} /><h3>No task matches this view</h3><p>Reset the search or filter to return to the complete list.</p>{query || filter !== "all" ? <button type="button" onClick={() => onViewStateChange({ ...resetTaskWorkspaceState(), sort })}>Reset task filters</button> : <button type="button" onClick={onCapture}>Capture a task</button>}</div>
       ) : null}
 
       {view === "board" ? (
         <section className="task-board" aria-labelledby="task-board-heading">
           <div className="task-board-heading"><div><h3 id="task-board-heading">Work lanes</h3><p>Drag is optional. Every card has a visible Move to control.</p></div><span>{filtered.length} shown</span></div>
+          {sort !== "manual" ? <p className="task-sort-guidance" role="status">{TASK_REORDER_GUIDANCE}</p> : null}
           <div className="task-lane-tabs" role="group" aria-label="Choose the task lane shown on small screens">
             {taskBoardLanes.map(lane => <button key={lane.id} type="button" aria-pressed={activeMobileLane === lane.id} className={cn("task-lane-tab", `task-lane-tab-${lane.id}`, activeMobileLane === lane.id && "is-active")} onClick={() => setActiveMobileLane(lane.id)}><span aria-hidden="true" /><b>{lane.id === "todo" ? "To do" : lane.id === "in_progress" ? "Doing" : "Done"}</b><small>{filtered.filter(task => laneForTaskState(task.state) === lane.id).length}</small></button>)}
           </div>
@@ -406,7 +416,7 @@ export function TaskWorkspace({
                       <div
                         key={task.id}
                         className={cn("task-lane-task", draggedTaskId === task.id && "is-dragging")}
-                        draggable
+                        draggable={sort === "manual"}
                         onDragStart={event => {
                           event.dataTransfer.effectAllowed = "move";
                           event.dataTransfer.setData("text/plain", task.id);
@@ -417,9 +427,9 @@ export function TaskWorkspace({
                           setDropLane(null);
                         }}
                       >
-                        <span className="task-drag-handle" aria-hidden="true"><GripVertical size={15} /></span>
+                        {sort === "manual" ? <span className="task-drag-handle" aria-hidden="true"><GripVertical size={15} /></span> : null}
                         {renderRow(task)}
-                        <div className="task-order-actions" aria-label={`Reorder ${task.title}`}><button type="button" aria-label={`Move ${task.title} up in ${lane.label}`} disabled={laneTasks.indexOf(task) === 0} onClick={() => void onReorder(task, -1, laneTasks)}>↑</button><button type="button" aria-label={`Move ${task.title} down in ${lane.label}`} disabled={laneTasks.indexOf(task) === laneTasks.length - 1} onClick={() => void onReorder(task, 1, laneTasks)}>↓</button></div>
+                        <div className="task-order-actions" aria-label={`Reorder ${task.title}`}><button type="button" aria-label={`Move ${task.title} up in ${lane.label}`} title={sort === "manual" ? undefined : TASK_REORDER_GUIDANCE} disabled={sort !== "manual" || laneTasks.indexOf(task) === 0} onClick={() => void runTaskReorder(sort, () => onReorder(task, -1, laneTasks))}>↑</button><button type="button" aria-label={`Move ${task.title} down in ${lane.label}`} title={sort === "manual" ? undefined : TASK_REORDER_GUIDANCE} disabled={sort !== "manual" || laneTasks.indexOf(task) === laneTasks.length - 1} onClick={() => void runTaskReorder(sort, () => onReorder(task, 1, laneTasks))}>↓</button></div>
                         <label className="task-lane-select"><span>Move to</span><select value={laneForTaskState(task.state)} onChange={event => void moveToLane(task, event.target.value as TaskBoardLaneId)}>{taskBoardLanes.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
                       </div>
                     )) : <div className="task-lane-empty">No tasks in this lane.</div>}
@@ -434,11 +444,11 @@ export function TaskWorkspace({
       ) : null}
 
       {view === "saved" ? (
-        <section className="task-saved-views" aria-labelledby="task-saved-heading"><header><h3 id="task-saved-heading">Saved views</h3><p>Saved filters point to the same task records; they never copy task state.</p></header>{savedViews.filter(saved => saved.viewType === "tasks").length ? <div>{savedViews.filter(saved => saved.viewType === "tasks").map(saved => <button type="button" key={saved.id} onClick={() => { const adapted = adaptSavedTaskView(saved.configuration ?? {}); setSort(adapted.sort); onViewStateChange({ query: adapted.query, filter: adapted.filter }); onViewChange("list"); }}><strong>{saved.name}</strong><span>{saved.isPinned ? "Pinned" : "Saved"}</span></button>)}</div> : <div className="task-workspace-empty"><Inbox aria-hidden="true" size={24} /><h3>No task views saved yet</h3><p>Your current task filters remain available in List and Board.</p></div>}</section>
+        <section className="task-saved-views" aria-labelledby="task-saved-heading"><header><h3 id="task-saved-heading">Saved views</h3><p>Saved filters point to the same task records; they never copy task state.</p></header>{savedViews.filter(saved => saved.viewType === "tasks").length ? <div>{savedViews.filter(saved => saved.viewType === "tasks").map(saved => <button type="button" key={saved.id} onClick={() => { const adapted = adaptSavedTaskView(saved.configuration ?? {}); onViewStateChange(adapted); onViewChange("list"); }}><strong>{saved.name}</strong><span>{saved.isPinned ? "Pinned" : "Saved"}</span></button>)}</div> : <div className="task-workspace-empty"><Inbox aria-hidden="true" size={24} /><h3>No task views saved yet</h3><p>Your current task filters remain available in List and Board.</p></div>}</section>
       ) : null}
 
       {view === "archive" ? (
-        <section className="task-archive-panel" aria-labelledby="archived-task-heading"><div><h3 id="archived-task-heading">Archived work</h3><p>Archive retains identity and history. Restore returns the same record to To do.</p></div><span>{filtered.length} stored</span>{filtered.length ? <ul>{filtered.map(task => <li key={task.id}><div><strong>{task.title}</strong><small>{task.completedAt ? "Completed before archive" : "Archived without completion"}</small></div><Button type="button" variant="ghost" onClick={() => void restore(task)}><ArchiveRestore size={16} /> Restore</Button></li>)}</ul> : <div className="task-workspace-empty"><p>{query ? "No archived task matches this search." : "No archived tasks yet."}</p>{query ? <button type="button" onClick={() => onViewStateChange({ query: "", filter })}>Reset task search</button> : null}</div>}</section>
+        <section className="task-archive-panel" aria-labelledby="archived-task-heading"><div><h3 id="archived-task-heading">Archived work</h3><p>Archive retains identity and history. Restore returns the same record to To do.</p></div><span>{filtered.length} stored</span>{filtered.length ? <ul>{filtered.map(task => <li key={task.id}><div><strong>{task.title}</strong><small>{task.completedAt ? "Completed before archive" : "Archived without completion"}</small></div><Button type="button" variant="ghost" onClick={() => void restore(task)}><ArchiveRestore size={16} /> Restore</Button></li>)}</ul> : <div className="task-workspace-empty"><p>{query ? "No archived task matches this search." : "No archived tasks yet."}</p>{query ? <button type="button" onClick={() => onViewStateChange({ query: "", filter, sort })}>Reset task search</button> : null}</div>}</section>
       ) : null}
 
       <TaskDetailSheet

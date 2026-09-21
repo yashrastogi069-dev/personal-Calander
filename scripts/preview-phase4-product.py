@@ -437,6 +437,14 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         "state": "in_progress",
         "scheduledLocalDate": "2026-09-21",
         "estimateMinutes": 30,
+        "sortOrder": 2,
+    }
+    second_todo_task = {
+        **base,
+        "id": "preview-task-second-todo",
+        "title": "Collect renewal papers",
+        "state": "not_started",
+        "scheduledLocalDate": "2026-09-22",
         "sortOrder": 1,
     }
     completed_task = {
@@ -446,7 +454,7 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         "state": "completed",
         "scheduledLocalDate": "2026-09-21",
         "completedAt": "2026-09-21T07:00:00.000Z",
-        "sortOrder": 2,
+        "sortOrder": 3,
     }
     archived_task = {
         **base,
@@ -455,9 +463,9 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         "state": "archived",
         "scheduledLocalDate": None,
         "archivedAt": "2026-09-19T07:00:00.000Z",
-        "sortOrder": 3,
+        "sortOrder": 4,
     }
-    snapshot["tasks"] = [inbox_task, planned_task, completed_task, archived_task]
+    snapshot["tasks"] = [inbox_task, second_todo_task, planned_task, completed_task, archived_task]
     search_goal = {
         "id": "preview-goal-search",
         "workspaceId": snapshot["workspace"]["id"],
@@ -476,9 +484,9 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
     search_project = {
         "id": "preview-project-search",
         "workspaceId": snapshot["workspace"]["id"],
-        "title": "Lease paperwork project",
+        "title": "Archived lease paperwork",
         "description": "Project search evidence",
-        "state": "not_started",
+        "state": "archived",
         "priority": "medium",
         "horizon": "quarterly",
         "dueLocalDate": "2026-10-15",
@@ -500,17 +508,17 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
     search_review = {
         "id": "preview-review-search",
         "workspaceId": snapshot["workspace"]["id"],
-        "kind": "weekly",
-        "periodStartLocalDate": "2026-09-14",
-        "periodEndLocalDate": "2026-09-20",
-        "reflection": "Lease review evidence",
+        "kind": "annual",
+        "periodStartLocalDate": "2024-01-01",
+        "periodEndLocalDate": "2024-12-31",
+        "reflection": "Lease review evidence outside the active snapshot range",
         "state": "completed",
         "version": 1,
     }
     snapshot["goals"] = [search_goal]
-    snapshot["projects"] = [search_project]
+    snapshot["projects"] = []
     snapshot["habits"] = [search_habit]
-    snapshot["reviewSessions"] = [search_review]
+    snapshot["reviewSessions"] = []
     created_task = {
         **base,
         "id": "preview-task-created",
@@ -520,6 +528,7 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         "clientRequestId": "preview-created-request",
     }
     fixtures["planner.task.create"] = created_task
+    fixtures["planner.task.update"] = {**inbox_task, "sortOrder": 1.5, "version": 2}
     fixtures["planner.search.workspace"] = [
         {
             "entity": "task",
@@ -531,11 +540,15 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         {"entity": "goal", "id": search_goal["id"], "title": search_goal["title"], "summary": search_goal["description"], "state": search_goal["state"]},
         {"entity": "project", "id": search_project["id"], "title": search_project["title"], "summary": search_project["description"], "state": search_project["state"]},
         {"entity": "habit", "id": search_habit["id"], "title": search_habit["name"], "summary": search_habit["description"], "state": "active"},
-        {"entity": "review", "id": search_review["id"], "title": "Weekly review · 2026-09-14 to 2026-09-20", "summary": search_review["reflection"], "state": search_review["state"]},
+        {"entity": "review", "id": search_review["id"], "title": "Annual review · 2024-01-01 to 2024-12-31", "summary": search_review["reflection"], "state": search_review["state"]},
     ]
     fixtures["planner.task.rolloverPreview"] = {
         "fromLocalDate": "2026-09-20",
         "candidates": [],
+    }
+    search_record_by_id = {
+        record["id"]: record
+        for record in (search_goal, search_project, search_habit, search_review)
     }
     requests, unexpected = auth["install_preview"](
         context, url, "linked", fixtures
@@ -560,20 +573,41 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         page.goto(f"{url}{separator}create=task", wait_until="networkidle")
         capture = page.get_by_role("dialog", name="Capture")
         capture.wait_for(state="visible", timeout=20_000)
+        page.wait_for_timeout(300)
         assert capture.get_by_role("button", name="Save to Inbox", exact=True).is_visible()
         assert "scheduledLocalDate" not in capture.inner_text()
         for tab in capture.get_by_role("tab").all():
             assert tab.get_attribute("aria-controls") == "capture-kind-panel"
+        capture_target_metrics = capture.locator(
+            "button:visible, input:not([type=checkbox]):visible, select:visible, .capture-plan-today:visible"
+        ).evaluate_all(
+            "elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim() }; })"
+        )
+        capture_overflow = capture.evaluate(
+            "element => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, horizontalOverflow: element.scrollWidth > element.clientWidth })"
+        )
         capture.get_by_label("Name", exact=True).fill("Buy oat milk Friday")
         capture.get_by_role("button", name="Interpret dates, reserved time, recurrence, or use a starting point", exact=True).click()
         page.locator("#natural-task").wait_for(state="visible")
         assert page.locator("#natural-task").input_value() == "Buy oat milk Friday"
         checkpoint("capture-handoff-retained")
+        page.get_by_role("button", name="Parse for review", exact=True).click()
+        page.get_by_role("heading", name="Review parsed details", exact=True).wait_for()
+        click_destination(page, "Capture")
+        capture.wait_for(state="visible")
+        capture.get_by_label("Name", exact=True).fill("Buy oat milk Monday")
+        capture.get_by_role("button", name="Interpret dates, reserved time, recurrence, or use a starting point", exact=True).click()
+        page.locator("#natural-task").wait_for(state="visible")
+        assert page.locator("#natural-task").input_value() == "Buy oat milk Monday"
+        assert page.locator(".capture-draft-panel").count() == 0
+        page.get_by_role("button", name="Parse for review", exact=True).click()
+        page.get_by_role("heading", name="Review parsed details", exact=True).wait_for()
+        checkpoint("capture-same-mounted-handoff")
         click_destination(page, "Tasks")
         wait_for_target(page, "tasks", "list")
         page.locator(".task-workspace-heading").get_by_role("button", name="Capture", exact=True).click()
         capture.wait_for(state="visible")
-        assert capture.get_by_label("Name", exact=True).input_value() == "Buy oat milk Friday"
+        assert capture.get_by_label("Name", exact=True).input_value() == "Buy oat milk Monday"
         capture.get_by_role("button", name="Save to Inbox", exact=True).click()
         capture.wait_for(state="hidden")
         page.mouse.move(8, 8)
@@ -608,11 +642,31 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
             "elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim() }; })"
         )
         functional_text_sizes = page.locator(
-            ".task-workspace .canonical-task-keyline:visible, .task-workspace .filter-group button:visible, .task-workspace .task-lane-select:visible"
+            ".task-workspace .canonical-task-keyline:visible, .task-workspace .filter-group button:visible, .task-workspace .task-lane-select:visible, .task-workspace .task-lane-tab b:visible, .task-workspace .task-lane-tab small:visible"
         ).evaluate_all(
             "elements => elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize))"
         )
         assert functional_text_sizes and min(functional_text_sizes) >= 14, functional_text_sizes
+
+        checkpoint("exercise-visible-reorder")
+        update_requests_before = requests.count("planner.task.update")
+        page.get_by_label("Move Clarify lease renewal down in To do", exact=True).click()
+        page.get_by_text("Task order updated.", exact=True).wait_for()
+        assert requests.count("planner.task.update") == update_requests_before + 1
+        page.mouse.move(8, 8)
+        page.locator("[data-sonner-toast]").wait_for(state="hidden", timeout=10_000)
+        page.locator(".task-sort select").select_option("priority")
+        wait_for_parameter(page, "taskSort", "priority")
+        page.get_by_text("Move up and down use Manual order.", exact=False).wait_for()
+        assert page.get_by_label("Move Clarify lease renewal down in To do", exact=True).is_disabled()
+        click_destination(page, "Plan")
+        wait_for_target(page, "plan", "daily")
+        click_destination(page, "Tasks")
+        wait_for_target(page, "tasks", "list")
+        assert page.locator(".task-sort select").input_value() == "priority"
+        page.locator(".task-workspace-tabs").get_by_role("button", name="Board", exact=True).click()
+        wait_for_target(page, "tasks", "board")
+        assert page.locator(".task-sort select").input_value() == "priority"
 
         checkpoint("open-search")
         click_destination(page, "Search")
@@ -624,11 +678,15 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         search_records = [
             ("task", "preview-task-inbox", "tasks", "list", "Clarify lease renewal"),
             ("goal", "preview-goal-search", "intentions", "outcomes", "Renew the lease intentionally"),
-            ("project", "preview-project-search", "intentions", "projects", "Lease paperwork project"),
+            ("project", "preview-project-search", "intentions", "projects", "Archived lease paperwork"),
             ("habit", "preview-habit-search", "habits", "due", "Review lease notes"),
-            ("review", "preview-review-search", "review", "rituals", "Weekly review · 2026-09-14 to 2026-09-20"),
+            ("review", "preview-review-search", "review", "rituals", "Annual review · 2024-01-01 to 2024-12-31"),
         ]
+        detail_target_metrics = []
+        detail_overflow = []
         for entity, record_id, destination, view, title in search_records:
+            if entity != "task":
+                fixtures["planner.search.record"] = search_record_by_id[record_id]
             search_result = page.locator(f'[data-search-result-id="{entity}:{record_id}"]')
             search_result.wait_for(state="visible")
             search_result.click()
@@ -636,6 +694,16 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
             wait_for_target(page, destination, view)
             detail = page.get_by_role("dialog", name=title)
             detail.wait_for(state="visible")
+            if entity == "task":
+                page.wait_for_timeout(300)
+                detail_target_metrics = detail.locator(
+                    ".task-detail-form button:visible, .task-detail-form input:visible, .task-detail-form select:visible, .task-detail-form textarea:visible"
+                ).evaluate_all(
+                    "elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim() }; })"
+                )
+                detail_overflow = detail.evaluate(
+                    "element => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, horizontalOverflow: element.scrollWidth > element.clientWidth })"
+                )
             assert page.locator('[data-scroll-owner="destination"]').get_attribute(
                 "data-selected-record"
             ) == record_id
@@ -649,7 +717,7 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
 
         metrics = overflow_metrics(page)
         undersized = [
-            target for target in target_metrics
+            target for target in [*target_metrics, *capture_target_metrics, *detail_target_metrics]
             if target["width"] < 44 or target["height"] < 44
         ]
         screenshot = output / f"task-capture-search-{width}.png"
@@ -669,16 +737,23 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
                 "searchFocusRestored": True,
                 "searchRecordTypesOpened": [record[0] for record in search_records],
                 "captureThoughtRetained": True,
+                "captureSameMountedHandoff": True,
+                "visibleReorderExercised": True,
+                "taskSortPersisted": True,
                 "minimumFunctionalText": min(functional_text_sizes),
                 "minimumTarget": {
-                    "width": min((target["width"] for target in target_metrics), default=44),
-                    "height": min((target["height"] for target in target_metrics), default=44),
+                    "width": min((target["width"] for target in [*target_metrics, *capture_target_metrics, *detail_target_metrics]), default=44),
+                    "height": min((target["height"] for target in [*target_metrics, *capture_target_metrics, *detail_target_metrics]), default=44),
                 },
+                "captureOverflow": capture_overflow,
+                "detailOverflow": detail_overflow,
                 "overflow": metrics,
                 "screenshot": str(screenshot),
             }
         )
         assert not undersized, undersized
+        assert not capture_overflow["horizontalOverflow"], capture_overflow
+        assert not detail_overflow["horizontalOverflow"], detail_overflow
         assert not metrics["horizontalOverflow"], metrics
         assert not runtime_errors, runtime_errors
         assert not console_errors, console_errors

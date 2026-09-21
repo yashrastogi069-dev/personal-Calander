@@ -6,9 +6,9 @@ import type { WorkspaceScope } from "@/lib/workspace";
 import { FileText, Flag, Goal, Search, TimerReset } from "lucide-react";
 import { useDeferredValue, useEffect, useState, type RefObject } from "react";
 
-type SearchEntity = "task" | "goal" | "project" | "habit" | "review";
+export type SearchEntity = "task" | "goal" | "project" | "habit" | "review";
 export type SearchOpenEntity = { entity: SearchEntity; id: string };
-type RetainedSearchState = { query: string; taskQuery: string; taskFilter: string };
+type RetainedSearchState = { query: string; taskQuery: string; taskFilter: string; taskSort: string };
 type WorkspaceSearchWorkspaceProps = {
   scope: WorkspaceScope;
   initialQuery: string;
@@ -44,47 +44,63 @@ export function searchEntityForLocation(location: { destination: string; view: s
   return null;
 }
 
-export function searchRecordFromSnapshot(snapshot: any, target: SearchOpenEntity) {
-  if (target.entity === "task") return snapshot.tasks?.find((record: any) => record.id === target.id) ?? null;
-  if (target.entity === "goal") return snapshot.goals?.find((record: any) => record.id === target.id) ?? null;
-  if (target.entity === "project") return snapshot.projects?.find((record: any) => record.id === target.id) ?? null;
-  if (target.entity === "habit") {
-    const record = snapshot.habits?.find((candidate: any) => candidate.id === target.id);
-    return record ? { ...record, title: record.name, state: record.archivedAt ? "archived" : "active" } : null;
-  }
-  const record = snapshot.reviewSessions?.find((candidate: any) => candidate.id === target.id);
-  if (!record) return null;
+function presentSearchRecord(target: SearchOpenEntity, record: any) {
+  if (target.entity === "habit") return { ...record, title: record.name, state: record.archivedAt ? "archived" : "active" };
+  if (target.entity !== "review") return record;
   const kind = String(record.kind ?? "review");
-  return {
-    ...record,
-    title: `${kind.charAt(0).toUpperCase()}${kind.slice(1)} review · ${record.periodStartLocalDate} to ${record.periodEndLocalDate}`,
-  };
+  return { ...record, title: `${kind.charAt(0).toUpperCase()}${kind.slice(1)} review · ${record.periodStartLocalDate} to ${record.periodEndLocalDate}` };
+}
+
+export function searchRecordDetailState(
+  target: SearchOpenEntity,
+  query: { data: any; isLoading: boolean; error: { message: string } | null },
+):
+  | { status: "loading" }
+  | { status: "unavailable" }
+  | { status: "error"; message: string }
+  | { status: "ready"; record: any } {
+  if (query.isLoading) return { status: "loading" };
+  if (query.error) return { status: "error", message: query.error.message || "The record could not be read." };
+  if (!query.data) return { status: "unavailable" };
+  return { status: "ready", record: presentSearchRecord(target, query.data) };
 }
 
 export function SearchRecordSheet({
   target,
-  snapshot,
+  scope,
   returnFocusRef,
   onOpenChange,
 }: {
   target: SearchOpenEntity | null;
-  snapshot: any;
+  scope: WorkspaceScope;
   returnFocusRef: RefObject<HTMLElement | null>;
   onOpenChange: (open: boolean) => void;
 }) {
-  const record = target ? searchRecordFromSnapshot(snapshot, target) : null;
-  if (!target || !record) return null;
-  const summary = record.description ?? record.reflection ?? "No additional text recorded.";
-  const state = record.state ?? (record.archivedAt ? "archived" : "active");
+  const recordQuery = trpc.planner.search.record.useQuery(
+    { ...scope, entity: target?.entity ?? "goal", id: target?.id ?? "search-record-disabled" },
+    { enabled: Boolean(target), retry: false },
+  );
+  if (!target) return null;
+  const detail = searchRecordDetailState(target, {
+    data: recordQuery.data,
+    isLoading: recordQuery.isLoading,
+    error: recordQuery.error,
+  });
+  const record = detail.status === "ready" ? detail.record : null;
+  const summary = record?.description ?? record?.reflection ?? "No additional text recorded.";
+  const state = record?.state ?? (record?.archivedAt ? "archived" : "active");
   return (
     <PlannerSheet
       open
       onOpenChange={onOpenChange}
       returnFocusRef={returnFocusRef}
-      title={record.title}
+      title={record?.title ?? (detail.status === "loading" ? "Opening record…" : detail.status === "error" ? "Record could not open" : "Record unavailable")}
       description={`Exact ${target.entity} record from Search. Closing returns to the same result and query.`}
     >
-      <section className="search-record-detail" aria-label={`${record.title} record details`}>
+      {detail.status === "loading" ? <div className="search-record-state" role="status">Loading the exact record…</div> : null}
+      {detail.status === "unavailable" ? <div className="search-record-state" role="status">This {target.entity} is no longer available in this workspace. Record ID: {target.id}</div> : null}
+      {detail.status === "error" ? <div className="search-record-state is-error" role="alert"><p>The record could not be loaded: {detail.message}</p><button type="button" onClick={() => void recordQuery.refetch()}>Try again</button></div> : null}
+      {record ? <section className="search-record-detail" aria-label={`${record.title} record details`}>
         <dl>
           <div><dt>Type</dt><dd>{target.entity}</dd></div>
           <div><dt>State</dt><dd>{String(state).replaceAll("_", " ")}</dd></div>
@@ -92,7 +108,7 @@ export function SearchRecordSheet({
           {record.version ? <div><dt>Version</dt><dd>{record.version}</dd></div> : null}
         </dl>
         <p>{summary}</p>
-      </section>
+      </section> : null}
     </PlannerSheet>
   );
 }

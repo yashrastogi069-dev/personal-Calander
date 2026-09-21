@@ -429,6 +429,22 @@ describe("planner task API", () => {
     search.mockRestore();
   });
 
+  it.each([
+    ["project", { id: "project-archived", title: "Archived launch", state: "archived" }],
+    ["review", { id: "review-2024", kind: "annual", state: "completed", periodStartLocalDate: "2024-01-01", periodEndLocalDate: "2024-12-31" }],
+  ] as const)("routes an exact %s Search record through the scoped canonical read", async (entity, record) => {
+    const read = vi.spyOn(planning, "getSearchRecord").mockResolvedValue(record as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const input = { workspaceId: "workspace-api-check", timezone: "UTC", entity, id: record.id };
+
+    await expect(caller.planner.search.record(input)).resolves.toMatchObject({ id: record.id });
+    expect(read).toHaveBeenCalledWith(
+      { workspaceId: input.workspaceId, timezone: input.timezone },
+      { entity, id: record.id },
+    );
+    read.mockRestore();
+  });
+
   it("returns a bounded, workspace-scoped saved review history through the review contract", async () => {
     const history = vi.spyOn(planning, "getReviewHistory").mockResolvedValue([{ id: "review-history-1", kind: "monthly", state: "completed" }] as never);
     const caller = appRouter.createCaller(createAuthenticatedContext());

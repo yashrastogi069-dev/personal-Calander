@@ -180,6 +180,26 @@ export async function searchWorkspace(scope: PlannerScope, input: { query: strin
   ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()).slice(0, input.limit);
 }
 
+export type SearchRecordEntity = "task" | "goal" | "project" | "habit" | "review";
+
+/** Reads one canonical Search result inside the authenticated workspace scope. */
+export async function getSearchRecord(scope: PlannerScope, input: { entity: SearchRecordEntity; id: string }) {
+  const db = await requireDb();
+  if (input.entity === "task") {
+    return (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0] ?? null;
+  }
+  if (input.entity === "goal") {
+    return (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0] ?? null;
+  }
+  if (input.entity === "project") {
+    return (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0] ?? null;
+  }
+  if (input.entity === "habit") {
+    return (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0] ?? null;
+  }
+  return (await db.select().from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), eq(reviewSessions.id, input.id))).limit(1))[0] ?? null;
+}
+
 export async function getReviewHistory(scope: PlannerScope, input: { limit: number }) {
   const db = await requireDb();
   return db.select().from(reviewSessions).where(eq(reviewSessions.workspaceId, scope.workspaceId)).orderBy(desc(reviewSessions.periodEndLocalDate), desc(reviewSessions.updatedAt)).limit(input.limit);
