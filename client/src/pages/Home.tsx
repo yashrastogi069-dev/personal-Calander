@@ -101,6 +101,15 @@ import {
 } from "@/features/shell/PhoneNavigation";
 import { labelForPlannerTarget } from "@/features/shell/PlannerRail";
 import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
+import {
+  TaskWorkspace,
+  type TaskWorkspaceView,
+} from "@/features/tasks/TaskWorkspace";
+import { CaptureSheet } from "@/features/tasks/CaptureSheet";
+import {
+  searchOpenLocation,
+  type SearchOpenEntity,
+} from "@/features/search/WorkspaceSearchWorkspace";
 import { useAuthenticatedAccount } from "@/components/AuthenticatedPlanner";
 import { usePwa } from "@/contexts/PwaContext";
 import type { MobilePlannerDestination } from "@shared/mobileNavigation";
@@ -6759,13 +6768,16 @@ export default function Home() {
     () =>
       typeof window !== "undefined" &&
       (new URLSearchParams(window.location.search).get("create") === "task" ||
-        pwaEntryFromSearch(window.location.search).composeTask)
+        pwaEntryFromSearch(window.location.search).composeTask ||
+        plannerLocation.action === "capture")
   );
   const [composerIntentHydrated, setComposerIntentHydrated] = useState(false);
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
   const [breakdownProject, setBreakdownProject] = useState<any | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [quickTitle, setQuickTitle] = useState("");
+  const isOnline = useOnlineState();
+  const searchReturnTargetRef = useRef<string | null>(null);
   const [offlineCaptureCount, setOfflineCaptureCount] = useState(
     () => capturesForWorkspace(scope.workspaceId).length
   );
@@ -6820,6 +6832,12 @@ export default function Home() {
       utils.planner.workspace.snapshot.invalidate();
       utils.planner.dashboard.invalidate();
     },
+  });
+  const addTaskDependency = trpc.planner.task.addDependency.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
+  });
+  const removeTaskDependency = trpc.planner.task.removeDependency.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
   const rolloverDate = useMemo(() => shiftLocalDate(today, -1), [today]);
   const rolloverPreview = trpc.planner.task.rolloverPreview.useQuery(
@@ -7057,19 +7075,56 @@ export default function Home() {
     }
   }, []);
   const openSearchEntity = (
-    entity: "task" | "goal" | "project" | "habit" | "review"
-  ) =>
-    selectSurface(
-      entity === "task"
-        ? "tasks"
-        : entity === "goal"
-          ? "goals"
-          : entity === "project"
-            ? "projects"
-            : entity === "habit"
-              ? "habits"
-              : "review"
-    );
+    target: SearchOpenEntity,
+    trigger: HTMLButtonElement
+  ) => {
+    searchReturnTargetRef.current = trigger.dataset.searchResultId ?? null;
+    const next = searchOpenLocation(target, {
+      query: workspaceSearchQuery,
+      taskQuery: taskSearch,
+      taskFilter,
+    });
+    setPlannerLocation(current => ({ ...current, ...next } as PlannerLocation));
+    if (typeof window !== "undefined")
+      writePlannerLocation(
+        new URL(window.location.href),
+        next as PlannerLocation,
+        window.history
+      );
+  };
+  const updateSelectedTaskRecord = (recordId: string | null) => {
+    if (!recordId && searchReturnTargetRef.current) {
+      const returnTarget = searchReturnTargetRef.current;
+      searchReturnTargetRef.current = null;
+      const next: PlannerLocation = {
+        ...plannerLocation,
+        destination: "home",
+        view: "search",
+        action: "search",
+        selectedRecord: null,
+      };
+      setPlannerLocation(next);
+      if (typeof window !== "undefined") {
+        writePlannerLocation(new URL(window.location.href), next, window.history);
+        window.setTimeout(() => {
+          for (const candidate of Array.from(
+            document.querySelectorAll<HTMLButtonElement>(
+              "[data-search-result-id]"
+            )
+          ))
+            if (candidate.dataset.searchResultId === returnTarget) {
+              candidate.focus();
+              break;
+            }
+        }, 0);
+      }
+      return;
+    }
+    const next = { ...plannerLocation, selectedRecord: recordId };
+    setPlannerLocation(next);
+    if (typeof window !== "undefined")
+      writePlannerLocation(new URL(window.location.href), next, window.history);
+  };
   const updateTaskBoardUrl = useCallback(
     (view: { query: string; filter: TaskBoardFilter }) => {
       setPlannerLocation(current => ({
@@ -7363,6 +7418,30 @@ export default function Home() {
       horizon: parent.horizon,
       sortOrder: parent.sortOrder + 1,
     });
+  };
+  const addTaskDependencySafely = async (
+    task: any,
+    dependsOnTaskId: string
+  ) => {
+    if (!isOnline)
+      throw new Error(
+        "Reconnect to change dependencies. The task itself remains available offline."
+      );
+    await addTaskDependency.mutateAsync({
+      ...scope,
+      taskId: task.id,
+      dependsOnTaskId,
+      dependencyType: "hard",
+    });
+    toast.success("Dependency added.");
+  };
+  const removeTaskDependencySafely = async (dependency: any) => {
+    if (!isOnline)
+      throw new Error(
+        "Reconnect to change dependencies. Nothing has been removed."
+      );
+    await removeTaskDependency.mutateAsync({ ...scope, id: dependency.id });
+    toast.success("Dependency removed.");
   };
   const resolveReviewedConflict = async (
     conflict: any,
@@ -7939,6 +8018,55 @@ export default function Home() {
         schedule: values.habitSchedule ?? { cadence: "daily" },
       });
   };
+  const createFromCapture = async (
+    kind: ComposerKind,
+    values: Record<string, unknown>
+  ) => {
+    if (kind === "task")
+      return persistTaskCreate({
+        title: values.title,
+        scheduledLocalDate: values.scheduledLocalDate ?? null,
+        estimateMinutes: values.estimateMinutes ?? null,
+        state: "not_started",
+        priority: "medium",
+        horizon: "daily",
+        sortOrder: 0,
+      });
+    if (!isOnline)
+      throw new Error(
+        `Reconnect to create a ${kind}. The draft has not been saved.`
+      );
+    if (kind === "goal")
+      await createGoal.mutateAsync({
+        ...scope,
+        title: String(values.title),
+        dueLocalDate: (values.dueLocalDate as string | null) ?? null,
+        state: "not_started",
+        priority: "medium",
+        horizon: "yearly",
+        progressMode: "task",
+        progressValue: 0,
+        targetValue: 100,
+      });
+    if (kind === "project")
+      await createProject.mutateAsync({
+        ...scope,
+        title: String(values.title),
+        goalId: (values.goalId as string | null) ?? null,
+        dueLocalDate: (values.dueLocalDate as string | null) ?? null,
+        state: "not_started",
+        priority: "medium",
+        horizon: "quarterly",
+      });
+    if (kind === "habit")
+      await createHabit.mutateAsync({
+        ...scope,
+        name: String(values.title),
+        color: "#C6F06A",
+        frequency: "daily",
+        schedule: { cadence: "daily" },
+      });
+  };
   const createProjectBreakdown = async (
     project: any,
     drafts: ProjectBreakdownDraft[]
@@ -8202,6 +8330,7 @@ export default function Home() {
               scope={scope}
               today={today}
               snapshot={snapshot}
+              onCreateTask={persistTaskCreate}
             />
           </Suspense>
         ) : null}
@@ -8216,58 +8345,55 @@ export default function Home() {
           </Suspense>
         ) : null}
         {surface === "tasks" ? (
-          <section className="work-surface task-board-surface">
-            <div className="surface-toolbar">
-              <div className="task-search">
-                <Search size={17} />
-                <Input
-                  data-task-search
-                  value={taskSearch}
-                  onChange={event => updateTaskSearch(event.target.value)}
-                  placeholder="Search your plan"
-                />
-              </div>
-              <div className="filter-group">
-                <button
-                  className={cn(taskFilter === "all" && "is-active")}
-                  onClick={() => updateTaskFilter("all")}
-                >
-                  All
-                </button>
-                <button
-                  className={cn(taskFilter === "today" && "is-active")}
-                  onClick={() => updateTaskFilter("today")}
-                >
-                  Today
-                </button>
-                <button
-                  className={cn(taskFilter === "deadline_risk" && "is-active")}
-                  onClick={() => updateTaskFilter("deadline_risk")}
-                >
-                  Deadline risk
-                </button>
-              </div>
-            </div>
-            <TaskBoard
-              tasks={taskRows}
-              categories={snapshot.categories}
-              projects={snapshot.projects}
-              onToggle={toggleTask}
-              onMove={moveTaskToLane}
-              onCompose={() => openComposer("task")}
-              onArchiveCompleted={archiveCompletedTasks}
-              onArchive={archiveTaskFromPhone}
-              onUpdate={persistTaskPatch}
-              onCreateSubtask={createSubtaskSafely}
-              onReorder={reorderTaskInLane}
-              isSearching={Boolean(taskSearch.trim())}
-            />
-            <TaskArchivePanel
-              tasks={archivedTasks}
-              query={taskSearch}
-              onRestore={restoreArchivedTask}
-            />
-          </section>
+          <TaskWorkspace
+            view={
+              (["inbox", "list", "board", "saved", "archive"] as string[]).includes(
+                plannerLocation.view
+              )
+                ? (plannerLocation.view as TaskWorkspaceView)
+                : "list"
+            }
+            tasks={snapshot.tasks}
+            categories={snapshot.categories}
+            projects={snapshot.projects}
+            goals={snapshot.goals}
+            savedViews={snapshot.savedViews}
+            dependencies={snapshot.taskDependencies}
+            today={today}
+            timezone={scope.timezone}
+            query={taskSearch}
+            filter={taskFilter}
+            selectedRecordId={plannerLocation.selectedRecord}
+            pendingTaskIds={
+              new Set(pendingOperations.map(operation => operation.entityId))
+            }
+            conflictCountByTask={
+              new Map(
+                [
+                  ...localSyncConflicts,
+                  ...(serverSyncConflicts.data ?? []),
+                ].reduce((entries, conflict) => {
+                  const current = entries.get(conflict.entityId) ?? 0;
+                  entries.set(conflict.entityId, current + 1);
+                  return entries;
+                }, new Map<string, number>())
+              )
+            }
+            isOnline={isOnline}
+            onViewChange={view =>
+              navigatePlanner({ destination: "tasks", view })
+            }
+            onQueryChange={updateTaskSearch}
+            onFilterChange={updateTaskFilter}
+            onSelectedRecordChange={updateSelectedTaskRecord}
+            onCapture={() => openComposer("task")}
+            onUpdate={persistTaskPatch}
+            onCreateSubtask={createSubtaskSafely}
+            onReorder={reorderTaskInLane}
+            onArchiveCompleted={archiveCompletedTasks}
+            onAddDependency={addTaskDependencySafely}
+            onRemoveDependency={removeTaskDependencySafely}
+          />
         ) : null}
         {surface === "calendar" ? (
           <section className="calendar-surface">
@@ -8485,14 +8611,22 @@ export default function Home() {
           />
         ) : null}
       </DestinationBoundary>
-      <Composer
+      <CaptureSheet
         open={composerOpen}
         kind={composerKind}
-        categories={snapshot.categories}
+        today={today}
+        goals={snapshot.goals}
+        isOnline={isOnline}
         onOpenChange={setComposerOpen}
         onKindChange={setComposerKind}
-        onCreate={createFromComposer}
-        onManageCategories={() => setCategoryDialogOpen(true)}
+        onCreate={createFromCapture}
+        onOpenNaturalCapture={() =>
+          navigatePlanner({
+            destination: "tasks",
+            view: "inbox",
+            action: "capture",
+          })
+        }
       />
       <ProjectBreakdownDialog
         project={breakdownProject}

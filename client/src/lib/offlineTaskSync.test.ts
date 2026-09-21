@@ -45,6 +45,29 @@ describe("offline task replay", () => {
     })]);
   });
 
+  it("keeps a title-only Inbox capture unscheduled across refetch overlays", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskCreate(
+      store,
+      scope,
+      { title: "Inbox thought", scheduledLocalDate: null, state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 },
+      "inbox-capture-1",
+      "2026-09-12T09:00:00.000Z",
+    );
+
+    const overlaid = overlayPendingTaskOperations(
+      { tasks: [{ id: "server-task", title: "Online task", scheduledLocalDate: "2026-09-12" }] },
+      await store.listOperations(scope),
+    );
+
+    expect(overlaid.tasks).toContainEqual(expect.objectContaining({
+      id: "offline:inbox-capture-1",
+      clientRequestId: "inbox-capture-1",
+      title: "Inbox thought",
+      scheduledLocalDate: null,
+    }));
+  });
+
   it("acknowledges a replayed create and returns the durable server record", async () => {
     const store = new MemoryPlannerSyncStore();
     await queueTaskCreate(store, scope, { title: "Captured offline", state: "not_started", priority: "medium", horizon: "daily", sortOrder: 0 }, "capture-1", "2026-09-12T09:00:00.000Z");

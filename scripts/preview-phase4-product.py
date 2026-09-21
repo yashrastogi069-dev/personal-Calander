@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 REPOSITORY = Path(__file__).resolve().parents[1]
 AUTH_HARNESS = Path(__file__).with_name("preview-auth-states.py")
 LINKED_HARNESS = Path(__file__).with_name("preview-linked-planner.py")
-SCENARIOS = ("shell-navigation",)
+SCENARIOS = ("shell-navigation", "task-capture-search")
 DEFAULT_WIDTHS = (390, 1440)
 HEIGHTS = {390: 844, 1440: 1000}
 
@@ -371,6 +371,237 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
     return result
 
 
+def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict:
+    auth = runpy.run_path(str(AUTH_HARNESS))
+    linked = runpy.run_path(str(LINKED_HARNESS))
+    height = HEIGHTS.get(width, 900 if width >= 768 else 844)
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        device_scale_factor=1,
+        color_scheme="light",
+        timezone_id="Asia/Calcutta",
+        service_workers="block",
+    )
+    page = context.new_page()
+    page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+    runtime_errors: list[str] = []
+    console_errors: list[str] = []
+    page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+    page.on(
+        "console",
+        lambda message: console_errors.append(message.text)
+        if message.type == "error" and "favicon" not in message.text.lower()
+        else None,
+    )
+    fixtures = linked["fixtures"]()
+    snapshot = fixtures["planner.workspace.snapshot"]
+    base = {
+        "workspaceId": snapshot["workspace"]["id"],
+        "description": None,
+        "priority": "medium",
+        "horizon": "daily",
+        "categoryId": "preview-category",
+        "goalId": None,
+        "projectId": None,
+        "parentTaskId": None,
+        "dueLocalDate": None,
+        "plannedStartAt": None,
+        "plannedEndAt": None,
+        "estimateMinutes": None,
+        "sortOrder": 0,
+        "recurrenceRule": None,
+        "recurrenceAnchor": None,
+        "recurrenceUntilLocalDate": None,
+        "scheduleMode": "manual",
+        "outcome": "none",
+        "outcomeAt": None,
+        "rescheduleCount": 0,
+        "clientRequestId": None,
+        "completedAt": None,
+        "archivedAt": None,
+        "createdAt": "2026-09-20T08:00:00.000Z",
+        "updatedAt": "2026-09-20T08:00:00.000Z",
+        "version": 1,
+    }
+    inbox_task = {
+        **base,
+        "id": "preview-task-inbox",
+        "title": "Clarify lease renewal",
+        "state": "not_started",
+        "scheduledLocalDate": None,
+    }
+    planned_task = {
+        **base,
+        "id": "preview-task-planned",
+        "title": "Review calendar",
+        "state": "in_progress",
+        "scheduledLocalDate": "2026-09-21",
+        "estimateMinutes": 30,
+        "sortOrder": 1,
+    }
+    completed_task = {
+        **base,
+        "id": "preview-task-completed",
+        "title": "Send confirmation",
+        "state": "completed",
+        "scheduledLocalDate": "2026-09-21",
+        "completedAt": "2026-09-21T07:00:00.000Z",
+        "sortOrder": 2,
+    }
+    archived_task = {
+        **base,
+        "id": "preview-task-archived",
+        "title": "Old lease note",
+        "state": "archived",
+        "scheduledLocalDate": None,
+        "archivedAt": "2026-09-19T07:00:00.000Z",
+        "sortOrder": 3,
+    }
+    snapshot["tasks"] = [inbox_task, planned_task, completed_task, archived_task]
+    created_task = {
+        **base,
+        "id": "preview-task-created",
+        "title": "Buy oat milk",
+        "state": "not_started",
+        "scheduledLocalDate": None,
+        "clientRequestId": "preview-created-request",
+    }
+    fixtures["planner.task.create"] = created_task
+    fixtures["planner.search.workspace"] = [
+        {
+            "entity": "task",
+            "id": inbox_task["id"],
+            "title": inbox_task["title"],
+            "summary": "Unscheduled household follow-up",
+            "state": inbox_task["state"],
+        }
+    ]
+    fixtures["planner.task.rolloverPreview"] = {
+        "fromLocalDate": "2026-09-20",
+        "candidates": [],
+    }
+    requests, unexpected = auth["install_preview"](
+        context, url, "linked", fixtures
+    )
+    result: dict = {
+        "scenario": "task-capture-search",
+        "width": width,
+        "height": height,
+        "data": "synthetic-only",
+        "runtimeErrors": runtime_errors,
+        "consoleErrors": console_errors,
+        "unexpectedRequests": unexpected,
+        "plannerRequests": requests,
+    }
+    try:
+        def checkpoint(name: str) -> None:
+            result["checkpoint"] = name
+            print(f"task-capture-search {width}px: {name}", flush=True)
+
+        checkpoint("open-pwa-capture")
+        separator = "&" if "?" in url else "?"
+        page.goto(f"{url}{separator}create=task", wait_until="networkidle")
+        capture = page.get_by_role("dialog", name="Capture")
+        capture.wait_for(state="visible", timeout=20_000)
+        assert capture.get_by_role("button", name="Save to Inbox", exact=True).is_visible()
+        assert "scheduledLocalDate" not in capture.inner_text()
+        capture.get_by_label("Name", exact=True).fill("Buy oat milk")
+        capture.get_by_role("button", name="Save to Inbox", exact=True).click()
+        capture.wait_for(state="hidden")
+
+        checkpoint("open-tasks")
+        click_destination(page, "Tasks")
+        wait_for_target(page, "tasks", "list")
+        task_tabs = page.locator(".task-workspace-tabs")
+        task_tabs.get_by_role("button", name="Inbox", exact=True).click()
+        checkpoint("wait-inbox")
+        wait_for_target(page, "tasks", "inbox")
+        page.get_by_text("Clarify lease renewal", exact=True).wait_for()
+        assert not page.get_by_text("Review calendar", exact=True).is_visible()
+        inbox_location = current_location(page)
+
+        task_tabs.get_by_role("button", name="Board", exact=True).click()
+        checkpoint("wait-board")
+        wait_for_target(page, "tasks", "board")
+        lanes = page.locator(".task-lane")
+        assert lanes.count() == 3
+        if width <= 680:
+            assert page.locator(".task-lane:visible").count() == 1
+            assert page.get_by_role("tab").count() == 3
+        lane_surfaces = lanes.evaluate_all(
+            "elements => elements.map(element => getComputedStyle(element).getPropertyValue('--lane-surface').trim())"
+        )
+        assert lane_surfaces == ["#2a405d", "#155b59", "#1d4b3d"], lane_surfaces
+        target_metrics = page.locator(
+            ".task-workspace button:visible, .task-workspace select:visible"
+        ).evaluate_all(
+            "elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim() }; })"
+        )
+
+        checkpoint("open-search")
+        click_destination(page, "Search")
+        wait_for_target(page, "home", "search")
+        search = page.get_by_label("Search this workspace", exact=True)
+        search.fill("lease")
+        checkpoint("wait-search-query")
+        wait_for_parameter(page, "q", "lease")
+        search_result = page.locator('[data-search-result-id="task:preview-task-inbox"]')
+        search_result.wait_for(state="visible")
+        search_result.click()
+        checkpoint("wait-task-detail")
+        wait_for_target(page, "tasks", "list")
+        detail = page.get_by_role("dialog", name="Clarify lease renewal")
+        detail.wait_for(state="visible")
+        assert page.locator('[data-scroll-owner="destination"]').get_attribute(
+            "data-selected-record"
+        ) == "preview-task-inbox"
+        page.keyboard.press("Escape")
+        checkpoint("wait-search-return")
+        wait_for_target(page, "home", "search")
+        assert page.get_by_label("Search this workspace", exact=True).input_value() == "lease"
+        checkpoint("wait-search-focus")
+        page.wait_for_function(
+            "() => document.activeElement?.dataset?.searchResultId === 'task:preview-task-inbox'"
+        )
+
+        metrics = overflow_metrics(page)
+        undersized = [
+            target for target in target_metrics
+            if target["width"] < 44 or target["height"] < 44
+        ]
+        screenshot = output / f"task-capture-search-{width}.png"
+        checkpoint("capture-evidence")
+        page.screenshot(path=str(screenshot), full_page=True)
+        page.wait_for_timeout(100)
+        runtime_errors[:] = [
+            error for error in runtime_errors
+            if error != "WebSocket closed without opened."
+        ]
+        result.update(
+            {
+                "status": "PASS",
+                "inboxLocation": inbox_location,
+                "laneSurfaces": lane_surfaces,
+                "searchQueryRetained": True,
+                "searchFocusRestored": True,
+                "minimumTarget": {
+                    "width": min((target["width"] for target in target_metrics), default=44),
+                    "height": min((target["height"] for target in target_metrics), default=44),
+                },
+                "overflow": metrics,
+                "screenshot": str(screenshot),
+            }
+        )
+        assert not undersized, undersized
+        assert not metrics["horizontalOverflow"], metrics
+        assert not runtime_errors, runtime_errors
+        assert not console_errors, console_errors
+        assert not unexpected, unexpected
+    finally:
+        context.close()
+    return result
+
+
 def run(args: argparse.Namespace) -> int:
     url = assert_loopback_url(args.url)
     output = external_output(args.output)
@@ -386,9 +617,13 @@ def run(args: argparse.Namespace) -> int:
         try:
             for width in args.widths:
                 try:
-                    result = run_shell_navigation(browser, url, output, width)
+                    result = (
+                        run_shell_navigation(browser, url, output, width)
+                        if args.scenario == "shell-navigation"
+                        else run_task_capture_search(browser, url, output, width)
+                    )
                     results.append(result)
-                    print(f"PASS shell-navigation {width}px", flush=True)
+                    print(f"PASS {args.scenario} {width}px", flush=True)
                 except Exception as error:
                     results.append(
                         {
@@ -399,7 +634,7 @@ def run(args: argparse.Namespace) -> int:
                         }
                     )
                     print(
-                        f"FAIL shell-navigation {width}px: {type(error).__name__}: {error}",
+                        f"FAIL {args.scenario} {width}px: {type(error).__name__}: {error}",
                         flush=True,
                     )
         finally:
@@ -429,7 +664,7 @@ def main() -> int:
         "--scenario",
         choices=SCENARIOS,
         default="shell-navigation",
-        help="Scenario to run (initially: shell-navigation).",
+        help="Scenario to run.",
     )
     parser.add_argument("--widths", type=parse_widths, default=DEFAULT_WIDTHS)
     parser.add_argument("--url", default="http://127.0.0.1:14775")

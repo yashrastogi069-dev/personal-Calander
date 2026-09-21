@@ -195,7 +195,11 @@ export function isPlannerLocationTarget(
 export function actionForPlannerTarget(
   target: Pick<PlannerLocationTarget, "destination" | "view">
 ): GlobalPlannerAction | undefined {
-  return globalActionViews.get(`${target.destination}/${target.view}`);
+  const key = `${target.destination}/${target.view}`;
+  // Inbox is a durable Tasks view in its own right. Capture may target it
+  // explicitly, but ordinary Inbox navigation must not manufacture an action.
+  if (key === "tasks/inbox") return undefined;
+  return globalActionViews.get(key);
 }
 
 export function resolveLegacyPlannerAlias(
