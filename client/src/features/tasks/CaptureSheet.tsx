@@ -6,8 +6,27 @@ import { plannerObjectDefinitions } from "@shared/planningLanguage";
 import type { NaturalLanguageTaskDraft } from "@shared/naturalLanguageTask";
 import { Inbox, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 export type CaptureKind = "task" | "goal" | "project" | "habit";
+const captureKinds: CaptureKind[] = ["task", "project", "goal", "habit"];
+
+export function captureInterpretationHandoff(thought: string) {
+  return thought;
+}
+
+export function capturePersistenceMessage(result: { queued?: boolean } | void) {
+  return result?.queued ? "Saved on this device · waiting to sync." : "Saved.";
+}
+
+export function nextCaptureKindForKey(current: CaptureKind, key: string): CaptureKind {
+  if (key === "Home") return captureKinds[0];
+  if (key === "End") return captureKinds[captureKinds.length - 1];
+  const direction = key === "ArrowRight" || key === "ArrowDown" ? 1 : key === "ArrowLeft" || key === "ArrowUp" ? -1 : 0;
+  if (!direction) return current;
+  const currentIndex = captureKinds.indexOf(current);
+  return captureKinds[(currentIndex + direction + captureKinds.length) % captureKinds.length];
+}
 
 export function captureTaskPatch(title: string, planForToday: boolean, today: string) {
   return {
@@ -44,10 +63,12 @@ export type CaptureSheetProps = {
   today: string;
   goals: any[];
   isOnline: boolean;
+  thought: string;
+  onThoughtChange: (thought: string) => void;
   onOpenChange: (open: boolean) => void;
   onKindChange: (kind: CaptureKind) => void;
   onCreate: (kind: CaptureKind, values: Record<string, unknown>) => Promise<{ queued?: boolean } | void>;
-  onOpenNaturalCapture: () => void;
+  onOpenNaturalCapture: (thought: string) => void;
 };
 
 export function CaptureSheet({
@@ -56,13 +77,14 @@ export function CaptureSheet({
   today,
   goals,
   isOnline,
+  thought,
+  onThoughtChange,
   onOpenChange,
   onKindChange,
   onCreate,
   onOpenNaturalCapture,
 }: CaptureSheetProps) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const [title, setTitle] = useState("");
   const [dueLocalDate, setDueLocalDate] = useState("");
   const [estimateMinutes, setEstimateMinutes] = useState("");
   const [goalId, setGoalId] = useState("none");
@@ -75,7 +97,7 @@ export function CaptureSheet({
   }, [open]);
 
   const reset = () => {
-    setTitle("");
+    onThoughtChange("");
     setDueLocalDate("");
     setEstimateMinutes("");
     setGoalId("none");
@@ -88,7 +110,7 @@ export function CaptureSheet({
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const name = title.trim();
+    const name = thought.trim();
     if (!name) {
       setError(`Name this ${plannerObjectDefinitions[kind].label.toLowerCase()} before creating it.`);
       return;
@@ -110,7 +132,8 @@ export function CaptureSheet({
             dueLocalDate: kind === "habit" ? null : dueLocalDate || null,
             goalId: kind === "project" && goalId !== "none" ? goalId : null,
           };
-      await onCreate(kind, values);
+      const result = await onCreate(kind, values);
+      toast.success(capturePersistenceMessage(result));
       reset();
       onOpenChange(false);
     } catch (caught) {
@@ -138,15 +161,16 @@ export function CaptureSheet({
     >
       <form id="capture-sheet-form" className="capture-sheet-form" onSubmit={submit} noValidate>
         <div className="capture-kind-tabs" role="tablist" aria-label="Capture type">
-          {(["task", "project", "goal", "habit"] as CaptureKind[]).map(value => (
-            <button key={value} type="button" role="tab" aria-selected={kind === value} onClick={() => { onKindChange(value); setError(null); }}>
+          {captureKinds.map(value => (
+            <button key={value} id={`capture-tab-${value}`} type="button" role="tab" aria-selected={kind === value} aria-controls="capture-kind-panel" tabIndex={kind === value ? 0 : -1} onClick={() => { onKindChange(value); setError(null); }} onKeyDown={event => { const next = nextCaptureKindForKey(kind, event.key); if (next === kind) return; event.preventDefault(); onKindChange(next); setError(null); window.setTimeout(() => document.getElementById(`capture-tab-${next}`)?.focus(), 0); }}>
               {plannerObjectDefinitions[value].label}
             </button>
           ))}
         </div>
+        <div id="capture-kind-panel" role="tabpanel" aria-labelledby={`capture-tab-${kind}`} className="capture-kind-panel">
         <label>
           <Label htmlFor="capture-sheet-title">Name</Label>
-          <Input id="capture-sheet-title" autoFocus value={title} onChange={event => { setTitle(event.target.value); setError(null); }} placeholder={kind === "task" ? "What needs attention?" : plannerObjectDefinitions[kind].short} />
+          <Input id="capture-sheet-title" autoFocus value={thought} onChange={event => { onThoughtChange(event.target.value); setError(null); }} placeholder={kind === "task" ? "What needs attention?" : plannerObjectDefinitions[kind].short} />
         </label>
 
         {kind === "task" ? (
@@ -163,7 +187,7 @@ export function CaptureSheet({
               <Label htmlFor="capture-sheet-estimate">Estimate (optional)</Label>
               <Input id="capture-sheet-estimate" type="number" min="0" max="1440" value={estimateMinutes} onChange={event => setEstimateMinutes(event.target.value)} placeholder="Minutes" />
             </label>
-            <button type="button" className="capture-review-link" onClick={() => { close(false); onOpenNaturalCapture(); }}>
+            <button type="button" className="capture-review-link" onClick={() => { onOpenChange(false); onOpenNaturalCapture(captureInterpretationHandoff(thought)); }}>
               <Sparkles aria-hidden="true" size={17} /> Interpret dates, reserved time, recurrence, or use a starting point
             </button>
           </>
@@ -187,6 +211,7 @@ export function CaptureSheet({
         {kind === "habit" ? <p className="capture-offline-note">This starts as a daily habit. Cadence and reminders remain editable in Habits.</p> : null}
         {!isOnline && kind !== "task" ? <p className="capture-offline-note" role="status">Reconnect to save this {kind}. Your draft will remain in this sheet.</p> : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}
+        </div>
       </form>
     </PlannerSheet>
   );

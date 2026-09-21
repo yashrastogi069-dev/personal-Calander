@@ -458,6 +458,59 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         "sortOrder": 3,
     }
     snapshot["tasks"] = [inbox_task, planned_task, completed_task, archived_task]
+    search_goal = {
+        "id": "preview-goal-search",
+        "workspaceId": snapshot["workspace"]["id"],
+        "title": "Renew the lease intentionally",
+        "description": "Goal search evidence",
+        "state": "in_progress",
+        "priority": "medium",
+        "horizon": "yearly",
+        "progressMode": "task",
+        "progressValue": 20,
+        "targetValue": 100,
+        "dueLocalDate": "2026-12-31",
+        "categoryId": None,
+        "version": 1,
+    }
+    search_project = {
+        "id": "preview-project-search",
+        "workspaceId": snapshot["workspace"]["id"],
+        "title": "Lease paperwork project",
+        "description": "Project search evidence",
+        "state": "not_started",
+        "priority": "medium",
+        "horizon": "quarterly",
+        "dueLocalDate": "2026-10-15",
+        "goalId": search_goal["id"],
+        "categoryId": None,
+        "version": 1,
+    }
+    search_habit = {
+        "id": "preview-habit-search",
+        "workspaceId": snapshot["workspace"]["id"],
+        "name": "Review lease notes",
+        "description": "Habit search evidence",
+        "frequency": "daily",
+        "schedule": {"cadence": "daily"},
+        "color": "#2f6b5f",
+        "archivedAt": None,
+        "version": 1,
+    }
+    search_review = {
+        "id": "preview-review-search",
+        "workspaceId": snapshot["workspace"]["id"],
+        "kind": "weekly",
+        "periodStartLocalDate": "2026-09-14",
+        "periodEndLocalDate": "2026-09-20",
+        "reflection": "Lease review evidence",
+        "state": "completed",
+        "version": 1,
+    }
+    snapshot["goals"] = [search_goal]
+    snapshot["projects"] = [search_project]
+    snapshot["habits"] = [search_habit]
+    snapshot["reviewSessions"] = [search_review]
     created_task = {
         **base,
         "id": "preview-task-created",
@@ -474,7 +527,11 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
             "title": inbox_task["title"],
             "summary": "Unscheduled household follow-up",
             "state": inbox_task["state"],
-        }
+        },
+        {"entity": "goal", "id": search_goal["id"], "title": search_goal["title"], "summary": search_goal["description"], "state": search_goal["state"]},
+        {"entity": "project", "id": search_project["id"], "title": search_project["title"], "summary": search_project["description"], "state": search_project["state"]},
+        {"entity": "habit", "id": search_habit["id"], "title": search_habit["name"], "summary": search_habit["description"], "state": "active"},
+        {"entity": "review", "id": search_review["id"], "title": "Weekly review · 2026-09-14 to 2026-09-20", "summary": search_review["reflection"], "state": search_review["state"]},
     ]
     fixtures["planner.task.rolloverPreview"] = {
         "fromLocalDate": "2026-09-20",
@@ -505,9 +562,22 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         capture.wait_for(state="visible", timeout=20_000)
         assert capture.get_by_role("button", name="Save to Inbox", exact=True).is_visible()
         assert "scheduledLocalDate" not in capture.inner_text()
-        capture.get_by_label("Name", exact=True).fill("Buy oat milk")
+        for tab in capture.get_by_role("tab").all():
+            assert tab.get_attribute("aria-controls") == "capture-kind-panel"
+        capture.get_by_label("Name", exact=True).fill("Buy oat milk Friday")
+        capture.get_by_role("button", name="Interpret dates, reserved time, recurrence, or use a starting point", exact=True).click()
+        page.locator("#natural-task").wait_for(state="visible")
+        assert page.locator("#natural-task").input_value() == "Buy oat milk Friday"
+        checkpoint("capture-handoff-retained")
+        click_destination(page, "Tasks")
+        wait_for_target(page, "tasks", "list")
+        page.locator(".task-workspace-heading").get_by_role("button", name="Capture", exact=True).click()
+        capture.wait_for(state="visible")
+        assert capture.get_by_label("Name", exact=True).input_value() == "Buy oat milk Friday"
         capture.get_by_role("button", name="Save to Inbox", exact=True).click()
         capture.wait_for(state="hidden")
+        page.mouse.move(8, 8)
+        page.locator("[data-sonner-toast]").wait_for(state="hidden", timeout=10_000)
 
         checkpoint("open-tasks")
         click_destination(page, "Tasks")
@@ -527,7 +597,7 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         assert lanes.count() == 3
         if width <= 680:
             assert page.locator(".task-lane:visible").count() == 1
-            assert page.get_by_role("tab").count() == 3
+            assert page.locator(".task-lane-tabs button").count() == 3
         lane_surfaces = lanes.evaluate_all(
             "elements => elements.map(element => getComputedStyle(element).getPropertyValue('--lane-surface').trim())"
         )
@@ -537,6 +607,12 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         ).evaluate_all(
             "elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim() }; })"
         )
+        functional_text_sizes = page.locator(
+            ".task-workspace .canonical-task-keyline:visible, .task-workspace .filter-group button:visible, .task-workspace .task-lane-select:visible"
+        ).evaluate_all(
+            "elements => elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize))"
+        )
+        assert functional_text_sizes and min(functional_text_sizes) >= 14, functional_text_sizes
 
         checkpoint("open-search")
         click_destination(page, "Search")
@@ -545,24 +621,31 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
         search.fill("lease")
         checkpoint("wait-search-query")
         wait_for_parameter(page, "q", "lease")
-        search_result = page.locator('[data-search-result-id="task:preview-task-inbox"]')
-        search_result.wait_for(state="visible")
-        search_result.click()
-        checkpoint("wait-task-detail")
-        wait_for_target(page, "tasks", "list")
-        detail = page.get_by_role("dialog", name="Clarify lease renewal")
-        detail.wait_for(state="visible")
-        assert page.locator('[data-scroll-owner="destination"]').get_attribute(
-            "data-selected-record"
-        ) == "preview-task-inbox"
-        page.keyboard.press("Escape")
-        checkpoint("wait-search-return")
-        wait_for_target(page, "home", "search")
-        assert page.get_by_label("Search this workspace", exact=True).input_value() == "lease"
-        checkpoint("wait-search-focus")
-        page.wait_for_function(
-            "() => document.activeElement?.dataset?.searchResultId === 'task:preview-task-inbox'"
-        )
+        search_records = [
+            ("task", "preview-task-inbox", "tasks", "list", "Clarify lease renewal"),
+            ("goal", "preview-goal-search", "intentions", "outcomes", "Renew the lease intentionally"),
+            ("project", "preview-project-search", "intentions", "projects", "Lease paperwork project"),
+            ("habit", "preview-habit-search", "habits", "due", "Review lease notes"),
+            ("review", "preview-review-search", "review", "rituals", "Weekly review · 2026-09-14 to 2026-09-20"),
+        ]
+        for entity, record_id, destination, view, title in search_records:
+            search_result = page.locator(f'[data-search-result-id="{entity}:{record_id}"]')
+            search_result.wait_for(state="visible")
+            search_result.click()
+            checkpoint(f"wait-{entity}-detail")
+            wait_for_target(page, destination, view)
+            detail = page.get_by_role("dialog", name=title)
+            detail.wait_for(state="visible")
+            assert page.locator('[data-scroll-owner="destination"]').get_attribute(
+                "data-selected-record"
+            ) == record_id
+            page.keyboard.press("Escape")
+            checkpoint(f"wait-{entity}-search-return")
+            wait_for_target(page, "home", "search")
+            assert page.get_by_label("Search this workspace", exact=True).input_value() == "lease"
+            page.wait_for_function(
+                f"() => document.activeElement?.dataset?.searchResultId === '{entity}:{record_id}'"
+            )
 
         metrics = overflow_metrics(page)
         undersized = [
@@ -584,6 +667,9 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
                 "laneSurfaces": lane_surfaces,
                 "searchQueryRetained": True,
                 "searchFocusRestored": True,
+                "searchRecordTypesOpened": [record[0] for record in search_records],
+                "captureThoughtRetained": True,
+                "minimumFunctionalText": min(functional_text_sizes),
                 "minimumTarget": {
                     "width": min((target["width"] for target in target_metrics), default=44),
                     "height": min((target["height"] for target in target_metrics), default=44),

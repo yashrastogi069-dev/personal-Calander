@@ -9,6 +9,7 @@ import {
 } from "@shared/planningLanguage";
 import { taskEditorSourceKey } from "@shared/taskEditor";
 import { useEffect, useState, type FormEvent, type RefObject } from "react";
+import { toast } from "sonner";
 
 export type TaskMutationResult = {
   record: Record<string, any>;
@@ -44,6 +45,44 @@ function selectValue(value: unknown) {
   return typeof value === "string" && value ? value : "none";
 }
 
+type RecurrenceDraft = {
+  recurrenceFrequency: string;
+  recurrenceInterval: string;
+  recurrenceWeekdays: number[];
+};
+
+export function recurrenceRuleFromDraft(
+  original: Record<string, unknown> | null | undefined,
+  draft: RecurrenceDraft,
+) {
+  if (draft.recurrenceFrequency === "none") return null;
+  const { weekdays: _weekdays, ...rest } = original ?? {};
+  return {
+    ...rest,
+    frequency: draft.recurrenceFrequency,
+    interval: Math.max(1, Number(draft.recurrenceInterval) || 1),
+    ...(draft.recurrenceFrequency === "weekly"
+      ? { weekdays: [...draft.recurrenceWeekdays].sort((left, right) => left - right) }
+      : {}),
+  };
+}
+
+export async function runDependencyAction(
+  action: () => Promise<void>,
+  onSuccess?: () => void,
+): Promise<{ ok: true; error: null } | { ok: false; error: string }> {
+  try {
+    await action();
+    onSuccess?.();
+    return { ok: true, error: null };
+  } catch (caught) {
+    return {
+      ok: false,
+      error: caught instanceof Error ? caught.message : "The dependency change could not be saved.",
+    };
+  }
+}
+
 export function TaskDetailSheet({
   task,
   open,
@@ -65,6 +104,8 @@ export function TaskDetailSheet({
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [dependencyTaskId, setDependencyTaskId] = useState("none");
   const [error, setError] = useState<string | null>(null);
+  const [dependencyError, setDependencyError] = useState<string | null>(null);
+  const [dependencyPending, setDependencyPending] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const sourceKey = task ? taskEditorSourceKey(task) : "none";
 
@@ -91,11 +132,18 @@ export function TaskDetailSheet({
           ? rule.frequency
           : "none",
       recurrenceInterval: String(Math.max(1, Number(rule?.interval) || 1)),
+      recurrenceWeekdays: Array.isArray(rule?.weekdays)
+        ? rule.weekdays
+            .filter(value => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 6)
+            .map(Number)
+        : [],
       recurrenceUntilLocalDate: task.recurrenceUntilLocalDate ?? "",
     });
     setSubtaskTitle("");
     setDependencyTaskId("none");
     setError(null);
+    setDependencyError(null);
+    setDependencyPending(null);
   }, [sourceKey]);
 
   if (!task) return null;
@@ -128,17 +176,15 @@ export function TaskDetailSheet({
       setError(reservationError);
       return;
     }
-    const recurrenceRule =
-      draft.recurrenceFrequency === "none"
-        ? null
-        : {
-            frequency: draft.recurrenceFrequency,
-            interval: Math.max(1, Number(draft.recurrenceInterval) || 1),
-          };
+    const recurrenceRule = recurrenceRuleFromDraft(task.recurrenceRule, {
+      recurrenceFrequency: draft.recurrenceFrequency,
+      recurrenceInterval: draft.recurrenceInterval,
+      recurrenceWeekdays: draft.recurrenceWeekdays ?? [],
+    });
     setSaving(true);
     setError(null);
     try {
-      await onUpdate(task, {
+      const result = await onUpdate(task, {
         title,
         description: String(draft.description ?? "").trim() || null,
         state: draft.state,
@@ -161,6 +207,7 @@ export function TaskDetailSheet({
           ? draft.recurrenceUntilLocalDate || null
           : null,
       });
+      toast.success(result.queued ? "Saved on this device · waiting to sync." : "Task changes saved.");
       onOpenChange(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The task could not be saved.");
@@ -182,6 +229,25 @@ export function TaskDetailSheet({
     } finally {
       setSaving(false);
     }
+  };
+  const addDependency = async () => {
+    if (!onAddDependency || dependencyTaskId === "none") return;
+    setDependencyPending("add");
+    setDependencyError(null);
+    const result = await runDependencyAction(
+      () => onAddDependency(task, dependencyTaskId),
+      () => setDependencyTaskId("none"),
+    );
+    if (!result.ok) setDependencyError(result.error);
+    setDependencyPending(null);
+  };
+  const removeDependency = async (dependency: any) => {
+    if (!onRemoveDependency) return;
+    setDependencyPending(dependency.id);
+    setDependencyError(null);
+    const result = await runDependencyAction(() => onRemoveDependency(dependency));
+    if (!result.ok) setDependencyError(result.error);
+    setDependencyPending(null);
   };
 
   return (
@@ -255,20 +321,23 @@ export function TaskDetailSheet({
             {draft.recurrenceFrequency !== "none" ? <label>Every<Input type="number" min="1" max="365" value={draft.recurrenceInterval ?? "1"} onChange={event => setField("recurrenceInterval", event.target.value)} /></label> : null}
             {draft.recurrenceFrequency !== "none" ? <label>Stop after<Input type="date" value={draft.recurrenceUntilLocalDate ?? ""} onChange={event => setField("recurrenceUntilLocalDate", event.target.value)} /></label> : null}
           </div>
+          {draft.recurrenceFrequency === "weekly" ? <fieldset className="task-recurrence-weekdays"><legend>Repeat on</legend>{["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((label, weekday) => <label key={label}><input type="checkbox" checked={(draft.recurrenceWeekdays ?? []).includes(weekday)} onChange={event => setField("recurrenceWeekdays", event.target.checked ? [...(draft.recurrenceWeekdays ?? []), weekday] : (draft.recurrenceWeekdays ?? []).filter((value: number) => value !== weekday))} /><span>{label.slice(0, 3)}</span></label>)}</fieldset> : null}
           <p>Occurrence decisions remain in occurrence history; editing this form does not rewrite past occurrences.</p>
         </section>
 
         <section className="task-detail-section" aria-labelledby="task-detail-subtasks">
           <h3 id="task-detail-subtasks">Subtasks</h3>
           {childTasks.length ? <ul>{childTasks.map(child => <li key={child.id}>{child.title}<span>{child.state.replaceAll("_", " ")}</span></li>)}</ul> : <p>No subtasks yet.</p>}
-          <div className="task-detail-inline-create"><Input value={subtaskTitle} onChange={event => setSubtaskTitle(event.target.value)} placeholder="Add a concrete subtask" /><Button type="button" variant="outline" onClick={() => void addSubtask()} disabled={saving || !subtaskTitle.trim()}>Add subtask</Button></div>
+          <Label htmlFor={`task-subtask-${task.id}`}>New subtask</Label>
+          <div className="task-detail-inline-create"><Input id={`task-subtask-${task.id}`} value={subtaskTitle} onChange={event => setSubtaskTitle(event.target.value)} placeholder="Add a concrete subtask" /><Button type="button" variant="outline" onClick={() => void addSubtask()} disabled={saving || !subtaskTitle.trim()}>Add subtask</Button></div>
         </section>
 
         <section className="task-detail-section" aria-labelledby="task-detail-dependencies">
           <h3 id="task-detail-dependencies">Dependencies</h3>
-          {taskDependencies.length ? <ul>{taskDependencies.map(edge => { const dependency = tasks.find(candidate => candidate.id === edge.dependsOnTaskId); return <li key={edge.id}><span>{dependency?.title ?? "Unavailable task"} · {edge.dependencyType}</span>{onRemoveDependency ? <button type="button" disabled={!isOnline} onClick={() => void onRemoveDependency(edge)}>Remove</button> : null}</li>; })}</ul> : <p>No dependencies recorded.</p>}
-          {onAddDependency ? <div className="task-detail-inline-create"><select value={dependencyTaskId} onChange={event => setDependencyTaskId(event.target.value)}><option value="none">Choose a task</option>{dependencyCandidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}</select><Button type="button" variant="outline" disabled={!isOnline || dependencyTaskId === "none"} onClick={() => void onAddDependency(task, dependencyTaskId).then(() => setDependencyTaskId("none"))}>Add dependency</Button></div> : null}
+          {taskDependencies.length ? <ul>{taskDependencies.map(edge => { const dependency = tasks.find(candidate => candidate.id === edge.dependsOnTaskId); return <li key={edge.id}><span>{dependency?.title ?? "Unavailable task"} · {edge.dependencyType}</span>{onRemoveDependency ? <button type="button" disabled={!isOnline || dependencyPending !== null} onClick={() => void removeDependency(edge)}>{dependencyPending === edge.id ? "Removing…" : "Remove"}</button> : null}</li>; })}</ul> : <p>No dependencies recorded.</p>}
+          {onAddDependency ? <><Label htmlFor={`task-dependency-${task.id}`}>Task this work depends on</Label><div className="task-detail-inline-create"><select id={`task-dependency-${task.id}`} value={dependencyTaskId} onChange={event => { setDependencyTaskId(event.target.value); setDependencyError(null); }}><option value="none">Choose a task</option>{dependencyCandidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}</select><Button type="button" variant="outline" disabled={!isOnline || dependencyTaskId === "none" || dependencyPending !== null} onClick={() => void addDependency()}>{dependencyPending === "add" ? "Adding…" : "Add dependency"}</Button></div></> : null}
           {!isOnline ? <p>Reconnect to change dependencies. Your task draft remains here.</p> : null}
+          {dependencyError ? <p className="form-error" role="alert">{dependencyError} Your selection is still available; review it and retry.</p> : null}
         </section>
 
         {error ? <p className="form-error" role="alert">{error}</p> : null}

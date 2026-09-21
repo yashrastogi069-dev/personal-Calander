@@ -1,11 +1,16 @@
-export type TaskBoardFilter = "all" | "today" | "deadline_risk";
+export type TaskBoardFilter = "all" | "open" | "today" | "deadline_risk";
 
 export function taskBoardViewFromSearch(search: string) {
   const params = new URLSearchParams(search);
   const requestedFilter = params.get("taskFilter");
   return {
     query: params.get("taskQ") ?? "",
-    filter: requestedFilter === "today" || requestedFilter === "deadline_risk" ? requestedFilter : "all" as TaskBoardFilter,
+    filter:
+      requestedFilter === "open" || requestedFilter === "today" || requestedFilter === "deadline_risk"
+        ? requestedFilter
+        : requestedFilter === "risk"
+          ? "deadline_risk"
+          : "all" as TaskBoardFilter,
   };
 }
 

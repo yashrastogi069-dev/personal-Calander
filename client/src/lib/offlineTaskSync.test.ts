@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryPlannerSyncStore } from "./offlineSync";
 import { overlayPendingTaskOperations, queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
+import { taskRowsForWorkspace } from "../features/tasks/TaskWorkspace";
 
 const scope = { accountId: "account-a", workspaceId: "workspace-a" };
 
@@ -66,6 +67,33 @@ describe("offline task replay", () => {
       title: "Inbox thought",
       scheduledLocalDate: null,
     }));
+  });
+
+  it("projects a queued offline reorder in deterministic workspace order", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskUpdate(
+      store,
+      scope,
+      { id: "later", version: 2, sortOrder: 20 },
+      { sortOrder: 5 },
+      "reorder-1",
+      "2026-09-12T09:10:00.000Z",
+    );
+    const snapshot = overlayPendingTaskOperations(
+      { tasks: [
+        { id: "first", title: "First", state: "not_started", sortOrder: 10 },
+        { id: "later", title: "Later", state: "not_started", sortOrder: 20 },
+      ] },
+      await store.listOperations(scope),
+    );
+
+    expect(taskRowsForWorkspace(snapshot.tasks as any, {
+      view: "board",
+      query: "",
+      filter: "all",
+      sort: "manual",
+      today: "2026-09-21",
+    }).map(task => task.id)).toEqual(["later", "first"]);
   });
 
   it("acknowledges a replayed create and returns the durable server record", async () => {

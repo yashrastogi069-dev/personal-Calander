@@ -1,9 +1,10 @@
 import { Input } from "@/components/ui/input";
+import { PlannerSheet } from "@/features/shell/PlannerSheet";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import type { WorkspaceScope } from "@/lib/workspace";
 import { FileText, Flag, Goal, Search, TimerReset } from "lucide-react";
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState, type RefObject } from "react";
 
 type SearchEntity = "task" | "goal" | "project" | "habit" | "review";
 export type SearchOpenEntity = { entity: SearchEntity; id: string };
@@ -33,6 +34,67 @@ export function searchOpenLocation(target: SearchOpenEntity, retained: RetainedS
           ? "due"
           : "rituals";
   return { destination, view, selectedRecord: target.id, ...retained };
+}
+
+export function searchEntityForLocation(location: { destination: string; view: string }): SearchEntity | null {
+  if (location.destination === "tasks") return "task";
+  if (location.destination === "intentions") return location.view === "projects" ? "project" : "goal";
+  if (location.destination === "habits") return "habit";
+  if (location.destination === "review") return "review";
+  return null;
+}
+
+export function searchRecordFromSnapshot(snapshot: any, target: SearchOpenEntity) {
+  if (target.entity === "task") return snapshot.tasks?.find((record: any) => record.id === target.id) ?? null;
+  if (target.entity === "goal") return snapshot.goals?.find((record: any) => record.id === target.id) ?? null;
+  if (target.entity === "project") return snapshot.projects?.find((record: any) => record.id === target.id) ?? null;
+  if (target.entity === "habit") {
+    const record = snapshot.habits?.find((candidate: any) => candidate.id === target.id);
+    return record ? { ...record, title: record.name, state: record.archivedAt ? "archived" : "active" } : null;
+  }
+  const record = snapshot.reviewSessions?.find((candidate: any) => candidate.id === target.id);
+  if (!record) return null;
+  const kind = String(record.kind ?? "review");
+  return {
+    ...record,
+    title: `${kind.charAt(0).toUpperCase()}${kind.slice(1)} review · ${record.periodStartLocalDate} to ${record.periodEndLocalDate}`,
+  };
+}
+
+export function SearchRecordSheet({
+  target,
+  snapshot,
+  returnFocusRef,
+  onOpenChange,
+}: {
+  target: SearchOpenEntity | null;
+  snapshot: any;
+  returnFocusRef: RefObject<HTMLElement | null>;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const record = target ? searchRecordFromSnapshot(snapshot, target) : null;
+  if (!target || !record) return null;
+  const summary = record.description ?? record.reflection ?? "No additional text recorded.";
+  const state = record.state ?? (record.archivedAt ? "archived" : "active");
+  return (
+    <PlannerSheet
+      open
+      onOpenChange={onOpenChange}
+      returnFocusRef={returnFocusRef}
+      title={record.title}
+      description={`Exact ${target.entity} record from Search. Closing returns to the same result and query.`}
+    >
+      <section className="search-record-detail" aria-label={`${record.title} record details`}>
+        <dl>
+          <div><dt>Type</dt><dd>{target.entity}</dd></div>
+          <div><dt>State</dt><dd>{String(state).replaceAll("_", " ")}</dd></div>
+          <div><dt>Record ID</dt><dd>{record.id}</dd></div>
+          {record.version ? <div><dt>Version</dt><dd>{record.version}</dd></div> : null}
+        </dl>
+        <p>{summary}</p>
+      </section>
+    </PlannerSheet>
+  );
 }
 const entityMeta: Record<SearchEntity, { label: string; icon: typeof Search }> = {
   task: { label: "Task", icon: Search },

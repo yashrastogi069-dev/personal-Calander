@@ -107,6 +107,8 @@ import {
 } from "@/features/tasks/TaskWorkspace";
 import { CaptureSheet } from "@/features/tasks/CaptureSheet";
 import {
+  SearchRecordSheet,
+  searchEntityForLocation,
   searchOpenLocation,
   type SearchOpenEntity,
 } from "@/features/search/WorkspaceSearchWorkspace";
@@ -292,7 +294,8 @@ function targetForSurface(surface: Surface): PlannerLocationTarget {
 }
 
 function taskFilterFromPlannerLocation(location: PlannerLocation) {
-  return location.taskFilter === "today" ||
+  return location.taskFilter === "open" ||
+    location.taskFilter === "today" ||
     location.taskFilter === "deadline_risk"
     ? location.taskFilter
     : "all";
@@ -6773,11 +6776,13 @@ export default function Home() {
   );
   const [composerIntentHydrated, setComposerIntentHydrated] = useState(false);
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
+  const [naturalCaptureThought, setNaturalCaptureThought] = useState("");
   const [breakdownProject, setBreakdownProject] = useState<any | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [quickTitle, setQuickTitle] = useState("");
   const isOnline = useOnlineState();
   const searchReturnTargetRef = useRef<string | null>(null);
+  const searchRecordFocusRef = useRef<HTMLElement | null>(null);
   const [offlineCaptureCount, setOfflineCaptureCount] = useState(
     () => capturesForWorkspace(scope.workspaceId).length
   );
@@ -7079,6 +7084,7 @@ export default function Home() {
     trigger: HTMLButtonElement
   ) => {
     searchReturnTargetRef.current = trigger.dataset.searchResultId ?? null;
+    searchRecordFocusRef.current = trigger;
     const next = searchOpenLocation(target, {
       query: workspaceSearchQuery,
       taskQuery: taskSearch,
@@ -7092,7 +7098,7 @@ export default function Home() {
         window.history
       );
   };
-  const updateSelectedTaskRecord = (recordId: string | null) => {
+  const updateSelectedRecord = (recordId: string | null) => {
     if (!recordId && searchReturnTargetRef.current) {
       const returnTarget = searchReturnTargetRef.current;
       searchReturnTargetRef.current = null;
@@ -7140,12 +7146,6 @@ export default function Home() {
     },
     []
   );
-  const updateTaskSearch = (query: string) => {
-    updateTaskBoardUrl({ query, filter: taskFilter });
-  };
-  const updateTaskFilter = (filter: TaskBoardFilter) => {
-    updateTaskBoardUrl({ query: taskSearch, filter });
-  };
   const focusTaskSearch = () => {
     selectSurface("tasks");
     window.setTimeout(
@@ -7155,8 +7155,7 @@ export default function Home() {
     );
   };
   const focusDeadlineRisk = () => {
-    updateTaskSearch("");
-    updateTaskFilter("deadline_risk");
+    updateTaskBoardUrl({ query: "", filter: "deadline_risk" });
     selectSurface("tasks");
   };
   const invalidatePlan = useCallback(() => {
@@ -8331,6 +8330,8 @@ export default function Home() {
               today={today}
               snapshot={snapshot}
               onCreateTask={persistTaskCreate}
+              initialThought={naturalCaptureThought}
+              onThoughtChange={setNaturalCaptureThought}
             />
           </Suspense>
         ) : null}
@@ -8383,9 +8384,8 @@ export default function Home() {
             onViewChange={view =>
               navigatePlanner({ destination: "tasks", view })
             }
-            onQueryChange={updateTaskSearch}
-            onFilterChange={updateTaskFilter}
-            onSelectedRecordChange={updateSelectedTaskRecord}
+            onViewStateChange={updateTaskBoardUrl}
+            onSelectedRecordChange={updateSelectedRecord}
             onCapture={() => openComposer("task")}
             onUpdate={persistTaskPatch}
             onCreateSubtask={createSubtaskSafely}
@@ -8617,16 +8617,27 @@ export default function Home() {
         today={today}
         goals={snapshot.goals}
         isOnline={isOnline}
+        thought={naturalCaptureThought}
+        onThoughtChange={setNaturalCaptureThought}
         onOpenChange={setComposerOpen}
         onKindChange={setComposerKind}
         onCreate={createFromCapture}
-        onOpenNaturalCapture={() =>
+        onOpenNaturalCapture={thought => {
+          setNaturalCaptureThought(thought);
           navigatePlanner({
             destination: "tasks",
             view: "inbox",
             action: "capture",
           })
-        }
+        }}
+      />
+      <SearchRecordSheet
+        target={plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) !== "task"
+          ? { entity: searchEntityForLocation(plannerLocation)!, id: plannerLocation.selectedRecord }
+          : null}
+        snapshot={snapshot}
+        returnFocusRef={searchRecordFocusRef}
+        onOpenChange={open => { if (!open) updateSelectedRecord(null); }}
       />
       <ProjectBreakdownDialog
         project={breakdownProject}

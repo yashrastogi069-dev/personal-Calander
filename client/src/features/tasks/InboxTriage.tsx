@@ -2,6 +2,8 @@ import type { CanonicalTask } from "@shared/canonicalTask";
 import { CalendarPlus, Inbox } from "lucide-react";
 import { CanonicalTaskRow } from "./CanonicalTaskRow";
 
+export const INBOX_TRIAGE_GUIDANCE = "Keep the thought without making every planning decision now. Clarify, plan, link, or archive here. Intentional noncompletion is recorded from the matching Plan commitment.";
+
 export type InboxTriageProps = {
   tasks: CanonicalTask[];
   today: string;
@@ -16,6 +18,8 @@ export type InboxTriageProps = {
   onArchive: (task: CanonicalTask) => void | Promise<unknown>;
   onOpenDetail: (task: CanonicalTask, trigger: HTMLElement) => void;
   onCapture: () => void;
+  queryActive?: boolean;
+  onResetQuery?: () => void;
 };
 
 export function InboxTriage({
@@ -32,6 +36,8 @@ export function InboxTriage({
   onArchive,
   onOpenDetail,
   onCapture,
+  queryActive = false,
+  onResetQuery,
 }: InboxTriageProps) {
   const categoryNames = new Map(categories.map(item => [item.id, item.name]));
   const projectTitles = new Map(projects.map(item => [item.id, item.title]));
@@ -48,7 +54,7 @@ export function InboxTriage({
         <div>
           <span className="eyebrow">Unclarified and unscheduled</span>
           <h2 id="inbox-triage-heading">Inbox</h2>
-          <p>Keep the thought without making every planning decision now. Clarify, plan, link, mark intentional noncompletion, or archive from the shared detail.</p>
+          <p>{INBOX_TRIAGE_GUIDANCE}</p>
         </div>
         <span className="inbox-triage-count"><Inbox aria-hidden="true" size={18} />{tasks.length}</span>
       </header>
@@ -80,9 +86,9 @@ export function InboxTriage({
       ) : (
         <div className="task-workspace-empty">
           <CalendarPlus aria-hidden="true" size={24} />
-          <h3>Inbox is clear</h3>
-          <p>New title-only captures land here until you deliberately plan or clarify them.</p>
-          <button type="button" onClick={onCapture}>Capture a thought</button>
+          <h3>{queryActive ? "No Inbox task matches this search" : "Inbox is clear"}</h3>
+          <p>{queryActive ? "Reset the task search to see every unplanned Inbox record." : "New title-only captures land here until you deliberately plan or clarify them."}</p>
+          <button type="button" onClick={queryActive ? onResetQuery : onCapture}>{queryActive ? "Reset task search" : "Capture a thought"}</button>
         </div>
       )}
     </section>

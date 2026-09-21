@@ -21,6 +21,10 @@ export type CanonicalTaskRowProps = {
   onOpenDetail: (task: CanonicalTask, trigger: HTMLElement) => void;
 };
 
+export function fallbackTaskPrimaryAction(actionId: string): "toggle" | "detail" {
+  return actionId === "complete" ? "toggle" : "detail";
+}
+
 export function CanonicalTaskRow({
   task,
   context,
@@ -59,12 +63,13 @@ export function CanonicalTaskRow({
     if (gesture === "complete") void onToggle(task);
     if (gesture === "reveal_archive" && onArchive) setArchiveRevealed(true);
   };
-  const runPrimary = () => {
+  const runPrimary = (trigger: HTMLElement) => {
     if (onPrimaryAction) {
       void onPrimaryAction(task, presentation.primaryAction.id);
       return;
     }
-    if (presentation.primaryAction.id === "complete") void onToggle(task);
+    if (fallbackTaskPrimaryAction(presentation.primaryAction.id) === "toggle") void onToggle(task);
+    else onOpenDetail(task, trigger);
   };
 
   return (
@@ -113,7 +118,7 @@ export function CanonicalTaskRow({
       <button
         type="button"
         className="canonical-task-context-action"
-        onClick={runPrimary}
+        onClick={event => runPrimary(event.currentTarget)}
       >
         {contextualActionLabel ?? presentation.primaryAction.label}
       </button>
