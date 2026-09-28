@@ -139,6 +139,18 @@ export function missingCommittedPlanIds(loadedPlans: Array<{ id: string }>, item
   return Array.from(new Set(items.filter(item => item.state === "committed" && !loadedIds.has(item.dailyPlanId)).map(item => item.dailyPlanId))).sort();
 }
 
+export class RecoveryOperationReuseError extends Error {
+  constructor() {
+    super("This operation ID was already used for a different Recovery decision.");
+  }
+}
+
+/** The Phase 4 ledger is optional until its separately approved migration is applied. */
+async function hasRecoveryLedger(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  const result = await db.execute(sql`SELECT to_regclass('public."commitmentResolutions"') IS NOT NULL AS available`);
+  return result.rows[0]?.available === true;
+}
+
 export class PlannerPolicyError extends Error {
   constructor(public readonly policyCode: "unresolved_commitment" | "recurring_series", message: string) {
     super(message);
@@ -180,7 +192,8 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     )));
   }
   const visiblePlans = [...planRows, ...earlierOpenPlans].sort((left, right) => right.localDate.localeCompare(left.localDate) || left.id.localeCompare(right.id));
-  return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
+  const resolutionRows = await hasRecoveryLedger(db) ? await db.select().from(commitmentResolutions).where(eq(commitmentResolutions.workspaceId, scope.workspaceId)).orderBy(asc(commitmentResolutions.createdAt), asc(commitmentResolutions.id)) : [];
+  return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, commitmentResolutions: resolutionRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
 }
 
 export async function searchWorkspace(scope: PlannerScope, input: { query: string; limit: number }) {
@@ -641,6 +654,9 @@ export async function updateDailyPlanItem(scope: PlannerScope, input: { id: stri
   const existing = (await db.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Daily commitment was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  if ((input.state && input.state !== "committed") || input.resolvedToLocalDate !== undefined || (existing.state !== "committed" && (input.state !== undefined || input.note !== undefined))) {
+    if (await hasRecoveryLedger(db)) throw new Error("Use Recovery to record or revise a daily outcome with its history.");
+  }
   const isResolved = input.state && input.state !== "committed";
   const patch: Record<string, unknown> = { version: input.expectedVersion + 1 };
   if (input.state !== undefined) patch.state = input.state;
@@ -681,6 +697,18 @@ export async function resolveDailyPlanItem(scope: PlannerScope, input: { id: str
   const item = existing[0];
   if (!item) throw new Error("Daily commitment was not found.");
   if (item.version !== input.expectedVersion) throw new PlannerConflictError(item);
+  if (await hasRecoveryLedger(db)) {
+    if (input.state === "deferred" || input.state === "archived") throw new Error("Use Recovery to choose Reduce, Pause with a return date, or Abandon. This legacy outcome cannot preserve the required decision history.");
+    const action = input.state === "rescheduled" ? "reschedule" : input.state === "wont_do" ? "abandon" : "done";
+    await resolveCommitment(scope, validateRecoveryDecision({
+      operationId: nanoid(), dailyPlanItemId: item.id, taskId: item.taskId,
+      itemExpectedVersion: input.expectedVersion, taskExpectedVersion: input.taskExpectedVersion,
+      action,
+      ...(action === "reschedule" ? { resolvedToLocalDate: input.resolvedToLocalDate } : {}),
+      ...(input.note ? { decisionNote: input.note } : {}),
+    }));
+    return (await db.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, item.id))).limit(1))[0]!;
+  }
   const linkedTask = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, item.taskId))).limit(1))[0];
   if (!linkedTask) throw new Error("The task linked to this commitment no longer exists.");
   if (linkedTask.version !== input.taskExpectedVersion) throw new PlannerConflictError(linkedTask);
@@ -1139,6 +1167,16 @@ export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin:
   };
 }
 
+function matchingRecoveryRetry(existing: typeof commitmentResolutions.$inferSelect, input: RecoveryDecision) {
+  const nextDate = input.action === "reschedule" || input.action === "reduce" ? input.resolvedToLocalDate : null;
+  const returnDate = input.action === "pause" ? input.returnLocalDate : null;
+  const revisedScope = input.action === "reduce" ? input.revisedScope : null;
+  if (existing.dailyPlanItemId !== input.dailyPlanItemId || existing.taskId !== input.taskId || existing.occurrenceId !== (input.occurrenceId ?? null)
+    || existing.action !== input.action || existing.resolvedToLocalDate !== nextDate || existing.returnLocalDate !== returnDate
+    || existing.revisedScope !== revisedScope || existing.decisionNote !== (input.decisionNote ?? null)) throw new RecoveryOperationReuseError();
+  return existing;
+}
+
 /** Resolve exactly one daily commitment and retain its decision in the same transaction. */
 export async function resolveCommitment(scope: PlannerScope, decision: RecoveryDecision) {
   const input = validateRecoveryDecision(decision);
@@ -1146,13 +1184,13 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
   return db.transaction(async tx => {
     const operationFilter = and(eq(commitmentResolutions.workspaceId, scope.workspaceId), eq(commitmentResolutions.operationId, input.operationId));
     const previous = (await tx.select().from(commitmentResolutions).where(operationFilter).limit(1))[0];
-    if (previous) return previous;
+    if (previous) return matchingRecoveryRetry(previous, input);
 
     const item = (await tx.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, input.dailyPlanItemId))).limit(1).for("update"))[0];
     if (!item) throw new Error("Daily commitment was not found in this workspace.");
     // A concurrent retry may have waited for the first transaction's item lock.
     const completedRetry = (await tx.select().from(commitmentResolutions).where(operationFilter).limit(1))[0];
-    if (completedRetry) return completedRetry;
+    if (completedRetry) return matchingRecoveryRetry(completedRetry, input);
     if (item.taskId !== input.taskId) throw new Error("The task does not belong to this daily commitment.");
     if (item.version !== input.itemExpectedVersion) throw new PlannerConflictError(item);
     if (item.state !== "committed") throw new Error("This daily commitment already has an outcome. Refresh before changing it.");
@@ -1196,6 +1234,12 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
     if (occurrence) {
       const occurrenceState = input.action === "done" ? "completed" : input.action === "abandon" ? "skipped" : "rescheduled";
       const nextDate = input.action === "pause" ? input.returnLocalDate : resolvedToLocalDate;
+      if (input.action === "reschedule" || input.action === "reduce") {
+        if (input.resolvedToLocalDate === occurrence.localDate) throw new Error("Choose a different Plan for date for this occurrence.");
+        const target = (await tx.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.taskId, task.id), eq(taskOccurrences.localDate, input.resolvedToLocalDate))).limit(1).for("update"))[0];
+        if (target && target.state !== "pending") throw new Error("Choose another Plan for date. That occurrence already has an outcome.");
+        if (!target) await tx.insert(taskOccurrences).values({ id: nanoid(), workspaceId: scope.workspaceId, taskId: task.id, localDate: input.resolvedToLocalDate, state: "pending" });
+      }
       const changed = await tx.update(taskOccurrences).set({
         state: occurrenceState,
         rescheduledToLocalDate: nextDate,

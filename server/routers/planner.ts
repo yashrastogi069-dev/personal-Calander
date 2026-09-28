@@ -41,6 +41,7 @@ import {
   moveDailyPlanItem,
   PlannerConflictError,
   PlannerPolicyError,
+  RecoveryOperationReuseError,
   prepareReminderRule,
   getReminderRules,
   resolveTaskOccurrence,
@@ -188,6 +189,7 @@ function plannerError(error: unknown): never {
   if (error instanceof PlannerConflictError) {
     throw new TRPCError({ code: "CONFLICT", message: error.message, cause: error.current });
   }
+  if (error instanceof RecoveryOperationReuseError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
   throw error;
 }
 

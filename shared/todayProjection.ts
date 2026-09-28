@@ -43,7 +43,7 @@ export type TodayAvailabilityException = {
   workdayEndsAt?: string | null;
   breakMinutes?: number | null;
 };
-export type TodayCommitmentResolution = { id: string; dailyPlanItemId: string; taskId: string; action: string };
+export type TodayCommitmentResolution = { id: string; dailyPlanItemId: string; taskId: string; action: string; resolvedToLocalDate?: string | null; revisedScope?: string | null };
 
 export type TodayProjectionInput = {
   localDate: string;
@@ -222,6 +222,9 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const occurrenceByTaskId = new Map(
     input.taskOccurrences.filter(occurrence => occurrence.localDate === localDate).map(occurrence => [occurrence.taskId, occurrence]),
   );
+  const reducedScopeByTaskId = new Map(input.commitmentResolutions
+    .filter(resolution => resolution.action === "reduce" && resolution.resolvedToLocalDate === localDate && resolution.revisedScope)
+    .map(resolution => [resolution.taskId, resolution.revisedScope!]));
   const todayPlanIds = new Set(input.dailyPlans.filter(plan => plan.localDate === localDate && plan.state !== "archived").map(plan => plan.id));
   const todayCommitments = new Map(
     input.dailyPlanItems
@@ -263,7 +266,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
     const isReservedToday = hasReservation(start, end)
       && localDateForInstant(start as DateValue, workspace.timezone) === localDate;
     if (isReservedToday) {
-      taskTimeline.push({ kind: "task", recordId: task.id, title: task.title, source: "reservation", readOnly: false, startsAt: start, endsAt: end });
+      taskTimeline.push({ kind: "task", recordId: task.id, title: occurrence?.state === "pending" ? reducedScopeByTaskId.get(task.id) ?? task.title : task.title, source: "reservation", readOnly: false, startsAt: start, endsAt: end });
       projectedTaskIds.add(task.id);
       continue;
     }
@@ -277,7 +280,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
       flexible.push({
         kind: "task",
         recordId: task.id,
-        title: task.title,
+        title: pendingOccurrenceToday ? reducedScopeByTaskId.get(task.id) ?? task.title : task.title,
         source: pendingOccurrenceToday ? "occurrence" : plannedForToday ? "planned_no_time" : "daily_commitment",
         readOnly: false,
         startsAt: null,

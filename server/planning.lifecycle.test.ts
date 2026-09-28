@@ -16,6 +16,10 @@ function collection(rows: unknown[]) {
   return { from: vi.fn(() => ({ where: vi.fn().mockResolvedValue(rows) })) };
 }
 
+function unmigratedSchema() {
+  return { execute: vi.fn().mockResolvedValue({ rows: [{ available: false }] }) };
+}
+
 function bulkDatabase(rows: unknown[]) {
   const whereUpdate = vi.fn().mockResolvedValue({ rowsAffected: rows.length });
   const set = vi.fn(() => ({ where: whereUpdate }));
@@ -57,7 +61,7 @@ describe("planner task lifecycle persistence", () => {
     const transaction = vi.fn();
     const update = vi.fn();
     const select = vi.fn().mockReturnValueOnce(selection(item)).mockReturnValueOnce(selection(series));
-    mockedGetDb.mockResolvedValue({ select, update, transaction } as never);
+    mockedGetDb.mockResolvedValue({ ...unmigratedSchema(), select, update, transaction } as never);
 
     await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 4, state: "deferred" })).rejects.toThrow("Recurring commitments need the recovery flow after migration");
     expect(transaction).not.toHaveBeenCalled();
@@ -69,7 +73,7 @@ describe("planner task lifecycle persistence", () => {
     const task = { id: "task-history", workspaceId: scope.workspaceId, state: "not_started", version: 2, recurrenceRule: null };
     const transaction = vi.fn();
     const select = vi.fn().mockReturnValueOnce(selection(item)).mockReturnValueOnce(selection(task)).mockReturnValueOnce(selection({ id: "occ-old" }));
-    mockedGetDb.mockResolvedValue({ select, transaction } as never);
+    mockedGetDb.mockResolvedValue({ ...unmigratedSchema(), select, transaction } as never);
 
     await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 2, state: "done" })).rejects.toThrow("Recurring commitments need the recovery flow after migration");
     expect(transaction).not.toHaveBeenCalled();
@@ -80,7 +84,7 @@ describe("planner task lifecycle persistence", () => {
     const completed = { id: "task-complete", workspaceId: scope.workspaceId, state: "completed", version: 3, recurrenceRule: null };
     const transaction = vi.fn();
     const select = vi.fn().mockReturnValueOnce(selection(item)).mockReturnValueOnce(selection(completed));
-    mockedGetDb.mockResolvedValue({ select, transaction } as never);
+    mockedGetDb.mockResolvedValue({ ...unmigratedSchema(), select, transaction } as never);
 
     await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 3, state: "done" })).rejects.toThrow("Needs reconciliation in Recovery");
     expect(transaction).not.toHaveBeenCalled();

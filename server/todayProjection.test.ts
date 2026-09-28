@@ -46,6 +46,15 @@ function baseInput(overrides: Partial<TodayProjectionInput> = {}): TodayProjecti
 }
 
 describe("projectToday", () => {
+  it("shows the reduced scope of a pending off-cadence occurrence from resolution history", () => {
+    const input = baseInput({
+      tasks: [task({ id: "task-repeat", title: "Write proposal", scheduledLocalDate: "2026-09-19" })],
+      taskOccurrences: [{ id: "target-occurrence", taskId: "task-repeat", localDate, state: "pending" }],
+      commitmentResolutions: [{ id: "resolution-1", dailyPlanItemId: "item-yesterday", taskId: "task-repeat", action: "reduce", resolvedToLocalDate: localDate, revisedScope: "Write outline" }],
+    });
+    expect(projectToday(input).flexible).toMatchObject([{ recordId: "task-repeat", title: "Write outline", source: "occurrence" }]);
+  });
+
   it("keeps every earlier committed item in Plan, including duplicate tasks and missing linked tasks", () => {
     const result = projectEarlierPlanCommitments({
       localDate,

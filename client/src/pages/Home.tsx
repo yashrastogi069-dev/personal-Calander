@@ -7000,9 +7000,7 @@ export default function Home() {
       habitCheckIns: snapshot.habitCheckIns,
       externalEvents: snapshot.externalEvents,
       planningAvailabilityExceptions: snapshot.planningAvailabilityExceptions,
-      // Optional Phase 4 resolution history is not in the pre-migration snapshot.
-      // Existing daily-plan item states still determine unresolved commitments.
-      commitmentResolutions: [],
+      commitmentResolutions: snapshot.commitmentResolutions ?? [],
     });
   }, [snapshot, today, optimisticTaskStates]);
   const activeTasks = useMemo(

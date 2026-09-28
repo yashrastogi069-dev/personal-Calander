@@ -59,7 +59,7 @@ describe("Strict recovery decision contract", () => {
     expect(projection).toEqual({ count: 2, groups: [{ taskId: "task-1", commitments: [
       { itemId: "item-1", planLocalDate: "2026-09-20", itemVersion: 2 },
       { itemId: "item-2", planLocalDate: "2026-09-21", itemVersion: 1 },
-    ] }], returning: [] });
+    ] }], returning: [], nextCommitments: [] });
   });
 
   it("resurfaces a paused decision on its return day without reopening the old commitment", () => {
@@ -71,6 +71,17 @@ describe("Strict recovery decision contract", () => {
     });
     expect(projection).toEqual({ count: 0, groups: [], returning: [
       { resolutionId: "resolution-1", itemId: "item-1", taskId: "task-1", returnLocalDate: "2026-10-01" },
-    ] });
+    ], nextCommitments: [] });
+  });
+
+  it("gives the consumer a reduced scope for a pending target occurrence", () => {
+    const projection = recoveryProjection({
+      todayLocalDate: "2026-09-30",
+      plans: [],
+      items: [{ id: "item-1", dailyPlanId: "day-1", taskId: "task-1", state: "deferred", version: 3 }],
+      occurrences: [{ id: "occ-target", taskId: "task-1", localDate: "2026-09-30", state: "pending" }],
+      resolutions: [{ id: "resolution-1", dailyPlanItemId: "item-1", taskId: "task-1", action: "reduce", originalScope: "Write proposal", revisedScope: "Write outline", resolvedToLocalDate: "2026-09-30", returnLocalDate: null }],
+    });
+    expect(projection.nextCommitments).toEqual([{ resolutionId: "resolution-1", sourceItemId: "item-1", targetOccurrenceId: "occ-target", taskId: "task-1", localDate: "2026-09-30", scope: "Write outline" }]);
   });
 });

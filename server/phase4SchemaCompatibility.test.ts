@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("./db", () => ({ getDb: mocks.getDb }));
 
-import { getWorkspaceSnapshot } from "./planning";
+import { getWorkspaceSnapshot, resolveDailyPlanItem, updateDailyPlanItem } from "./planning";
 import { getAccountWorkspace } from "./workspaceOwnership";
 
 const baseline = readFileSync(new URL("../supabase/migrations/0000_loving_madrox.sql", import.meta.url), "utf8");
@@ -33,7 +33,22 @@ describe("pre-Phase-4 schema compatibility", () => {
     try {
       await expect(getAccountWorkspace(1)).resolves.toMatchObject({ id: "legacy-workspace", timezone: "UTC" });
       await expect(getWorkspaceSnapshot({ workspaceId: "legacy-workspace", timezone: "UTC" }, { start: "2026-09-20", end: "2026-09-21" }))
-        .resolves.toMatchObject({ workspace: { id: "legacy-workspace" }, goals: [], projects: [] });
+        .resolves.toMatchObject({ workspace: { id: "legacy-workspace" }, goals: [], projects: [], commitmentResolutions: [] });
+    } finally {
+      await database.close();
+    }
+  }, 30_000);
+
+  it("keeps the established daily-plan outcome path usable before the optional ledger exists", async () => {
+    const database = await legacyDatabase();
+    const scope = { workspaceId: "legacy-workspace", timezone: "UTC" };
+    try {
+      await database.exec(`INSERT INTO tasks (id, "workspaceId", title, version) VALUES ('legacy-task', 'legacy-workspace', 'Keep this task', 3);
+        INSERT INTO "dailyPlans" (id, "workspaceId", "localDate", state) VALUES ('legacy-plan', 'legacy-workspace', '2026-09-20', 'active');
+        INSERT INTO "dailyPlanItems" (id, "workspaceId", "dailyPlanId", "taskId", version) VALUES ('legacy-item', 'legacy-workspace', 'legacy-plan', 'legacy-task', 2);`);
+      await expect(updateDailyPlanItem(scope, { id: "legacy-item", expectedVersion: 2, note: "Still important" })).resolves.toMatchObject({ state: "committed", version: 3 });
+      await expect(resolveDailyPlanItem(scope, { id: "legacy-item", expectedVersion: 3, taskExpectedVersion: 3, state: "done" })).resolves.toMatchObject({ state: "done", version: 4 });
+      expect((await database.query(`SELECT state, version FROM tasks WHERE id = 'legacy-task'`)).rows).toEqual([{ state: "completed", version: 4 }]);
     } finally {
       await database.close();
     }

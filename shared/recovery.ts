@@ -39,7 +39,8 @@ type RecoveryProjectionInput = {
   todayLocalDate: string;
   plans: Array<{ id: string; localDate: string; state: string }>;
   items: Array<{ id: string; dailyPlanId: string; taskId: string; state: string; version: number }>;
-  resolutions?: Array<{ id: string; dailyPlanItemId: string; taskId: string; action: string; returnLocalDate: string | null }>;
+  resolutions?: Array<{ id: string; dailyPlanItemId: string; taskId: string; action: string; returnLocalDate: string | null; resolvedToLocalDate?: string | null; originalScope?: string; revisedScope?: string | null }>;
+  occurrences?: Array<{ id: string; taskId: string; localDate: string; state: string }>;
   tasks?: Array<{ id: string; state: string; outcome?: string }>;
 };
 
@@ -66,5 +67,12 @@ export function recoveryProjection(input: RecoveryProjectionInput) {
     if (tasksById && (!task || task.state === "completed" || task.state === "archived" || task.outcome === "wont_do")) return [];
     return [{ resolutionId: resolution.id, itemId: item.id, taskId: item.taskId, returnLocalDate: resolution.returnLocalDate }];
   });
-  return { count: Array.from(groups.values()).reduce((count, group) => count + group.commitments.length, 0), groups: Array.from(groups.values()), returning };
+  const pendingOccurrences = new Map((input.occurrences ?? []).filter(occurrence => occurrence.state === "pending").map(occurrence => [`${occurrence.taskId}:${occurrence.localDate}`, occurrence]));
+  const nextCommitments = (input.resolutions ?? []).flatMap(resolution => {
+    if ((resolution.action !== "reschedule" && resolution.action !== "reduce") || !resolution.resolvedToLocalDate || !itemsById.has(resolution.dailyPlanItemId)) return [];
+    const target = pendingOccurrences.get(`${resolution.taskId}:${resolution.resolvedToLocalDate}`);
+    if (!target || resolution.resolvedToLocalDate !== input.todayLocalDate) return [];
+    return [{ resolutionId: resolution.id, sourceItemId: resolution.dailyPlanItemId, targetOccurrenceId: target.id, taskId: resolution.taskId, localDate: target.localDate, scope: resolution.revisedScope ?? resolution.originalScope ?? "" }];
+  });
+  return { count: Array.from(groups.values()).reduce((count, group) => count + group.commitments.length, 0), groups: Array.from(groups.values()), returning, nextCommitments };
 }

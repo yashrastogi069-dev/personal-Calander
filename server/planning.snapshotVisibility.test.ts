@@ -31,7 +31,7 @@ describe("workspace snapshot outstanding-plan visibility", () => {
         return builder;
       },
     }));
-    mockedGetDb.mockResolvedValue({ select } as never);
+    mockedGetDb.mockResolvedValue({ select, execute: vi.fn().mockResolvedValue({ rows: [{ available: false }] }) } as never);
 
     const snapshot = await getWorkspaceSnapshot(workspace, { start: "2026-08-25", end: "2026-10-19" });
 
