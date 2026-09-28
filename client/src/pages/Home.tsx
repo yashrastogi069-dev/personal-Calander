@@ -3074,7 +3074,7 @@ function BrowserNotificationControl({ syncReady }: { syncReady: boolean }) {
   );
 }
 
-function OccurrencePanel() {
+function OccurrencePanel({ focusOccurrenceId = null }: { focusOccurrenceId?: string | null }) {
   const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const range = useMemo(
@@ -3095,9 +3095,21 @@ function OccurrencePanel() {
   const taskTitles = new Map(
     (snapshot.data?.tasks ?? []).map(task => [task.id, task.title])
   );
-  const pending = (snapshot.data?.taskOccurrences ?? [])
-    .filter(item => item.state === "pending" && item.localDate <= today)
-    .slice(0, 3);
+  const allPending = (snapshot.data?.taskOccurrences ?? [])
+    .filter(item => item.state === "pending" && item.localDate <= today);
+  const focusedOccurrence = allPending.find(item => item.id === focusOccurrenceId);
+  const pending = focusedOccurrence
+    ? [focusedOccurrence, ...allPending.filter(item => item.id !== focusedOccurrence.id)].slice(0, 3)
+    : allPending.slice(0, 3);
+  useEffect(() => {
+    if (!focusedOccurrence) return;
+    const frame = window.requestAnimationFrame(() => {
+      const row = document.getElementById(`occurrence-${focusedOccurrence.id}`);
+      row?.scrollIntoView({ block: "center" });
+      row?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusedOccurrence?.id]);
   if (!pending.length) return null;
   return (
     <div className="occurrence-panel">
@@ -3110,7 +3122,7 @@ function OccurrencePanel() {
       </div>
       <div className="occurrence-list">
         {pending.map(item => (
-          <div className="occurrence-row" key={item.id}>
+          <div className="occurrence-row" key={item.id} id={`occurrence-${item.id}`} tabIndex={-1}>
             <p>
               <strong>{taskTitles.get(item.taskId) ?? "Recurring task"}</strong>
               <small>
@@ -6800,6 +6812,8 @@ export default function Home() {
   const [naturalCaptureThought, setNaturalCaptureThought] = useState("");
   const [focusEntryTaskId, setFocusEntryTaskId] = useState<string | null>(null);
   const [focusEarlierCommitments, setFocusEarlierCommitments] = useState(false);
+  const [linkedPlanItemId, setLinkedPlanItemId] = useState<string | null>(null);
+  const [linkedOccurrenceId, setLinkedOccurrenceId] = useState<string | null>(null);
   const [breakdownProject, setBreakdownProject] = useState<any | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [quickTitle, setQuickTitle] = useState("");
@@ -8307,6 +8321,9 @@ export default function Home() {
               goals={snapshot.goals}
               categories={snapshot.categories}
               dependencies={snapshot.taskDependencies}
+              dailyPlans={snapshot.dailyPlans}
+              dailyPlanItems={snapshot.dailyPlanItems}
+              taskOccurrences={snapshot.taskOccurrences}
               timezone={scope.timezone}
               hasActivePlan={snapshot.dailyPlans.some(
                 plan => plan.localDate === today && plan.state !== "archived",
@@ -8343,11 +8360,14 @@ export default function Home() {
               habitPending={habitPending}
               habitError={habitActionError}
               onPlanToday={() => selectSurface("plan")}
+              onOpenPlan={itemId => { setFocusEarlierCommitments(false); setLinkedPlanItemId(itemId); selectSurface("plan"); }}
+              onOpenReview={occurrenceId => { setLinkedOccurrenceId(occurrenceId); selectSurface("review"); }}
               onStartFocus={task => {
                 setFocusEntryTaskId(task.id);
                 selectSurface("focus");
               }}
               onResolveRecovery={() => {
+                setLinkedPlanItemId(null);
                 setFocusEarlierCommitments(true);
                 selectSurface("plan");
               }}
@@ -8376,6 +8396,7 @@ export default function Home() {
               dashboard={dashboardQuery.data}
               earlierCommitments={todayProjection?.recovery ?? []}
               focusEarlierCommitments={focusEarlierCommitments}
+              focusTodayItemId={linkedPlanItemId}
               onOpenTasks={focusTaskSearch}
               onOpenGoals={() => selectSurface("goals")}
             />
@@ -8661,7 +8682,7 @@ export default function Home() {
             </div>
             <div className="review-workbench">
               <ReviewRitual sessions={snapshot.reviewSessions} />
-              <OccurrencePanel />
+              <OccurrencePanel focusOccurrenceId={linkedOccurrenceId} />
               <PlanningHealthStrip />
               <DecisionSignals />
             </div>

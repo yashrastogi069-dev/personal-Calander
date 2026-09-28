@@ -159,6 +159,17 @@ describe("projectToday", () => {
     expect(result.flexible.some(item => item.recordId === "task-complete" || item.recordId === "task-recurring")).toBe(false);
   });
 
+  it("keeps an unresolved daily commitment visible after its same-day occurrence is resolved", () => {
+    const result = projectToday(baseInput({
+      tasks: [task({ id: "task-combined", title: "Prepare the weekly brief" })],
+      dailyPlans: [{ id: "plan-today", localDate, state: "active" }],
+      dailyPlanItems: [{ id: "item-combined", dailyPlanId: "plan-today", taskId: "task-combined", position: 0, state: "committed" }],
+      taskOccurrences: [{ id: "occ-combined", taskId: "task-combined", localDate, state: "completed", completedAt: "2026-09-20T08:00:00.000Z" }],
+    }));
+    expect(result.flexible).toEqual([expect.objectContaining({ recordId: "task-combined", source: "daily_commitment" })]);
+    expect(result.completionEvidence).toEqual([expect.objectContaining({ kind: "task_occurrence", evidenceId: "occ-combined" })]);
+  });
+
   it("counts overlapping task reservations and appointments once in capacity", () => {
     const input = baseInput({
       workspace: {

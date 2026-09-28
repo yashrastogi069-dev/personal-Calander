@@ -13,6 +13,8 @@ export type TodayTimelineProps = {
   goalTitles: ReadonlyMap<string, string>;
   categoryNames: ReadonlyMap<string, string>;
   pendingTaskIds: ReadonlySet<string>;
+  linkedResolutionByTaskId: ReadonlyMap<string, "plan" | "review" | "both">;
+  onOpenLinkedResolution: (task: CanonicalTask) => void;
   onToggleTask: (task: CanonicalTask) => void | Promise<unknown>;
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onStartFocus: (task: CanonicalTask) => void;
@@ -37,6 +39,8 @@ export function TodayTimeline({
   goalTitles,
   categoryNames,
   pendingTaskIds,
+  linkedResolutionByTaskId,
+  onOpenLinkedResolution,
   onToggleTask,
   onArchiveTask,
   onStartFocus,
@@ -75,12 +79,14 @@ export function TodayTimeline({
 
           const task = taskById.get(row.recordId);
           if (!task) return null;
+          const linkedResolution = linkedResolutionByTaskId.get(task.id);
+          const resolutionDestination = linkedResolution === "both" ? "Review, then Plan" : linkedResolution === "plan" ? "Plan" : "Review";
           return (
             <article className="today-reservation-row" key={`task:${row.recordId}`}>
               <time dateTime={new Date(row.startsAt as Date | string).toISOString()}>{start}</time>
               <span className="today-timeline-marker is-task" aria-hidden="true"><i /></span>
               <div>
-                <span className="today-source-label"><CalendarClock aria-hidden="true" size={14} /> Reserved task · Actionable here</span>
+                <span className="today-source-label"><CalendarClock aria-hidden="true" size={14} /> Reserved task · {linkedResolution ? linkedResolution === "plan" ? "Resolve today’s commitment in Plan" : `Resolve dated history in ${resolutionDestination}` : "Actionable here"}</span>
                 <CanonicalTaskRow
                   task={task}
                   context={{
@@ -97,10 +103,12 @@ export function TodayTimeline({
                     categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
                   }}
                   pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
-                  contextualActionLabel={task.state === "blocked" ? "Review blockers" : "Start focus"}
-                  onToggle={onToggleTask}
-                  onArchive={onArchiveTask}
-                  onPrimaryAction={(record, _actionId, trigger) => task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}
+                  completionGuard={linkedResolution ? { label: `Resolve ${task.title} in ${resolutionDestination}`, onOpen: () => onOpenLinkedResolution(task) } : undefined}
+                  detailActionLabel={linkedResolution ? `Open ${task.title} in ${resolutionDestination}` : undefined}
+                  contextualActionLabel={linkedResolution ? linkedResolution === "plan" ? "Open Plan" : "Open Review" : String(task.id).startsWith("offline:") ? "Sync before focus" : task.state === "blocked" ? "Review blockers" : "Start focus"}
+                  onToggle={linkedResolution ? () => onOpenLinkedResolution(task) : onToggleTask}
+                  onArchive={linkedResolution ? undefined : onArchiveTask}
+                  onPrimaryAction={(record, _actionId, trigger) => linkedResolution ? onOpenLinkedResolution(record) : task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}
                   onOpenDetail={onOpenTask}
                 />
                 <small className="today-time-range">{start}–{end}</small>

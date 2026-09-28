@@ -5,6 +5,7 @@ import {
   TodayWorkspace,
   contextualTodayAction,
   isExecutableTodayTask,
+  todayLinkedResolution,
   todaySuggestions,
 } from "../client/src/features/today/TodayWorkspace";
 import type { CanonicalTask } from "../shared/canonicalTask";
@@ -255,6 +256,48 @@ describe("Phase 4 Today workspace", () => {
     });
     expect(html).toContain("Review blockers");
     expect(html).not.toContain("<button type=\"button\" class=\"today-primary-action\"");
+  });
+
+  it("routes dated occurrence and plan commitments by underlying references, even when the visible row source masks them", () => {
+    const plans = [{ id: "plan-today", localDate, state: "active" }];
+    const items = [{ id: "item-1", dailyPlanId: "plan-today", taskId: reserved.id, state: "committed", position: 0 }];
+    const occurrences = [{ id: "occ-1", taskId: reserved.id, localDate, state: "pending" }];
+    expect(todayLinkedResolution(reserved.id, localDate, plans, items, occurrences)).toBe("both");
+    expect(todayLinkedResolution(reserved.id, localDate, plans, items, [])).toBe("plan");
+    expect(todayLinkedResolution(reserved.id, localDate, plans, [], occurrences)).toBe("review");
+    expect(todayLinkedResolution(reserved.id, localDate, plans, [], [{ ...occurrences[0], state: "completed" }])).toBeNull();
+    expect(todayLinkedResolution(flexible.id, localDate, plans, items, occurrences)).toBeNull();
+  });
+
+  it("does not offer Focus for a server-unpersisted offline task ID", () => {
+    expect(isExecutableTodayTask(task({ id: "offline:pending-capture" }))).toBe(false);
+  });
+
+  it("makes a reserved task with linked history non-completable in Today", () => {
+    const html = renderToday({
+      projection: { ...projection, recovery: [], flexible: [], timeline: [projection.timeline[0]] },
+      tasks: [reserved],
+      dailyPlans: [{ id: "plan-today", localDate, state: "active" }],
+      dailyPlanItems: [{ id: "item-1", dailyPlanId: "plan-today", taskId: reserved.id, state: "committed", position: 0 }],
+      taskOccurrences: [{ id: "occ-1", taskId: reserved.id, localDate, state: "pending" }],
+    });
+    expect(html).toContain('aria-label="Resolve Protected writing block in Review, then Plan"');
+    expect(html).toContain('aria-label="Open Protected writing block in Review, then Plan"');
+    expect(html).not.toContain('aria-label="Open details for Protected writing block"');
+    expect(html).not.toContain('aria-label="Complete Protected writing block"');
+    expect(html).toContain('class="canonical-task-resolution"');
+    expect(html).toContain("Open Review");
+    expect(html).not.toContain("Start focus");
+  });
+
+  it("names a plan-only guarded row as today's commitment", () => {
+    const html = renderToday({
+      projection: { ...projection, recovery: [] },
+      dailyPlans: [{ id: "plan-today", localDate, state: "active" }],
+      dailyPlanItems: [{ id: "item-flexible", dailyPlanId: "plan-today", taskId: flexible.id, state: "committed", position: 0 }],
+    });
+    expect(html).toContain("Resolve today’s commitment in Plan");
+    expect(html).toContain('aria-label="Resolve Review the chapter notes in Plan"');
   });
 
   it("labels unavailable time separately from merged scheduled demand", () => {

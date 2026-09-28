@@ -800,10 +800,11 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
     }
     reserved = {**task_base, "id": "today-reserved", "title": "Prepare the proposal", "scheduledLocalDate": "2026-09-21", "plannedStartAt": "2026-09-21T09:00:00.000Z", "plannedEndAt": "2026-09-21T10:00:00.000Z", "estimateMinutes": 60}
     flexible = {**task_base, "id": "today-flexible", "title": "Call the landlord", "scheduledLocalDate": "2026-09-21", "estimateMinutes": 25, "sortOrder": 1}
-    blocked = {**task_base, "id": "today-blocked", "title": "Wait for the repair quote", "state": "blocked", "dueLocalDate": "2026-09-20", "sortOrder": 2}
-    recovery = {**task_base, "id": "today-recovery", "title": "Return the library books", "sortOrder": 3}
-    completed = {**task_base, "id": "today-completed", "title": "Send the invoice", "state": "completed", "completedAt": "2026-09-21T07:00:00.000Z", "sortOrder": 4}
-    snapshot["tasks"] = [reserved, flexible, blocked, recovery, completed]
+    plain = {**task_base, "id": "today-plain", "title": "Draft the one-page summary", "scheduledLocalDate": "2026-09-21", "estimateMinutes": 20, "sortOrder": 2}
+    blocked = {**task_base, "id": "today-blocked", "title": "Wait for the repair quote", "state": "blocked", "dueLocalDate": "2026-09-20", "sortOrder": 3}
+    recovery = {**task_base, "id": "today-recovery", "title": "Return the library books", "sortOrder": 4}
+    completed = {**task_base, "id": "today-completed", "title": "Send the invoice", "state": "completed", "completedAt": "2026-09-21T07:00:00.000Z", "sortOrder": 5}
+    snapshot["tasks"] = [reserved, flexible, plain, blocked, recovery, completed]
     snapshot["dailyPlans"] = [
         {"id": "today-plan", "workspaceId": workspace_id, "localDate": "2026-09-21", "state": "active", "version": 1, "intention": None},
         {"id": "earlier-plan", "workspaceId": workspace_id, "localDate": "2026-09-20", "state": "active", "version": 1, "intention": None},
@@ -833,15 +834,15 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert today.locator(".today-completed-evidence").get_attribute("open") is None
         today.locator(".today-completed-evidence summary").click()
         assert today.get_by_text("Send the invoice", exact=True).is_visible()
-        today.get_by_label("Open details for Call the landlord").click()
-        detail = page.get_by_role("dialog", name="Call the landlord")
+        today.get_by_label("Open details for Draft the one-page summary").click()
+        detail = page.get_by_role("dialog", name="Draft the one-page summary")
         try:
             detail.wait_for(state="visible", timeout=5_000)
         except Exception as error:
             raise AssertionError({"detailUrl": page.url, "dialogs": page.locator('[role="dialog"]').all_inner_texts(), "todayText": today.inner_text()[:1000], "runtimeErrors": runtime_errors, "consoleErrors": console_errors}) from error
         page.keyboard.press("Escape")
         detail.wait_for(state="hidden")
-        page.wait_for_function("() => document.activeElement?.getAttribute('aria-label') === 'Open details for Call the landlord'")
+        page.wait_for_function("() => document.activeElement?.getAttribute('aria-label') === 'Open details for Draft the one-page summary'")
         targets = today.locator("button:visible, summary:visible").evaluate_all("elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim().slice(0, 50) }; })")
         text_sizes = today.locator(".today-summary span:visible, .today-source-label:visible, .today-habit-row small:visible, .today-suggestion-list small:visible").evaluate_all("elements => elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize))")
         metrics = overflow_metrics(page)
@@ -874,6 +875,37 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         today.wait_for(state="visible")
         assert not console_errors, ("focus", console_errors)
 
+        before_task_writes = requests.count("planner.task.update")
+        today.locator('[data-task-record-id="today-flexible"] .canonical-task-resolution').click()
+        wait_for_target(page, "plan", "daily")
+        linked_plan_row = page.locator("#daily-commitment-today-item")
+        linked_plan_row.wait_for(state="visible")
+        page.wait_for_function("() => document.activeElement?.id === 'daily-commitment-today-item'")
+        assert linked_plan_row.get_by_text("Call the landlord", exact=True).is_visible()
+        assert requests.count("planner.task.update") == before_task_writes
+        page.go_back()
+        today.wait_for(state="visible")
+        today.get_by_label("Open Call the landlord in Plan").click()
+        wait_for_target(page, "plan", "daily")
+        assert page.locator("#daily-commitment-today-item").is_visible()
+        assert not page.get_by_role("dialog", name="Call the landlord").count()
+        page.go_back()
+        today.wait_for(state="visible")
+
+        today.get_by_label("Open details for Draft the one-page summary").click()
+        page.get_by_role("dialog", name="Draft the one-page summary").wait_for(state="visible")
+        page.keyboard.press("Escape")
+        fixtures["planner.task.update"] = {**plain, "state": "completed", "version": 2, "completedAt": "2026-09-21T09:00:00.000Z"}
+        snapshot["tasks"][2] = fixtures["planner.task.update"]
+        today.get_by_role("button", name="Complete Draft the one-page summary").click()
+        today.locator('[data-task-record-id="today-plain"]').wait_for(state="hidden")
+        assert today.locator(".today-primary-action").inner_text().strip() == "Start focus"
+        today.locator(".today-primary-action").click()
+        wait_for_target(page, "home", "focus")
+        assert page.locator("#focus-task").input_value() == reserved["id"]
+        page.go_back()
+        today.wait_for(state="visible")
+
         page.evaluate("() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline')); }")
         before_habit_writes = requests.count("planner.habit.checkIn")
         today.locator('[data-habit-record-id="today-habit"]').get_by_role("button", name="Complete").click()
@@ -881,6 +913,107 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert requests.count("planner.habit.checkIn") == before_habit_writes
         page.evaluate("() => { delete navigator.onLine; window.dispatchEvent(new Event('online')); }")
         assert not console_errors, ("offline", console_errors)
+
+        other_occurrence_tasks = [{**task_base, "id": f"today-occ-other-{index}", "title": f"Earlier recurring item {index}", "sortOrder": 10 + index} for index in range(3)]
+        snapshot["tasks"].extend(other_occurrence_tasks)
+        snapshot["taskOccurrences"] = [
+            {"id": f"occ-other-{index}", "taskId": task["id"], "localDate": "2026-09-21", "state": "pending", "version": 1}
+            for index, task in enumerate(other_occurrence_tasks)
+        ] + [{"id": "occ-target", "taskId": reserved["id"], "localDate": "2026-09-21", "state": "pending", "version": 1}]
+        page = context.new_page()
+        page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+        page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+        page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible")
+        guarded = today.locator('[data-task-record-id="today-reserved"]')
+        assert guarded.get_by_role("button", name="Resolve Prepare the proposal in Review").is_visible()
+        assert not guarded.get_by_role("button", name="Complete Prepare the proposal").count()
+        before_task_writes = requests.count("planner.task.update")
+        guarded.dispatch_event("pointerdown", {"pointerType": "touch", "clientX": 200, "clientY": 100})
+        guarded.dispatch_event("pointerup", {"pointerType": "touch", "clientX": 80, "clientY": 100})
+        guarded.dispatch_event("pointerdown", {"pointerType": "touch", "clientX": 80, "clientY": 100})
+        guarded.dispatch_event("pointerup", {"pointerType": "touch", "clientX": 200, "clientY": 100})
+        assert not guarded.locator(".canonical-task-row-reveal").count()
+        assert requests.count("planner.task.update") == before_task_writes
+        guarded.get_by_label("Open Prepare the proposal in Review").click()
+        wait_for_target(page, "review", "rituals")
+        target_occurrence = page.locator("#occurrence-occ-target")
+        target_occurrence.wait_for(state="visible")
+        page.wait_for_function("() => document.activeElement?.id === 'occurrence-occ-target'")
+        assert target_occurrence.get_by_text("Prepare the proposal", exact=True).is_visible()
+        page.go_back()
+        today.wait_for(state="visible")
+        today.locator('[data-task-record-id="today-reserved"] .canonical-task-context-action').click()
+        wait_for_target(page, "review", "rituals")
+        assert page.locator("#occurrence-occ-target").is_visible()
+        page.go_back()
+        today.wait_for(state="visible")
+        today.locator('[data-task-record-id="today-reserved"] .canonical-task-resolution').click()
+        wait_for_target(page, "review", "rituals")
+        target_occurrence = page.locator("#occurrence-occ-target")
+        target_occurrence.wait_for(state="visible")
+        snapshot["taskOccurrences"][-1] = {**snapshot["taskOccurrences"][-1], "state": "completed", "version": 2}
+        fixtures["planner.occurrence.resolve"] = snapshot["taskOccurrences"][-1]
+        before_occurrence_writes = requests.count("planner.occurrence.resolve")
+        target_occurrence.get_by_role("button", name="Done").click()
+        target_occurrence.wait_for(state="hidden")
+        assert requests.count("planner.occurrence.resolve") == before_occurrence_writes + 1
+        assert requests.count("planner.task.update") == before_task_writes
+
+        snapshot["taskOccurrences"][-1] = {**snapshot["taskOccurrences"][-1], "state": "pending", "version": 1}
+        snapshot["dailyPlanItems"].append({"id": "combined-item", "dailyPlanId": "today-plan", "taskId": reserved["id"], "state": "committed", "position": 1, "version": 1, "note": None})
+        page = context.new_page()
+        page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+        page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+        page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible")
+        combined = today.locator('[data-task-record-id="today-reserved"]')
+        assert combined.get_by_role("button", name="Resolve Prepare the proposal in Review, then Plan").is_visible()
+        assert today.get_by_text("Resolve dated history in Review, then Plan", exact=False).is_visible()
+        assert not combined.get_by_role("button", name="Complete Prepare the proposal").count()
+        protected_screenshot = output / f"today-protected-combined-{width}.png"
+        page.locator('[data-scroll-owner="destination"]').evaluate("element => { element.scrollTop = 0; }")
+        page.screenshot(path=str(protected_screenshot), full_page=True)
+        combined.locator(".canonical-task-resolution").click()
+        wait_for_target(page, "review", "rituals")
+        combined_occurrence = page.locator("#occurrence-occ-target")
+        combined_occurrence.wait_for(state="visible")
+        snapshot["taskOccurrences"][-1] = {**snapshot["taskOccurrences"][-1], "state": "completed", "version": 2}
+        fixtures["planner.occurrence.resolve"] = snapshot["taskOccurrences"][-1]
+        combined_occurrence.get_by_role("button", name="Done").click()
+        combined_occurrence.wait_for(state="hidden")
+        assert reserved["state"] == "not_started"
+        assert snapshot["dailyPlanItems"][-1]["state"] == "committed"
+        assert snapshot["taskOccurrences"][-1]["state"] == "completed"
+        assert requests.count("planner.task.update") == before_task_writes
+        page.go_back()
+        today.wait_for(state="visible")
+        combined = today.locator('[data-task-record-id="today-reserved"]')
+        assert combined.get_by_role("button", name="Resolve Prepare the proposal in Plan").is_visible()
+        assert today.get_by_text("Recurring task occurrence", exact=True).count() == 1
+        combined.locator(".canonical-task-resolution").click()
+        wait_for_target(page, "plan", "daily")
+        page.locator("#daily-commitment-combined-item").wait_for(state="visible")
+        page.wait_for_function("() => document.activeElement?.id === 'daily-commitment-combined-item'")
+        assert requests.count("planner.task.update") == before_task_writes
+
+        snapshot["tasks"].append({**task_base, "id": "offline:today-pending", "title": "Unsynced idea", "scheduledLocalDate": "2026-09-21", "sortOrder": 30})
+        page = context.new_page()
+        page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+        page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+        page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible")
+        assert today.locator(".today-primary-action").count() == 0
+        before_focus_writes = requests.count("planner.focus.start")
+        today.locator('[data-task-record-id="offline:today-pending"] .canonical-task-context-action').click()
+        assert today.get_by_text("Sync this captured task before starting focus", exact=False).is_visible()
+        assert requests.count("planner.focus.start") == before_focus_writes
 
         snapshot["externalEvents"] = []
         snapshot["dailyPlans"] = []
@@ -924,7 +1057,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert not runtime_errors, runtime_errors
         assert not console_errors, console_errors
         assert not unexpected, unexpected
-        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True})
+        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "protectedScreenshot": str(protected_screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True, "linkedHistoryGuarded": True})
     finally:
         context.close()
     return result

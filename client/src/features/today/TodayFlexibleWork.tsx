@@ -12,6 +12,8 @@ export type TodayFlexibleWorkProps = {
   goalTitles: ReadonlyMap<string, string>;
   categoryNames: ReadonlyMap<string, string>;
   pendingTaskIds: ReadonlySet<string>;
+  linkedResolutionByTaskId: ReadonlyMap<string, "plan" | "review" | "both">;
+  onOpenLinkedResolution: (task: CanonicalTask) => void;
   onToggleTask: (task: CanonicalTask) => void | Promise<unknown>;
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onStartFocus: (task: CanonicalTask) => void;
@@ -34,6 +36,8 @@ export function TodayFlexibleWork({
   goalTitles,
   categoryNames,
   pendingTaskIds,
+  linkedResolutionByTaskId,
+  onOpenLinkedResolution,
   onToggleTask,
   onArchiveTask,
   onStartFocus,
@@ -54,9 +58,11 @@ export function TodayFlexibleWork({
         {rows.map(row => {
           const task = taskById.get(row.recordId);
           if (!task) return null;
+          const linkedResolution = linkedResolutionByTaskId.get(task.id);
+          const resolutionDestination = linkedResolution === "both" ? "Review, then Plan" : linkedResolution === "plan" ? "Plan" : "Review";
           return (
             <div className="today-flexible-row" key={row.recordId} data-today-task-source={row.source}>
-              <span className="today-source-label">{sourceLabel[row.source]}</span>
+              <span className="today-source-label">{sourceLabel[row.source]}{linkedResolution ? linkedResolution === "plan" ? " · Resolve today’s commitment in Plan" : ` · Resolve dated history in ${resolutionDestination}` : null}</span>
               <CanonicalTaskRow
                 task={task}
                 context={{
@@ -68,10 +74,12 @@ export function TodayFlexibleWork({
                   categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
                 }}
                 pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
-                contextualActionLabel={task.state === "blocked" ? "Review blockers" : "Start focus"}
-                onToggle={onToggleTask}
-                onArchive={onArchiveTask}
-                onPrimaryAction={(record, _actionId, trigger) => task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}
+                completionGuard={linkedResolution ? { label: `Resolve ${task.title} in ${resolutionDestination}`, onOpen: () => onOpenLinkedResolution(task) } : undefined}
+                detailActionLabel={linkedResolution ? `Open ${task.title} in ${resolutionDestination}` : undefined}
+                contextualActionLabel={linkedResolution ? linkedResolution === "plan" ? "Open Plan" : "Open Review" : String(task.id).startsWith("offline:") ? "Sync before focus" : task.state === "blocked" ? "Review blockers" : "Start focus"}
+                onToggle={linkedResolution ? () => onOpenLinkedResolution(task) : onToggleTask}
+                onArchive={linkedResolution ? undefined : onArchiveTask}
+                onPrimaryAction={(record, _actionId, trigger) => linkedResolution ? onOpenLinkedResolution(record) : task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}
                 onOpenDetail={onOpenTask}
               />
             </div>

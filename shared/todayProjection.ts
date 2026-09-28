@@ -246,7 +246,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   for (const task of input.tasks) {
     if (!isOpenTask(task)) continue;
     const occurrence = occurrenceByTaskId.get(task.id);
-    if (occurrence && ["completed", "skipped", "missed", "rescheduled"].includes(occurrence.state)) continue;
+    if (occurrence && ["completed", "skipped", "missed", "rescheduled"].includes(occurrence.state) && !todayCommitments.has(task.id)) continue;
 
     const start = occurrence?.plannedStartAt ?? task.plannedStartAt ?? null;
     const end = occurrence?.plannedEndAt ?? task.plannedEndAt ?? null;

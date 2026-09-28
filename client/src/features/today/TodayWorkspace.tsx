@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { TaskDetailSheet, type TaskMutationResult } from "@/features/tasks/TaskDetailSheet";
 import type { CanonicalTask } from "@shared/canonicalTask";
-import type { TodayProjection } from "@shared/todayProjection";
+import type { TodayDailyPlan, TodayDailyPlanItem, TodayProjection, TodayTaskOccurrence } from "@shared/todayProjection";
 import {
   AlertTriangle,
   ArrowRight,
@@ -25,7 +25,22 @@ export type TodayHeaderAction =
   | { id: "start_focus"; label: "Start focus" };
 
 export function isExecutableTodayTask(task: CanonicalTask | null | undefined) {
-  return Boolean(task && task.state !== "blocked" && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
+  return Boolean(task && !task.id.startsWith("offline:") && task.state !== "blocked" && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
+}
+
+export type TodayLinkedResolution = "plan" | "review" | "both";
+
+export function todayLinkedResolution(
+  taskId: string,
+  localDate: string,
+  plans: TodayDailyPlan[],
+  items: TodayDailyPlanItem[],
+  occurrences: TodayTaskOccurrence[],
+): TodayLinkedResolution | null {
+  const planIds = new Set(plans.filter(plan => plan.localDate === localDate && plan.state !== "archived").map(plan => plan.id));
+  const commitment = items.some(item => item.taskId === taskId && item.state === "committed" && planIds.has(item.dailyPlanId));
+  const occurrence = occurrences.some(item => item.taskId === taskId && item.localDate === localDate && item.state === "pending");
+  return commitment && occurrence ? "both" : commitment ? "plan" : occurrence ? "review" : null;
 }
 
 export function contextualTodayAction(input: {
@@ -127,6 +142,9 @@ export type TodayWorkspaceProps = {
   goals: Array<{ id: string; title: string }>;
   categories: Array<{ id: string; name: string }>;
   dependencies?: any[];
+  dailyPlans?: TodayDailyPlan[];
+  dailyPlanItems?: TodayDailyPlanItem[];
+  taskOccurrences?: TodayTaskOccurrence[];
   timezone: string;
   hasActivePlan: boolean;
   commitmentCount: number;
@@ -139,6 +157,8 @@ export type TodayWorkspaceProps = {
   habitPending: boolean;
   habitError: string | null;
   onPlanToday: () => void;
+  onOpenPlan?: (dailyPlanItemId: string) => void;
+  onOpenReview?: (occurrenceId: string) => void;
   onStartFocus: (task: CanonicalTask) => void;
   onResolveRecovery: () => void;
   onOpenHabits: () => void;
@@ -162,6 +182,9 @@ export function TodayWorkspace({
   goals,
   categories,
   dependencies = [],
+  dailyPlans = [],
+  dailyPlanItems = [],
+  taskOccurrences = [],
   timezone,
   hasActivePlan,
   commitmentCount,
@@ -174,6 +197,8 @@ export function TodayWorkspace({
   habitPending,
   habitError,
   onPlanToday,
+  onOpenPlan = onPlanToday,
+  onOpenReview = onPlanToday,
   onStartFocus,
   onResolveRecovery,
   onOpenHabits,
@@ -189,25 +214,30 @@ export function TodayWorkspace({
   onSelectedRecordChange,
 }: TodayWorkspaceProps) {
   const taskById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
+  const linkedResolutionByTaskId = useMemo(() => new Map(tasks.flatMap(task => {
+    const route = todayLinkedResolution(task.id, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences);
+    return route ? [[task.id, route] as const] : [];
+  })), [tasks, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences]);
   const firstExecutableId = [
     ...projection.flexible.map(row => row.recordId),
     ...projection.timeline.filter(row => row.kind === "task").map(row => row.recordId),
     ...projection.attention.map(row => row.recordId),
-  ].find(id => isExecutableTodayTask(taskById.get(id))) ?? null;
+  ].find(id => isExecutableTodayTask(taskById.get(id)) && !linkedResolutionByTaskId.has(id)) ?? null;
   const [focusTaskId, setFocusTaskId] = useState(firstExecutableId);
   const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (focusTaskId && taskById.has(focusTaskId)) return;
+    if (focusTaskId && isExecutableTodayTask(taskById.get(focusTaskId)) && !linkedResolutionByTaskId.has(focusTaskId)) return;
     setFocusTaskId(firstExecutableId);
-  }, [firstExecutableId, focusTaskId, taskById]);
+  }, [firstExecutableId, focusTaskId, taskById, linkedResolutionByTaskId]);
 
   const date = localDateLabel(projection.localDate);
   const projectTitles = useMemo(() => new Map(projects.map(project => [project.id, project.title])), [projects]);
   const goalTitles = useMemo(() => new Map(goals.map(goal => [goal.id, goal.title])), [goals]);
   const categoryNames = useMemo(() => new Map(categories.map(category => [category.id, category.name])), [categories]);
-  const selectedTask = tasks.find(task => task.id === selectedRecordId) ?? null;
-  const focusTask = focusTaskId && isExecutableTodayTask(taskById.get(focusTaskId)) ? taskById.get(focusTaskId) ?? null : null;
+  const selectedTask = tasks.find(task => task.id === selectedRecordId && !linkedResolutionByTaskId.has(task.id)) ?? null;
+  const effectiveFocusTaskId = focusTaskId && isExecutableTodayTask(taskById.get(focusTaskId)) && !linkedResolutionByTaskId.has(focusTaskId) ? focusTaskId : firstExecutableId;
+  const focusTask = effectiveFocusTaskId ? taskById.get(effectiveFocusTaskId) ?? null : null;
   const headerAction = contextualTodayAction({
     recoveryCount: projection.recovery.length,
     hasActivePlan,
@@ -220,16 +250,34 @@ export function TodayWorkspace({
   const unavailableMinutes = projection.capacity.breakMinutes;
   const suggestions = todaySuggestions({ projection, tasks, habits, projects });
 
+  const openLinkedResolution = (task: CanonicalTask) => {
+    const route = linkedResolutionByTaskId.get(task.id);
+    if (route === "review" || route === "both") {
+      const occurrence = taskOccurrences.find(item => item.taskId === task.id && item.localDate === projection.localDate && item.state === "pending");
+      if (occurrence) onOpenReview(occurrence.id);
+    } else if (route) {
+      const planIds = new Set(dailyPlans.filter(plan => plan.localDate === projection.localDate && plan.state !== "archived").map(plan => plan.id));
+      const item = dailyPlanItems.find(candidate => candidate.taskId === task.id && candidate.state === "committed" && planIds.has(candidate.dailyPlanId));
+      if (item) onOpenPlan(item.id);
+    }
+  };
   const openTask = (task: CanonicalTask, trigger: HTMLElement) => {
+    if (linkedResolutionByTaskId.has(task.id)) return openLinkedResolution(task);
     returnFocusRef.current = trigger;
     setFocusTaskId(task.id);
     onSelectedRecordChange(task.id);
   };
   const toggleTask = (task: CanonicalTask) => {
+    if (linkedResolutionByTaskId.has(task.id)) return openLinkedResolution(task);
     if (onToggleTask) return onToggleTask(task);
     return onUpdateTask(task, { state: task.state === "completed" ? "not_started" : "completed" });
   };
   const startFocus = (task: CanonicalTask) => {
+    if (linkedResolutionByTaskId.has(task.id)) return openLinkedResolution(task);
+    if (task.id.startsWith("offline:")) {
+      setUnsupportedMessage("Sync this captured task before starting focus. No session was started.");
+      return;
+    }
     if (!isExecutableTodayTask(task)) {
       setUnsupportedMessage("Review this task's blocker before starting focus. No session was started.");
       return;
@@ -306,6 +354,8 @@ export function TodayWorkspace({
           goalTitles={goalTitles}
           categoryNames={categoryNames}
           pendingTaskIds={pendingTaskIds}
+          linkedResolutionByTaskId={linkedResolutionByTaskId}
+          onOpenLinkedResolution={openLinkedResolution}
           onToggleTask={toggleTask}
           onArchiveTask={onArchiveTask}
           onStartFocus={startFocus}
@@ -320,6 +370,8 @@ export function TodayWorkspace({
           goalTitles={goalTitles}
           categoryNames={categoryNames}
           pendingTaskIds={pendingTaskIds}
+          linkedResolutionByTaskId={linkedResolutionByTaskId}
+          onOpenLinkedResolution={openLinkedResolution}
           onToggleTask={toggleTask}
           onArchiveTask={onArchiveTask}
           onStartFocus={startFocus}

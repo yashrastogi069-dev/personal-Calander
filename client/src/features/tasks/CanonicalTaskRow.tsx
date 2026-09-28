@@ -5,7 +5,7 @@ import {
   type CanonicalTaskContext,
 } from "@shared/canonicalTask";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
-import { Check, MoreHorizontal } from "lucide-react";
+import { ArrowRight, Check, MoreHorizontal } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 
 export type CanonicalTaskRowProps = {
@@ -15,6 +15,8 @@ export type CanonicalTaskRowProps = {
   childCount?: number;
   pending?: boolean;
   contextualActionLabel?: string;
+  detailActionLabel?: string;
+  completionGuard?: { label: string; onOpen: () => void };
   onToggle: (task: CanonicalTask) => void | Promise<unknown>;
   onArchive?: (task: CanonicalTask) => void | Promise<unknown>;
   onPrimaryAction?: (task: CanonicalTask, actionId: string, trigger: HTMLElement) => void | Promise<unknown>;
@@ -32,6 +34,8 @@ export function CanonicalTaskRow({
   childCount = 0,
   pending = false,
   contextualActionLabel,
+  detailActionLabel,
+  completionGuard,
   onToggle,
   onArchive,
   onPrimaryAction,
@@ -60,7 +64,7 @@ export function CanonicalTaskRow({
       endY: event.clientY,
       completed: presentation.completion.isComplete,
     });
-    if (gesture === "complete") void onToggle(task);
+    if (gesture === "complete" && !completionGuard) void onToggle(task);
     if (gesture === "reveal_archive" && onArchive) setArchiveRevealed(true);
   };
   const runPrimary = (trigger: HTMLElement) => {
@@ -94,14 +98,14 @@ export function CanonicalTaskRow({
           <button type="button" onClick={() => setArchiveRevealed(false)}>Cancel</button>
         </div>
       ) : null}
-      <button
+      {completionGuard ? <button type="button" className="canonical-task-resolution" aria-label={completionGuard.label} onClick={completionGuard.onOpen}><ArrowRight aria-hidden="true" size={17} /></button> : <button
         type="button"
         className={cn("canonical-task-check", presentation.completion.isComplete && "is-checked")}
         aria-label={`${presentation.completion.isComplete ? "Reopen" : "Complete"} ${presentation.title}`}
         onClick={() => void onToggle(task)}
       >
         <Check aria-hidden="true" size={15} strokeWidth={3} />
-      </button>
+      </button>}
       <div className="canonical-task-copy">
         <strong>{presentation.title}</strong>
         <div className="canonical-task-keyline">
@@ -125,7 +129,7 @@ export function CanonicalTaskRow({
       <button
         type="button"
         className="canonical-task-detail-action"
-        aria-label={`Open details for ${presentation.title}`}
+        aria-label={detailActionLabel ?? `Open details for ${presentation.title}`}
         onClick={event => onOpenDetail(task, event.currentTarget)}
       >
         <MoreHorizontal aria-hidden="true" size={20} />

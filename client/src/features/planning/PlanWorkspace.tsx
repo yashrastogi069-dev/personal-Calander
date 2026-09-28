@@ -19,6 +19,7 @@ type PlanWorkspaceProps = {
   onOpenGoals: () => void;
   earlierCommitments?: TodayProjection["recovery"];
   focusEarlierCommitments?: boolean;
+  focusTodayItemId?: string | null;
 };
 
 function weekStartFor(localDate: string) {
@@ -36,7 +37,7 @@ function DailyCommitmentRow({ item, task, tomorrow, onResolve, onMove, pending }
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [nextDate, setNextDate] = useState(tomorrow);
   const resolved = item.state !== "committed";
-  return <article className={cn("plan-commitment", resolved && "is-resolved")}>
+  return <article className={cn("plan-commitment", resolved && "is-resolved")} id={`daily-commitment-${item.id}`} tabIndex={-1}>
     <div className="plan-commitment-copy"><span className="plan-commitment-position">{item.position + 1}</span><div><strong>{task?.title ?? "Missing task"}</strong><span>{resolved ? item.state.replace("_", " ") : dateSummary(task ?? {})}{item.note ? ` · ${item.note}` : ""}</span></div></div>
     {resolved ? <span className="plan-outcome">{item.state === "wont_do" ? "Won’t do" : item.state}</span> : <div className="plan-commitment-actions">{onMove ? <><button type="button" onClick={() => onMove(item, -1)} disabled={pending} aria-label={`Move ${task?.title ?? "commitment"} earlier`}><ArrowUp size={14} /></button><button type="button" onClick={() => onMove(item, 1)} disabled={pending} aria-label={`Move ${task?.title ?? "commitment"} later`}><ArrowDown size={14} /></button></> : null}<button type="button" onClick={() => onResolve(item, task, "done")} disabled={pending || !task}><Check size={15} /> Done</button><button type="button" onClick={() => setRescheduleOpen(open => !open)} disabled={pending || !task}><RotateCcw size={14} /> Reschedule</button><button type="button" onClick={() => onResolve(item, task, "deferred")} disabled={pending || !task}>Defer</button><button type="button" onClick={() => onResolve(item, task, "wont_do")} disabled={pending || !task}>Won’t do</button></div>}
     {rescheduleOpen && !resolved ? <div className="plan-reschedule-row"><Label htmlFor={`reschedule-${item.id}`}>Plan for</Label><Input id={`reschedule-${item.id}`} type="date" value={nextDate} onChange={event => setNextDate(event.target.value)} /><Button type="button" onClick={() => onResolve(item, task, "rescheduled", nextDate)} disabled={pending || !nextDate}>Confirm</Button></div> : null}
@@ -96,7 +97,7 @@ function ScheduleAssistance({ scope, today, tasks, proposals }: { scope: Workspa
   return <section className="schedule-assistance-panel" aria-labelledby="schedule-assistance-heading"><div className="plan-section-heading"><div><span>Scheduling assistance</span><h3 id="schedule-assistance-heading">Review an open slot</h3></div><em>Approval required</em></div><p>It finds the first open window inside your saved work hours, avoiding reserved task time and imported busy events. It never changes your calendar on its own.</p>{eligible.length ? <form onSubmit={event => { event.preventDefault(); if (taskId === "none") { setError("Choose a task with a focus-time estimate first."); return; } setError(null); create.mutate({ ...scope, taskId, localDate }); }} className="schedule-proposal-form"><div className="field"><Label htmlFor="proposal-task">Task</Label><select id="proposal-task" value={taskId} onChange={event => setTaskId(event.target.value)}>{eligible.map(task => <option value={task.id} key={task.id}>{task.title} · {task.estimateMinutes} min</option>)}</select></div><div className="field"><Label htmlFor="proposal-date">Propose for</Label><Input id="proposal-date" type="date" value={localDate} onChange={event => setLocalDate(event.target.value)} /></div><Button type="submit" disabled={create.isPending}>{create.isPending ? "Finding…" : "Find an open slot"}</Button></form> : <p className="schedule-empty-note">Add Focus time needed to an unfinished non-pinned task before requesting a time proposal.</p>}{error ? <p className="form-error" role="alert">{error}</p> : null}{actionable.length ? <div className="schedule-proposal-list">{actionable.map(proposal => { const task = taskFor(proposal); return <article key={proposal.id}><div><strong>{task?.title ?? "Missing task"}</strong><p>{proposal.reason}</p></div>{proposal.state === "proposed" ? <div><Button type="button" onClick={() => task && approve.mutate({ ...scope, id: proposal.id, expectedVersion: proposal.version, taskExpectedVersion: task.version })} disabled={!task || approve.isPending}>Approve time</Button><button type="button" onClick={() => dismiss.mutate({ ...scope, id: proposal.id, expectedVersion: proposal.version })} disabled={dismiss.isPending}>Dismiss</button></div> : <div><span className="schedule-approved">Approved</span><button type="button" onClick={() => task && undo.mutate({ ...scope, id: proposal.id, expectedVersion: proposal.version, taskExpectedVersion: task.version })} disabled={!task || undo.isPending}>Undo reservation</button></div>}</article>; })}</div> : null}</section>;
 }
 
-export function PlanWorkspace({ scope, today, snapshot, dashboard, onOpenTasks, onOpenGoals, earlierCommitments = [], focusEarlierCommitments = false }: PlanWorkspaceProps) {
+export function PlanWorkspace({ scope, today, snapshot, dashboard, onOpenTasks, onOpenGoals, earlierCommitments = [], focusEarlierCommitments = false, focusTodayItemId = null }: PlanWorkspaceProps) {
   const utils = trpc.useUtils();
   const [intention, setIntention] = useState("");
   const [taskSearch, setTaskSearch] = useState("");
@@ -116,6 +117,16 @@ export function PlanWorkspace({ scope, today, snapshot, dashboard, onOpenTasks, 
   const carryObjective = trpc.planner.weeklyObjective.carryForward.useMutation({ onSuccess: refresh, onError: error => setLocalError(error.message || "Weekly objective could not be carried forward.") });
   const currentPlan = (snapshot.dailyPlans ?? []).find((plan: any) => plan.localDate === today && plan.state !== "archived");
   const currentPlanItems = (snapshot.dailyPlanItems ?? []).filter((item: any) => item.dailyPlanId === currentPlan?.id).sort((left: any, right: any) => left.position - right.position);
+  const hasFocusedTodayItem = Boolean(focusTodayItemId && currentPlanItems.some((item: any) => item.id === focusTodayItemId));
+  useEffect(() => {
+    if (!hasFocusedTodayItem) return;
+    const frame = window.requestAnimationFrame(() => {
+      const row = document.getElementById(`daily-commitment-${focusTodayItemId}`);
+      row?.scrollIntoView({ block: "center" });
+      row?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusTodayItemId, hasFocusedTodayItem]);
   useEffect(() => {
     if (focusEarlierCommitments && earlierCommitments.length) {
       document.getElementById("earlier-commitments")?.focus();
