@@ -1125,6 +1125,8 @@ html, body { background:#e8ecea; color:#182420; }
 .plan-commitment-actions { display:flex; flex-wrap:wrap; align-items:start; justify-content:flex-end; gap:2px 7px; max-width:290px; }
 .plan-commitment-actions button { display:inline-flex; align-items:center; min-height:24px; gap:4px; white-space:nowrap; }
 .plan-commitment-actions button:disabled { color:#92a69d; text-decoration:none; }
+.plan-commitment-recovery-note { max-width:320px; margin:0; color:#496a5b; font-size:14px; line-height:1.4; }
+.plan-commitment-recovery-note strong { display:block; color:#315b49; }
 .plan-outcome { align-self:start; padding:4px 7px; color:#45675a; border:1px solid #c6dbce; border-radius:999px; background:#f5faf6; font:700 10px/1.2 "IBM Plex Mono", monospace; text-transform:capitalize; }
 .plan-reschedule-row { display:grid; grid-column:1 / -1; grid-template-columns:auto 148px auto; align-items:center; gap:8px; padding:8px 0 0 32px; }
 .plan-reschedule-row input { min-height:34px; }

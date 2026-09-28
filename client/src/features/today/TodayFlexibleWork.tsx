@@ -13,6 +13,7 @@ export type TodayFlexibleWorkProps = {
   categoryNames: ReadonlyMap<string, string>;
   pendingTaskIds: ReadonlySet<string>;
   linkedResolutionByTaskId: ReadonlyMap<string, "plan" | "review" | "both">;
+  linkedPlanContextByTaskId: ReadonlyMap<string, { isEarlier: boolean; needsRecovery: boolean }>;
   onOpenLinkedResolution: (task: CanonicalTask) => void;
   onToggleTask: (task: CanonicalTask) => void | Promise<unknown>;
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
@@ -37,6 +38,7 @@ export function TodayFlexibleWork({
   categoryNames,
   pendingTaskIds,
   linkedResolutionByTaskId,
+  linkedPlanContextByTaskId,
   onOpenLinkedResolution,
   onToggleTask,
   onArchiveTask,
@@ -59,10 +61,23 @@ export function TodayFlexibleWork({
           const task = taskById.get(row.recordId);
           if (!task) return null;
           const linkedResolution = linkedResolutionByTaskId.get(task.id);
-          const resolutionDestination = linkedResolution === "both" ? "Review, then Plan" : linkedResolution === "plan" ? "Plan" : "Review";
+          const planContext = linkedPlanContextByTaskId.get(task.id);
+          const resolutionCopy = linkedResolution === "both"
+            ? "Review dated occurrence; Plan commitment needs recovery flow after migration"
+            : linkedResolution === "review" ? "Resolve dated occurrence in Review"
+            : planContext?.needsRecovery ? "Plan commitment needs recovery flow after migration"
+            : planContext?.isEarlier ? "Resolve earlier commitment in Plan" : "Resolve today’s commitment in Plan";
+          const guardLabel = linkedResolution === "both"
+            ? `Open ${task.title} occurrence in Review; plan recovery still required`
+            : linkedResolution === "plan" && planContext?.needsRecovery ? `Open ${task.title} recovery status in Plan`
+            : `Resolve ${task.title} in ${linkedResolution === "plan" ? "Plan" : "Review"}`;
+          const detailLabel = linkedResolution === "both"
+            ? `Open ${task.title} in Review; plan recovery still required`
+            : linkedResolution === "plan" && planContext?.needsRecovery ? `Open ${task.title} recovery status in Plan`
+            : `Open ${task.title} in ${linkedResolution === "plan" ? "Plan" : "Review"}`;
           return (
             <div className="today-flexible-row" key={row.recordId} data-today-task-source={row.source}>
-              <span className="today-source-label">{sourceLabel[row.source]}{linkedResolution ? linkedResolution === "plan" ? " · Resolve today’s commitment in Plan" : ` · Resolve dated history in ${resolutionDestination}` : null}</span>
+              <span className="today-source-label">{sourceLabel[row.source]}{linkedResolution ? ` · ${resolutionCopy}` : null}</span>
               <CanonicalTaskRow
                 task={task}
                 context={{
@@ -74,8 +89,8 @@ export function TodayFlexibleWork({
                   categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
                 }}
                 pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
-                completionGuard={linkedResolution ? { label: `Resolve ${task.title} in ${resolutionDestination}`, onOpen: () => onOpenLinkedResolution(task) } : undefined}
-                detailActionLabel={linkedResolution ? `Open ${task.title} in ${resolutionDestination}` : undefined}
+                completionGuard={linkedResolution ? { label: guardLabel, onOpen: () => onOpenLinkedResolution(task) } : undefined}
+                detailActionLabel={linkedResolution ? detailLabel : undefined}
                 contextualActionLabel={linkedResolution ? linkedResolution === "plan" ? "Open Plan" : "Open Review" : String(task.id).startsWith("offline:") ? "Sync before focus" : task.state === "blocked" ? "Review blockers" : "Start focus"}
                 onToggle={linkedResolution ? () => onOpenLinkedResolution(task) : onToggleTask}
                 onArchive={linkedResolution ? undefined : onArchiveTask}

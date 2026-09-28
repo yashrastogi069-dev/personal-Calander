@@ -281,11 +281,13 @@ describe("Phase 4 Today workspace", () => {
       dailyPlanItems: [{ id: "item-1", dailyPlanId: "plan-today", taskId: reserved.id, state: "committed", position: 0 }],
       taskOccurrences: [{ id: "occ-1", taskId: reserved.id, localDate, state: "pending" }],
     });
-    expect(html).toContain('aria-label="Resolve Protected writing block in Review, then Plan"');
-    expect(html).toContain('aria-label="Open Protected writing block in Review, then Plan"');
+    expect(html).toContain('aria-label="Open Protected writing block occurrence in Review; plan recovery still required"');
+    expect(html).not.toContain('aria-label="Open Protected writing block in Review; plan recovery still required"');
+    expect(html).toContain("Plan commitment needs recovery flow after migration");
     expect(html).not.toContain('aria-label="Open details for Protected writing block"');
     expect(html).not.toContain('aria-label="Complete Protected writing block"');
     expect(html).toContain('class="canonical-task-resolution"');
+    expect(html).not.toContain('class="canonical-task-detail-action"');
     expect(html).toContain("Open Review");
     expect(html).not.toContain("Start focus");
   });
@@ -298,6 +300,23 @@ describe("Phase 4 Today workspace", () => {
     });
     expect(html).toContain("Resolve today’s commitment in Plan");
     expect(html).toContain('aria-label="Resolve Review the chapter notes in Plan"');
+  });
+
+  it("guards a reserved task with an unresolved earlier commitment even when recovery projection omitted it", () => {
+    const priorPlan = [{ id: "plan-earlier", localDate: "2026-09-20", state: "active" }];
+    const priorItems = [{ id: "item-earlier", dailyPlanId: "plan-earlier", taskId: reserved.id, state: "committed", position: 0 }];
+    expect(todayLinkedResolution(reserved.id, localDate, priorPlan, priorItems, [])).toBe("plan");
+    const html = renderToday({
+      projection: { ...projection, recovery: [], flexible: [], timeline: [projection.timeline[0]] },
+      tasks: [reserved],
+      dailyPlans: priorPlan,
+      dailyPlanItems: priorItems,
+      taskOccurrences: [],
+    });
+    expect(html).toContain('aria-label="Resolve Protected writing block in Plan"');
+    expect(html).toContain("Resolve earlier commitment in Plan");
+    expect(html).not.toContain('aria-label="Complete Protected writing block"');
+    expect(html).not.toContain("Start focus");
   });
 
   it("labels unavailable time separately from merged scheduled demand", () => {

@@ -101,6 +101,22 @@ export type TodayRecoveryRow = {
   fromLocalDate: string;
 };
 
+/** Full saved-plan history for Plan. Today deliberately summarizes by task, but Plan must not dedupe commitments. */
+export function projectEarlierPlanCommitments(input: Pick<TodayProjectionInput, "localDate" | "tasks" | "dailyPlans" | "dailyPlanItems">): TodayRecoveryRow[] {
+  const taskById = new Map(input.tasks.map(task => [task.id, task]));
+  const itemPositionById = new Map(input.dailyPlanItems.map(item => [item.id, item.position]));
+  const earlierPlanDateById = new Map(input.dailyPlans
+    .filter(plan => plan.localDate < input.localDate && plan.state !== "archived")
+    .map(plan => [plan.id, plan.localDate]));
+  return input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
+    const fromLocalDate = earlierPlanDateById.get(item.dailyPlanId);
+    if (!fromLocalDate || item.state !== "committed") return [];
+    return [{ kind: "task", recordId: item.taskId, title: taskById.get(item.taskId)?.title ?? "Missing linked task", dailyPlanItemId: item.id, fromLocalDate }];
+  }).sort((left, right) => right.fromLocalDate.localeCompare(left.fromLocalDate)
+    || (itemPositionById.get(left.dailyPlanItemId) ?? 0) - (itemPositionById.get(right.dailyPlanItemId) ?? 0)
+    || left.dailyPlanItemId.localeCompare(right.dailyPlanItemId));
+}
+
 export type TodayHabitRow = {
   kind: "habit";
   recordId: string;
@@ -220,7 +236,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const recoveryCandidates: TodayRecoveryRow[] = input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
     const fromLocalDate = earlierPlanDateById.get(item.dailyPlanId);
     const task = taskById.get(item.taskId);
-    if (!fromLocalDate || item.state !== "committed" || resolvedItemIds.has(item.id) || !task || !isOpenTask(task)) return [];
+    if (!fromLocalDate || item.state !== "committed" || resolvedItemIds.has(item.id) || !task) return [];
     return [{ kind: "task", recordId: task.id, title: task.title, dailyPlanItemId: item.id, fromLocalDate }];
   }).sort((left, right) => {
     const leftTask = taskById.get(left.recordId)!;

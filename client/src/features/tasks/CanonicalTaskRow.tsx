@@ -81,6 +81,7 @@ export function CanonicalTaskRow({
       className={cn(
         "canonical-task-row",
         presentation.completion.isComplete && "is-complete",
+        completionGuard && "is-resolution-guarded",
         archiveRevealed && "has-archive-reveal",
       )}
       data-task-record-id={presentation.identity.recordId}
@@ -98,7 +99,7 @@ export function CanonicalTaskRow({
           <button type="button" onClick={() => setArchiveRevealed(false)}>Cancel</button>
         </div>
       ) : null}
-      {completionGuard ? <button type="button" className="canonical-task-resolution" aria-label={completionGuard.label} onClick={completionGuard.onOpen}><ArrowRight aria-hidden="true" size={17} /></button> : <button
+      {completionGuard ? <span className="canonical-task-resolution" aria-hidden="true"><ArrowRight size={17} /></span> : <button
         type="button"
         className={cn("canonical-task-check", presentation.completion.isComplete && "is-checked")}
         aria-label={`${presentation.completion.isComplete ? "Reopen" : "Complete"} ${presentation.title}`}
@@ -122,18 +123,19 @@ export function CanonicalTaskRow({
       <button
         type="button"
         className="canonical-task-context-action"
-        onClick={event => runPrimary(event.currentTarget)}
+        aria-label={completionGuard?.label}
+        onClick={event => completionGuard ? completionGuard.onOpen() : runPrimary(event.currentTarget)}
       >
         {contextualActionLabel ?? presentation.primaryAction.label}
       </button>
-      <button
+      {!completionGuard ? <button
         type="button"
         className="canonical-task-detail-action"
         aria-label={detailActionLabel ?? `Open details for ${presentation.title}`}
         onClick={event => onOpenDetail(task, event.currentTarget)}
       >
         <MoreHorizontal aria-hidden="true" size={20} />
-      </button>
+      </button> : null}
     </article>
   );
 }

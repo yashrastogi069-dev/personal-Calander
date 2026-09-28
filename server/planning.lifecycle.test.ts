@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./db", () => ({ getDb: vi.fn() }));
 
 import { getDb } from "./db";
-import { bulkSetTaskState, reserveTask, updateTask } from "./planning";
+import { bulkSetTaskState, reserveTask, resolveDailyPlanItem, updateTask } from "./planning";
 
 const mockedGetDb = vi.mocked(getDb);
 const scope = { workspaceId: "lifecycle-service-test", timezone: "UTC" };
@@ -37,6 +37,41 @@ describe("planner task lifecycle persistence", () => {
     await expect(updateTask(scope, { id: existing.id, expectedVersion: existing.version, patch: { state: "not_started" } })).resolves.toEqual(restored);
     expect(set).toHaveBeenCalledWith(expect.objectContaining({ state: "not_started", completedAt: null, archivedAt: null, version: 8 }));
     expect(whereUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a recurring-series daily commitment before any transaction mutates its task or item", async () => {
+    const item = { id: "item-recurring", workspaceId: scope.workspaceId, taskId: "task-recurring", state: "committed", version: 1 };
+    const series = { id: "task-recurring", workspaceId: scope.workspaceId, state: "not_started", version: 4, recurrenceRule: { frequency: "daily" } };
+    const transaction = vi.fn();
+    const update = vi.fn();
+    const select = vi.fn().mockReturnValueOnce(selection(item)).mockReturnValueOnce(selection(series));
+    mockedGetDb.mockResolvedValue({ select, update, transaction } as never);
+
+    await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 4, state: "deferred" })).rejects.toThrow("Recurring commitments need the recovery flow after migration");
+    expect(transaction).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects daily-plan outcomes when an older occurrence exists even if the recurrence rule was cleared", async () => {
+    const item = { id: "item-history", workspaceId: scope.workspaceId, taskId: "task-history", state: "committed", version: 1 };
+    const task = { id: "task-history", workspaceId: scope.workspaceId, state: "not_started", version: 2, recurrenceRule: null };
+    const transaction = vi.fn();
+    const select = vi.fn().mockReturnValueOnce(selection(item)).mockReturnValueOnce(selection(task)).mockReturnValueOnce(selection({ id: "occ-old" }));
+    mockedGetDb.mockResolvedValue({ select, transaction } as never);
+
+    await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 2, state: "done" })).rejects.toThrow("Recurring commitments need the recovery flow after migration");
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale unresolved item whose linked task was already completed elsewhere", async () => {
+    const item = { id: "item-stale", workspaceId: scope.workspaceId, taskId: "task-complete", state: "committed", version: 1 };
+    const completed = { id: "task-complete", workspaceId: scope.workspaceId, state: "completed", version: 3, recurrenceRule: null };
+    const transaction = vi.fn();
+    const select = vi.fn().mockReturnValueOnce(selection(item)).mockReturnValueOnce(selection(completed));
+    mockedGetDb.mockResolvedValue({ select, transaction } as never);
+
+    await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 3, state: "done" })).rejects.toThrow("Needs reconciliation in Recovery");
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it("clears only task-owned reservation timestamps when a calendar block is removed", async () => {

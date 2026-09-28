@@ -639,6 +639,15 @@ export async function resolveDailyPlanItem(scope: PlannerScope, input: { id: str
   if (!linkedTask) throw new Error("The task linked to this commitment no longer exists.");
   if (linkedTask.version !== input.taskExpectedVersion) throw new PlannerConflictError(linkedTask);
   if (item.state !== "committed") throw new Error("This daily commitment already has an outcome. Refresh before changing it.");
+  if (linkedTask.state === "completed" || linkedTask.state === "archived" || linkedTask.outcome === "wont_do") {
+    throw new Error("Needs reconciliation in Recovery: this commitment is still open, but its linked task already has a final outcome. No history was changed.");
+  }
+  const occurrenceHistory = linkedTask.recurrenceRule
+    ? []
+    : await db.select({ id: taskOccurrences.id }).from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.taskId, linkedTask.id))).limit(1);
+  if (linkedTask.recurrenceRule || occurrenceHistory.length) {
+    throw new Error("Recurring commitments need the recovery flow after migration. No task or dated history was changed.");
+  }
   if (input.state === "done") {
     const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, linkedTask.id)));
     const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));

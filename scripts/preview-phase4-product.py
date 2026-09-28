@@ -876,7 +876,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert not console_errors, ("focus", console_errors)
 
         before_task_writes = requests.count("planner.task.update")
-        today.locator('[data-task-record-id="today-flexible"] .canonical-task-resolution').click()
+        today.locator('[data-task-record-id="today-flexible"] .canonical-task-context-action').click()
         wait_for_target(page, "plan", "daily")
         linked_plan_row = page.locator("#daily-commitment-today-item")
         linked_plan_row.wait_for(state="visible")
@@ -885,7 +885,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert requests.count("planner.task.update") == before_task_writes
         page.go_back()
         today.wait_for(state="visible")
-        today.get_by_label("Open Call the landlord in Plan").click()
+        today.get_by_label("Resolve Call the landlord in Plan").click()
         wait_for_target(page, "plan", "daily")
         assert page.locator("#daily-commitment-today-item").is_visible()
         assert not page.get_by_role("dialog", name="Call the landlord").count()
@@ -937,7 +937,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         guarded.dispatch_event("pointerup", {"pointerType": "touch", "clientX": 200, "clientY": 100})
         assert not guarded.locator(".canonical-task-row-reveal").count()
         assert requests.count("planner.task.update") == before_task_writes
-        guarded.get_by_label("Open Prepare the proposal in Review").click()
+        guarded.get_by_label("Resolve Prepare the proposal in Review").click()
         wait_for_target(page, "review", "rituals")
         target_occurrence = page.locator("#occurrence-occ-target")
         target_occurrence.wait_for(state="visible")
@@ -950,7 +950,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert page.locator("#occurrence-occ-target").is_visible()
         page.go_back()
         today.wait_for(state="visible")
-        today.locator('[data-task-record-id="today-reserved"] .canonical-task-resolution').click()
+        today.locator('[data-task-record-id="today-reserved"] .canonical-task-context-action').click()
         wait_for_target(page, "review", "rituals")
         target_occurrence = page.locator("#occurrence-occ-target")
         target_occurrence.wait_for(state="visible")
@@ -972,13 +972,13 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         combined = today.locator('[data-task-record-id="today-reserved"]')
-        assert combined.get_by_role("button", name="Resolve Prepare the proposal in Review, then Plan").is_visible()
-        assert today.get_by_text("Resolve dated history in Review, then Plan", exact=False).is_visible()
+        assert combined.get_by_role("button", name="Open Prepare the proposal occurrence in Review; plan recovery still required").is_visible()
+        assert today.get_by_text("Plan commitment needs recovery flow after migration", exact=False).is_visible()
         assert not combined.get_by_role("button", name="Complete Prepare the proposal").count()
         protected_screenshot = output / f"today-protected-combined-{width}.png"
         page.locator('[data-scroll-owner="destination"]').evaluate("element => { element.scrollTop = 0; }")
         page.screenshot(path=str(protected_screenshot), full_page=True)
-        combined.locator(".canonical-task-resolution").click()
+        combined.locator(".canonical-task-context-action").click()
         wait_for_target(page, "review", "rituals")
         combined_occurrence = page.locator("#occurrence-occ-target")
         combined_occurrence.wait_for(state="visible")
@@ -993,14 +993,59 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.go_back()
         today.wait_for(state="visible")
         combined = today.locator('[data-task-record-id="today-reserved"]')
-        assert combined.get_by_role("button", name="Resolve Prepare the proposal in Plan").is_visible()
+        assert combined.get_by_role("button", name="Open Prepare the proposal recovery status in Plan").is_visible()
         assert today.get_by_text("Recurring task occurrence", exact=True).count() == 1
-        combined.locator(".canonical-task-resolution").click()
+        combined.locator(".canonical-task-context-action").click()
         wait_for_target(page, "plan", "daily")
         page.locator("#daily-commitment-combined-item").wait_for(state="visible")
         page.wait_for_function("() => document.activeElement?.id === 'daily-commitment-combined-item'")
+        combined_plan_row = page.locator("#daily-commitment-combined-item")
+        assert combined_plan_row.get_by_text("Needs recovery flow after migration", exact=False).is_visible()
+        assert not combined_plan_row.get_by_role("button", name="Done").count()
+        assert not combined_plan_row.get_by_role("button", name="Defer").count()
         assert requests.count("planner.task.update") == before_task_writes
+        guarded_plan_screenshot = output / f"plan-protected-recurring-{width}.png"
+        page.screenshot(path=str(guarded_plan_screenshot), full_page=True)
 
+        snapshot["dailyPlanItems"] = [item for item in snapshot["dailyPlanItems"] if item["id"] != "combined-item"]
+        snapshot["taskOccurrences"] = [item for item in snapshot["taskOccurrences"] if item["id"] != "occ-target"]
+        reserved["recurrenceRule"] = {"frequency": "daily", "interval": 1}
+        snapshot["dailyPlans"].append({"id": "older-plan", "workspaceId": workspace_id, "localDate": "2026-09-19", "state": "closed", "version": 1, "intention": None})
+        snapshot["dailyPlanItems"].extend([
+            {"id": "older-reserved-a", "dailyPlanId": "older-plan", "taskId": reserved["id"], "state": "committed", "position": 0, "version": 1, "note": None},
+            {"id": "older-reserved-b", "dailyPlanId": "older-plan", "taskId": reserved["id"], "state": "committed", "position": 1, "version": 1, "note": None},
+            {"id": "older-final-task", "dailyPlanId": "older-plan", "taskId": completed["id"], "state": "committed", "position": 2, "version": 1, "note": None},
+            {"id": "older-missing-task", "dailyPlanId": "older-plan", "taskId": "unavailable-task", "state": "committed", "position": 3, "version": 1, "note": None},
+        ])
+        page = context.new_page()
+        page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+        page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+        page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible")
+        older_guard = today.locator('[data-task-record-id="today-reserved"]')
+        assert older_guard.get_by_role("button", name="Open Prepare the proposal recovery status in Plan").is_visible()
+        assert today.get_by_text("Plan commitment needs recovery flow after migration", exact=False).is_visible()
+        assert not older_guard.get_by_role("button", name="Complete Prepare the proposal").count()
+        older_screenshot = output / f"today-protected-earlier-{width}.png"
+        page.screenshot(path=str(older_screenshot), full_page=True)
+        older_guard.locator(".canonical-task-context-action").click()
+        wait_for_target(page, "plan", "daily")
+        page.locator("#daily-commitment-older-reserved-a").wait_for(state="visible")
+        page.wait_for_function("() => document.activeElement?.id === 'daily-commitment-older-reserved-a'")
+        assert page.locator("#daily-commitment-older-reserved-b").is_visible()
+        assert page.locator("#daily-commitment-older-final-task").get_by_text("Needs reconciliation in Recovery", exact=False).is_visible()
+        assert page.locator("#daily-commitment-older-missing-task").get_by_text("Missing linked task", exact=True).is_visible()
+        assert not page.locator("#daily-commitment-older-missing-task").get_by_role("button", name="Done").count()
+        assert requests.count("planner.task.update") == before_task_writes
+        older_plan_screenshot = output / f"plan-protected-earlier-{width}.png"
+        page.screenshot(path=str(older_plan_screenshot), full_page=True)
+
+        snapshot["dailyPlanItems"] = [item for item in snapshot["dailyPlanItems"] if item["dailyPlanId"] != "older-plan"]
+        snapshot["dailyPlans"] = [plan for plan in snapshot["dailyPlans"] if plan["id"] != "older-plan"]
+        reserved["state"] = "completed"
+        reserved["completedAt"] = "2026-09-21T09:00:00.000Z"
         snapshot["tasks"].append({**task_base, "id": "offline:today-pending", "title": "Unsynced idea", "scheduledLocalDate": "2026-09-21", "sortOrder": 30})
         page = context.new_page()
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
@@ -1057,7 +1102,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert not runtime_errors, runtime_errors
         assert not console_errors, console_errors
         assert not unexpected, unexpected
-        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "protectedScreenshot": str(protected_screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True, "linkedHistoryGuarded": True})
+        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "protectedScreenshot": str(protected_screenshot), "guardedPlanScreenshot": str(guarded_plan_screenshot), "olderProtectedScreenshot": str(older_screenshot), "olderPlanScreenshot": str(older_plan_screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True, "linkedHistoryGuarded": True})
     finally:
         context.close()
     return result

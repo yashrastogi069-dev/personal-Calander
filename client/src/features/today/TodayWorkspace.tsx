@@ -37,7 +37,7 @@ export function todayLinkedResolution(
   items: TodayDailyPlanItem[],
   occurrences: TodayTaskOccurrence[],
 ): TodayLinkedResolution | null {
-  const planIds = new Set(plans.filter(plan => plan.localDate === localDate && plan.state !== "archived").map(plan => plan.id));
+  const planIds = new Set(plans.filter(plan => plan.localDate <= localDate && plan.state !== "archived").map(plan => plan.id));
   const commitment = items.some(item => item.taskId === taskId && item.state === "committed" && planIds.has(item.dailyPlanId));
   const occurrence = occurrences.some(item => item.taskId === taskId && item.localDate === localDate && item.state === "pending");
   return commitment && occurrence ? "both" : commitment ? "plan" : occurrence ? "review" : null;
@@ -218,6 +218,14 @@ export function TodayWorkspace({
     const route = todayLinkedResolution(task.id, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences);
     return route ? [[task.id, route] as const] : [];
   })), [tasks, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences]);
+  const linkedPlanContextByTaskId = useMemo(() => {
+    const planDateById = new Map(dailyPlans.map(plan => [plan.id, plan.localDate]));
+    const occurrenceTaskIds = new Set(taskOccurrences.map(item => item.taskId));
+    return new Map(tasks.map(task => [task.id, {
+      isEarlier: dailyPlanItems.some(item => item.taskId === task.id && item.state === "committed" && (planDateById.get(item.dailyPlanId) ?? projection.localDate) < projection.localDate),
+      needsRecovery: Boolean(task.recurrenceRule || occurrenceTaskIds.has(task.id)),
+    }] as const));
+  }, [tasks, dailyPlans, dailyPlanItems, taskOccurrences, projection.localDate]);
   const firstExecutableId = [
     ...projection.flexible.map(row => row.recordId),
     ...projection.timeline.filter(row => row.kind === "task").map(row => row.recordId),
@@ -256,8 +264,16 @@ export function TodayWorkspace({
       const occurrence = taskOccurrences.find(item => item.taskId === task.id && item.localDate === projection.localDate && item.state === "pending");
       if (occurrence) onOpenReview(occurrence.id);
     } else if (route) {
-      const planIds = new Set(dailyPlans.filter(plan => plan.localDate === projection.localDate && plan.state !== "archived").map(plan => plan.id));
-      const item = dailyPlanItems.find(candidate => candidate.taskId === task.id && candidate.state === "committed" && planIds.has(candidate.dailyPlanId));
+      const planDateById = new Map(dailyPlans.filter(plan => plan.localDate <= projection.localDate && plan.state !== "archived").map(plan => [plan.id, plan.localDate]));
+      const item = dailyPlanItems
+        .filter(candidate => candidate.taskId === task.id && candidate.state === "committed" && planDateById.has(candidate.dailyPlanId))
+        .sort((left, right) => {
+          const leftDate = planDateById.get(left.dailyPlanId)!;
+          const rightDate = planDateById.get(right.dailyPlanId)!;
+          const leftEarlier = leftDate < projection.localDate;
+          const rightEarlier = rightDate < projection.localDate;
+          return Number(rightEarlier) - Number(leftEarlier) || rightDate.localeCompare(leftDate) || left.id.localeCompare(right.id);
+        })[0];
       if (item) onOpenPlan(item.id);
     }
   };
@@ -355,6 +371,7 @@ export function TodayWorkspace({
           categoryNames={categoryNames}
           pendingTaskIds={pendingTaskIds}
           linkedResolutionByTaskId={linkedResolutionByTaskId}
+          linkedPlanContextByTaskId={linkedPlanContextByTaskId}
           onOpenLinkedResolution={openLinkedResolution}
           onToggleTask={toggleTask}
           onArchiveTask={onArchiveTask}
@@ -371,6 +388,7 @@ export function TodayWorkspace({
           categoryNames={categoryNames}
           pendingTaskIds={pendingTaskIds}
           linkedResolutionByTaskId={linkedResolutionByTaskId}
+          linkedPlanContextByTaskId={linkedPlanContextByTaskId}
           onOpenLinkedResolution={openLinkedResolution}
           onToggleTask={toggleTask}
           onArchiveTask={onArchiveTask}

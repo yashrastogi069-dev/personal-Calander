@@ -252,6 +252,7 @@
 .today-flexible-row > .today-source-label { margin: 0 0 5px 48px; }
 .today-flexible-row .canonical-task-row { border: 0; background: transparent; }
 .today-workspace .canonical-task-row { grid-template-columns: 44px minmax(0, 1fr) auto 44px; min-height: 64px; padding: 4px 0; }
+.today-workspace .canonical-task-row.is-resolution-guarded { grid-template-columns: 44px minmax(0, 1fr) auto; }
 .today-workspace .canonical-task-check,
 .today-workspace .canonical-task-resolution,
 .today-workspace .canonical-task-context-action,
@@ -427,6 +428,7 @@
   .today-appointment-row,
   .today-reservation-row { grid-template-columns: 54px 14px minmax(0, 1fr); gap: 8px; min-height: 108px; }
   .today-workspace .canonical-task-row { grid-template-columns: 44px minmax(0, 1fr) 44px; row-gap: 7px; }
+  .today-workspace .canonical-task-row.is-resolution-guarded { grid-template-columns: 44px minmax(0, 1fr); }
   .today-workspace .canonical-task-context-action { grid-column: 2 / -1; width: 100%; }
   .today-workspace .canonical-task-detail-action { grid-column: 3; grid-row: 1; }
   .today-flexible-row > .today-source-label { margin-left: 44px; }

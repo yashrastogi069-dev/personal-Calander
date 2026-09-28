@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectToday, type TodayProjectionInput } from "@shared/todayProjection";
+import { projectEarlierPlanCommitments, projectToday, type TodayProjectionInput } from "@shared/todayProjection";
 
 const localDate = "2026-09-20";
 
@@ -46,6 +46,26 @@ function baseInput(overrides: Partial<TodayProjectionInput> = {}): TodayProjecti
 }
 
 describe("projectToday", () => {
+  it("keeps every earlier committed item in Plan, including duplicate tasks and missing linked tasks", () => {
+    const result = projectEarlierPlanCommitments({
+      localDate,
+      tasks: [task({ id: "task-repeat", title: "Recurring work" })],
+      dailyPlans: [
+        { id: "plan-old", localDate: "2026-09-17", state: "closed" },
+        { id: "plan-new", localDate: "2026-09-19", state: "closed" },
+        { id: "plan-archived", localDate: "2026-09-18", state: "archived" },
+      ],
+      dailyPlanItems: [
+        { id: "old-repeat", dailyPlanId: "plan-old", taskId: "task-repeat", position: 0, state: "committed" },
+        { id: "new-repeat", dailyPlanId: "plan-new", taskId: "task-repeat", position: 1, state: "committed" },
+        { id: "missing", dailyPlanId: "plan-new", taskId: "task-missing", position: 0, state: "committed" },
+        { id: "resolved", dailyPlanId: "plan-old", taskId: "task-repeat", position: 1, state: "done" },
+        { id: "archived", dailyPlanId: "plan-archived", taskId: "task-repeat", position: 0, state: "committed" },
+      ],
+    });
+    expect(result.map(row => row.dailyPlanItemId)).toEqual(["missing", "new-repeat", "old-repeat"]);
+    expect(result[0]).toMatchObject({ recordId: "task-missing", title: "Missing linked task", fromLocalDate: "2026-09-19" });
+  });
   it("places a reserved committed task exactly once in the timeline", () => {
     const input = baseInput({
       tasks: [task({
@@ -168,6 +188,16 @@ describe("projectToday", () => {
     }));
     expect(result.flexible).toEqual([expect.objectContaining({ recordId: "task-combined", source: "daily_commitment" })]);
     expect(result.completionEvidence).toEqual([expect.objectContaining({ kind: "task_occurrence", evidenceId: "occ-combined" })]);
+  });
+
+  it("surfaces an older committed item for reconciliation even when its linked task was completed elsewhere", () => {
+    const result = projectToday(baseInput({
+      tasks: [task({ id: "task-already-complete", title: "Publish the report", state: "completed", completedAt: "2026-09-20T08:00:00.000Z" })],
+      dailyPlans: [{ id: "plan-earlier", localDate: "2026-09-19", state: "active" }],
+      dailyPlanItems: [{ id: "item-unresolved", dailyPlanId: "plan-earlier", taskId: "task-already-complete", position: 0, state: "committed" }],
+    }));
+    expect(result.recovery).toEqual([expect.objectContaining({ dailyPlanItemId: "item-unresolved", recordId: "task-already-complete" })]);
+    expect(result.completionEvidence).toEqual([expect.objectContaining({ kind: "task", recordId: "task-already-complete" })]);
   });
 
   it("counts overlapping task reservations and appointments once in capacity", () => {

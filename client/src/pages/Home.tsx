@@ -8394,9 +8394,8 @@ export default function Home() {
               today={today}
               snapshot={snapshot}
               dashboard={dashboardQuery.data}
-              earlierCommitments={todayProjection?.recovery ?? []}
               focusEarlierCommitments={focusEarlierCommitments}
-              focusTodayItemId={linkedPlanItemId}
+              focusItemId={linkedPlanItemId}
               onOpenTasks={focusTaskSearch}
               onOpenGoals={() => selectSurface("goals")}
             />
