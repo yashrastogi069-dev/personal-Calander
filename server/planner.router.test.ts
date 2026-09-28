@@ -76,6 +76,23 @@ describe("planner task API", () => {
     expect(replay).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects a history-policy replay permanently so the device can review it instead of retrying forever", async () => {
+    const replay = vi.spyOn(synchronization, "processTaskUpdateOperation")
+      .mockRejectedValueOnce(new (planning as any).PlannerPolicyError("unresolved_commitment", "This task has an unresolved daily commitment."))
+      .mockRejectedValueOnce(new (planning as any).PlannerPolicyError("recurring_series", "A recurring series needs dated occurrence resolution."));
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const base = { entity: "task" as const, kind: "update" as const, baseVersion: 1, createdAt: "2026-09-12T10:00:00.000Z", baseValues: { state: "not_started" }, patch: { state: "completed" as const } };
+    const results = await caller.planner.sync.replay({ workspaceId: "workspace-api-check", timezone: "UTC", operations: [
+      { ...base, operationId: "policy-1", entityId: "task-1" },
+      { ...base, operationId: "policy-2", entityId: "task-2" },
+    ] });
+    expect(results).toEqual([
+      { operationId: "policy-1", status: "rejected", code: "unresolved_commitment" },
+      { operationId: "policy-2", status: "rejected", code: "recurring_series" },
+    ]);
+    replay.mockRestore();
+  });
+
   it("replays an offline task capture idempotently through its client request ID", async () => {
     const create = vi.spyOn(planning, "createTask").mockResolvedValue({ id: "task-created", clientRequestId: "capture-sync-1", title: "Captured offline", version: 1 } as never);
     const caller = appRouter.createCaller(createAuthenticatedContext());

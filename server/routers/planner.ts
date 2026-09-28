@@ -40,6 +40,7 @@ import {
   materializeTaskOccurrences,
   moveDailyPlanItem,
   PlannerConflictError,
+  PlannerPolicyError,
   prepareReminderRule,
   getReminderRules,
   resolveTaskOccurrence,
@@ -220,7 +221,8 @@ export const plannerRouter = router({
           results.push({ status: "completed" as const, ...result });
         } catch (error) {
           const message = error instanceof Error ? error.message : "";
-          if (/not found/i.test(message)) results.push({ operationId: operation.operationId, status: "rejected" as const, code: "not_found" as const });
+          if (error instanceof PlannerPolicyError) results.push({ operationId: operation.operationId, status: "rejected" as const, code: error.policyCode });
+          else if (/not found/i.test(message)) results.push({ operationId: operation.operationId, status: "rejected" as const, code: "not_found" as const });
           else if (error instanceof PlannerConflictError) results.push({ operationId: operation.operationId, status: "retry" as const, code: "concurrent_change" as const });
           else results.push({ operationId: operation.operationId, status: "retry" as const, code: "temporarily_unavailable" as const });
         }

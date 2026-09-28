@@ -11,6 +11,13 @@ type TaskPatch = Record<string, unknown>;
 
 type TaskSnapshot = { tasks: Array<Record<string, unknown> & { id: string }> };
 
+export function offlineTaskReviewGuidance(code: string | null) {
+  if (code === "unresolved_commitment") return "This task has an unresolved daily commitment. The server kept its confirmed state; review the saved plan history before choosing an outcome.";
+  if (code === "recurring_series") return "This recurring series needs a dated occurrence. The server kept its confirmed parent-task state; review the occurrence or recovery flow.";
+  if (code === "not_found") return "The original item was not found online. Keep this change for later, or explicitly discard only this unsynced copy.";
+  return "The server did not accept this change. Confirmed planner data remains unchanged; keep this copy for review or explicitly discard it.";
+}
+
 export function overlayPendingTaskOperations<T extends TaskSnapshot>(snapshot: T, operations: PlannerOperation[]): T {
   const tasks = snapshot.tasks.map(task => ({ ...task }));
   for (const operation of operations) {

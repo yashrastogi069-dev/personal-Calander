@@ -134,7 +134,14 @@ export async function clearPlanningAvailabilityException(scope: PlannerScope, in
 /** Only unresolved item owners outside the bounded date window need an additive plan read. */
 export function missingCommittedPlanIds(loadedPlans: Array<{ id: string }>, items: Array<{ dailyPlanId: string; state: string }>) {
   const loadedIds = new Set(loadedPlans.map(plan => plan.id));
-  return [...new Set(items.filter(item => item.state === "committed" && !loadedIds.has(item.dailyPlanId)).map(item => item.dailyPlanId))].sort();
+  return Array.from(new Set(items.filter(item => item.state === "committed" && !loadedIds.has(item.dailyPlanId)).map(item => item.dailyPlanId))).sort();
+}
+
+export class PlannerPolicyError extends Error {
+  constructor(public readonly policyCode: "unresolved_commitment" | "recurring_series", message: string) {
+    super(message);
+    this.name = "PlannerPolicyError";
+  }
 }
 
 export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: string; end: string }) {
@@ -200,12 +207,12 @@ export async function assertNoOutstandingTaskCommitments(db: NonNullable<Awaited
   const items = await db.select({ dailyPlanId: dailyPlanItems.dailyPlanId }).from(dailyPlanItems).where(and(
     eq(dailyPlanItems.workspaceId, scope.workspaceId), inArray(dailyPlanItems.taskId, taskIds), eq(dailyPlanItems.state, "committed"),
   ));
-  const planIds = [...new Set(items.map(item => item.dailyPlanId).filter((id): id is string => typeof id === "string"))];
+  const planIds = Array.from(new Set(items.map(item => item.dailyPlanId).filter((id): id is string => typeof id === "string")));
   if (!planIds.length) return;
   const openPlans = await db.select({ id: dailyPlans.id }).from(dailyPlans).where(and(
     eq(dailyPlans.workspaceId, scope.workspaceId), inArray(dailyPlans.id, planIds), ne(dailyPlans.state, "archived"),
   ));
-  if (openPlans.length) throw new Error("This task has an unresolved daily commitment. Reconcile its saved plan history before completing or archiving the parent task; nothing was changed.");
+  if (openPlans.length) throw new PlannerPolicyError("unresolved_commitment", "This task has an unresolved daily commitment. Reconcile its saved plan history before completing or archiving the parent task; nothing was changed.");
 }
 
 export type SearchRecordEntity = "task" | "goal" | "project" | "habit" | "review";
@@ -430,7 +437,7 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
     taskId: existing.id,
   });
   if (input.patch.state === "completed" || input.patch.state === "archived" || input.patch.outcome === "wont_do") {
-    if (existing.recurrenceRule) throw new Error("A recurring series needs dated occurrence resolution before its parent task can receive a terminal outcome.");
+    if (existing.recurrenceRule) throw new PlannerPolicyError("recurring_series", "A recurring series needs dated occurrence resolution before its parent task can receive a terminal outcome.");
     await assertNoOutstandingTaskCommitments(db, scope, [existing.id]);
   }
   if (input.patch.state === "completed" && existing.state !== "completed") {
@@ -542,7 +549,7 @@ export async function bulkSetTaskState(scope: PlannerScope, input: { ids: string
   const db = await requireDb();
   if (input.state === "completed" || input.state === "archived") {
     const selectedTasks = await db.select({ id: tasks.id, recurrenceRule: tasks.recurrenceRule }).from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, input.ids)));
-    if (selectedTasks.some(task => task.recurrenceRule)) throw new Error("A recurring series needs dated occurrence resolution before its parent task can receive a terminal outcome.");
+    if (selectedTasks.some(task => task.recurrenceRule)) throw new PlannerPolicyError("recurring_series", "A recurring series needs dated occurrence resolution before its parent task can receive a terminal outcome.");
     await assertNoOutstandingTaskCommitments(db, scope, input.ids);
   }
   if (input.state === "completed") {

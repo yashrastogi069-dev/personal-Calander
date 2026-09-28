@@ -47,6 +47,7 @@ import {
   type PlannerOperation,
 } from "@/lib/offlineSync";
 import {
+  offlineTaskReviewGuidance,
   overlayPendingTaskOperations,
   queueTaskCreate,
   queueTaskUpdate,
@@ -8824,10 +8825,7 @@ export default function Home() {
                     )
                     .join(" · ")}
                 </p>
-                <small>
-                  The original item was not found online. Keep this change for
-                  later, or explicitly discard only this unsynced copy.
-                </small>
+                <small>{offlineTaskReviewGuidance(operation.lastErrorCode)}</small>
                 <div className="sync-review-actions">
                   {discardOperationId === operation.operationId ? (
                     <>

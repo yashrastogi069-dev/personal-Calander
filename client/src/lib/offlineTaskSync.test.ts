@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryPlannerSyncStore } from "./offlineSync";
-import { overlayPendingTaskOperations, queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
+import { offlineTaskReviewGuidance, overlayPendingTaskOperations, queueTaskCreate, queueTaskUpdate, replayQueuedTaskUpdates } from "./offlineTaskSync";
 import { taskRowsForWorkspace } from "../features/tasks/TaskWorkspace";
 
 const scope = { accountId: "account-a", workspaceId: "workspace-a" };
@@ -138,6 +138,18 @@ describe("offline task replay", () => {
       expect.objectContaining({ operationId: "operation-1", state: "retry", attempts: 1 }),
       expect.objectContaining({ operationId: "operation-2", state: "needs_review", attempts: 1 }),
     ]);
+  });
+
+  it("restores confirmed task state after a history-policy replay rejection and explains the retained change", async () => {
+    const store = new MemoryPlannerSyncStore();
+    await queueTaskUpdate(store, scope, { id: "task-1", version: 1, title: "Open task", state: "not_started" }, { state: "completed" }, "policy-1", "2026-09-12T10:00:00.000Z");
+    const confirmed = { tasks: [{ id: "task-1", title: "Open task", state: "not_started" }] };
+    expect(overlayPendingTaskOperations(confirmed, await store.listOperations(scope)).tasks[0].state).toBe("completed");
+    await expect(replayQueuedTaskUpdates(store, scope, async () => [{ operationId: "policy-1", status: "rejected", code: "unresolved_commitment" }])).resolves.toMatchObject({ completed: 0, needsReview: 1, retry: 0 });
+    const retained = await store.listOperations(scope);
+    expect(retained).toEqual([expect.objectContaining({ state: "needs_review", lastErrorCode: "unresolved_commitment" })]);
+    expect(overlayPendingTaskOperations(confirmed, retained).tasks[0].state).toBe("not_started");
+    expect(offlineTaskReviewGuidance(retained[0].lastErrorCode)).toContain("commitment");
   });
 
   it("keeps the batch retryable when a malformed response arrives", async () => {
