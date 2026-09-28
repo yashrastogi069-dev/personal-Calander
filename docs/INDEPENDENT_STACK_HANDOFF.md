@@ -1,10 +1,16 @@
 # Independent stack: current workbench handoff
 
+## 2026-09-28 current Phase 4 and migration gate
+
+Work remains on `dev/personal-calendar-workbench`; `main` is the frozen R20 reference. Phase 4 Tasks 1-11 are committed. Task 12 Today is committed but undergoing an additional independent-review repair for recurring occurrences, daily commitments, and older unresolved history; do not treat its latest browser evidence as a deployed or physical-iPhone result. The later customizable Overview/dashboard and factual habit heatmap belong to Task 20. No Phase 4 change has been pushed, deployed, merged, or applied to the live database during this checkpoint.
+
+The additive `0004_phase4_product_model.sql` matches controller SHA-256 `a685febea7ea56aaedc5e179dcbb7d47566da9a7be00a2339c820677496bb12b` for configured project `dwiudauuuxzstbavkkqa`; default controller mode reports `readyForApply: false`. A bounded, read-only, strict-TLS database inspection failed with `SELF_SIGNED_CERT_IN_CHAIN`, so fresh live schema, IDs, and counts are unverified. Do not disable certificate validation. Obtain the project database CA certificate from Supabase Database Settings / SSL Configuration, then run a fresh read-only inventory and establish a recoverable backup tested in isolation. Applying this exact migration still requires a separate owner approval packet with target, hash, before counts/IDs, compatibility proof, backup/restore evidence, and rollback routing plan. No `--apply`, migration command, database write, or certificate-bypass option was run. Existing planner IDs/history remain protected.
+
 ## 2026-09-21 Preview schema-compatibility repair
 
 The workbench Preview returned `500` for `auth.workspace` because source schema definitions from the deferred Phase 4 migration caused ordinary reads to select `workspaces.accountabilityLevel` before that additive migration had been approved or applied. The database error was `42703: column "accountabilityLevel" does not exist`; this was a code/schema ordering error, not a lost workspace, account, or planner record. The repair makes ordinary workspace, goal, and project reads explicitly select only the established database columns until the reviewed Phase 4 migration is separately approved and applied. An isolated pre-migration PGlite regression test proves authenticated workspace loading and the initial snapshot succeed without the optional schema. No database, environment variable, or existing record is changed by this repair.
 
-> 2026-09-12 current note: Phase 1 is deployed and online-verified in Production. Phase 2 secure synchronization and Phase 3 notification/calendar implementation are complete on `dev/personal-calendar-workbench` and awaiting final Preview/Production gates. Physical-iPhone offline/relaunch and notification-delivery checks are delegated to the user. Phase 4 remains separate.
+> Historical 2026-09-12 note: Phase 1 was deployed and online-verified in Production. Phase 2 secure synchronization and Phase 3 notification/calendar implementation were complete on `dev/personal-calendar-workbench` and awaiting final Preview/Production gates. Physical-iPhone offline/relaunch and notification-delivery checks were delegated to the user. Phase 4 was separate at that date.
 
 ## 2026-09-12 pre-Phase 4 settings and navigation correction
 
