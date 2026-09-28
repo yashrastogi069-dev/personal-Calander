@@ -295,7 +295,7 @@ describe("projectToday", () => {
     expect(projectToday(first).completionEvidence.map(row => row.recordId)).toEqual(["task-complete-a", "task-complete-z"]);
   });
 
-  it("collapses repeated unresolved historic commitments to the latest one for a task", () => {
+  it("retains each unresolved historic commitment in Today’s decision count", () => {
     const input = baseInput({
       tasks: [task({ id: "task-repeated", title: "One real task" })],
       dailyPlans: [
@@ -310,6 +310,15 @@ describe("projectToday", () => {
 
     expect(projectToday(input).recovery).toEqual([
       expect.objectContaining({ recordId: "task-repeated", dailyPlanItemId: "item-latest", fromLocalDate: "2026-09-19" }),
+      expect.objectContaining({ recordId: "task-repeated", dailyPlanItemId: "item-older", fromLocalDate: "2026-09-17" }),
     ]);
+  });
+
+  it("keeps an earlier commitment visible when its linked task is missing", () => {
+    const result = projectToday(baseInput({
+      dailyPlans: [{ id: "old-plan", localDate: "2026-09-19", state: "closed" }],
+      dailyPlanItems: [{ id: "missing-item", dailyPlanId: "old-plan", taskId: "missing-task", position: 0, state: "committed" }],
+    }));
+    expect(result.recovery).toEqual([{ kind: "task", recordId: "missing-task", title: "Missing linked task · needs reconciliation", dailyPlanItemId: "missing-item", fromLocalDate: "2026-09-19" }]);
   });
 });

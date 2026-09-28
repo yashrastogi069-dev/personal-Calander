@@ -13,7 +13,7 @@ export type TodayTimelineProps = {
   goalTitles: ReadonlyMap<string, string>;
   categoryNames: ReadonlyMap<string, string>;
   pendingTaskIds: ReadonlySet<string>;
-  linkedResolutionByTaskId: ReadonlyMap<string, "plan" | "review" | "both">;
+  linkedResolutionByTaskId: ReadonlyMap<string, "plan" | "review" | "both" | "reconcile">;
   linkedPlanContextByTaskId: ReadonlyMap<string, { isEarlier: boolean; needsRecovery: boolean }>;
   onOpenLinkedResolution: (task: CanonicalTask) => void;
   onToggleTask: (task: CanonicalTask) => void | Promise<unknown>;
@@ -83,16 +83,19 @@ export function TodayTimeline({
           if (!task) return null;
           const linkedResolution = linkedResolutionByTaskId.get(task.id);
           const planContext = linkedPlanContextByTaskId.get(task.id);
-          const resolutionCopy = linkedResolution === "both"
+          const resolutionCopy = linkedResolution === "reconcile" ? "Recurring series · Dated occurrence unavailable"
+            : linkedResolution === "both"
             ? "Review dated occurrence; Plan commitment needs recovery flow after migration"
             : linkedResolution === "review" ? "Resolve dated occurrence in Review"
             : planContext?.needsRecovery ? "Plan commitment needs recovery flow after migration"
             : planContext?.isEarlier ? "Resolve earlier commitment in Plan" : "Resolve today’s commitment in Plan";
-          const guardLabel = linkedResolution === "both"
+          const guardLabel = linkedResolution === "reconcile" ? `Explain why ${task.title} cannot be resolved here`
+            : linkedResolution === "both"
             ? `Open ${task.title} occurrence in Review; plan recovery still required`
             : linkedResolution === "plan" && planContext?.needsRecovery ? `Open ${task.title} recovery status in Plan`
             : `Resolve ${task.title} in ${linkedResolution === "plan" ? "Plan" : "Review"}`;
-          const detailLabel = linkedResolution === "both"
+          const detailLabel = linkedResolution === "reconcile" ? `Explain why ${task.title} cannot be resolved here`
+            : linkedResolution === "both"
             ? `Open ${task.title} in Review; plan recovery still required`
             : linkedResolution === "plan" && planContext?.needsRecovery ? `Open ${task.title} recovery status in Plan`
             : `Open ${task.title} in ${linkedResolution === "plan" ? "Plan" : "Review"}`;
@@ -120,7 +123,7 @@ export function TodayTimeline({
                   pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
                   completionGuard={linkedResolution ? { label: guardLabel, onOpen: () => onOpenLinkedResolution(task) } : undefined}
                   detailActionLabel={linkedResolution ? detailLabel : undefined}
-                  contextualActionLabel={linkedResolution ? linkedResolution === "plan" ? "Open Plan" : "Open Review" : String(task.id).startsWith("offline:") ? "Sync before focus" : task.state === "blocked" ? "Review blockers" : "Start focus"}
+                  contextualActionLabel={linkedResolution ? linkedResolution === "reconcile" ? "Why unavailable" : linkedResolution === "plan" ? "Open Plan" : "Open Review" : String(task.id).startsWith("offline:") ? "Sync before focus" : task.state === "blocked" ? "Review blockers" : "Start focus"}
                   onToggle={linkedResolution ? () => onOpenLinkedResolution(task) : onToggleTask}
                   onArchive={linkedResolution ? undefined : onArchiveTask}
                   onPrimaryAction={(record, _actionId, trigger) => linkedResolution ? onOpenLinkedResolution(record) : task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}

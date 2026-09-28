@@ -319,6 +319,22 @@ describe("Phase 4 Today workspace", () => {
     expect(html).not.toContain("Start focus");
   });
 
+  it("does not offer terminal task actions or Focus for a recurring reservation with no loaded occurrence", () => {
+    const recurring = task({ ...reserved, recurrenceRule: { frequency: "daily", interval: 1 } });
+    expect(todayLinkedResolution(recurring.id, localDate, [], [], [], true)).toBe("reconcile");
+    const html = renderToday({
+      projection: { ...projection, recovery: [], flexible: [], timeline: [projection.timeline[0]], attention: [] },
+      tasks: [recurring],
+      dailyPlans: [], dailyPlanItems: [], taskOccurrences: [],
+    });
+    expect(html).toContain("Dated occurrence unavailable");
+    expect(html).toContain('aria-label="Explain why Protected writing block cannot be resolved here"');
+    expect(html).toContain("Why unavailable");
+    expect(html).not.toContain('aria-label="Complete Protected writing block"');
+    expect(html).not.toContain("Start focus");
+    expect(html).not.toContain('class="canonical-task-detail-action"');
+  });
+
   it("labels unavailable time separately from merged scheduled demand", () => {
     const html = renderToday({ isUnavailableToday: true });
     expect(html).toContain("Scheduled demand");

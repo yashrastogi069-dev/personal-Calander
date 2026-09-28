@@ -236,22 +236,16 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const recoveryCandidates: TodayRecoveryRow[] = input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
     const fromLocalDate = earlierPlanDateById.get(item.dailyPlanId);
     const task = taskById.get(item.taskId);
-    if (!fromLocalDate || item.state !== "committed" || resolvedItemIds.has(item.id) || !task) return [];
-    return [{ kind: "task", recordId: task.id, title: task.title, dailyPlanItemId: item.id, fromLocalDate }];
+    if (!fromLocalDate || item.state !== "committed" || resolvedItemIds.has(item.id)) return [];
+    return [{ kind: "task", recordId: item.taskId, title: task?.title ?? "Missing linked task · needs reconciliation", dailyPlanItemId: item.id, fromLocalDate }];
   }).sort((left, right) => {
-    const leftTask = taskById.get(left.recordId)!;
-    const rightTask = taskById.get(right.recordId)!;
+    const leftTask = taskById.get(left.recordId);
+    const rightTask = taskById.get(right.recordId);
     return right.fromLocalDate.localeCompare(left.fromLocalDate)
-      || compareTaskOrder(leftTask, rightTask)
+      || (leftTask && rightTask ? compareTaskOrder(leftTask, rightTask) : compareText(left.title, right.title) || left.recordId.localeCompare(right.recordId))
       || left.dailyPlanItemId.localeCompare(right.dailyPlanItemId);
   });
-  const recovery: TodayRecoveryRow[] = [];
-  const recoveredTaskIds = new Set<string>();
-  for (const candidate of recoveryCandidates) {
-    if (recoveredTaskIds.has(candidate.recordId)) continue;
-    recoveredTaskIds.add(candidate.recordId);
-    recovery.push(candidate);
-  }
+  const recovery = recoveryCandidates;
   const recoveryTaskIds = new Set(recovery.map(item => item.recordId));
 
   const taskTimeline: TodayTaskRow[] = [];

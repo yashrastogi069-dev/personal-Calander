@@ -28,7 +28,7 @@ export function isExecutableTodayTask(task: CanonicalTask | null | undefined) {
   return Boolean(task && !task.id.startsWith("offline:") && task.state !== "blocked" && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
 }
 
-export type TodayLinkedResolution = "plan" | "review" | "both";
+export type TodayLinkedResolution = "plan" | "review" | "both" | "reconcile";
 
 export function todayLinkedResolution(
   taskId: string,
@@ -36,11 +36,12 @@ export function todayLinkedResolution(
   plans: TodayDailyPlan[],
   items: TodayDailyPlanItem[],
   occurrences: TodayTaskOccurrence[],
+  isRecurringSeries = false,
 ): TodayLinkedResolution | null {
   const planIds = new Set(plans.filter(plan => plan.localDate <= localDate && plan.state !== "archived").map(plan => plan.id));
   const commitment = items.some(item => item.taskId === taskId && item.state === "committed" && planIds.has(item.dailyPlanId));
   const occurrence = occurrences.some(item => item.taskId === taskId && item.localDate === localDate && item.state === "pending");
-  return commitment && occurrence ? "both" : commitment ? "plan" : occurrence ? "review" : null;
+  return commitment && occurrence ? "both" : commitment ? "plan" : occurrence ? "review" : isRecurringSeries ? "reconcile" : null;
 }
 
 export function contextualTodayAction(input: {
@@ -215,7 +216,7 @@ export function TodayWorkspace({
 }: TodayWorkspaceProps) {
   const taskById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
   const linkedResolutionByTaskId = useMemo(() => new Map(tasks.flatMap(task => {
-    const route = todayLinkedResolution(task.id, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences);
+    const route = todayLinkedResolution(task.id, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences, Boolean(task.recurrenceRule));
     return route ? [[task.id, route] as const] : [];
   })), [tasks, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences]);
   const linkedPlanContextByTaskId = useMemo(() => {
@@ -260,6 +261,10 @@ export function TodayWorkspace({
 
   const openLinkedResolution = (task: CanonicalTask) => {
     const route = linkedResolutionByTaskId.get(task.id);
+    if (route === "reconcile") {
+      setUnsupportedMessage("Dated occurrence unavailable. This recurring series cannot be completed, archived, or focused from Today until its dated occurrence is available. No task outcome was changed.");
+      return;
+    }
     if (route === "review" || route === "both") {
       const occurrence = taskOccurrences.find(item => item.taskId === task.id && item.localDate === projection.localDate && item.state === "pending");
       if (occurrence) onOpenReview(occurrence.id);

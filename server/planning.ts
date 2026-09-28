@@ -131,6 +131,12 @@ export async function clearPlanningAvailabilityException(scope: PlannerScope, in
   return { id: input.id, cleared: true } as const;
 }
 
+/** Only unresolved item owners outside the bounded date window need an additive plan read. */
+export function missingCommittedPlanIds(loadedPlans: Array<{ id: string }>, items: Array<{ dailyPlanId: string; state: string }>) {
+  const loadedIds = new Set(loadedPlans.map(plan => plan.id));
+  return [...new Set(items.filter(item => item.state === "committed" && !loadedIds.has(item.dailyPlanId)).map(item => item.dailyPlanId))].sort();
+}
+
 export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: string; end: string }) {
   const db = await requireDb();
   const workspace = await ensureWorkspace(scope);
@@ -157,7 +163,15 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     db.select().from(integrationConnections).where(eq(integrationConnections.workspaceId, scope.workspaceId)).orderBy(desc(integrationConnections.updatedAt)),
     db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), gte(planningAvailabilityExceptions.localDate, range.start), lte(planningAvailabilityExceptions.localDate, range.end))).orderBy(asc(planningAvailabilityExceptions.localDate)),
   ]);
-  return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: planRows, dailyPlanItems: planItemRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
+  const missingPlanIds = missingCommittedPlanIds(planRows, planItemRows);
+  const earlierOpenPlans: typeof planRows = [];
+  for (let offset = 0; offset < missingPlanIds.length; offset += 500) {
+    earlierOpenPlans.push(...await db.select().from(dailyPlans).where(and(
+      eq(dailyPlans.workspaceId, scope.workspaceId), inArray(dailyPlans.id, missingPlanIds.slice(offset, offset + 500)), ne(dailyPlans.state, "archived"),
+    )));
+  }
+  const visiblePlans = [...planRows, ...earlierOpenPlans].sort((left, right) => right.localDate.localeCompare(left.localDate) || left.id.localeCompare(right.id));
+  return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
 }
 
 export async function searchWorkspace(scope: PlannerScope, input: { query: string; limit: number }) {
@@ -178,6 +192,20 @@ export async function searchWorkspace(scope: PlannerScope, input: { query: strin
     ...habitRows.map(row => ({ id: row.id, title: row.title, summary: row.summary, state: row.state ? "archived" : "active", updatedAt: row.updatedAt, entity: "habit" as const })),
     ...reviewRows.map(row => ({ id: row.id, title: `${row.kind} review · ${row.periodStartLocalDate} to ${row.periodEndLocalDate}`, summary: row.reflection, state: row.state, updatedAt: row.updatedAt, entity: "review" as const })),
   ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()).slice(0, input.limit);
+}
+
+/** Rejects terminal parent-task outcomes while a saved, non-archived plan still owns an open commitment. */
+export async function assertNoOutstandingTaskCommitments(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, scope: PlannerScope, taskIds: string[]) {
+  if (!taskIds.length) return;
+  const items = await db.select({ dailyPlanId: dailyPlanItems.dailyPlanId }).from(dailyPlanItems).where(and(
+    eq(dailyPlanItems.workspaceId, scope.workspaceId), inArray(dailyPlanItems.taskId, taskIds), eq(dailyPlanItems.state, "committed"),
+  ));
+  const planIds = [...new Set(items.map(item => item.dailyPlanId).filter((id): id is string => typeof id === "string"))];
+  if (!planIds.length) return;
+  const openPlans = await db.select({ id: dailyPlans.id }).from(dailyPlans).where(and(
+    eq(dailyPlans.workspaceId, scope.workspaceId), inArray(dailyPlans.id, planIds), ne(dailyPlans.state, "archived"),
+  ));
+  if (openPlans.length) throw new Error("This task has an unresolved daily commitment. Reconcile its saved plan history before completing or archiving the parent task; nothing was changed.");
 }
 
 export type SearchRecordEntity = "task" | "goal" | "project" | "habit" | "review";
@@ -401,6 +429,10 @@ export async function updateTask(scope: PlannerScope, input: { id: string; expec
     parentTaskId: input.patch.parentTaskId === undefined ? existing.parentTaskId : input.patch.parentTaskId,
     taskId: existing.id,
   });
+  if (input.patch.state === "completed" || input.patch.state === "archived" || input.patch.outcome === "wont_do") {
+    if (existing.recurrenceRule) throw new Error("A recurring series needs dated occurrence resolution before its parent task can receive a terminal outcome.");
+    await assertNoOutstandingTaskCommitments(db, scope, [existing.id]);
+  }
   if (input.patch.state === "completed" && existing.state !== "completed") {
     const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, input.id)));
     const prerequisites = edges.length ? await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, edges.map(edge => edge.dependsOnTaskId)))) : [];
@@ -508,6 +540,11 @@ export async function applyMorningRollover(scope: PlannerScope, input: { fromLoc
 export async function bulkSetTaskState(scope: PlannerScope, input: { ids: string[]; state: "not_started" | "in_progress" | "blocked" | "completed" | "archived" }) {
   if (!input.ids.length) return [];
   const db = await requireDb();
+  if (input.state === "completed" || input.state === "archived") {
+    const selectedTasks = await db.select({ id: tasks.id, recurrenceRule: tasks.recurrenceRule }).from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, input.ids)));
+    if (selectedTasks.some(task => task.recurrenceRule)) throw new Error("A recurring series needs dated occurrence resolution before its parent task can receive a terminal outcome.");
+    await assertNoOutstandingTaskCommitments(db, scope, input.ids);
+  }
   if (input.state === "completed") {
     const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), inArray(taskDependencies.taskId, input.ids)));
     const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));

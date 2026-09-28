@@ -1010,7 +1010,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         snapshot["dailyPlanItems"] = [item for item in snapshot["dailyPlanItems"] if item["id"] != "combined-item"]
         snapshot["taskOccurrences"] = [item for item in snapshot["taskOccurrences"] if item["id"] != "occ-target"]
         reserved["recurrenceRule"] = {"frequency": "daily", "interval": 1}
-        snapshot["dailyPlans"].append({"id": "older-plan", "workspaceId": workspace_id, "localDate": "2026-09-19", "state": "closed", "version": 1, "intention": None})
+        snapshot["dailyPlans"].append({"id": "older-plan", "workspaceId": workspace_id, "localDate": "2026-07-01", "state": "closed", "version": 1, "intention": None})
         snapshot["dailyPlanItems"].extend([
             {"id": "older-reserved-a", "dailyPlanId": "older-plan", "taskId": reserved["id"], "state": "committed", "position": 0, "version": 1, "note": None},
             {"id": "older-reserved-b", "dailyPlanId": "older-plan", "taskId": reserved["id"], "state": "committed", "position": 1, "version": 1, "note": None},
@@ -1025,6 +1025,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         older_guard = today.locator('[data-task-record-id="today-reserved"]')
+        assert today.locator(".today-recovery-count").inner_text().strip() == "04"
         assert older_guard.get_by_role("button", name="Open Prepare the proposal recovery status in Plan").is_visible()
         assert today.get_by_text("Plan commitment needs recovery flow after migration", exact=False).is_visible()
         assert not older_guard.get_by_role("button", name="Complete Prepare the proposal").count()
@@ -1042,8 +1043,31 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         older_plan_screenshot = output / f"plan-protected-earlier-{width}.png"
         page.screenshot(path=str(older_plan_screenshot), full_page=True)
 
+        no_occurrence = {**task_base, "id": "today-series-no-occurrence", "title": "Unloaded recurring series", "scheduledLocalDate": "2026-09-21", "plannedStartAt": "2026-09-21T13:00:00.000Z", "plannedEndAt": "2026-09-21T13:30:00.000Z", "recurrenceRule": {"frequency": "daily", "interval": 1}, "sortOrder": 24}
+        snapshot["tasks"].append(no_occurrence)
+        page = context.new_page()
+        page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+        page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+        page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible")
+        unavailable = today.locator('[data-task-record-id="today-series-no-occurrence"]')
+        assert unavailable.get_by_role("button", name="Explain why Unloaded recurring series cannot be resolved here").is_visible()
+        assert unavailable.get_by_text("Why unavailable", exact=True).is_visible()
+        assert not unavailable.get_by_role("button", name="Complete Unloaded recurring series").count()
+        unavailable_screenshot = output / f"today-unloaded-recurrence-{width}.png"
+        page.screenshot(path=str(unavailable_screenshot), full_page=True)
+        before_task_writes = requests.count("planner.task.update")
+        before_unavailable_url = page.url
+        unavailable.locator(".canonical-task-context-action").click()
+        assert today.locator(".today-inline-guidance").get_by_text("Dated occurrence unavailable", exact=False).is_visible()
+        assert requests.count("planner.task.update") == before_task_writes
+        assert page.url == before_unavailable_url
+
         snapshot["dailyPlanItems"] = [item for item in snapshot["dailyPlanItems"] if item["dailyPlanId"] != "older-plan"]
         snapshot["dailyPlans"] = [plan for plan in snapshot["dailyPlans"] if plan["id"] != "older-plan"]
+        snapshot["tasks"] = [task for task in snapshot["tasks"] if task["id"] != "today-series-no-occurrence"]
         reserved["state"] = "completed"
         reserved["completedAt"] = "2026-09-21T09:00:00.000Z"
         snapshot["tasks"].append({**task_base, "id": "offline:today-pending", "title": "Unsynced idea", "scheduledLocalDate": "2026-09-21", "sortOrder": 30})
@@ -1102,7 +1126,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         assert not runtime_errors, runtime_errors
         assert not console_errors, console_errors
         assert not unexpected, unexpected
-        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "protectedScreenshot": str(protected_screenshot), "guardedPlanScreenshot": str(guarded_plan_screenshot), "olderProtectedScreenshot": str(older_screenshot), "olderPlanScreenshot": str(older_plan_screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True, "linkedHistoryGuarded": True})
+        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "protectedScreenshot": str(protected_screenshot), "guardedPlanScreenshot": str(guarded_plan_screenshot), "olderProtectedScreenshot": str(older_screenshot), "olderPlanScreenshot": str(older_plan_screenshot), "unloadedRecurrenceScreenshot": str(unavailable_screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True, "linkedHistoryGuarded": True})
     finally:
         context.close()
     return result

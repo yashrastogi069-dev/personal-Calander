@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./db", () => ({ getDb: vi.fn() }));
 
 import { getDb } from "./db";
-import { bulkSetTaskState, reserveTask, resolveDailyPlanItem, updateTask } from "./planning";
+import { bulkSetTaskState, missingCommittedPlanIds, reserveTask, resolveDailyPlanItem, updateTask } from "./planning";
 
 const mockedGetDb = vi.mocked(getDb);
 const scope = { workspaceId: "lifecycle-service-test", timezone: "UTC" };
@@ -25,6 +25,18 @@ function bulkDatabase(rows: unknown[]) {
 
 describe("planner task lifecycle persistence", () => {
   beforeEach(() => vi.resetAllMocks());
+
+  it("identifies only out-of-window plans owning still-committed items", () => {
+    expect(missingCommittedPlanIds(
+      [{ id: "visible" }],
+      [
+        { dailyPlanId: "visible", state: "committed" },
+        { dailyPlanId: "older", state: "committed" },
+        { dailyPlanId: "older", state: "committed" },
+        { dailyPlanId: "settled", state: "done" },
+      ],
+    )).toEqual(["older"]);
+  });
 
   it("restores an archived task as unfinished work, clears lifecycle timestamps, and increments its version", async () => {
     const existing = { id: "task-restore-1", workspaceId: scope.workspaceId, state: "archived", completedAt: new Date("2026-08-20T10:00:00.000Z"), archivedAt: new Date("2026-08-21T10:00:00.000Z"), version: 7 };
@@ -72,6 +84,49 @@ describe("planner task lifecycle persistence", () => {
 
     await expect(resolveDailyPlanItem(scope, { id: item.id, expectedVersion: 1, taskExpectedVersion: 3, state: "done" })).rejects.toThrow("Needs reconciliation in Recovery");
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects generic completion when a committed item belongs to a non-archived older plan", async () => {
+    const existing = { id: "task-prior-commitment", workspaceId: scope.workspaceId, state: "not_started", version: 2, recurrenceRule: null };
+    const select = vi.fn().mockReturnValueOnce(selection(existing))
+      .mockReturnValueOnce(collection([{ dailyPlanId: "plan-outside-snapshot" }]))
+      .mockReturnValueOnce(collection([{ id: "plan-outside-snapshot" }]));
+    const update = vi.fn();
+    mockedGetDb.mockResolvedValue({ select, update } as never);
+    await expect(updateTask(scope, { id: existing.id, expectedVersion: 2, patch: { state: "completed" } })).rejects.toThrow("unresolved daily commitment");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects generic archive of a recurring parent even when no occurrence was loaded", async () => {
+    const existing = { id: "task-series", workspaceId: scope.workspaceId, state: "not_started", version: 3, recurrenceRule: { frequency: "daily" } };
+    const select = vi.fn().mockReturnValueOnce(selection(existing));
+    const update = vi.fn();
+    mockedGetDb.mockResolvedValue({ select, update } as never);
+    await expect(updateTask(scope, { id: existing.id, expectedVersion: 3, patch: { state: "archived" } })).rejects.toThrow("recurring series needs dated occurrence resolution");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("allows a terminal task outcome when its only commitment belongs to an archived plan", async () => {
+    const existing = { id: "task-archived-plan", workspaceId: scope.workspaceId, state: "not_started", version: 1, recurrenceRule: null };
+    const updated = { ...existing, state: "archived", version: 2 };
+    const set = vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowsAffected: 1 }) }));
+    const select = vi.fn().mockReturnValueOnce(selection(existing))
+      .mockReturnValueOnce(collection([{ dailyPlanId: "archived-plan" }]))
+      .mockReturnValueOnce(collection([]))
+      .mockReturnValueOnce(selection(updated));
+    mockedGetDb.mockResolvedValue({ select, update: vi.fn(() => ({ set })) } as never);
+    await expect(updateTask(scope, { id: existing.id, expectedVersion: 1, patch: { state: "archived" } })).resolves.toMatchObject({ id: existing.id, state: "archived", version: 2 });
+    expect(set).toHaveBeenCalledOnce();
+  });
+
+  it("rejects bulk archive before any task write when one task has an unresolved commitment", async () => {
+    const select = vi.fn().mockReturnValueOnce(collection([{ id: "task-prior-commitment", recurrenceRule: null }, { id: "task-plain", recurrenceRule: null }]))
+      .mockReturnValueOnce(collection([{ dailyPlanId: "old-plan" }]))
+      .mockReturnValueOnce(collection([{ id: "old-plan" }]));
+    const update = vi.fn();
+    mockedGetDb.mockResolvedValue({ select, update } as never);
+    await expect(bulkSetTaskState(scope, { ids: ["task-prior-commitment", "task-plain"], state: "archived" })).rejects.toThrow("unresolved daily commitment");
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("clears only task-owned reservation timestamps when a calendar block is removed", async () => {

@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { focusSessions, taskDependencies, tasks } from "../drizzle/schema";
 import { getDb } from "./db";
-import { PlannerConflictError, type PlannerScope } from "./planning";
+import { assertNoOutstandingTaskCommitments, PlannerConflictError, type PlannerScope } from "./planning";
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 
 async function requireDb() {
@@ -62,6 +62,8 @@ export async function finishFocusSession(scope: PlannerScope, input: { id: strin
   if ((input.outcome === "done" || input.outcome === "adjust_estimate") && !linkedTask) throw new Error("This outcome needs a linked active task.");
   if ((input.outcome === "done" || input.outcome === "adjust_estimate") && linkedTask?.version !== input.taskExpectedVersion) throw new PlannerConflictError(linkedTask);
   if (input.outcome === "done" && linkedTask) {
+    if (linkedTask.recurrenceRule) throw new Error("A recurring series needs dated occurrence resolution before its parent task can be completed in Focus.");
+    await assertNoOutstandingTaskCommitments(db, scope, [linkedTask.id]);
     const edges = await db.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, linkedTask.id)));
     const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));
     const prerequisites = prerequisiteIds.length ? await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, prerequisiteIds))) : [];
