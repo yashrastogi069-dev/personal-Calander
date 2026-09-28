@@ -4,6 +4,7 @@ import webpush from "web-push";
 import {
   calendarFeeds,
   categories,
+  commitmentResolutions,
   dailyCheckIns,
   dailyPlanItems,
   dailyPlans,
@@ -41,6 +42,7 @@ import { canPersistWeeklyReviewChecklist, normaliseWeeklyReviewChecklist } from 
 import { reservationConflictMessage, validateTaskReservation, validateTaskReservationWindow } from "../shared/taskReservation";
 import { secureIcsOverlayReadiness } from "../shared/icsOverlay";
 import { morningRolloverPreview } from "../shared/morningRollover";
+import { validateRecoveryDecision, type RecoveryDecision } from "../shared/recovery";
 import { reminderDueAt, type ReminderSchedule } from "./reminderSchedule";
 import { getVapidConfigurationFromEnvironment, validateVapidConfiguration } from "./vapidConfig";
 
@@ -1135,6 +1137,110 @@ export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin:
     sent: results.reduce((total, result) => total + result.sent, 0),
     results,
   };
+}
+
+/** Resolve exactly one daily commitment and retain its decision in the same transaction. */
+export async function resolveCommitment(scope: PlannerScope, decision: RecoveryDecision) {
+  const input = validateRecoveryDecision(decision);
+  const db = await requireDb();
+  return db.transaction(async tx => {
+    const operationFilter = and(eq(commitmentResolutions.workspaceId, scope.workspaceId), eq(commitmentResolutions.operationId, input.operationId));
+    const previous = (await tx.select().from(commitmentResolutions).where(operationFilter).limit(1))[0];
+    if (previous) return previous;
+
+    const item = (await tx.select().from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, input.dailyPlanItemId))).limit(1).for("update"))[0];
+    if (!item) throw new Error("Daily commitment was not found in this workspace.");
+    // A concurrent retry may have waited for the first transaction's item lock.
+    const completedRetry = (await tx.select().from(commitmentResolutions).where(operationFilter).limit(1))[0];
+    if (completedRetry) return completedRetry;
+    if (item.taskId !== input.taskId) throw new Error("The task does not belong to this daily commitment.");
+    if (item.version !== input.itemExpectedVersion) throw new PlannerConflictError(item);
+    if (item.state !== "committed") throw new Error("This daily commitment already has an outcome. Refresh before changing it.");
+
+    const plan = (await tx.select().from(dailyPlans).where(and(eq(dailyPlans.workspaceId, scope.workspaceId), eq(dailyPlans.id, item.dailyPlanId))).limit(1))[0];
+    if (!plan || plan.state === "archived") throw new Error("The daily plan for this commitment is unavailable.");
+    const workspace = (await tx.select({ timezone: workspaces.timezone }).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0];
+    if (!workspace) throw new Error("Workspace was not found.");
+    const task = (await tx.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.taskId))).limit(1).for("update"))[0];
+    if (!task) throw new Error("Task was not found in this workspace.");
+    if (task.version !== input.taskExpectedVersion) throw new PlannerConflictError(task);
+
+    const hasOccurrenceHistory = task.recurrenceRule ? true : Boolean((await tx.select({ id: taskOccurrences.id }).from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.taskId, task.id))).limit(1))[0]);
+    let occurrence: typeof taskOccurrences.$inferSelect | undefined;
+    if (hasOccurrenceHistory) {
+      if (!input.occurrenceId || !input.occurrenceExpectedVersion) throw new Error("Choose the dated occurrence for this recurring commitment.");
+      occurrence = (await tx.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.id, input.occurrenceId), eq(taskOccurrences.taskId, task.id))).limit(1).for("update"))[0];
+      if (!occurrence || occurrence.localDate !== plan.localDate) throw new Error("The occurrence does not belong to this daily commitment.");
+      if (occurrence.version !== input.occurrenceExpectedVersion) throw new PlannerConflictError(occurrence);
+      if (occurrence.state !== "pending") throw new Error("This occurrence already has an outcome. Refresh before changing it.");
+    } else if (input.occurrenceId) {
+      throw new Error("This task has no dated occurrence to resolve.");
+    }
+
+    if (task.state === "completed" || task.state === "archived" || task.outcome === "wont_do") {
+      throw new Error("Needs reconciliation in Recovery: this task already has a final outcome. No history was changed.");
+    }
+    if (input.action === "done") {
+      const edges = await tx.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, task.id)));
+      const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));
+      const prerequisites = prerequisiteIds.length ? await tx.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, prerequisiteIds))) : [];
+      if (incompleteHardPrerequisites(task.id, edges, prerequisites).length) throw new Error("Complete every hard prerequisite before finishing this task.");
+    }
+
+    const now = new Date();
+    const resolvedToLocalDate = input.action === "reschedule" || input.action === "reduce" ? input.resolvedToLocalDate : null;
+    const returnLocalDate = input.action === "pause" ? input.returnLocalDate : null;
+    const revisedScope = input.action === "reduce" ? input.revisedScope : null;
+    const itemState = { done: "done", reschedule: "rescheduled", reduce: "deferred", pause: "deferred", abandon: "wont_do" }[input.action] as "done" | "rescheduled" | "deferred" | "wont_do";
+
+    if (occurrence) {
+      const occurrenceState = input.action === "done" ? "completed" : input.action === "abandon" ? "skipped" : "rescheduled";
+      const nextDate = input.action === "pause" ? input.returnLocalDate : resolvedToLocalDate;
+      const changed = await tx.update(taskOccurrences).set({
+        state: occurrenceState,
+        rescheduledToLocalDate: nextDate,
+        completedAt: input.action === "done" ? now : null,
+        resolvedAt: now,
+        note: input.decisionNote ?? null,
+        version: occurrence.version + 1,
+      }).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.id, occurrence.id), eq(taskOccurrences.version, occurrence.version))).returning({ id: taskOccurrences.id });
+      if (!changed.length) throw new PlannerConflictError(occurrence);
+    } else {
+      const patch = input.action === "done" ? taskPatchForDailyPlanOutcome("done", now)
+        : input.action === "reschedule" ? taskPatchForDailyPlanOutcome("rescheduled", now, input.resolvedToLocalDate)
+        : input.action === "reduce" ? { title: input.revisedScope, ...taskPatchForDailyPlanOutcome("rescheduled", now, input.resolvedToLocalDate) }
+        : input.action === "pause" ? taskPatchForDailyPlanOutcome("deferred", now)
+        : taskPatchForDailyPlanOutcome("wont_do", now);
+      const changed = await tx.update(tasks).set({ ...patch, version: task.version + 1 }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, task.id), eq(tasks.version, task.version))).returning({ id: tasks.id });
+      if (!changed.length) throw new PlannerConflictError(task);
+    }
+
+    const changedItem = await tx.update(dailyPlanItems).set({
+      state: itemState,
+      resolvedToLocalDate,
+      note: input.decisionNote ?? null,
+      resolvedAt: now,
+      version: item.version + 1,
+    }).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, item.id), eq(dailyPlanItems.version, item.version))).returning({ id: dailyPlanItems.id });
+    if (!changedItem.length) throw new PlannerConflictError(item);
+
+    const [resolution] = await tx.insert(commitmentResolutions).values({
+      id: nanoid(),
+      workspaceId: scope.workspaceId,
+      operationId: input.operationId,
+      dailyPlanItemId: item.id,
+      taskId: task.id,
+      occurrenceId: occurrence?.id ?? null,
+      action: input.action,
+      originalScope: task.title,
+      revisedScope,
+      resolvedToLocalDate,
+      returnLocalDate,
+      decisionNote: input.decisionNote ?? null,
+      timezone: workspace.timezone,
+    }).returning();
+    return resolution;
+  });
 }
 
 export async function getActiveCalendarFeed(scope: PlannerScope) {

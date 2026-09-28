@@ -51,6 +51,7 @@ import {
   restoreHabit,
   restoreProject,
   resolveDailyPlanItem,
+  resolveCommitment,
   removeTaskDependency,
   sendTestPush,
   searchWorkspace,
@@ -77,6 +78,7 @@ import { finishFocusSession, pauseFocusSession, resumeFocusSession, startFocusSe
 import { getOpenSyncConflicts, processTaskUpdateOperation, resolveSyncConflict } from "../sync";
 import { router } from "../_core/trpc";
 import { workspaceProcedure as protectedProcedure, workspaceScope as scope } from "../workspaceProcedure";
+import { recoveryDecisionSchema } from "../../shared/recovery";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const approvedReminderSpecs = [
@@ -190,6 +192,16 @@ function plannerError(error: unknown): never {
 }
 
 export const plannerRouter = router({
+  recovery: router({
+    resolve: protectedProcedure.input(scope.extend({ online: z.boolean(), decision: recoveryDecisionSchema })).mutation(async ({ input }) => {
+      if (!input.online) throw new TRPCError({ code: "BAD_REQUEST", message: "Reconnect to record this decision safely." });
+      try {
+        return await resolveCommitment({ workspaceId: input.workspaceId, timezone: input.timezone }, input.decision);
+      } catch (error) {
+        return plannerError(error);
+      }
+    }),
+  }),
   sync: router({
     conflicts: protectedProcedure.input(scope).query(async ({ input }) => {
       return getOpenSyncConflicts({ workspaceId: input.workspaceId, timezone: input.timezone });

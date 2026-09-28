@@ -29,6 +29,19 @@ function createAuthenticatedContext(): TrpcContext {
 }
 
 describe("planner task API", () => {
+  it("requires an online recovery decision before invoking the versioned resolver", async () => {
+    const resolve = vi.spyOn(planning, "resolveCommitment").mockResolvedValue({ id: "resolution-1", operationId: "decision-1" } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const decision = { operationId: "decision-1", dailyPlanItemId: "item-1", taskId: "task-1", itemExpectedVersion: 2, taskExpectedVersion: 4, action: "done" as const };
+    const request = { workspaceId: "workspace-api-check", timezone: "UTC", decision };
+
+    await expect(caller.planner.recovery.resolve({ ...request, online: false })).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Reconnect to record this decision safely." });
+    expect(resolve).not.toHaveBeenCalled();
+    await expect(caller.planner.recovery.resolve({ ...request, online: true })).resolves.toMatchObject({ id: "resolution-1" });
+    expect(resolve).toHaveBeenCalledWith({ workspaceId: "workspace-api-check", timezone: "UTC" }, decision);
+    resolve.mockRestore();
+  });
+
   it("lists and resolves synchronization conflicts through the owned workspace boundary", async () => {
     const conflict = {
       id: "conflict-1",

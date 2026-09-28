@@ -1,0 +1,129 @@
+import { readFileSync } from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { beforeAll, beforeEach, afterAll, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ getDb: vi.fn() }));
+vi.mock("./db", () => ({ getDb: mocks.getDb }));
+import { PlannerConflictError, resolveCommitment } from "./planning";
+
+const database = new PGlite();
+const scope = { workspaceId: "owned", timezone: "Asia/Calcutta" };
+const base = { operationId: "operation-1", dailyPlanItemId: "item-1", taskId: "task-1", itemExpectedVersion: 2, taskExpectedVersion: 4 };
+
+async function rows(table: string, id: string) {
+  return (await database.query(`SELECT * FROM "${table}" WHERE id = $1`, [id])).rows;
+}
+
+async function seed(options: { recurring?: boolean } = {}) {
+  await database.query(`INSERT INTO workspaces (id, timezone) VALUES ('owned', 'Asia/Calcutta'), ('other', 'UTC')`);
+  await database.query(`INSERT INTO tasks (id, "workspaceId", title, state, "dueLocalDate", "scheduledLocalDate", "plannedStartAt", "plannedEndAt", "recurrenceRule", version)
+    VALUES ('task-1', 'owned', 'Write proposal', 'in_progress', '2026-10-03', '2026-09-27', '2026-09-27 09:00', '2026-09-27 10:00', $1, 4),
+           ('foreign-task', 'other', 'Private task', 'not_started', null, null, null, null, null, 1)`, [options.recurring ? JSON.stringify({ frequency: "daily", interval: 1 }) : null]);
+  await database.query(`INSERT INTO "dailyPlans" (id, "workspaceId", "localDate", state) VALUES ('plan-1', 'owned', '2026-09-27', 'active'), ('foreign-plan', 'other', '2026-09-27', 'active')`);
+  await database.query(`INSERT INTO "dailyPlanItems" (id, "workspaceId", "dailyPlanId", "taskId", state, version)
+    VALUES ('item-1', 'owned', 'plan-1', 'task-1', 'committed', 2), ('foreign-item', 'other', 'foreign-plan', 'foreign-task', 'committed', 1)`);
+  if (options.recurring) await database.query(`INSERT INTO "taskOccurrences" (id, "workspaceId", "taskId", "localDate", state, version)
+    VALUES ('occ-1', 'owned', 'task-1', '2026-09-27', 'pending', 3), ('occ-2', 'owned', 'task-1', '2026-09-28', 'pending', 1)`);
+}
+
+describe.sequential("transactional Strict recovery", () => {
+  beforeAll(async () => {
+    await database.exec(readFileSync(new URL("../supabase/migrations/0000_loving_madrox.sql", import.meta.url), "utf8"));
+    await database.exec(readFileSync(new URL("../supabase/migrations/0004_phase4_product_model.sql", import.meta.url), "utf8"));
+    mocks.getDb.mockResolvedValue(drizzle(database));
+  }, 30_000);
+  beforeEach(async () => {
+    await database.exec(`DROP TRIGGER IF EXISTS reject_resolution ON "commitmentResolutions";
+      DROP FUNCTION IF EXISTS reject_resolution_insert();
+      TRUNCATE "commitmentResolutions", "taskOccurrences", "dailyPlanItems", "dailyPlans", tasks, workspaces;`);
+  });
+  afterAll(() => database.close());
+
+  it.each([
+    ["done", {}, "done", "completed", "2026-09-27"],
+    ["reschedule", { resolvedToLocalDate: "2026-09-30" }, "rescheduled", "in_progress", "2026-09-30"],
+    ["reduce", { revisedScope: "Write outline", resolvedToLocalDate: "2026-09-30" }, "deferred", "in_progress", "2026-09-30"],
+    ["pause", { returnLocalDate: "2026-10-01" }, "deferred", "in_progress", null],
+    ["abandon", {}, "wont_do", "archived", "2026-09-27"],
+  ] as const)("commits %s as one historical decision", async (action, detail, itemState, taskState, plannedDay) => {
+    await seed();
+    const resolution = await resolveCommitment(scope, { ...base, action, ...detail });
+    expect(resolution).toMatchObject({ workspaceId: "owned", operationId: "operation-1", dailyPlanItemId: "item-1", taskId: "task-1", action, originalScope: "Write proposal", timezone: "Asia/Calcutta" });
+    const item = (await rows("dailyPlanItems", "item-1"))[0] as Record<string, unknown>;
+    const task = (await rows("tasks", "task-1"))[0] as Record<string, unknown>;
+    expect(item).toMatchObject({ state: itemState, version: 3 });
+    expect(task).toMatchObject({ state: taskState, version: 5, dueLocalDate: "2026-10-03", scheduledLocalDate: plannedDay });
+    expect((await rows("commitmentResolutions", resolution.id))).toHaveLength(1);
+    if (action === "reduce") expect(task.title).toBe("Write outline");
+    if (action === "pause") expect(resolution.returnLocalDate).toBe("2026-10-01");
+    if (action === "abandon") expect(task).toMatchObject({ outcome: "wont_do", completedAt: null });
+  });
+
+  it("returns the existing resolution on an operation retry without another write", async () => {
+    await seed();
+    const first = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-30" });
+    const retried = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-30" });
+    expect(retried).toEqual(first);
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ version: 5 });
+    expect((await rows("dailyPlanItems", "item-1"))[0]).toMatchObject({ version: 3 });
+    expect((await database.query('SELECT count(*)::int AS count FROM "commitmentResolutions"')).rows[0]).toEqual({ count: 1 });
+  });
+
+  it("rejects owned-reference mismatches and stale versions without writing history", async () => {
+    await seed();
+    for (const input of [
+      { ...base, dailyPlanItemId: "foreign-item", action: "done" as const },
+      { ...base, taskId: "foreign-task", action: "done" as const },
+      { ...base, itemExpectedVersion: 1, action: "done" as const },
+      { ...base, taskExpectedVersion: 3, action: "done" as const },
+    ]) await expect(resolveCommitment(scope, input)).rejects.toThrow();
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ version: 4 });
+    expect((await rows("dailyPlanItems", "item-1"))[0]).toMatchObject({ version: 2, state: "committed" });
+    expect((await database.query('SELECT count(*)::int AS count FROM "commitmentResolutions"')).rows[0]).toEqual({ count: 0 });
+  });
+
+  it("reschedules only the named recurring occurrence and preserves the parent series", async () => {
+    await seed({ recurring: true });
+    const resolution = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-30", occurrenceId: "occ-1", occurrenceExpectedVersion: 3 });
+    expect(resolution.occurrenceId).toBe("occ-1");
+    expect((await rows("taskOccurrences", "occ-1"))[0]).toMatchObject({ state: "rescheduled", rescheduledToLocalDate: "2026-09-30", version: 4 });
+    expect((await rows("taskOccurrences", "occ-2"))[0]).toMatchObject({ state: "pending", version: 1 });
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ title: "Write proposal", scheduledLocalDate: "2026-09-27", version: 4 });
+  });
+
+  it.each([
+    ["done", {}, "completed", null, "done"],
+    ["reduce", { revisedScope: "Write outline", resolvedToLocalDate: "2026-09-30" }, "rescheduled", "2026-09-30", "deferred"],
+    ["pause", { returnLocalDate: "2026-10-01" }, "rescheduled", "2026-10-01", "deferred"],
+    ["abandon", {}, "skipped", null, "wont_do"],
+  ] as const)("resolves %s for one occurrence without completing or archiving the series", async (action, detail, occurrenceState, nextDate, itemState) => {
+    await seed({ recurring: true });
+    const resolution = await resolveCommitment(scope, { ...base, action, ...detail, occurrenceId: "occ-1", occurrenceExpectedVersion: 3 });
+    expect(resolution).toMatchObject({ action, occurrenceId: "occ-1", originalScope: "Write proposal" });
+    expect((await rows("taskOccurrences", "occ-1"))[0]).toMatchObject({ state: occurrenceState, rescheduledToLocalDate: nextDate, version: 4 });
+    expect((await rows("taskOccurrences", "occ-2"))[0]).toMatchObject({ state: "pending", version: 1 });
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ title: "Write proposal", state: "in_progress", dueLocalDate: "2026-10-03", version: 4 });
+    expect((await rows("dailyPlanItems", "item-1"))[0]).toMatchObject({ state: itemState, version: 3 });
+  });
+
+  it("rejects a stale or wrong-day occurrence without changing the series", async () => {
+    await seed({ recurring: true });
+    for (const input of [
+      { ...base, action: "done" as const },
+      { ...base, action: "done" as const, occurrenceId: "occ-1", occurrenceExpectedVersion: 2 },
+      { ...base, action: "done" as const, occurrenceId: "occ-2", occurrenceExpectedVersion: 1 },
+    ]) await expect(resolveCommitment(scope, input)).rejects.toThrow();
+    expect((await rows("taskOccurrences", "occ-1"))[0]).toMatchObject({ state: "pending", version: 3 });
+    expect((await rows("dailyPlanItems", "item-1"))[0]).toMatchObject({ state: "committed", version: 2 });
+  });
+
+  it("rolls back the task and item when the immutable resolution insert fails", async () => {
+    await seed();
+    await database.exec(`CREATE FUNCTION reject_resolution_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'forced resolution failure'; END $$;
+      CREATE TRIGGER reject_resolution BEFORE INSERT ON "commitmentResolutions" FOR EACH ROW EXECUTE FUNCTION reject_resolution_insert();`);
+    await expect(resolveCommitment(scope, { ...base, action: "reduce", revisedScope: "Write outline", resolvedToLocalDate: "2026-09-30" })).rejects.toThrow('Failed query: insert into "commitmentResolutions"');
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ title: "Write proposal", scheduledLocalDate: "2026-09-27", version: 4 });
+    expect((await rows("dailyPlanItems", "item-1"))[0]).toMatchObject({ state: "committed", version: 2 });
+  });
+});
