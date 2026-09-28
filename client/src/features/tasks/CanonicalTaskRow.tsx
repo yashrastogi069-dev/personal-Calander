@@ -17,7 +17,7 @@ export type CanonicalTaskRowProps = {
   contextualActionLabel?: string;
   onToggle: (task: CanonicalTask) => void | Promise<unknown>;
   onArchive?: (task: CanonicalTask) => void | Promise<unknown>;
-  onPrimaryAction?: (task: CanonicalTask, actionId: string) => void | Promise<unknown>;
+  onPrimaryAction?: (task: CanonicalTask, actionId: string, trigger: HTMLElement) => void | Promise<unknown>;
   onOpenDetail: (task: CanonicalTask, trigger: HTMLElement) => void;
 };
 
@@ -65,7 +65,7 @@ export function CanonicalTaskRow({
   };
   const runPrimary = (trigger: HTMLElement) => {
     if (onPrimaryAction) {
-      void onPrimaryAction(task, presentation.primaryAction.id);
+      void onPrimaryAction(task, presentation.primaryAction.id, trigger);
       return;
     }
     if (fallbackTaskPrimaryAction(presentation.primaryAction.id) === "toggle") void onToggle(task);

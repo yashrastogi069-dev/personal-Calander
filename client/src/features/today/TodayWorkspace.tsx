@@ -13,7 +13,7 @@ import {
   Sparkles,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TodayFlexibleWork } from "./TodayFlexibleWork";
 import { TodayHabits } from "./TodayHabits";
 import { TodayTimeline } from "./TodayTimeline";
@@ -23,6 +23,10 @@ export type TodayHeaderAction =
   | { id: "resolve_recovery"; label: "Resolve remaining work" }
   | { id: "plan_today"; label: "Plan today" }
   | { id: "start_focus"; label: "Start focus" };
+
+export function isExecutableTodayTask(task: CanonicalTask | null | undefined) {
+  return Boolean(task && task.state !== "blocked" && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
+}
 
 export function contextualTodayAction(input: {
   recoveryCount: number;
@@ -61,11 +65,26 @@ export function todaySuggestions(input: {
       kind: "task" as const,
       recordId: row.recordId,
       title: row.title,
-      source: task?.state === "blocked" ? "Waiting follow-up" : project ? `From ${project.title}` : "Due task",
+      source: task?.state === "blocked" ? "Blocked task" : project ? `From ${project.title}` : "Due task",
       detail: row.reason === "overdue_unplanned" ? "Overdue · not planned" : "Due today · not planned",
       actionLabel: "Review task",
     };
   });
+  const plannedProjectTask = input.projection.flexible
+    .map(row => taskById.get(row.recordId))
+    .find(task => task?.projectId && projectById.has(task.projectId));
+  if (plannedProjectTask) {
+    const project = projectById.get(plannedProjectTask.projectId!);
+    suggestions.push({
+      id: `project-task:${plannedProjectTask.id}`,
+      kind: "task",
+      recordId: plannedProjectTask.id,
+      title: plannedProjectTask.title,
+      source: `From ${project?.title}`,
+      detail: "Planned today · project next action",
+      actionLabel: "Review task",
+    });
+  }
   const dueHabit = input.projection.habits.find(habit => habit.state === "due");
   if (dueHabit) {
     suggestions.push({
@@ -111,6 +130,8 @@ export type TodayWorkspaceProps = {
   timezone: string;
   hasActivePlan: boolean;
   commitmentCount: number;
+  isUnavailableToday?: boolean;
+  captureStatus?: ReactNode;
   selectedRecordId: string | null;
   pendingTaskIds?: ReadonlySet<string>;
   conflictCountByTask?: ReadonlyMap<string, number>;
@@ -144,6 +165,8 @@ export function TodayWorkspace({
   timezone,
   hasActivePlan,
   commitmentCount,
+  isUnavailableToday = false,
+  captureStatus,
   selectedRecordId,
   pendingTaskIds = new Set(),
   conflictCountByTask = new Map(),
@@ -166,10 +189,11 @@ export function TodayWorkspace({
   onSelectedRecordChange,
 }: TodayWorkspaceProps) {
   const taskById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
-  const firstExecutableId = projection.flexible[0]?.recordId
-    ?? projection.timeline.find(row => row.kind === "task")?.recordId
-    ?? projection.attention[0]?.recordId
-    ?? null;
+  const firstExecutableId = [
+    ...projection.flexible.map(row => row.recordId),
+    ...projection.timeline.filter(row => row.kind === "task").map(row => row.recordId),
+    ...projection.attention.map(row => row.recordId),
+  ].find(id => isExecutableTodayTask(taskById.get(id))) ?? null;
   const [focusTaskId, setFocusTaskId] = useState(firstExecutableId);
   const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -183,7 +207,7 @@ export function TodayWorkspace({
   const goalTitles = useMemo(() => new Map(goals.map(goal => [goal.id, goal.title])), [goals]);
   const categoryNames = useMemo(() => new Map(categories.map(category => [category.id, category.name])), [categories]);
   const selectedTask = tasks.find(task => task.id === selectedRecordId) ?? null;
-  const focusTask = focusTaskId ? taskById.get(focusTaskId) ?? null : null;
+  const focusTask = focusTaskId && isExecutableTodayTask(taskById.get(focusTaskId)) ? taskById.get(focusTaskId) ?? null : null;
   const headerAction = contextualTodayAction({
     recoveryCount: projection.recovery.length,
     hasActivePlan,
@@ -193,7 +217,7 @@ export function TodayWorkspace({
     const estimate = taskById.get(row.recordId)?.estimateMinutes;
     return total + (typeof estimate === "number" ? Math.max(0, estimate) : 0);
   }, 0);
-  const unavailableMinutes = Math.max(0, projection.capacity.workdayMinutes - projection.capacity.availableMinutes);
+  const unavailableMinutes = projection.capacity.breakMinutes;
   const suggestions = todaySuggestions({ projection, tasks, habits, projects });
 
   const openTask = (task: CanonicalTask, trigger: HTMLElement) => {
@@ -206,6 +230,10 @@ export function TodayWorkspace({
     return onUpdateTask(task, { state: task.state === "completed" ? "not_started" : "completed" });
   };
   const startFocus = (task: CanonicalTask) => {
+    if (!isExecutableTodayTask(task)) {
+      setUnsupportedMessage("Review this task's blocker before starting focus. No session was started.");
+      return;
+    }
     setFocusTaskId(task.id);
     if (!isOnline) {
       setUnsupportedMessage("Reconnect to start focus. No focus session was started; the last confirmed state is unchanged.");
@@ -232,8 +260,8 @@ export function TodayWorkspace({
       <header className="today-workspace-intro">
         <div>
           <span className="today-kicker">Home / Today</span>
-          <h1 id="today-workspace-heading">A day you can still believe.</h1>
-          <p>{date.full}. Fixed time is protected, flexible work stays honest, and unfinished promises keep their history.</p>
+          <h1 id="today-workspace-heading">Your day, in order.</h1>
+          <p>{date.full}. See fixed time, chosen work, and decisions still open.</p>
         </div>
         <div className="today-workspace-action">
           {headerAction ? (
@@ -242,7 +270,6 @@ export function TodayWorkspace({
               {headerAction.label}
             </Button>
           ) : null}
-          <small>Capture remains available in the global bar.</small>
         </div>
         <div className="today-date-stamp" aria-label={date.full}><span>{date.weekday.slice(0, 3).toUpperCase()}</span><strong>{date.day}</strong><small>{date.month}</small></div>
       </header>
@@ -251,9 +278,11 @@ export function TodayWorkspace({
         <div><span>Commitments</span><strong>{commitmentCount} chosen</strong><small>{projection.recovery.length ? `${projection.recovery.length} earlier ${projection.recovery.length === 1 ? "decision" : "decisions"}` : "No unresolved earlier plan"}</small></div>
         <div><span>Scheduled demand</span><strong>{minutesLabel(projection.capacity.busyMinutes)}</strong><small>Merged timed work and busy context</small></div>
         <div><span>Flexible estimates</span><strong>{minutesLabel(flexibleEstimateMinutes)}</strong><small>{projection.flexible.length} planned without a time</small></div>
-        <div><span>Unavailable</span><strong>{minutesLabel(unavailableMinutes)}</strong><small>Calendar context and break allowance</small></div>
+        <div><span>Unavailable</span><strong>{isUnavailableToday ? "All day" : minutesLabel(unavailableMinutes)}</strong><small>{isUnavailableToday ? "Availability exception" : "Break allowance; calendar busy is above"}</small></div>
         <div><span>Estimate gaps</span><strong>{projection.capacity.unestimatedTaskCount}</strong><small>{projection.capacity.isCompleteEstimate ? "Known demand is fully estimated" : "Not counted as zero"}</small></div>
       </section>
+
+      {captureStatus}
 
       {!isOnline ? (
         <p className="today-offline-state" role="status"><WifiOff aria-hidden="true" size={17} /><span><strong>Offline · task changes remain available.</strong> Reconnect to check in habits, start focus, or resolve earlier commitments. Last confirmed state is shown for those actions.</span></p>
@@ -263,7 +292,7 @@ export function TodayWorkspace({
       {projection.recovery.length ? (
         <section className="today-recovery-entry" data-today-section="recovery" aria-labelledby="today-recovery-heading">
           <span className="today-recovery-count">{String(projection.recovery.length).padStart(2, "0")}</span>
-          <div><span><AlertTriangle aria-hidden="true" size={15} /> Needs a decision</span><h2 id="today-recovery-heading">Earlier work did not disappear</h2><p>{projection.recovery[0].title}{projection.recovery.length > 1 ? ` and ${projection.recovery.length - 1} more` : ""} remain attached to their original plan.</p></div>
+          <div><span><AlertTriangle aria-hidden="true" size={15} /> Needs a decision</span><h2 id="today-recovery-heading">Earlier work did not disappear</h2><p>{projection.recovery[0].title}{projection.recovery.length > 1 ? ` and ${projection.recovery.length - 1} more remain` : " remains"} attached to the original plan.</p></div>
           <button type="button" onClick={resolveRecovery}>Resolve remaining work <ArrowRight aria-hidden="true" size={18} /></button>
         </section>
       ) : null}

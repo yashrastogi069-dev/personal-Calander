@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   TodayWorkspace,
   contextualTodayAction,
+  isExecutableTodayTask,
   todaySuggestions,
 } from "../client/src/features/today/TodayWorkspace";
 import type { CanonicalTask } from "../shared/canonicalTask";
@@ -240,6 +241,32 @@ describe("Phase 4 Today workspace", () => {
     expect(contextualTodayAction({ recoveryCount: 0, hasActivePlan: true, selectedTaskId: null })).toBeNull();
   });
 
+  it("keeps blocked work out of the focus choice and offers detail review", () => {
+    expect(isExecutableTodayTask(waiting)).toBe(false);
+    expect(isExecutableTodayTask(flexible)).toBe(true);
+    const html = renderToday({
+      projection: {
+        ...projection,
+        recovery: [],
+        timeline: [],
+        flexible: [{ ...projection.flexible[0], recordId: waiting.id, title: waiting.title }],
+        attention: [],
+      },
+    });
+    expect(html).toContain("Review blockers");
+    expect(html).not.toContain("<button type=\"button\" class=\"today-primary-action\"");
+  });
+
+  it("labels unavailable time separately from merged scheduled demand", () => {
+    const html = renderToday({ isUnavailableToday: true });
+    expect(html).toContain("Scheduled demand");
+    expect(html).toContain("1h 45m");
+    expect(html).toContain("Unavailable");
+    expect(html).toContain("All day");
+    expect(html).toContain("Estimate gaps");
+    expect(html).toContain("Not counted as zero");
+  });
+
   it("derives suggestions from record facts with an explicit source and next action", () => {
     expect(todaySuggestions({
       projection,
@@ -252,8 +279,17 @@ describe("Phase 4 Today workspace", () => {
         kind: "task",
         recordId: "task-waiting",
         title: "Follow up with the editor",
-        source: "Waiting follow-up",
+        source: "Blocked task",
         detail: "Overdue · not planned",
+        actionLabel: "Review task",
+      },
+      {
+        id: "project-task:task-flexible",
+        kind: "task",
+        recordId: "task-flexible",
+        title: "Review the chapter notes",
+        source: "From Write the book",
+        detail: "Planned today · project next action",
         actionLabel: "Review task",
       },
       {

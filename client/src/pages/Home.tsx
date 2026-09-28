@@ -87,8 +87,10 @@ import { taskEditorSourceKey } from "@shared/taskEditor";
 import { nextTaskSortOrder } from "@shared/taskOrdering";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
+import { projectToday } from "@shared/todayProjection";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
 import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace";
+import { TodayWorkspace } from "@/features/today/TodayWorkspace";
 import {
   DestinationBoundary,
   DestinationLoading,
@@ -3383,6 +3385,14 @@ function OfflineCaptureIndicator() {
         : `Offline mode. New quick captures stay on this device${queued ? ` · ${queued} waiting to sync` : ""}.`}
     </p>
   );
+}
+
+function OwnedToolsDisclosure({ summary, children }: { summary: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <details className="today-owned-tools" onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary>{summary}</summary>
+    {open ? children : null}
+  </details>;
 }
 
 function useOnlineState() {
@@ -6788,6 +6798,8 @@ export default function Home() {
   const [composerIntentHydrated, setComposerIntentHydrated] = useState(false);
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
   const [naturalCaptureThought, setNaturalCaptureThought] = useState("");
+  const [focusEntryTaskId, setFocusEntryTaskId] = useState<string | null>(null);
+  const [focusEarlierCommitments, setFocusEarlierCommitments] = useState(false);
   const [breakdownProject, setBreakdownProject] = useState<any | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [quickTitle, setQuickTitle] = useState("");
@@ -6949,6 +6961,35 @@ export default function Home() {
         habitCheckIn: availableSnapshot.data.habitCheckIns,
       }
     : availableSnapshot.data;
+  const todayProjection = useMemo(() => {
+    if (!snapshot) return null;
+    return projectToday({
+      localDate: today,
+      workspace: {
+        id: snapshot.workspace.id,
+        timezone: snapshot.workspace.timezone,
+        dailyCapacityMinutes: snapshot.workspace.dailyCapacityMinutes,
+        workdayStartsAt: snapshot.workspace.workdayStartsAt,
+        workdayEndsAt: snapshot.workspace.workdayEndsAt,
+        defaultBreakMinutes: snapshot.workspace.defaultBreakMinutes,
+      },
+      tasks: snapshot.tasks.map(task =>
+        optimisticTaskStates[task.id]
+          ? { ...task, state: optimisticTaskStates[task.id] }
+          : task
+      ),
+      dailyPlans: snapshot.dailyPlans,
+      dailyPlanItems: snapshot.dailyPlanItems,
+      taskOccurrences: snapshot.taskOccurrences,
+      habits: snapshot.habits,
+      habitCheckIns: snapshot.habitCheckIns,
+      externalEvents: snapshot.externalEvents,
+      planningAvailabilityExceptions: snapshot.planningAvailabilityExceptions,
+      // Optional Phase 4 resolution history is not in the pre-migration snapshot.
+      // Existing daily-plan item states still determine unresolved commitments.
+      commitmentResolutions: [],
+    });
+  }, [snapshot, today, optimisticTaskStates]);
   const activeTasks = useMemo(
     () =>
       (snapshot?.tasks ?? [])
@@ -6968,20 +7009,6 @@ export default function Home() {
   const archivedTasks = useMemo(
     () => (snapshot?.tasks ?? []).filter(task => task.state === "archived"),
     [snapshot?.tasks]
-  );
-  const focusTasks = useMemo(
-    () =>
-      activeTasks
-        .filter(
-          task =>
-            task.scheduledLocalDate === today || task.dueLocalDate === today
-        )
-        .sort(
-          (a, b) =>
-            (a.state === "completed" ? 1 : 0) -
-            (b.state === "completed" ? 1 : 0)
-        ),
-    [activeTasks, today]
   );
   const taskRows = useMemo(
     () =>
@@ -7060,13 +7087,14 @@ export default function Home() {
     return subscribeToPlannerLocation(window, setPlannerLocation);
   }, []);
   const navigatePlanner = useCallback((target: PlannerLocationTarget) => {
+    const navigationTarget = { ...target, selectedRecord: null };
     setPlannerLocation(current =>
-      plannerLocationWithAction({ ...current, ...target }, target.action)
+      plannerLocationWithAction({ ...current, ...navigationTarget }, target.action)
     );
     if (target.destination === "settings" && target.view === "categories")
       setCategoryDialogOpen(true);
     if (typeof window !== "undefined")
-      writePlannerLocation(new URL(window.location.href), target, window.history);
+      writePlannerLocation(new URL(window.location.href), navigationTarget, window.history);
   }, []);
   const selectSurface = (nextSurface: Surface) => {
     navigatePlanner(targetForSurface(nextSurface));
@@ -7076,6 +7104,7 @@ export default function Home() {
       openComposer("task");
       return;
     }
+    if (action === "focus") setFocusEntryTaskId(null);
     navigatePlanner(
       action === "search"
         ? { destination: "home", view: "search", action }
@@ -8269,63 +8298,74 @@ export default function Home() {
           </section>
         ) : null}
         {surface === "today" ? (
-          <div className="today-canvas">
-            <OfflineCaptureIndicator />
-            <div className="today-columns">
-              <FocusPanel
-                tasks={focusTasks}
-                categories={snapshot.categories}
-                projects={snapshot.projects}
-                onToggle={toggleTask}
-                onCompose={() => openComposer("task")}
-                onArchive={archiveTaskFromPhone}
-                onUpdate={persistTaskPatch}
-                onCreateSubtask={createSubtaskSafely}
-              />
-              <Timeline
-                tasks={activeTasks}
-                selectedDate={selectedDate}
-                onMoveDay={amount =>
-                  setSelectedDate(date => shiftLocalDate(date, amount))
-                }
-                onDrop={scheduleTask}
-                onOpenTasks={focusTaskSearch}
-                onComplete={toggleTask}
-                onResize={resizeTaskReservation}
-                scheduleError={calendarActionError}
-                onRetrySchedule={retryCalendarMove}
-              />
-            </div>
-            <div className="lower-columns">
-              <GoalPanel
-                goals={snapshot.goals}
-                projects={snapshot.projects}
-                tasks={snapshot.tasks}
-                categories={snapshot.categories}
-                onCompose={() => openComposer("goal")}
-              />
-              <HabitPanel
-                habits={snapshot.habits}
-                checkIns={snapshot.habitCheckIns}
-                today={today}
-                streaks={dashboardQuery.data?.streaks}
-                onCheckIn={recordHabitCheckIn}
-                onClearCheckIn={undoHabitCheckIn}
-                onRetry={retryHabitAction}
-                pending={habitPending}
-                error={habitActionError}
-                onCompose={() => openComposer("habit")}
-              />
-            </div>
-            <DailyCapacityForecast
-              workload={dashboardQuery.data?.workload}
-              onOpenDeadlineRisk={focusDeadlineRisk}
-            />
-            <AnalyticsPanel
-              dashboard={dashboardQuery.data}
+          todayProjection && snapshot ? (
+            <TodayWorkspace
+              projection={todayProjection}
+              tasks={activeTasks}
+              habits={snapshot.habits}
+              projects={snapshot.projects}
+              goals={snapshot.goals}
               categories={snapshot.categories}
+              dependencies={snapshot.taskDependencies}
+              timezone={scope.timezone}
+              hasActivePlan={snapshot.dailyPlans.some(
+                plan => plan.localDate === today && plan.state !== "archived",
+              )}
+              commitmentCount={snapshot.dailyPlanItems.filter(item =>
+                snapshot.dailyPlans.some(
+                  plan =>
+                    plan.id === item.dailyPlanId &&
+                    plan.localDate === today &&
+                    plan.state !== "archived",
+                ),
+              ).length}
+              captureStatus={<OfflineCaptureIndicator />}
+              isUnavailableToday={snapshot.planningAvailabilityExceptions.some(
+                exception => exception.localDate === today && Boolean(exception.isUnavailable)
+              )}
+              selectedRecordId={plannerLocation.selectedRecord ?? null}
+              pendingTaskIds={new Set(
+                pendingOperations.map(operation => operation.entityId),
+              )}
+              conflictCountByTask={new Map(
+                [
+                  ...localSyncConflicts,
+                  ...(serverSyncConflicts.data ?? []),
+                ].reduce((entries, conflict) => {
+                  entries.set(
+                    conflict.entityId,
+                    (entries.get(conflict.entityId) ?? 0) + 1,
+                  );
+                  return entries;
+                }, new Map<string, number>()),
+              )}
+              isOnline={isOnline}
+              habitPending={habitPending}
+              habitError={habitActionError}
+              onPlanToday={() => selectSurface("plan")}
+              onStartFocus={task => {
+                setFocusEntryTaskId(task.id);
+                selectSurface("focus");
+              }}
+              onResolveRecovery={() => {
+                setFocusEarlierCommitments(true);
+                selectSurface("plan");
+              }}
+              onOpenHabits={() => selectSurface("habits")}
+              onToggleTask={toggleTask}
+              onArchiveTask={archiveTaskFromPhone}
+              onUpdateTask={persistTaskPatch}
+              onCreateSubtask={createSubtaskSafely}
+              onAddDependency={addTaskDependencySafely}
+              onRemoveDependency={removeTaskDependencySafely}
+              onHabitCheckIn={recordHabitCheckIn}
+              onClearHabitCheckIn={undoHabitCheckIn}
+              onRetryHabit={retryHabitAction}
+              onSelectedRecordChange={updateSelectedRecord}
             />
-          </div>
+          ) : (
+            <DestinationLoading label="Today" />
+          )
         ) : null}
         {surface === "plan" ? (
           <Suspense fallback={<DestinationLoading label="Plan" />}>
@@ -8334,9 +8374,15 @@ export default function Home() {
               today={today}
               snapshot={snapshot}
               dashboard={dashboardQuery.data}
+              earlierCommitments={todayProjection?.recovery ?? []}
+              focusEarlierCommitments={focusEarlierCommitments}
               onOpenTasks={focusTaskSearch}
               onOpenGoals={() => selectSurface("goals")}
             />
+            <OwnedToolsDisclosure summary="Planning and recurring work tools">
+              <DailyCompass />
+              <RecurringWorkControl />
+            </OwnedToolsDisclosure>
           </Suspense>
         ) : null}
         {surface === "capture" ? (
@@ -8349,6 +8395,7 @@ export default function Home() {
               thought={naturalCaptureThought}
               onThoughtChange={setNaturalCaptureThought}
             />
+            <AICompanion />
           </Suspense>
         ) : null}
         {surface === "search" ? (
@@ -8362,6 +8409,7 @@ export default function Home() {
           </Suspense>
         ) : null}
         {surface === "tasks" ? (
+          <div className="tasks-destination-stack">
           <TaskWorkspace
             view={
               (["inbox", "list", "board", "saved", "archive"] as string[]).includes(
@@ -8411,6 +8459,10 @@ export default function Home() {
             onAddDependency={addTaskDependencySafely}
             onRemoveDependency={removeTaskDependencySafely}
           />
+          <OwnedToolsDisclosure summary="Task triage tools">
+            <TaskTriagePanel />
+          </OwnedToolsDisclosure>
+          </div>
         ) : null}
         {surface === "calendar" ? (
           <section className="calendar-surface">
@@ -8573,7 +8625,7 @@ export default function Home() {
         ) : null}
         {surface === "focus" ? (
           <Suspense fallback={<DestinationLoading label="Focus" />}>
-            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} />
+            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} initialTaskId={focusEntryTaskId} />
           </Suspense>
         ) : null}
         {surface === "connections" ? (
@@ -8649,7 +8701,7 @@ export default function Home() {
         }}
       />
       <SearchRecordSheet
-        target={plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) !== "task"
+        target={plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) && searchEntityForLocation(plannerLocation) !== "task"
           ? { entity: searchEntityForLocation(plannerLocation)!, id: plannerLocation.selectedRecord }
           : null}
         scope={scope}

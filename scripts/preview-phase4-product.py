@@ -14,15 +14,16 @@ import json
 from pathlib import Path
 import runpy
 import tempfile
+import traceback
 from urllib.parse import urlparse
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 AUTH_HARNESS = Path(__file__).with_name("preview-auth-states.py")
 LINKED_HARNESS = Path(__file__).with_name("preview-linked-planner.py")
-SCENARIOS = ("shell-navigation", "task-capture-search")
+SCENARIOS = ("shell-navigation", "task-capture-search", "today")
 DEFAULT_WIDTHS = (390, 1440)
-HEIGHTS = {390: 844, 1440: 1000}
+HEIGHTS = {320: 760, 390: 844, 768: 1024, 1440: 1000}
 
 
 def assert_loopback_url(value: str) -> str:
@@ -122,6 +123,8 @@ def click_destination(page, label: str) -> None:
             candidate.click()
             return
     more = page.get_by_role("button", name="More", exact=True)
+    if not more.count():
+        raise AssertionError({"missingDestination": label, "url": page.url, "visibleButtons": page.locator("button:visible").all_text_contents()[:40]})
     more.click()
     sheet.wait_for(state="visible")
     sheet.get_by_role("button", name=label, exact=True).click()
@@ -363,6 +366,7 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         assert back_location["search"] == tasks_location["search"]
         assert forward_location["search"] == plan_location["search"]
         assert not metrics["horizontalOverflow"], metrics
+        assert not console_errors, ("initial", console_errors)
         assert not runtime_errors, runtime_errors
         assert not console_errors, console_errors
         assert not unexpected, unexpected
@@ -763,6 +767,169 @@ def run_task_capture_search(browser, url: str, output: Path, width: int) -> dict
     return result
 
 
+def run_today(browser, url: str, output: Path, width: int) -> dict:
+    auth = runpy.run_path(str(AUTH_HARNESS))
+    linked = runpy.run_path(str(LINKED_HARNESS))
+    height = HEIGHTS[width]
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        color_scheme="light",
+        timezone_id="UTC",
+        service_workers="block",
+    )
+    page = context.new_page()
+    page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+    runtime_errors: list[str] = []
+    console_errors: list[str] = []
+    page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+    fixtures = linked["fixtures"]()
+    snapshot = fixtures["planner.workspace.snapshot"]
+    workspace_id = snapshot["workspace"]["id"]
+    task_base = {
+        "workspaceId": workspace_id, "description": None, "state": "not_started",
+        "priority": "medium", "horizon": "daily", "categoryId": None,
+        "projectId": None, "goalId": None, "parentTaskId": None,
+        "dueLocalDate": None, "scheduledLocalDate": None,
+        "plannedStartAt": None, "plannedEndAt": None,
+        "estimateMinutes": None, "sortOrder": 0, "version": 1,
+        "recurrenceRule": None, "scheduleMode": "manual", "outcome": "none",
+        "completedAt": None, "archivedAt": None, "clientRequestId": None,
+        "createdAt": "2026-09-20T08:00:00.000Z",
+        "updatedAt": "2026-09-20T08:00:00.000Z",
+    }
+    reserved = {**task_base, "id": "today-reserved", "title": "Prepare the proposal", "scheduledLocalDate": "2026-09-21", "plannedStartAt": "2026-09-21T09:00:00.000Z", "plannedEndAt": "2026-09-21T10:00:00.000Z", "estimateMinutes": 60}
+    flexible = {**task_base, "id": "today-flexible", "title": "Call the landlord", "scheduledLocalDate": "2026-09-21", "estimateMinutes": 25, "sortOrder": 1}
+    blocked = {**task_base, "id": "today-blocked", "title": "Wait for the repair quote", "state": "blocked", "dueLocalDate": "2026-09-20", "sortOrder": 2}
+    recovery = {**task_base, "id": "today-recovery", "title": "Return the library books", "sortOrder": 3}
+    completed = {**task_base, "id": "today-completed", "title": "Send the invoice", "state": "completed", "completedAt": "2026-09-21T07:00:00.000Z", "sortOrder": 4}
+    snapshot["tasks"] = [reserved, flexible, blocked, recovery, completed]
+    snapshot["dailyPlans"] = [
+        {"id": "today-plan", "workspaceId": workspace_id, "localDate": "2026-09-21", "state": "active", "version": 1, "intention": None},
+        {"id": "earlier-plan", "workspaceId": workspace_id, "localDate": "2026-09-20", "state": "active", "version": 1, "intention": None},
+    ]
+    snapshot["dailyPlanItems"] = [
+        {"id": "today-item", "dailyPlanId": "today-plan", "taskId": flexible["id"], "state": "committed", "position": 0, "version": 1, "note": None},
+        {"id": "earlier-item", "dailyPlanId": "earlier-plan", "taskId": recovery["id"], "state": "committed", "position": 0, "version": 1, "note": None},
+    ]
+    snapshot["habits"] = [{"id": "today-habit", "workspaceId": workspace_id, "name": "Evening walk", "description": None, "color": "#2e9271", "frequency": "daily", "schedule": {}, "state": "active", "version": 1, "archivedAt": None, "createdAt": "2026-09-01T08:00:00.000Z"}]
+    snapshot["habitCheckIns"] = []
+    snapshot["externalEvents"] = [{"id": "today-appointment", "workspaceId": workspace_id, "title": "Dentist appointment", "startsAt": "2026-09-21T11:00:00.000Z", "endsAt": "2026-09-21T11:45:00.000Z", "status": "active"}]
+    fixtures["planner.sync.conflicts"] = []
+    fixtures["planner.search.workspace"] = []
+    fixtures["planner.dailyPlan.resolveItem"] = {**snapshot["dailyPlanItems"][1], "state": "deferred", "version": 2}
+    requests, unexpected = auth["install_preview"](context, url, "linked", fixtures)
+    result = {"scenario": "today", "width": width, "height": height, "data": "synthetic-only", "runtimeErrors": runtime_errors, "consoleErrors": console_errors, "unexpectedRequests": unexpected, "plannerRequests": requests}
+    try:
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible", timeout=20_000)
+        sections = today.locator("[data-today-section]").evaluate_all("elements => elements.map(element => element.dataset.todaySection)")
+        assert sections == ["summary", "recovery", "timeline", "flexible", "habits", "suggestions", "completed"], sections
+        assert today.locator('[data-task-record-id="today-reserved"]').count() == 1
+        assert today.locator('[data-task-record-id="today-recovery"]').count() == 0
+        assert today.locator('[data-calendar-source="external"]').count() == 1
+        assert today.get_by_text("Read-only context", exact=False).is_visible()
+        assert today.locator(".today-completed-evidence").get_attribute("open") is None
+        today.locator(".today-completed-evidence summary").click()
+        assert today.get_by_text("Send the invoice", exact=True).is_visible()
+        today.get_by_label("Open details for Call the landlord").click()
+        detail = page.get_by_role("dialog", name="Call the landlord")
+        try:
+            detail.wait_for(state="visible", timeout=5_000)
+        except Exception as error:
+            raise AssertionError({"detailUrl": page.url, "dialogs": page.locator('[role="dialog"]').all_inner_texts(), "todayText": today.inner_text()[:1000], "runtimeErrors": runtime_errors, "consoleErrors": console_errors}) from error
+        page.keyboard.press("Escape")
+        detail.wait_for(state="hidden")
+        page.wait_for_function("() => document.activeElement?.getAttribute('aria-label') === 'Open details for Call the landlord'")
+        targets = today.locator("button:visible, summary:visible").evaluate_all("elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim().slice(0, 50) }; })")
+        text_sizes = today.locator(".today-summary span:visible, .today-source-label:visible, .today-habit-row small:visible, .today-suggestion-list small:visible").evaluate_all("elements => elements.map(element => Number.parseFloat(getComputedStyle(element).fontSize))")
+        metrics = overflow_metrics(page)
+        screenshot = output / f"today-{width}.png"
+        page.locator('[data-scroll-owner="destination"]').evaluate("element => { element.scrollTop = 0; }")
+        page.screenshot(path=str(screenshot), full_page=True)
+        assert targets and min(target["width"] for target in targets) >= 44 and min(target["height"] for target in targets) >= 44, targets
+        assert text_sizes and min(text_sizes) >= 14, text_sizes
+        assert not metrics["horizontalOverflow"], metrics
+
+        today.get_by_role("button", name="Resolve remaining work").first.click()
+        wait_for_target(page, "plan", "daily")
+        earlier = page.locator("#earlier-commitments")
+        earlier.wait_for(state="visible")
+        assert earlier.get_by_text("Return the library books", exact=True).is_visible()
+        assert earlier.get_by_role("button", name="Reschedule").is_visible()
+        assert earlier.evaluate("element => document.activeElement === element")
+        snapshot["dailyPlanItems"][1] = {**snapshot["dailyPlanItems"][1], "state": "deferred", "version": 2}
+        earlier.get_by_role("button", name="Defer").click()
+        page.wait_for_function("() => !document.querySelector('#earlier-commitments')")
+        assert requests.count("planner.dailyPlan.resolveItem") == 1
+        page.go_back()
+        today.wait_for(state="visible")
+        assert today.locator('[data-today-section="recovery"]').count() == 0
+        assert not console_errors, ("recovery", console_errors)
+        today.locator('[data-task-record-id="today-reserved"] .canonical-task-context-action').click()
+        wait_for_target(page, "home", "focus")
+        assert page.locator("#focus-task").input_value() == reserved["id"]
+        page.go_back()
+        today.wait_for(state="visible")
+        assert not console_errors, ("focus", console_errors)
+
+        page.evaluate("() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline')); }")
+        before_habit_writes = requests.count("planner.habit.checkIn")
+        today.locator('[data-habit-record-id="today-habit"]').get_by_role("button", name="Complete").click()
+        assert today.get_by_text("Reconnect to update a habit", exact=False).is_visible()
+        assert requests.count("planner.habit.checkIn") == before_habit_writes
+        page.evaluate("() => { delete navigator.onLine; window.dispatchEvent(new Event('online')); }")
+        assert not console_errors, ("offline", console_errors)
+
+        snapshot["externalEvents"] = []
+        snapshot["dailyPlans"] = []
+        snapshot["dailyPlanItems"] = []
+        snapshot["tasks"] = []
+        snapshot["habits"] = []
+        page = context.new_page()
+        page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+        page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+        page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible")
+        assert not console_errors, ("reload", console_errors)
+        assert today.get_by_text("No incoming calendar appointments", exact=False).is_visible()
+        assert today.get_by_text("No fixed time yet", exact=True).is_visible()
+        assert today.get_by_text("No flexible work chosen", exact=True).is_visible()
+        assert today.get_by_text("No habits are scheduled for today", exact=False).is_visible()
+        empty_screenshot = output / f"today-empty-{width}.png"
+        page.locator('[data-scroll-owner="destination"]').evaluate("element => { element.scrollTop = 0; }")
+        page.screenshot(path=str(empty_screenshot), full_page=True)
+        final_action = today.locator(".today-completed-evidence summary")
+        final_action.scroll_into_view_if_needed()
+        final_action.click()
+        assert today.locator(".today-completed-evidence").get_attribute("open") is not None
+        final_content = today.locator(".today-completed-list > p")
+        final_content.scroll_into_view_if_needed()
+        end_screenshot = output / f"today-empty-end-{width}.png"
+        page.screenshot(path=str(end_screenshot))
+        if width <= 680:
+            nav = page.locator(".mobile-planner-nav:visible")
+            nav_box = nav.first.bounding_box()
+            action_box = final_action.bounding_box()
+            content_box = final_content.bounding_box()
+            assert nav_box and action_box and content_box and action_box["y"] + action_box["height"] <= nav_box["y"] and content_box["y"] + content_box["height"] <= nav_box["y"], {"finalAction": action_box, "finalContent": content_box, "fixedNavigation": nav_box}
+        today.get_by_role("button", name="Plan today").click()
+        wait_for_target(page, "plan", "daily")
+        page.get_by_role("heading", name="Your commitments").wait_for(state="visible")
+        page.wait_for_timeout(100)
+        runtime_errors[:] = [error for error in runtime_errors if error != "WebSocket closed without opened."]
+        assert not runtime_errors, runtime_errors
+        assert not console_errors, console_errors
+        assert not unexpected, unexpected
+        result.update({"status": "PASS", "sections": sections, "minimumTarget": {"width": min(target["width"] for target in targets), "height": min(target["height"] for target in targets)}, "minimumFunctionalText": min(text_sizes), "overflow": metrics, "screenshot": str(screenshot), "emptyScreenshot": str(empty_screenshot), "emptyEndScreenshot": str(end_screenshot), "recoveryResolvedViaExistingMutation": True, "focusTaskRetained": True, "offlineHabitWriteBlocked": True})
+    finally:
+        context.close()
+    return result
+
+
 def run(args: argparse.Namespace) -> int:
     url = assert_loopback_url(args.url)
     output = external_output(args.output)
@@ -782,6 +949,8 @@ def run(args: argparse.Namespace) -> int:
                         run_shell_navigation(browser, url, output, width)
                         if args.scenario == "shell-navigation"
                         else run_task_capture_search(browser, url, output, width)
+                        if args.scenario == "task-capture-search"
+                        else run_today(browser, url, output, width)
                     )
                     results.append(result)
                     print(f"PASS {args.scenario} {width}px", flush=True)
@@ -792,6 +961,7 @@ def run(args: argparse.Namespace) -> int:
                             "width": width,
                             "status": "FAIL",
                             "error": f"{type(error).__name__}: {error}",
+                            "traceback": traceback.format_exc(),
                         }
                     )
                     print(

@@ -78,7 +78,7 @@ export function TodayHabits({
           <div className="today-habits-empty"><TimerReset aria-hidden="true" size={20} /><span>No habits are scheduled for today.</span></div>
         ) : null}
       </div>
-      {error ? <p className="today-inline-error" role="alert"><span>{error} The last confirmed habit state remains visible.</span><button type="button" onClick={onRetry}>Retry</button></p> : null}
+      {error ? <p className="today-inline-error" role="alert"><span>{error} The last confirmed habit state remains visible.</span><button type="button" onClick={() => runConfirmedWrite(onRetry)}>Retry</button></p> : null}
     </section>
   );
 }

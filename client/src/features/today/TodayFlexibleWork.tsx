@@ -68,10 +68,10 @@ export function TodayFlexibleWork({
                   categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
                 }}
                 pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
-                contextualActionLabel="Start focus"
+                contextualActionLabel={task.state === "blocked" ? "Review blockers" : "Start focus"}
                 onToggle={onToggleTask}
                 onArchive={onArchiveTask}
-                onPrimaryAction={onStartFocus}
+                onPrimaryAction={(record, _actionId, trigger) => task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}
                 onOpenDetail={onOpenTask}
               />
             </div>

@@ -365,7 +365,7 @@
 @media (max-width: 680px) {
   .today-workspace {
     gap: 0;
-    padding: 8px 0 20px;
+    padding: 8px 0 calc(112px + env(safe-area-inset-bottom));
   }
   .today-workspace-intro {
     grid-template-columns: 1fr;
@@ -454,3 +454,10 @@
 @media (prefers-reduced-motion: reduce) {
   .today-workspace button { transition-duration: 0.00001s; }
 }
+
+.tasks-destination-stack { display: grid; gap: 18px; min-width: 0; }
+.today-owned-tools { min-width: 0; margin-top: 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.today-owned-tools > summary { display: flex; align-items: center; min-height: 48px; padding: 11px 16px; color: var(--foreground); cursor: pointer; font-size: 14px; font-weight: 750; }
+.today-owned-tools > summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.today-owned-tools[open] > summary { border-bottom: 1px solid var(--border); }
+.today-owned-tools > :not(summary) { margin: 12px; }

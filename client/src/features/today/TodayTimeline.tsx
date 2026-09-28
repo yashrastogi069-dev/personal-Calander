@@ -57,8 +57,8 @@ export function TodayTimeline({
 
       <div className="today-timeline-list">
         {rows.map(row => {
-          const start = timeLabel(row.startsAt, timezone);
-          const end = timeLabel(row.endsAt, timezone);
+          const start = row.startsAt ? timeLabel(row.startsAt, timezone) : "Time unavailable";
+          const end = row.endsAt ? timeLabel(row.endsAt, timezone) : "Time unavailable";
           if (row.kind === "appointment") {
             return (
               <article className="today-appointment-row" key={`appointment:${row.recordId}`} data-calendar-source="external">
@@ -97,10 +97,10 @@ export function TodayTimeline({
                     categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
                   }}
                   pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
-                  contextualActionLabel="Start focus"
+                  contextualActionLabel={task.state === "blocked" ? "Review blockers" : "Start focus"}
                   onToggle={onToggleTask}
                   onArchive={onArchiveTask}
-                  onPrimaryAction={onStartFocus}
+                  onPrimaryAction={(record, _actionId, trigger) => task.state === "blocked" ? onOpenTask(record, trigger) : onStartFocus(record)}
                   onOpenDetail={onOpenTask}
                 />
                 <small className="today-time-range">{start}–{end}</small>
