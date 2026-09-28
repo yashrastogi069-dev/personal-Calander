@@ -44,7 +44,7 @@ export function requestFor(summary) {
   };
 }
 
-export function routeFromDecision(response, { allowLuna = false } = {}) {
+export function routeFromDecision(response) {
   const answer = response?.answers?.task_class;
   const probabilities = answer?.probabilities;
   const keys = Object.keys(CRITERIA);
@@ -57,9 +57,7 @@ export function routeFromDecision(response, { allowLuna = false } = {}) {
   }
   if (answer.choice === "small_mechanical" && answer.confidence >= 0.9 &&
       probabilities.small_mechanical >= 0.9 && probabilities.important_difficult_high_risk <= 0.05) {
-    return allowLuna
-      ? { model: "gpt-6-luna", effort: "low", reason: "clear_small_mechanical" }
-      : { model: "gpt-6-sol", effort: "low", reason: "luna_not_opted_in" };
+    return { model: "gpt-6-sol", effort: "low", reason: "clear_small_mechanical" };
   }
   if (answer.choice === "ordinary" && answer.confidence >= 0.8 &&
       probabilities.important_difficult_high_risk <= 0.1) {
@@ -68,7 +66,7 @@ export function routeFromDecision(response, { allowLuna = false } = {}) {
   return { ...FALLBACK, reason: "important_or_uncertain" };
 }
 
-export async function recommendRoute(summary, { apiKey, fetchImpl = fetch, allowLuna = false } = {}) {
+export async function recommendRoute(summary, { apiKey, fetchImpl = fetch } = {}) {
   const body = requestFor(summary);
   if (HIGH_RISK_TERMS.test(body.state.task_summary)) {
     return { ...FALLBACK, reason: "high_risk_guard" };
@@ -82,7 +80,7 @@ export async function recommendRoute(summary, { apiKey, fetchImpl = fetch, allow
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) return { ...FALLBACK, reason: "api_unavailable" };
-    return routeFromDecision(await response.json(), { allowLuna });
+    return routeFromDecision(await response.json());
   } catch {
     // Never surface network errors: they can include request headers or summary text.
     return { ...FALLBACK, reason: "api_unavailable" };
@@ -92,8 +90,7 @@ export async function recommendRoute(summary, { apiKey, fetchImpl = fetch, allow
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
-  const allowLuna = args.includes("--allow-luna");
-  const summary = args.filter((arg) => arg !== "--dry-run" && arg !== "--allow-luna").join(" ");
+  const summary = args.filter((arg) => arg !== "--dry-run").join(" ");
   try {
     validateSummary(summary);
   } catch (error) {
@@ -114,7 +111,7 @@ async function main() {
       // Missing or unreadable .env uses the conservative fallback.
     }
   }
-  process.stdout.write(`${JSON.stringify(await recommendRoute(summary, { apiKey, allowLuna }))}\n`);
+  process.stdout.write(`${JSON.stringify(await recommendRoute(summary, { apiKey }))}\n`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
