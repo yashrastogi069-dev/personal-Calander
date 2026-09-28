@@ -17,10 +17,10 @@ test("request uses the pinned direct TypeSafe API shape", () => {
   assert.equal(ENDPOINT, "https://api.typesafe.ai/v1/systemone");
 });
 
-test("small mechanical work alone can use Luna", () => {
+test("small mechanical work defaults to SOL Low and uses Luna only by opt-in", () => {
   const small = decision("small_mechanical", .96, .96, .03, .01);
   assert.deepEqual(routeFromDecision(small), {
-    model: "gpt-6-sol", effort: "medium", reason: "luna_not_opted_in",
+    model: "gpt-6-sol", effort: "low", reason: "luna_not_opted_in",
   });
   assert.deepEqual(routeFromDecision(small, { allowLuna: true }), {
     model: "gpt-6-luna", effort: "low", reason: "clear_small_mechanical",

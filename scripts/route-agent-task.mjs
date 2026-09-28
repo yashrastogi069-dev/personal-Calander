@@ -59,7 +59,7 @@ export function routeFromDecision(response, { allowLuna = false } = {}) {
       probabilities.small_mechanical >= 0.9 && probabilities.important_difficult_high_risk <= 0.05) {
     return allowLuna
       ? { model: "gpt-6-luna", effort: "low", reason: "clear_small_mechanical" }
-      : { model: "gpt-6-sol", effort: "medium", reason: "luna_not_opted_in" };
+      : { model: "gpt-6-sol", effort: "low", reason: "luna_not_opted_in" };
   }
   if (answer.choice === "ordinary" && answer.confidence >= 0.8 &&
       probabilities.important_difficult_high_risk <= 0.1) {
