@@ -19,7 +19,7 @@ Commit: the same Task 12 commit that contains this report.
 
 - TypeScript: `.\node_modules\.bin\tsc.cmd --noEmit` passed.
 - Focused Vitest: 8 files, 72 passed, 0 failed (Today/projections, canonical tasks, forecast, habits, offline capture, navigation, Task workspace).
-- Full Vitest: 75 files passed; 425 tests passed, 3 skipped. One unrelated pre-existing `server/legacyProviderScan.test.ts` false positive remains: `git grep -i forge` matches the existing `forged` test variable in `scripts/phase4-product-migration.test.ts` at lines 372, 380, and 383. No unrelated test was changed to mask it.
+- Initial full Vitest run: 75 files passed; 425 tests passed, 3 skipped. A legacy-provider scan also flagged an invalid-URL test variable in `scripts/phase4-product-migration.test.ts`; a follow-up rename preserved test semantics, and the full-suite rerun is pending.
 - Production `npm run build` passed, generating PWA release `22859a27f663a54b` with 21 shell files. Existing Search static/dynamic import and large-chunk warnings remain.
 - Final synthetic Chromium Today flow passed 4/4 at 320, 390, 768, and 1440 pixels, with canonical order/identity, read-only external context, detail return, real recovery mutation, Focus task handoff, offline habit guidance, actual empty Today, touch-target/text checks, scroll clearance, and no overflow/runtime errors/unexpected requests. Artifacts: `C:\Users\win 10\AppData\Local\Temp\personal-calendar-phase4-product-20260928T010954Z\` (including `today-empty-390.png` and `today-empty-end-390.png`).
 - Adjacent synthetic Task/Capture/Search flow passed 2/2 at 390/1440 (`...20260928T005445Z`); shell navigation passed 2/2 at 390/1440 (`...20260928T010506Z`). `git diff --check` passed.

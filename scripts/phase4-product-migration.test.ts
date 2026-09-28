@@ -369,7 +369,7 @@ describe("Phase 4 product migration controller", () => {
     const direct = `postgresql://postgres:synthetic-password@db.${project}.supabase.co:5432/postgres`;
     const awsPooler = `postgresql://postgres.${project}:synthetic-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres`;
     const regionalPooler = `postgresql://postgres.${project}:synthetic-password@ap-south-1.pooler.supabase.com:5432/postgres`;
-    const forged = `postgresql://postgres.${project}:synthetic-password@evil.example:5432/postgres`;
+    const invalidUrl = `postgresql://postgres.${project}:synthetic-password@evil.example:5432/postgres`;
 
     expect(extractSupabaseProjectIdentity(direct)).toBe(project);
     expect(extractSupabaseProjectIdentity(awsPooler)).toBe(project);
@@ -377,10 +377,10 @@ describe("Phase 4 product migration controller", () => {
     expect(buildVerifiedPgClientConfig(direct).ssl).toEqual({
       rejectUnauthorized: true,
     });
-    expect(() => extractSupabaseProjectIdentity(forged)).toThrow(
+    expect(() => extractSupabaseProjectIdentity(invalidUrl)).toThrow(
       expect.objectContaining({ code: "PROJECT_IDENTITY_UNAVAILABLE" })
     );
-    expect(() => buildVerifiedPgClientConfig(forged)).toThrow(
+    expect(() => buildVerifiedPgClientConfig(invalidUrl)).toThrow(
       expect.objectContaining({ code: "PROJECT_IDENTITY_UNAVAILABLE" })
     );
   });
