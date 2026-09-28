@@ -26,6 +26,7 @@ const sourceLabel = {
   daily_commitment: "Daily-plan commitment",
   occurrence: "Recurring occurrence",
   reservation: "Reserved",
+  carried_commitment: "Carried commitment",
 } as const;
 
 export function TodayFlexibleWork({
@@ -59,6 +60,12 @@ export function TodayFlexibleWork({
       <div className="today-flexible-list">
         {rows.map(row => {
           const task = taskById.get(row.recordId);
+          if (row.source === "carried_commitment") return (
+            <div className="today-flexible-row" key={`carry:${row.carryId}`} data-today-task-source={row.source}>
+              <span className="today-source-label">Carried commitment</span>
+              <div><strong>{row.title}</strong><small>Separate from this task's recurring occurrence. Resolve this carried item in Recovery.</small></div>
+            </div>
+          );
           if (!task) return null;
           const linkedResolution = linkedResolutionByTaskId.get(task.id);
           const planContext = linkedPlanContextByTaskId.get(task.id);

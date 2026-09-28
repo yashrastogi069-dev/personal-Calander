@@ -1,4 +1,6 @@
 import {
+  foreignKey,
+  type PgTableExtraConfigValue,
   index,
   integer,
   jsonb,
@@ -422,6 +424,8 @@ export const commitmentResolutions = pgTable(
     dailyPlanItemId: varchar("dailyPlanItemId", { length: 64 }).notNull(),
     taskId: varchar("taskId", { length: 64 }).notNull(),
     occurrenceId: varchar("occurrenceId", { length: 64 }),
+    sourceCarryId: varchar("sourceCarryId", { length: 64 }),
+    requestFingerprint: varchar("requestFingerprint", { length: 64 }),
     action: enumText("action", ["done", "reschedule", "reduce", "pause", "abandon"]).notNull(),
     originalScope: text("originalScope").notNull(),
     revisedScope: text("revisedScope"),
@@ -433,9 +437,37 @@ export const commitmentResolutions = pgTable(
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
     version: integer("version").notNull().default(1),
   },
-  table => [
+  (table): PgTableExtraConfigValue[] => [
     uniqueIndex("commitment_resolutions_workspace_operation_unique").on(table.workspaceId, table.operationId),
     index("commitment_resolutions_workspace_item_idx").on(table.workspaceId, table.dailyPlanItemId),
+    index("commitment_resolutions_workspace_source_carry_idx").on(table.workspaceId, table.sourceCarryId),
+    foreignKey({ name: "commitment_resolutions_source_carry_fk", columns: [table.sourceCarryId], foreignColumns: [carriedCommitments.id] }),
+  ]
+).enableRLS();
+
+/** A carried recurring obligation has its own identity, even on a natural occurrence date. */
+export const carriedCommitments = pgTable(
+  "carriedCommitments",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    taskId: varchar("taskId", { length: 64 }).notNull(),
+    rootDailyPlanItemId: varchar("rootDailyPlanItemId", { length: 64 }).notNull(),
+    createdByResolutionId: varchar("createdByResolutionId", { length: 64 }).notNull(),
+    targetLocalDate: varchar("targetLocalDate", { length: 10 }).notNull(),
+    scope: text("scope").notNull(),
+    state: enumText("state", ["pending", "done", "rescheduled", "reduced", "paused", "abandoned"]).notNull().default("pending"),
+    resolvedAt: timestamp("resolvedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table): PgTableExtraConfigValue[] => [
+    uniqueIndex("carried_commitments_created_by_resolution_unique").on(table.createdByResolutionId),
+    index("carried_commitments_workspace_date_state_idx").on(table.workspaceId, table.targetLocalDate, table.state),
+    foreignKey({ name: "carried_commitments_resolution_fk", columns: [table.createdByResolutionId], foreignColumns: [commitmentResolutions.id] }),
+    foreignKey({ name: "carried_commitments_task_fk", columns: [table.taskId], foreignColumns: [tasks.id] }),
+    foreignKey({ name: "carried_commitments_root_item_fk", columns: [table.rootDailyPlanItemId], foreignColumns: [dailyPlanItems.id] }),
   ]
 ).enableRLS();
 

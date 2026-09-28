@@ -7001,6 +7001,7 @@ export default function Home() {
       externalEvents: snapshot.externalEvents,
       planningAvailabilityExceptions: snapshot.planningAvailabilityExceptions,
       commitmentResolutions: snapshot.commitmentResolutions ?? [],
+      carriedCommitments: snapshot.carriedCommitments ?? [],
     });
   }, [snapshot, today, optimisticTaskStates]);
   const activeTasks = useMemo(

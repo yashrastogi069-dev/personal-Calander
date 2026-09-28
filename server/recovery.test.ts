@@ -41,6 +41,13 @@ describe("Strict recovery decision contract", () => {
     }
   });
 
+  it("requires a carry identity and version without pretending its root item is unresolved", () => {
+    const carried = { operationId: "decision-2", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: "carry-1", carryExpectedVersion: 2, taskExpectedVersion: 4, action: "done" };
+    expect(validateRecoveryDecision(carried)).toEqual(carried);
+    expect(() => validateRecoveryDecision({ ...carried, itemExpectedVersion: 3 })).toThrow("sourceCarryId");
+    expect(() => validateRecoveryDecision({ ...carried, carryExpectedVersion: undefined })).toThrow("sourceCarryId");
+  });
+
   it("groups earlier unresolved references by task without collapsing distinct commitments", () => {
     const projection = recoveryProjection({
       todayLocalDate: "2026-09-28",
@@ -74,14 +81,32 @@ describe("Strict recovery decision contract", () => {
     ], nextCommitments: [] });
   });
 
-  it("gives the consumer a reduced scope for a pending target occurrence", () => {
+  it("gives the consumer a distinct reduced scope for a pending carried commitment", () => {
     const projection = recoveryProjection({
       todayLocalDate: "2026-09-30",
       plans: [],
       items: [{ id: "item-1", dailyPlanId: "day-1", taskId: "task-1", state: "deferred", version: 3 }],
-      occurrences: [{ id: "occ-target", taskId: "task-1", localDate: "2026-09-30", state: "pending" }],
+      carries: [{ id: "carry-1", taskId: "task-1", rootDailyPlanItemId: "item-1", createdByResolutionId: "resolution-1", targetLocalDate: "2026-09-30", scope: "Write outline", state: "pending", version: 1 }],
       resolutions: [{ id: "resolution-1", dailyPlanItemId: "item-1", taskId: "task-1", action: "reduce", originalScope: "Write proposal", revisedScope: "Write outline", resolvedToLocalDate: "2026-09-30", returnLocalDate: null }],
     });
-    expect(projection.nextCommitments).toEqual([{ resolutionId: "resolution-1", sourceItemId: "item-1", targetOccurrenceId: "occ-target", taskId: "task-1", localDate: "2026-09-30", scope: "Write outline" }]);
+    expect(projection.nextCommitments).toEqual([{ carryId: "carry-1", carryVersion: 1, resolutionId: "resolution-1", sourceItemId: "item-1", taskId: "task-1", localDate: "2026-09-30", scope: "Write outline" }]);
+  });
+
+  it("returns a paused carried commitment by its own identity", () => {
+    const projection = recoveryProjection({ todayLocalDate: "2026-10-01", plans: [], items: [{ id: "item-1", dailyPlanId: "old", taskId: "task-1", state: "rescheduled", version: 3 }],
+      carries: [{ id: "carry-1", taskId: "task-1", rootDailyPlanItemId: "item-1", createdByResolutionId: "resolution-1", targetLocalDate: "2026-09-30", scope: "Draft", state: "paused", version: 2 }],
+      resolutions: [{ id: "resolution-2", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: "carry-1", action: "pause", returnLocalDate: "2026-10-01" }] });
+    expect(projection.returning).toEqual([{ resolutionId: "resolution-2", carryId: "carry-1", itemId: "item-1", taskId: "task-1", returnLocalDate: "2026-10-01" }]);
+  });
+
+  it("counts overdue pending carries independently of their resolved root items", () => {
+    const projection = recoveryProjection({ todayLocalDate: "2026-10-01", plans: [],
+      items: [{ id: "item-1", dailyPlanId: "old", taskId: "task-1", state: "rescheduled", version: 3 }],
+      carries: [
+        { id: "carry-1", taskId: "task-1", rootDailyPlanItemId: "item-1", createdByResolutionId: "resolution-1", targetLocalDate: "2026-09-30", scope: "Outline", state: "pending", version: 1 },
+        { id: "carry-2", taskId: "task-1", rootDailyPlanItemId: "item-1", createdByResolutionId: "resolution-2", targetLocalDate: "2026-09-30", scope: "Summary", state: "pending", version: 1 },
+      ] });
+    expect(projection.count).toBe(2);
+    expect(projection.groups[0].commitments).toMatchObject([{ carryId: "carry-1", scope: "Outline" }, { carryId: "carry-2", scope: "Summary" }]);
   });
 });

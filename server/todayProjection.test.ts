@@ -46,13 +46,30 @@ function baseInput(overrides: Partial<TodayProjectionInput> = {}): TodayProjecti
 }
 
 describe("projectToday", () => {
-  it("shows the reduced scope of a pending off-cadence occurrence from resolution history", () => {
+  it("keeps a natural occurrence and two same-day carried scopes as distinct commitments", () => {
     const input = baseInput({
       tasks: [task({ id: "task-repeat", title: "Write proposal", scheduledLocalDate: "2026-09-19" })],
       taskOccurrences: [{ id: "target-occurrence", taskId: "task-repeat", localDate, state: "pending" }],
-      commitmentResolutions: [{ id: "resolution-1", dailyPlanItemId: "item-yesterday", taskId: "task-repeat", action: "reduce", resolvedToLocalDate: localDate, revisedScope: "Write outline" }],
+      carriedCommitments: [
+        { id: "carry-2", taskId: "task-repeat", rootDailyPlanItemId: "item-old-2", createdByResolutionId: "resolution-2", targetLocalDate: localDate, scope: "Write summary", state: "pending", version: 1 },
+        { id: "carry-1", taskId: "task-repeat", rootDailyPlanItemId: "item-old-1", createdByResolutionId: "resolution-1", targetLocalDate: localDate, scope: "Write outline", state: "pending", version: 1 },
+      ],
     });
-    expect(projectToday(input).flexible).toMatchObject([{ recordId: "task-repeat", title: "Write outline", source: "occurrence" }]);
+    expect(projectToday(input).flexible).toMatchObject([
+      { recordId: "task-repeat", title: "Write proposal", source: "occurrence" },
+      { recordId: "task-repeat", title: "Write outline", source: "carried_commitment", carryId: "carry-1" },
+      { recordId: "task-repeat", title: "Write summary", source: "carried_commitment", carryId: "carry-2" },
+    ]);
+  });
+
+  it("shows an overdue carry in Recovery without hiding today's natural occurrence", () => {
+    const input = baseInput({ tasks: [task({ id: "task-repeat", title: "Write proposal" })],
+      taskOccurrences: [{ id: "natural-today", taskId: "task-repeat", localDate, state: "pending" }],
+      carriedCommitments: [{ id: "carry-overdue", taskId: "task-repeat", rootDailyPlanItemId: "item-old", createdByResolutionId: "resolution-1",
+        targetLocalDate: "2026-09-19", scope: "Write outline", state: "pending", version: 1 }] });
+    const projection = projectToday(input);
+    expect(projection.recovery).toMatchObject([{ carryId: "carry-overdue", title: "Write outline", fromLocalDate: "2026-09-19" }]);
+    expect(projection.flexible).toMatchObject([{ source: "occurrence", title: "Write proposal" }]);
   });
 
   it("keeps every earlier committed item in Plan, including duplicate tasks and missing linked tasks", () => {

@@ -44,6 +44,7 @@ export type TodayAvailabilityException = {
   breakMinutes?: number | null;
 };
 export type TodayCommitmentResolution = { id: string; dailyPlanItemId: string; taskId: string; action: string; resolvedToLocalDate?: string | null; revisedScope?: string | null };
+export type TodayCarriedCommitment = { id: string; taskId: string; rootDailyPlanItemId: string; createdByResolutionId: string; targetLocalDate: string; scope: string; state: string; version: number };
 
 export type TodayProjectionInput = {
   localDate: string;
@@ -64,14 +65,17 @@ export type TodayProjectionInput = {
   externalEvents: TodayExternalEvent[];
   planningAvailabilityExceptions: TodayAvailabilityException[];
   commitmentResolutions: TodayCommitmentResolution[];
+  carriedCommitments?: TodayCarriedCommitment[];
 };
 
 export type TodayTaskRow = {
   kind: "task";
   recordId: string;
   title: string;
-  source: "reservation" | "planned_no_time" | "daily_commitment" | "occurrence";
-  readOnly: false;
+  source: "reservation" | "planned_no_time" | "daily_commitment" | "occurrence" | "carried_commitment";
+  readOnly: boolean;
+  carryId?: string;
+  rootDailyPlanItemId?: string;
   startsAt: DateValue | null;
   endsAt: DateValue | null;
 };
@@ -99,6 +103,7 @@ export type TodayRecoveryRow = {
   title: string;
   dailyPlanItemId: string;
   fromLocalDate: string;
+  carryId?: string;
 };
 
 /** Full saved-plan history for Plan. Today deliberately summarizes by task, but Plan must not dedupe commitments. */
@@ -222,9 +227,6 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const occurrenceByTaskId = new Map(
     input.taskOccurrences.filter(occurrence => occurrence.localDate === localDate).map(occurrence => [occurrence.taskId, occurrence]),
   );
-  const reducedScopeByTaskId = new Map(input.commitmentResolutions
-    .filter(resolution => resolution.action === "reduce" && resolution.resolvedToLocalDate === localDate && resolution.revisedScope)
-    .map(resolution => [resolution.taskId, resolution.revisedScope!]));
   const todayPlanIds = new Set(input.dailyPlans.filter(plan => plan.localDate === localDate && plan.state !== "archived").map(plan => plan.id));
   const todayCommitments = new Map(
     input.dailyPlanItems
@@ -236,20 +238,26 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const earlierPlanDateById = new Map(
     input.dailyPlans.filter(plan => plan.localDate < localDate && plan.state !== "archived").map(plan => [plan.id, plan.localDate]),
   );
-  const recoveryCandidates: TodayRecoveryRow[] = input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
+  const earlierRecoveryCandidates: TodayRecoveryRow[] = input.dailyPlanItems.flatMap<TodayRecoveryRow>(item => {
     const fromLocalDate = earlierPlanDateById.get(item.dailyPlanId);
     const task = taskById.get(item.taskId);
     if (!fromLocalDate || item.state !== "committed" || resolvedItemIds.has(item.id)) return [];
     return [{ kind: "task", recordId: item.taskId, title: task?.title ?? "Missing linked task · needs reconciliation", dailyPlanItemId: item.id, fromLocalDate }];
-  }).sort((left, right) => {
+  });
+  const carriedRecoveryCandidates: TodayRecoveryRow[] = (input.carriedCommitments ?? []).flatMap(carry =>
+    carry.state === "pending" && carry.targetLocalDate < localDate
+      ? [{ kind: "task" as const, recordId: carry.taskId, title: carry.scope, dailyPlanItemId: carry.rootDailyPlanItemId,
+        fromLocalDate: carry.targetLocalDate, carryId: carry.id }]
+      : []);
+  const recovery = [...earlierRecoveryCandidates, ...carriedRecoveryCandidates].sort((left, right) => {
     const leftTask = taskById.get(left.recordId);
     const rightTask = taskById.get(right.recordId);
     return right.fromLocalDate.localeCompare(left.fromLocalDate)
       || (leftTask && rightTask ? compareTaskOrder(leftTask, rightTask) : compareText(left.title, right.title) || left.recordId.localeCompare(right.recordId))
       || left.dailyPlanItemId.localeCompare(right.dailyPlanItemId);
   });
-  const recovery = recoveryCandidates;
-  const recoveryTaskIds = new Set(recovery.map(item => item.recordId));
+  const recoveryTaskIds = new Set(earlierRecoveryCandidates.map(item => item.recordId));
+  const carriedRecoveryTaskIds = new Set(carriedRecoveryCandidates.map(item => item.recordId));
 
   const taskTimeline: TodayTaskRow[] = [];
   const flexible: TodayTaskRow[] = [];
@@ -266,7 +274,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
     const isReservedToday = hasReservation(start, end)
       && localDateForInstant(start as DateValue, workspace.timezone) === localDate;
     if (isReservedToday) {
-      taskTimeline.push({ kind: "task", recordId: task.id, title: occurrence?.state === "pending" ? reducedScopeByTaskId.get(task.id) ?? task.title : task.title, source: "reservation", readOnly: false, startsAt: start, endsAt: end });
+      taskTimeline.push({ kind: "task", recordId: task.id, title: task.title, source: "reservation", readOnly: false, startsAt: start, endsAt: end });
       projectedTaskIds.add(task.id);
       continue;
     }
@@ -280,7 +288,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
       flexible.push({
         kind: "task",
         recordId: task.id,
-        title: pendingOccurrenceToday ? reducedScopeByTaskId.get(task.id) ?? task.title : task.title,
+        title: task.title,
         source: pendingOccurrenceToday ? "occurrence" : plannedForToday ? "planned_no_time" : "daily_commitment",
         readOnly: false,
         startsAt: null,
@@ -301,12 +309,20 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
     }
   }
 
+  for (const carry of [...(input.carriedCommitments ?? [])].sort((left, right) => left.id.localeCompare(right.id))) {
+    if (carry.state !== "pending" || carry.targetLocalDate !== localDate) continue;
+    flexible.push({ kind: "task", recordId: carry.taskId, title: carry.scope, source: "carried_commitment", readOnly: true,
+      carryId: carry.id, rootDailyPlanItemId: carry.rootDailyPlanItemId, startsAt: null, endsAt: null });
+  }
+
   flexible.sort((left, right) => {
     const leftTask = taskById.get(left.recordId)!;
     const rightTask = taskById.get(right.recordId)!;
-    return compareOptionalLocalDate(leftTask.scheduledLocalDate, rightTask.scheduledLocalDate)
-      || compareOptionalLocalDate(leftTask.dueLocalDate, rightTask.dueLocalDate)
-      || compareTaskOrder(leftTask, rightTask);
+    return compareOptionalLocalDate(leftTask?.scheduledLocalDate, rightTask?.scheduledLocalDate)
+      || compareOptionalLocalDate(leftTask?.dueLocalDate, rightTask?.dueLocalDate)
+      || (leftTask && rightTask ? compareTaskOrder(leftTask, rightTask) : 0)
+      || (left.carryId ? 1 : 0) - (right.carryId ? 1 : 0)
+      || (left.carryId ?? "").localeCompare(right.carryId ?? "");
   });
   attention.sort((left, right) => {
     const leftTask = taskById.get(left.recordId)!;
@@ -392,7 +408,7 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
     externalBusy: activeEvents.map(event => ({ startsAt: event.startsAt, endsAt: event.endsAt })),
   });
 
-  const demandTasks = input.tasks.filter(task => projectedTaskIds.has(task.id) || recoveryTaskIds.has(task.id));
+  const demandTasks = input.tasks.filter(task => projectedTaskIds.has(task.id) || recoveryTaskIds.has(task.id) || carriedRecoveryTaskIds.has(task.id));
   const knownDemandMinutes = demandTasks.reduce((total, task) => total + (typeof task.estimateMinutes === "number" ? Math.max(0, task.estimateMinutes) : 0), 0);
   const unestimatedTaskCount = demandTasks.filter(task => task.estimateMinutes === null || task.estimateMinutes === undefined).length;
 
