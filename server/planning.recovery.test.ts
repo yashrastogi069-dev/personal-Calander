@@ -45,6 +45,17 @@ describe.sequential("transactional Strict recovery", () => {
   });
   afterAll(() => database.close());
 
+  it("keeps the shared title stable when reducing one of two nonrecurring references", async () => {
+    await seed();
+    await database.exec(`INSERT INTO "dailyPlans" (id, "workspaceId", "localDate", state) VALUES ('plan-2', 'owned', '2026-09-28', 'active');
+      INSERT INTO "dailyPlanItems" (id, "workspaceId", "dailyPlanId", "taskId", state, version) VALUES ('item-2', 'owned', 'plan-2', 'task-1', 'committed', 1);`);
+    const decision = await resolveCommitment(scope, { ...base, action: "reduce", revisedScope: "Write outline", resolvedToLocalDate: "2026-09-30" });
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ title: "Write proposal" });
+    expect((await rows("dailyPlanItems", "item-2"))[0]).toMatchObject({ state: "committed", taskId: "task-1" });
+    expect((await database.query(`SELECT "rootDailyPlanItemId", scope, "targetLocalDate" FROM "carriedCommitments" WHERE "createdByResolutionId" = $1`, [decision.id])).rows)
+      .toEqual([{ rootDailyPlanItemId: "item-1", scope: "Write outline", targetLocalDate: "2026-09-30" }]);
+  });
+
   it.each([
     ["done", {}, "done", "completed", "2026-09-27"],
     ["reschedule", { resolvedToLocalDate: "2026-09-30" }, "rescheduled", "in_progress", "2026-09-30"],
@@ -60,7 +71,7 @@ describe.sequential("transactional Strict recovery", () => {
     expect(item).toMatchObject({ state: itemState, version: 3 });
     expect(task).toMatchObject({ state: taskState, version: 5, dueLocalDate: "2026-10-03", scheduledLocalDate: plannedDay });
     expect((await rows("commitmentResolutions", resolution.id))).toHaveLength(1);
-    if (action === "reduce") expect(task.title).toBe("Write outline");
+    if (action === "reduce") expect(task.title).toBe("Write proposal");
     if (action === "pause") expect(resolution.returnLocalDate).toBe("2026-10-01");
     if (action === "abandon") expect(task).toMatchObject({ outcome: "wont_do", completedAt: null });
   });

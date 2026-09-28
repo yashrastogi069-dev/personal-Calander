@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 REPOSITORY = Path(__file__).resolve().parents[1]
 AUTH_HARNESS = Path(__file__).with_name("preview-auth-states.py")
 LINKED_HARNESS = Path(__file__).with_name("preview-linked-planner.py")
-SCENARIOS = ("shell-navigation", "task-capture-search", "today", "offline-rejected-cache")
+SCENARIOS = ("shell-navigation", "task-capture-search", "today", "offline-rejected-cache", "recovery-phone")
 DEFAULT_WIDTHS = (390, 1440)
 HEIGHTS = {320: 760, 390: 844, 768: 1024, 1440: 1000}
 
@@ -1227,6 +1227,124 @@ def run_offline_rejected_cache(browser, url: str, output: Path, width: int) -> d
         context.close()
 
 
+def run_recovery_phone(browser, url: str, output: Path, width: int) -> dict:
+    auth = runpy.run_path(str(AUTH_HARNESS))
+    linked = runpy.run_path(str(LINKED_HARNESS))
+    height = HEIGHTS[width]
+    context = browser.new_context(viewport={"width": width, "height": height}, color_scheme="light", timezone_id="UTC", service_workers="block")
+    page = context.new_page()
+    page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+    runtime_errors: list[str] = []
+    page.on("pageerror", lambda error: runtime_errors.append(str(error)))
+    fixtures = linked["fixtures"]()
+    snapshot = fixtures["planner.workspace.snapshot"]
+    workspace_id = snapshot["workspace"]["id"]
+    snapshot["workspace"] = {**snapshot["workspace"], "accountabilityLevel": "structured", "accountabilityAvailable": True}
+    base = {"workspaceId": workspace_id, "description": None, "state": "not_started", "outcome": "none", "priority": "medium", "horizon": "daily", "categoryId": None, "projectId": None, "goalId": None, "parentTaskId": None, "dueLocalDate": "2026-10-08", "scheduledLocalDate": None, "plannedStartAt": None, "plannedEndAt": None, "estimateMinutes": 25, "sortOrder": 0, "version": 4, "recurrenceRule": None, "scheduleMode": "manual", "completedAt": None, "archivedAt": None, "createdAt": "2026-09-18T08:00:00.000Z", "updatedAt": "2026-09-18T08:00:00.000Z"}
+    snapshot["tasks"] = [{**base, "id": "recovery-task-1", "title": "Write the chapter"}, {**base, "id": "recovery-task-2", "title": "Edit the introduction", "version": 6, "sortOrder": 1}]
+    snapshot["dailyPlans"] = [
+        {"id": "recovery-plan-1", "workspaceId": workspace_id, "localDate": "2026-09-18", "state": "active", "version": 1, "intention": None},
+        {"id": "recovery-plan-2", "workspaceId": workspace_id, "localDate": "2026-09-19", "state": "active", "version": 1, "intention": None},
+    ]
+    snapshot["dailyPlanItems"] = [
+        {"id": "recovery-item-1", "workspaceId": workspace_id, "dailyPlanId": "recovery-plan-1", "taskId": "recovery-task-1", "state": "committed", "position": 0, "version": 2, "note": None},
+        {"id": "recovery-item-2", "workspaceId": workspace_id, "dailyPlanId": "recovery-plan-2", "taskId": "recovery-task-1", "state": "committed", "position": 0, "version": 3, "note": None},
+        {"id": "recovery-root-3", "workspaceId": workspace_id, "dailyPlanId": "recovery-plan-1", "taskId": "recovery-task-2", "state": "rescheduled", "position": 1, "version": 2, "note": None},
+    ]
+    snapshot["carriedCommitments"] = [{"id": "recovery-carry-1", "workspaceId": workspace_id, "taskId": "recovery-task-2", "rootDailyPlanItemId": "recovery-root-3", "createdByResolutionId": "recovery-resolution-1", "targetLocalDate": "2026-09-20", "scope": "Edit the opening paragraph", "state": "pending", "version": 1}]
+    snapshot["commitmentResolutions"] = []
+    fixtures["planner.sync.conflicts"] = []
+    fixtures["planner.recovery.resolve"] = {"id": "confirmed-resolution", "action": "reduce"}
+    requests, unexpected = auth["install_preview"](context, url, "linked", fixtures)
+    try:
+        page.goto(url, wait_until="networkidle")
+        page.locator(".today-workspace").wait_for(state="visible", timeout=20_000)
+        page.locator(".today-workspace .recovery-indicator button").click()
+        sheet = page.get_by_role("dialog", name="Choose what happens next.")
+        sheet.wait_for(state="visible")
+        sheet.locator("#recovery-title").focus()
+        page.keyboard.press("Shift+Tab")
+        assert sheet.evaluate("element => element.contains(document.activeElement)"), "Reverse tab escaped the Recovery sheet"
+        assert sheet.get_by_text("Write the chapter", exact=True).count() >= 1
+        assert sheet.locator(".recovery-source-list button").count() == 3
+        sheet.get_by_label("Reduce", exact=False).first.click()
+        sheet.get_by_label("Revised scope").fill("Draft the opening scene")
+        sheet.get_by_label("Plan for").fill("2026-09-23")
+        saved_draft = sheet.get_by_label("Revised scope").input_value()
+        sheet.get_by_role("button", name="Close recovery").click()
+        sheet.wait_for(state="hidden")
+        assert page.evaluate("document.activeElement?.textContent?.includes('Review decisions')")
+        click_destination(page, "Tasks")
+        wait_for_target(page, "tasks", "list")
+        click_destination(page, "Plan")
+        wait_for_target(page, "plan", "daily")
+        assert not page.get_by_role("dialog", name="Choose what happens next.").is_visible(), "Recovery reopened after navigation"
+        page.locator(".plan-workspace .recovery-indicator button").click()
+        sheet.wait_for(state="visible")
+        assert sheet.get_by_label("Revised scope").input_value() == saved_draft
+        assert sheet.get_by_label("Plan for").input_value() == "2026-09-23"
+        sheet.get_by_role("button", name="Next commitment").click()
+        assert sheet.get_by_text("recovery-item-2", exact=False).is_visible()
+        sheet.get_by_role("button", name="Next commitment").click()
+        assert sheet.get_by_text("recovery-carry-1", exact=False).is_visible()
+        sheet.get_by_role("button", name="Previous commitment").click()
+        sheet.get_by_role("button", name="Previous commitment").click()
+        assert sheet.get_by_label("Revised scope").input_value() == saved_draft
+        sheet_metrics = sheet.evaluate("element => ({ width: element.clientWidth, scrollWidth: element.scrollWidth, height: element.clientHeight, scrollHeight: element.scrollHeight })")
+        controls = sheet.locator("button:visible, .recovery-choices label:visible, input:not([type=radio]):visible, textarea:visible").evaluate_all("elements => elements.map(element => { const box = element.getBoundingClientRect(); return { width: box.width, height: box.height, label: element.getAttribute('aria-label') || element.textContent?.trim().slice(0, 45) }; })")
+        choice_widths = sheet.locator(".recovery-choices label").evaluate_all("elements => elements.map(element => element.getBoundingClientRect().width)")
+        screenshot = output / f"recovery-phone-{width}.png"
+        page.screenshot(path=str(screenshot))
+        assert sheet_metrics["scrollWidth"] <= sheet_metrics["width"] + 1, sheet_metrics
+        assert all(control["height"] >= 44 for control in controls), controls
+        if width < 1000:
+            assert min(choice_widths) >= 140, choice_widths
+        page.set_viewport_size({"width": width, "height": 580})
+        sheet.get_by_label("Revised scope").focus()
+        page.wait_for_timeout(250)
+        keyboard_geometry = sheet.evaluate("element => { const field = element.querySelector('input[placeholder=\"Name a smaller next step\"]')?.getBoundingClientRect(); const action = element.querySelector('.recovery-actions button[type=submit]')?.getBoundingClientRect(); return { fieldBottom: field?.bottom, actionBottom: action?.bottom, viewportHeight: innerHeight }; }")
+        assert keyboard_geometry["actionBottom"] <= keyboard_geometry["viewportHeight"] + 1, keyboard_geometry
+        assert keyboard_geometry["fieldBottom"] <= keyboard_geometry["viewportHeight"] + 1, keyboard_geometry
+        context.set_offline(True)
+        page.evaluate("window.dispatchEvent(new Event('offline'))")
+        sheet.get_by_text("Offline · decisions need a server confirmation.", exact=False).wait_for()
+        assert sheet.get_by_label("Revised scope").input_value() == saved_draft
+        assert sheet.get_by_role("button", name="Record reduce").is_disabled()
+        assert not overflow_metrics(page)["horizontalOverflow"]
+        context.set_offline(False)
+        page.evaluate("window.dispatchEvent(new Event('online'))")
+        page.set_viewport_size({"width": width, "height": height})
+        snapshot["tasks"].append({**base, "id": "paused-return-task", "title": "Review the chapter direction", "version": 5})
+        snapshot["dailyPlans"].append({"id": "paused-return-plan", "workspaceId": workspace_id, "localDate": "2026-09-17", "state": "active", "version": 1, "intention": None})
+        snapshot["dailyPlanItems"].append({"id": "paused-return-item", "workspaceId": workspace_id, "dailyPlanId": "paused-return-plan", "taskId": "paused-return-task", "state": "deferred", "position": 0, "version": 3, "note": None, "createdAt": "2026-09-17T08:00:00.000Z"})
+        snapshot["commitmentResolutions"].append({"id": "paused-return-resolution", "workspaceId": workspace_id, "dailyPlanItemId": "paused-return-item", "taskId": "paused-return-task", "action": "pause", "originalScope": "Review the chapter direction", "returnLocalDate": "2026-09-21", "sourceCarryId": None, "createdAt": "2026-09-18T08:00:00.000Z"})
+        page.reload(wait_until="networkidle")
+        page.locator(".plan-workspace .recovery-indicator strong").get_by_text("4 open decisions").wait_for()
+        page.locator(".plan-workspace .recovery-indicator button").click()
+        sheet.wait_for(state="visible")
+        sheet.locator(".recovery-source-list button").filter(has_text="Review the chapter direction").click()
+        assert sheet.get_by_text("Review the chapter direction", exact=True).count() >= 1
+        assert sheet.get_by_role("button", name="Review task").is_visible()
+        assert sheet.get_by_text("no second outcome is recorded here", exact=False).is_visible()
+        return_screenshot = output / f"recovery-return-{width}.png"
+        page.screenshot(path=str(return_screenshot))
+        resolve_requests_before = requests.count("planner.recovery.resolve")
+        sheet.get_by_role("button", name="Review task").click()
+        wait_for_target(page, "tasks", "list")
+        assert requests.count("planner.recovery.resolve") == resolve_requests_before
+        snapshot["dailyPlans"].append({"id": "reengaged-plan", "workspaceId": workspace_id, "localDate": "2026-09-21", "state": "active", "version": 1, "intention": None})
+        snapshot["dailyPlanItems"].append({"id": "reengaged-item", "workspaceId": workspace_id, "dailyPlanId": "reengaged-plan", "taskId": "paused-return-task", "state": "committed", "position": 0, "version": 1, "note": None, "createdAt": "2026-09-20T08:00:00.000Z"})
+        page.reload(wait_until="networkidle")
+        click_destination(page, "Plan")
+        wait_for_target(page, "plan", "daily")
+        page.locator(".plan-workspace .recovery-indicator strong").get_by_text("3 open decisions").wait_for()
+        assert not runtime_errors, runtime_errors
+        assert not unexpected, unexpected
+        return {"scenario": "recovery-phone", "width": width, "status": "PASS", "screenshot": str(screenshot), "returnScreenshot": str(return_screenshot), "sheet": sheet_metrics, "requests": requests, "runtimeErrors": runtime_errors}
+    finally:
+        context.close()
+
+
 def run(args: argparse.Namespace) -> int:
     url = assert_loopback_url(args.url)
     output = external_output(args.output)
@@ -1250,6 +1368,8 @@ def run(args: argparse.Namespace) -> int:
                         else run_today(browser, url, output, width)
                         if args.scenario == "today"
                         else run_offline_rejected_cache(browser, url, output, width)
+                        if args.scenario == "offline-rejected-cache"
+                        else run_recovery_phone(browser, url, output, width)
                     )
                     results.append(result)
                     print(f"PASS {args.scenario} {width}px", flush=True)

@@ -92,6 +92,7 @@ import { projectToday } from "@shared/todayProjection";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
 import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace";
 import { TodayWorkspace } from "@/features/today/TodayWorkspace";
+import { buildRecoveryEntries } from "@/features/recovery/recoveryModel";
 import {
   DestinationBoundary,
   DestinationLoading,
@@ -8340,6 +8341,8 @@ export default function Home() {
                     plan.state !== "archived",
                 ),
               ).length}
+              recoveryCount={buildRecoveryEntries({ todayLocalDate: today, plans: snapshot.dailyPlans, items: snapshot.dailyPlanItems, tasks: snapshot.tasks, occurrences: snapshot.taskOccurrences, carries: snapshot.carriedCommitments, resolutions: snapshot.commitmentResolutions }).length}
+              accountabilityLevel={snapshot.workspace.accountabilityLevel}
               captureStatus={<OfflineCaptureIndicator />}
               isUnavailableToday={snapshot.planningAvailabilityExceptions.some(
                 exception => exception.localDate === today && Boolean(exception.isUnavailable)
@@ -8399,7 +8402,9 @@ export default function Home() {
               snapshot={snapshot}
               dashboard={dashboardQuery.data}
               focusEarlierCommitments={focusEarlierCommitments}
+              onRecoveryIntentConsumed={() => setFocusEarlierCommitments(false)}
               focusItemId={linkedPlanItemId}
+              isOnline={isOnline}
               onOpenTasks={focusTaskSearch}
               onOpenGoals={() => selectSurface("goals")}
             />

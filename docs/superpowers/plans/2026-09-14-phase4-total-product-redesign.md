@@ -1423,6 +1423,10 @@ Move remaining Task, Goal, Habit, Settings, Calendar, composer, and sync-review 
 
 At 320, 390, phone landscape, 768, and 1440, cover ordinary day, interruption, low capacity, ten-day return, waiting-for, missing next action, Direction, Roadmap move/cancel, recurrence boundary, offline task/unsupported entity/conflict, large data, keyboard/sheet/safe area, accessibility alternatives, empty state, and archived linked restore. Use synthetic data labels and record that this is not physical-device proof.
 
+- [ ] **Step 5a: Sign off every route, overlay, and state visually**
+
+Use `docs/PHASE4_UI_UX_COVERAGE.md` as the route/owner inventory. Inspect every canonical destination and still-reachable legacy entry, including Today, Overview, Tasks (Inbox/List/Board/saved/archive/detail), Capture, Search, Plan, Calendar (all views), Projects, Goals/Directions, Roadmap, Habits, Focus, Review, Insights/History, Settings, account/auth, PWA/offline/conflict overlays, 404, and the shared rail/top bar/phone bottom navigation/More. Include Task 23 notification settings in the final product signoff. At 320, 390, phone landscape, 768, and 1440, both Variant A themes and both phone densities where applicable, verify spacing/margins, hierarchy, color contrast, visibility, button placement/reachability, navigation alignment/custom pins, sheets/keyboard/safe areas, and empty/loading/error/offline/large-data states. Capture screenshots and defect owners; preserve all existing features. No route passes merely because its functional tests pass. Record physical-iPhone checks separately from synthetic evidence.
+
 - [ ] **Step 6: Run the full local gate**
 
 ```powershell

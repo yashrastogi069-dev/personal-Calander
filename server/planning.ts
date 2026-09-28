@@ -92,16 +92,35 @@ export async function ensureWorkspace(scope: PlannerScope) {
   return (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
 }
 
-export async function updateWorkspace(scope: PlannerScope, input: { name?: string; timezone?: string; weekStartsOn?: number; dailyCapacityMinutes?: number; planningDayStartsAt?: string; workdayStartsAt?: string; workdayEndsAt?: string; defaultBreakMinutes?: number; preferredShutdownAt?: string; expectedVersion: number }) {
+type AccountabilityLevel = "gentle" | "structured" | "strict";
+
+async function hasAccountabilityColumn(db: Awaited<ReturnType<typeof requireDb>>) {
+  const result = await db.execute(sql`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'workspaces' AND column_name = 'accountabilityLevel') AS available`);
+  return result.rows[0]?.available === true;
+}
+
+async function workspaceWithAccountability<T extends { id: string }>(db: Awaited<ReturnType<typeof requireDb>>, workspace: T): Promise<T & { accountabilityLevel: AccountabilityLevel; accountabilityAvailable: boolean }> {
+  const accountabilityAvailable = await hasAccountabilityColumn(db);
+  if (!accountabilityAvailable) return { ...workspace, accountabilityLevel: "structured" as AccountabilityLevel, accountabilityAvailable };
+  const level = await db.select({ accountabilityLevel: workspaces.accountabilityLevel }).from(workspaces).where(eq(workspaces.id, String(workspace.id))).limit(1);
+  return { ...workspace, accountabilityLevel: level[0]?.accountabilityLevel ?? "structured", accountabilityAvailable };
+}
+
+export async function updateWorkspace(scope: PlannerScope, input: { name?: string; timezone?: string; weekStartsOn?: number; dailyCapacityMinutes?: number; planningDayStartsAt?: string; workdayStartsAt?: string; workdayEndsAt?: string; defaultBreakMinutes?: number; preferredShutdownAt?: string; accountabilityLevel?: AccountabilityLevel; expectedVersion: number }) {
   const db = await requireDb();
   const existing = (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0];
   if (!existing) throw new Error("Workspace was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
-  await db
+  if (input.accountabilityLevel && !await hasAccountabilityColumn(db)) throw new Error("Accountability preferences are available after the Phase 4 workspace migration. No preference was changed.");
+  const { expectedVersion, ...patch } = input;
+  const changed = await db
     .update(workspaces)
-    .set({ ...input, version: input.expectedVersion + 1 })
-    .where(and(eq(workspaces.id, scope.workspaceId), eq(workspaces.version, input.expectedVersion)));
-  return (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
+    .set({ ...patch, version: expectedVersion + 1 })
+    .where(and(eq(workspaces.id, scope.workspaceId), eq(workspaces.version, expectedVersion))).returning({ id: workspaces.id });
+  if (!changed.length) throw new PlannerConflictError(existing);
+  const updated = (await db.select(establishedWorkspaceColumns).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0]!;
+  return workspaceWithAccountability(db, updated);
 }
 
 export async function upsertPlanningAvailabilityException(scope: PlannerScope, input: { localDate: string; expectedVersion?: number; isUnavailable?: boolean; workdayStartsAt?: string | null; workdayEndsAt?: string | null; breakMinutes?: number | null; note?: string | null }) {
@@ -187,7 +206,7 @@ export class PlannerPolicyError extends Error {
 
 export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: string; end: string }) {
   const db = await requireDb();
-  const workspace = await ensureWorkspace(scope);
+  const workspace = await workspaceWithAccountability(db, await ensureWorkspace(scope));
   const [categoryRows, goalRows, milestoneRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows, planRows, planItemRows, objectiveRows, focusRows, templateRows, proposalRows, dependencyRows, integrationRows, availabilityExceptionRows] = await Promise.all([
     db.select().from(categories).where(eq(categories.workspaceId, scope.workspaceId)).orderBy(asc(categories.sortOrder), asc(categories.name)),
     db.select(establishedGoalColumns).from(goals).where(eq(goals.workspaceId, scope.workspaceId)).orderBy(desc(goals.updatedAt)),
@@ -1295,8 +1314,8 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
     if (task.state === "completed" || task.state === "archived" || task.outcome === "wont_do") {
       throw new Error("Needs reconciliation in Recovery: this task already has a final outcome. No history was changed.");
     }
-    if (occurrence && (input.action === "reschedule" || input.action === "reduce") && !carryAvailable) {
-      throw new Error("Recurring Recovery reschedule and reduce require the separate 0005 carried-commitment migration. No history was changed.");
+    if ((input.action === "reduce" || (occurrence && input.action === "reschedule")) && !carryAvailable) {
+      throw new Error("Recovery Reduce and recurring Reschedule require the separate 0005 carried-commitment migration. No history was changed.");
     }
     if (input.action === "done") {
       const edges = await tx.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, task.id)));
@@ -1329,7 +1348,7 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
     } else {
       const patch = input.action === "done" ? taskPatchForDailyPlanOutcome("done", now)
         : input.action === "reschedule" ? taskPatchForDailyPlanOutcome("rescheduled", now, input.resolvedToLocalDate)
-        : input.action === "reduce" ? { title: input.revisedScope, ...taskPatchForDailyPlanOutcome("rescheduled", now, input.resolvedToLocalDate) }
+        : input.action === "reduce" ? taskPatchForDailyPlanOutcome("rescheduled", now, input.resolvedToLocalDate)
         : input.action === "pause" ? taskPatchForDailyPlanOutcome("deferred", now)
         : taskPatchForDailyPlanOutcome("wont_do", now);
       const changed = await tx.update(tasks).set({ ...patch, version: task.version + 1 }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, task.id), eq(tasks.version, task.version))).returning({ id: tasks.id });
@@ -1373,7 +1392,7 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
         ${resolutionValues.decisionNote}, ${resolutionValues.timezone})`);
       resolution = (await readResolutionRows(tx, scope.workspaceId, input.operationId))[0]!;
     }
-    if (occurrence && (input.action === "reschedule" || input.action === "reduce")) await tx.insert(carriedCommitments).values({
+    if (input.action === "reduce" || (occurrence && input.action === "reschedule")) await tx.insert(carriedCommitments).values({
       id: nanoid(), workspaceId: scope.workspaceId, taskId: task.id, rootDailyPlanItemId: item.id,
       createdByResolutionId: resolution.id, targetLocalDate: input.resolvedToLocalDate,
       scope: input.action === "reduce" ? input.revisedScope : task.title,

@@ -44,4 +44,13 @@ describe.sequential("0004-only Recovery compatibility", () => {
     expect((await database.query(`SELECT state, version FROM "dailyPlanItems" WHERE id = 'recurring-item'`)).rows[0]).toEqual({ state: "committed", version: 1 });
     expect((await database.query(`SELECT count(*)::int AS count FROM "commitmentResolutions"`)).rows[0]).toEqual({ count: 1 });
   });
+
+  it("rejects nonrecurring Reduce before 0005 so a smaller scope cannot overwrite the shared task title", async () => {
+    await database.exec(`INSERT INTO tasks (id, "workspaceId", title, state, version) VALUES ('reduce-task', 'owned', 'Original scope', 'not_started', 1);
+      INSERT INTO "dailyPlanItems" (id, "workspaceId", "dailyPlanId", "taskId", state, version) VALUES ('reduce-item', 'owned', 'plan', 'reduce-task', 'committed', 1);`);
+    await expect(resolveCommitment(scope, { operationId: "ordinary-reduce", dailyPlanItemId: "reduce-item", taskId: "reduce-task",
+      itemExpectedVersion: 1, taskExpectedVersion: 1, action: "reduce", revisedScope: "Smaller ordinary", resolvedToLocalDate: "2026-09-28" })).rejects.toThrow("0005");
+    expect((await database.query(`SELECT title, version FROM tasks WHERE id = 'reduce-task'`)).rows[0]).toEqual({ title: "Original scope", version: 1 });
+    expect((await database.query(`SELECT state, version FROM "dailyPlanItems" WHERE id = 'reduce-item'`)).rows[0]).toEqual({ state: "committed", version: 1 });
+  });
 });
