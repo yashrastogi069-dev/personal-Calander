@@ -30,7 +30,7 @@ describe.sequential("0004-only Recovery compatibility", () => {
   it("reads and writes established 0004 resolutions without requiring 0005 columns", async () => {
     const resolution = await resolveCommitment(scope, { operationId: "ordinary-done", dailyPlanItemId: "ordinary-item", taskId: "ordinary",
       itemExpectedVersion: 1, taskExpectedVersion: 1, action: "done" });
-    expect(resolution).toMatchObject({ action: "done", sourceCarryId: null, requestFingerprint: null });
+    expect(resolution).toMatchObject({ action: "done", sourceCarryId: null, sourceCarryVersion: null, requestFingerprint: null });
     const snapshot = await getWorkspaceSnapshot(scope, { start: "2026-09-27", end: "2026-09-27" });
     expect(snapshot.commitmentResolutions).toHaveLength(1);
     expect(snapshot.carriedCommitments).toEqual([]);

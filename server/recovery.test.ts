@@ -99,6 +99,17 @@ describe("Strict recovery decision contract", () => {
     expect(projection.returning).toEqual([{ resolutionId: "resolution-2", carryId: "carry-1", itemId: "item-1", taskId: "task-1", returnLocalDate: "2026-10-01" }]);
   });
 
+  it("uses source-carry version, not row order or timestamps, for the current Pause return", () => {
+    const projection = recoveryProjection({ todayLocalDate: "2026-10-02", plans: [],
+      items: [{ id: "item-1", dailyPlanId: "old", taskId: "task-1", state: "rescheduled", version: 3 }],
+      carries: [{ id: "carry-1", taskId: "task-1", rootDailyPlanItemId: "item-1", createdByResolutionId: "source", targetLocalDate: "2026-09-30", scope: "Draft", state: "paused", version: 3 }],
+      resolutions: [
+        { id: "latest", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: "carry-1", sourceCarryVersion: 2, action: "pause", returnLocalDate: "2026-11-01" },
+        { id: "earlier", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: "carry-1", sourceCarryVersion: 1, action: "pause", returnLocalDate: "2026-10-01" },
+      ] });
+    expect(projection.returning).toEqual([]);
+  });
+
   it("counts overdue pending carries independently of their resolved root items", () => {
     const projection = recoveryProjection({ todayLocalDate: "2026-10-01", plans: [],
       items: [{ id: "item-1", dailyPlanId: "old", taskId: "task-1", state: "rescheduled", version: 3 }],

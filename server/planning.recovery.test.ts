@@ -41,7 +41,7 @@ describe.sequential("transactional Strict recovery", () => {
       DROP FUNCTION IF EXISTS reject_resolution_insert();
       DROP TRIGGER IF EXISTS reject_successor ON "carriedCommitments";
       DROP FUNCTION IF EXISTS reject_successor_insert();
-      TRUNCATE "carriedCommitments", "commitmentResolutions", "taskOccurrences", "dailyPlanItems", "dailyPlans", tasks, workspaces;`);
+      TRUNCATE "carriedCommitments", "commitmentResolutions", "taskDependencies", "taskOccurrences", "dailyPlanItems", "dailyPlans", tasks, workspaces;`);
   });
   afterAll(() => database.close());
 
@@ -196,6 +196,64 @@ describe.sequential("transactional Strict recovery", () => {
     ]) await expect(resolveCommitment(scope, { operationId: "operation-2", action: "done", ...input })).rejects.toThrow();
     expect((await rows("carriedCommitments", carry.id))[0]).toMatchObject({ state: "pending", version: 1 });
     expect((await database.query(`SELECT count(*)::int AS count FROM "commitmentResolutions"`)).rows[0]).toEqual({ count: 1 });
+  });
+
+  it.each(["completed", "archived"] as const)("rejects carry Done against a %s parent task before writing history", async state => {
+    await seed({ recurring: true });
+    const first = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-28", occurrenceId: "occ-1", occurrenceExpectedVersion: 3 });
+    const carry = (await database.query(`SELECT id FROM "carriedCommitments" WHERE "createdByResolutionId" = $1`, [first.id])).rows[0] as { id: string };
+    await database.query(`UPDATE tasks SET state = $1, version = 5 WHERE id = 'task-1'`, [state]);
+    await expect(resolveCommitment(scope, { operationId: "operation-2", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: carry.id,
+      carryExpectedVersion: 1, taskExpectedVersion: 5, action: "done" })).rejects.toThrow("final outcome");
+    expect((await rows("carriedCommitments", carry.id))[0]).toMatchObject({ state: "pending", version: 1 });
+    expect((await database.query(`SELECT count(*)::int AS count FROM "commitmentResolutions"`)).rows[0]).toEqual({ count: 1 });
+  });
+
+  it("rejects carry Done while a hard prerequisite remains incomplete", async () => {
+    await seed({ recurring: true });
+    const first = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-28", occurrenceId: "occ-1", occurrenceExpectedVersion: 3 });
+    const carry = (await database.query(`SELECT id FROM "carriedCommitments" WHERE "createdByResolutionId" = $1`, [first.id])).rows[0] as { id: string };
+    await database.exec(`INSERT INTO tasks (id, "workspaceId", title, state) VALUES ('prereq', 'owned', 'Do first', 'not_started');
+      INSERT INTO "taskDependencies" (id, "workspaceId", "taskId", "dependsOnTaskId", "dependencyType") VALUES ('edge-1', 'owned', 'task-1', 'prereq', 'hard');`);
+    await expect(resolveCommitment(scope, { operationId: "operation-2", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: carry.id,
+      carryExpectedVersion: 1, taskExpectedVersion: 4, action: "done" })).rejects.toThrow("hard prerequisite");
+    expect((await rows("carriedCommitments", carry.id))[0]).toMatchObject({ state: "pending", version: 1 });
+    expect((await database.query(`SELECT count(*)::int AS count FROM "commitmentResolutions"`)).rows[0]).toEqual({ count: 1 });
+  });
+
+  it("lets a paused carry be decided manually before its return date without reopening root history", async () => {
+    await seed({ recurring: true });
+    const first = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-28", occurrenceId: "occ-1", occurrenceExpectedVersion: 3 });
+    const carry = (await database.query(`SELECT id FROM "carriedCommitments" WHERE "createdByResolutionId" = $1`, [first.id])).rows[0] as { id: string };
+    const paused = await resolveCommitment(scope, { operationId: "operation-2", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: carry.id,
+      carryExpectedVersion: 1, taskExpectedVersion: 4, action: "pause", returnLocalDate: "2099-01-01" });
+    expect(paused).toMatchObject({ sourceCarryVersion: 1 });
+    const decided = await resolveCommitment(scope, { operationId: "operation-3", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: carry.id,
+      carryExpectedVersion: 2, taskExpectedVersion: 4, action: "done" });
+    expect(decided).toMatchObject({ sourceCarryVersion: 2, action: "done" });
+    expect((await rows("carriedCommitments", carry.id))[0]).toMatchObject({ state: "done", version: 3 });
+    expect((await rows("taskOccurrences", "occ-1"))[0]).toMatchObject({ state: "rescheduled", version: 4 });
+    expect((await rows("dailyPlanItems", "item-1"))[0]).toMatchObject({ state: "rescheduled", version: 3 });
+    expect((await rows("tasks", "task-1"))[0]).toMatchObject({ version: 4, state: "in_progress" });
+  });
+
+  it("retains repeat Pause history while the newest carry version controls resurfacing", async () => {
+    await seed({ recurring: true });
+    const first = await resolveCommitment(scope, { ...base, action: "reschedule", resolvedToLocalDate: "2026-09-28", occurrenceId: "occ-1", occurrenceExpectedVersion: 3 });
+    const carry = (await database.query(`SELECT id FROM "carriedCommitments" WHERE "createdByResolutionId" = $1`, [first.id])).rows[0] as { id: string };
+    const pause1 = await resolveCommitment(scope, { operationId: "operation-2", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: carry.id,
+      carryExpectedVersion: 1, taskExpectedVersion: 4, action: "pause", returnLocalDate: "2026-10-01" });
+    const pause2 = await resolveCommitment(scope, { operationId: "operation-3", dailyPlanItemId: "item-1", taskId: "task-1", sourceCarryId: carry.id,
+      carryExpectedVersion: 2, taskExpectedVersion: 4, action: "pause", returnLocalDate: "2026-11-01" });
+    expect([pause1.sourceCarryVersion, pause2.sourceCarryVersion]).toEqual([1, 2]);
+    const snapshot = await getWorkspaceSnapshot(scope, { start: "2026-10-02", end: "2026-10-02" });
+    const input = { plans: snapshot.dailyPlans, items: snapshot.dailyPlanItems, resolutions: snapshot.commitmentResolutions,
+      carries: snapshot.carriedCommitments, tasks: snapshot.tasks };
+    expect(recoveryProjection({ ...input, todayLocalDate: "2026-10-02" }).returning).toEqual([]);
+    expect(recoveryProjection({ ...input, todayLocalDate: "2026-11-01" }).returning).toEqual([
+      { resolutionId: pause2.id, carryId: carry.id, itemId: "item-1", taskId: "task-1", returnLocalDate: "2026-11-01" },
+    ]);
+    expect((await rows("carriedCommitments", carry.id))[0]).toMatchObject({ state: "paused", version: 3 });
   });
 
   it("rolls back carry state and resolution when successor insertion fails", async () => {

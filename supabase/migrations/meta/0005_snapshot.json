@@ -1,5 +1,5 @@
 {
-  "id": "9ff69758-b6f5-4657-acaf-6112cd00e798",
+  "id": "96dbef6f-b1b5-4194-bdb7-3b2fd0bb6279",
   "prevId": "6abb403a-55c1-43ad-8481-1e7ab71ffff2",
   "version": "7",
   "dialect": "postgresql",
@@ -526,6 +526,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "sourceCarryVersion": {
+          "name": "sourceCarryVersion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "requestFingerprint": {
           "name": "requestFingerprint",
           "type": "varchar(64)",
@@ -656,6 +662,27 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "commitment_resolutions_source_carry_version_unique": {
+          "name": "commitment_resolutions_source_carry_version_unique",
+          "columns": [
+            {
+              "expression": "sourceCarryId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sourceCarryVersion",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}

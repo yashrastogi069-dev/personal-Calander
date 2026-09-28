@@ -425,6 +425,7 @@ export const commitmentResolutions = pgTable(
     taskId: varchar("taskId", { length: 64 }).notNull(),
     occurrenceId: varchar("occurrenceId", { length: 64 }),
     sourceCarryId: varchar("sourceCarryId", { length: 64 }),
+    sourceCarryVersion: integer("sourceCarryVersion"),
     requestFingerprint: varchar("requestFingerprint", { length: 64 }),
     action: enumText("action", ["done", "reschedule", "reduce", "pause", "abandon"]).notNull(),
     originalScope: text("originalScope").notNull(),
@@ -441,6 +442,7 @@ export const commitmentResolutions = pgTable(
     uniqueIndex("commitment_resolutions_workspace_operation_unique").on(table.workspaceId, table.operationId),
     index("commitment_resolutions_workspace_item_idx").on(table.workspaceId, table.dailyPlanItemId),
     index("commitment_resolutions_workspace_source_carry_idx").on(table.workspaceId, table.sourceCarryId),
+    uniqueIndex("commitment_resolutions_source_carry_version_unique").on(table.sourceCarryId, table.sourceCarryVersion),
     foreignKey({ name: "commitment_resolutions_source_carry_fk", columns: [table.sourceCarryId], foreignColumns: [carriedCommitments.id] }),
   ]
 ).enableRLS();

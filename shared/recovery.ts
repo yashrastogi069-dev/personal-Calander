@@ -46,7 +46,7 @@ type RecoveryProjectionInput = {
   todayLocalDate: string;
   plans: Array<{ id: string; localDate: string; state: string }>;
   items: Array<{ id: string; dailyPlanId: string; taskId: string; state: string; version: number }>;
-  resolutions?: Array<{ id: string; dailyPlanItemId: string; taskId: string; action: string; returnLocalDate: string | null; resolvedToLocalDate?: string | null; originalScope?: string; revisedScope?: string | null; sourceCarryId?: string | null }>;
+  resolutions?: Array<{ id: string; dailyPlanItemId: string; taskId: string; action: string; returnLocalDate: string | null; resolvedToLocalDate?: string | null; originalScope?: string; revisedScope?: string | null; sourceCarryId?: string | null; sourceCarryVersion?: number | null }>;
   occurrences?: Array<{ id: string; taskId: string; localDate: string; state: string }>;
   carries?: Array<{ id: string; taskId: string; rootDailyPlanItemId: string; createdByResolutionId: string; targetLocalDate: string; scope: string; state: string; version: number }>;
   tasks?: Array<{ id: string; state: string; outcome?: string }>;
@@ -81,12 +81,19 @@ export function recoveryProjection(input: RecoveryProjectionInput) {
   const itemsById = new Map(input.items.map(item => [item.id, item]));
   const carriesById = new Map((input.carries ?? []).map(carry => [carry.id, carry]));
   const tasksById = input.tasks ? new Map(input.tasks.map(task => [task.id, task])) : null;
+  const latestCarryResolution = new Map<string, NonNullable<RecoveryProjectionInput["resolutions"]>[number]>();
+  for (const resolution of input.resolutions ?? []) {
+    if (!resolution.sourceCarryId) continue;
+    const previous = latestCarryResolution.get(resolution.sourceCarryId);
+    if (!previous || (resolution.sourceCarryVersion ?? 0) > (previous.sourceCarryVersion ?? 0)) latestCarryResolution.set(resolution.sourceCarryId, resolution);
+  }
   const returning = (input.resolutions ?? []).flatMap(resolution => {
     const item = itemsById.get(resolution.dailyPlanItemId);
     const task = tasksById?.get(resolution.taskId);
     if (resolution.action !== "pause" || !resolution.returnLocalDate || resolution.returnLocalDate > input.todayLocalDate || !item || item.taskId !== resolution.taskId) return [];
     if (tasksById && (!task || task.state === "completed" || task.state === "archived" || task.outcome === "wont_do")) return [];
     if (resolution.sourceCarryId) {
+      if (latestCarryResolution.get(resolution.sourceCarryId)?.id !== resolution.id) return [];
       const carry = carriesById.get(resolution.sourceCarryId);
       return carry?.state === "paused" && carry.taskId === resolution.taskId && carry.rootDailyPlanItemId === item.id
         ? [{ resolutionId: resolution.id, carryId: carry.id, itemId: item.id, taskId: item.taskId, returnLocalDate: resolution.returnLocalDate }]

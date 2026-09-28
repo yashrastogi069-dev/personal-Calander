@@ -23,6 +23,8 @@ ALTER TABLE "carriedCommitments" ENABLE ROW LEVEL SECURITY;--> statement-breakpo
 CREATE UNIQUE INDEX "carried_commitments_created_by_resolution_unique" ON "carriedCommitments" ("createdByResolutionId");--> statement-breakpoint
 CREATE INDEX "carried_commitments_workspace_date_state_idx" ON "carriedCommitments" ("workspaceId", "targetLocalDate", "state");--> statement-breakpoint
 ALTER TABLE "commitmentResolutions" ADD COLUMN "sourceCarryId" varchar(64);--> statement-breakpoint
+ALTER TABLE "commitmentResolutions" ADD COLUMN "sourceCarryVersion" integer;--> statement-breakpoint
 ALTER TABLE "commitmentResolutions" ADD COLUMN "requestFingerprint" varchar(64);--> statement-breakpoint
 ALTER TABLE "commitmentResolutions" ADD CONSTRAINT "commitment_resolutions_source_carry_fk" FOREIGN KEY ("sourceCarryId") REFERENCES "carriedCommitments"("id");--> statement-breakpoint
-CREATE INDEX "commitment_resolutions_workspace_source_carry_idx" ON "commitmentResolutions" ("workspaceId", "sourceCarryId");
+CREATE INDEX "commitment_resolutions_workspace_source_carry_idx" ON "commitmentResolutions" ("workspaceId", "sourceCarryId");--> statement-breakpoint
+CREATE UNIQUE INDEX "commitment_resolutions_source_carry_version_unique" ON "commitmentResolutions" ("sourceCarryId", "sourceCarryVersion");

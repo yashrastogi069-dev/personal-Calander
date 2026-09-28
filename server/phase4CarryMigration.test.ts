@@ -18,6 +18,7 @@ describe("additive carried-commitment migration", () => {
     expect(carrySnapshot.tables["public.carriedCommitments"].columns).toHaveProperty("createdByResolutionId");
     expect(carrySnapshot.tables["public.carriedCommitments"].foreignKeys).toHaveProperty("carried_commitments_resolution_fk");
     expect(carrySnapshot.tables["public.commitmentResolutions"].columns).toHaveProperty("sourceCarryId");
+    expect(carrySnapshot.tables["public.commitmentResolutions"].columns).toHaveProperty("sourceCarryVersion");
     expect(carrySnapshot.tables["public.commitmentResolutions"].columns).toHaveProperty("requestFingerprint");
   });
   it("adds distinct carry identity without changing existing planner or resolution records", async () => {
@@ -41,14 +42,18 @@ describe("additive carried-commitment migration", () => {
         { conname: "carried_commitments_task_fk" },
         { conname: "commitment_resolutions_source_carry_fk" },
       ]);
-      expect((await database.query(`SELECT id, "sourceCarryId", "requestFingerprint" FROM "commitmentResolutions"`)).rows)
-        .toEqual([{ id: "resolution-1", sourceCarryId: null, requestFingerprint: null }]);
+      expect((await database.query(`SELECT id, "sourceCarryId", "sourceCarryVersion", "requestFingerprint" FROM "commitmentResolutions"`)).rows)
+        .toEqual([{ id: "resolution-1", sourceCarryId: null, sourceCarryVersion: null, requestFingerprint: null }]);
       expect((await database.query(`SELECT id, title FROM tasks`)).rows).toEqual([{ id: "task-1", title: "Keep this task" }]);
       await database.exec(`INSERT INTO "carriedCommitments" (id, "workspaceId", "taskId", "rootDailyPlanItemId", "createdByResolutionId", "targetLocalDate", scope)
         VALUES ('carry-1', 'owned', 'task-1', 'item-1', 'resolution-1', '2026-09-30', 'Keep this task');`);
       expect((await database.query(`SELECT id, state, version FROM "carriedCommitments"`)).rows).toEqual([{ id: "carry-1", state: "pending", version: 1 }]);
       await expect(database.exec(`INSERT INTO "carriedCommitments" (id, "workspaceId", "taskId", "rootDailyPlanItemId", "createdByResolutionId", "targetLocalDate", scope)
         VALUES ('carry-2', 'owned', 'task-1', 'item-1', 'resolution-1', '2026-09-30', 'Keep this task');`)).rejects.toThrow();
+      await database.exec(`INSERT INTO "commitmentResolutions" (id, "workspaceId", "operationId", "dailyPlanItemId", "taskId", "sourceCarryId", "sourceCarryVersion", action, "originalScope", timezone)
+        VALUES ('resolution-2', 'owned', 'operation-2', 'item-1', 'task-1', 'carry-1', 1, 'pause', 'Keep this task', 'UTC');`);
+      await expect(database.exec(`INSERT INTO "commitmentResolutions" (id, "workspaceId", "operationId", "dailyPlanItemId", "taskId", "sourceCarryId", "sourceCarryVersion", action, "originalScope", timezone)
+        VALUES ('resolution-3', 'owned', 'operation-3', 'item-1', 'task-1', 'carry-1', 1, 'done', 'Keep this task', 'UTC');`)).rejects.toThrow();
     } finally {
       await database.close();
     }

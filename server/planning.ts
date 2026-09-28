@@ -167,7 +167,8 @@ async function readResolutionRows(db: Pick<PlanningDatabase, "execute">, workspa
   const carryColumn = carryAvailable ? sql`"sourceCarryId"` : sql`NULL::varchar(64)`;
   const fingerprintColumn = carryAvailable ? sql`"requestFingerprint"` : sql`NULL::varchar(64)`;
   const result = await db.execute(sql`SELECT id, "workspaceId", "operationId", "dailyPlanItemId", "taskId", "occurrenceId",
-    ${carryColumn} AS "sourceCarryId", ${fingerprintColumn} AS "requestFingerprint", action, "originalScope", "revisedScope", "resolvedToLocalDate", "returnLocalDate",
+    ${carryColumn} AS "sourceCarryId", ${carryAvailable ? sql`"sourceCarryVersion"` : sql`NULL::integer`} AS "sourceCarryVersion",
+    ${fingerprintColumn} AS "requestFingerprint", action, "originalScope", "revisedScope", "resolvedToLocalDate", "returnLocalDate",
     "decisionNote", timezone, "createdAt", "updatedAt", version FROM "commitmentResolutions"
     WHERE "workspaceId" = ${workspaceId} ${filter} ORDER BY "createdAt", id`);
   return result.rows.map(raw => {
@@ -1201,6 +1202,7 @@ function matchingRecoveryRetry(existing: ResolutionRow, input: RecoveryDecision)
   const revisedScope = input.action === "reduce" ? input.revisedScope : null;
   if (existing.dailyPlanItemId !== input.dailyPlanItemId || existing.taskId !== input.taskId || existing.occurrenceId !== (input.occurrenceId ?? null)
     || existing.sourceCarryId !== (input.sourceCarryId ?? null)
+    || existing.sourceCarryVersion !== (input.carryExpectedVersion ?? null)
     || existing.action !== input.action || existing.resolvedToLocalDate !== nextDate || existing.returnLocalDate !== returnDate
     || existing.revisedScope !== revisedScope || existing.decisionNote !== (input.decisionNote ?? null)) throw new RecoveryOperationReuseError();
   return existing;
@@ -1227,12 +1229,21 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
       if (completedRetry) return matchingRecoveryRetry(completedRetry, input);
       if (carry.taskId !== input.taskId || carry.rootDailyPlanItemId !== input.dailyPlanItemId) throw new Error("The carried commitment does not match this task and root daily item.");
       if (carry.version !== input.carryExpectedVersion) throw new PlannerConflictError(carry);
-      if (carry.state !== "pending") throw new Error("This carried commitment already has an outcome. Refresh before changing it.");
+      if (carry.state !== "pending" && carry.state !== "paused") throw new Error("This carried commitment already has an outcome. Refresh before changing it.");
       const root = (await tx.select({ id: dailyPlanItems.id, taskId: dailyPlanItems.taskId }).from(dailyPlanItems).where(and(eq(dailyPlanItems.workspaceId, scope.workspaceId), eq(dailyPlanItems.id, carry.rootDailyPlanItemId))).limit(1))[0];
       if (!root || root.taskId !== carry.taskId) throw new Error("The carried commitment root is unavailable in this workspace.");
       const task = (await tx.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, carry.taskId))).limit(1).for("update"))[0];
       if (!task) throw new Error("Task was not found in this workspace.");
       if (task.version !== input.taskExpectedVersion) throw new PlannerConflictError(task);
+      if (task.state === "completed" || task.state === "archived" || task.outcome === "wont_do") {
+        throw new Error("Needs reconciliation in Recovery: this task already has a final outcome. No history was changed.");
+      }
+      if (input.action === "done") {
+        const edges = await tx.select().from(taskDependencies).where(and(eq(taskDependencies.workspaceId, scope.workspaceId), eq(taskDependencies.taskId, task.id)));
+        const prerequisiteIds = Array.from(new Set(edges.map(edge => edge.dependsOnTaskId)));
+        const prerequisites = prerequisiteIds.length ? await tx.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), inArray(tasks.id, prerequisiteIds))) : [];
+        if (incompleteHardPrerequisites(task.id, edges, prerequisites).length) throw new Error("Complete every hard prerequisite before finishing this task.");
+      }
       const workspace = (await tx.select({ timezone: workspaces.timezone }).from(workspaces).where(eq(workspaces.id, scope.workspaceId)).limit(1))[0];
       if (!workspace) throw new Error("Workspace was not found.");
       if ((input.action === "reschedule" || input.action === "reduce") && input.resolvedToLocalDate === carry.targetLocalDate) throw new Error("Choose a different Plan for date for this carried commitment.");
@@ -1241,7 +1252,8 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
       const changed = await tx.update(carriedCommitments).set({ state, resolvedAt: now, version: carry.version + 1, updatedAt: now }).where(and(eq(carriedCommitments.workspaceId, scope.workspaceId), eq(carriedCommitments.id, carry.id), eq(carriedCommitments.version, carry.version))).returning({ id: carriedCommitments.id });
       if (!changed.length) throw new PlannerConflictError(carry);
       const [resolution] = await tx.insert(commitmentResolutions).values({ id: nanoid(), workspaceId: scope.workspaceId, operationId: input.operationId,
-        dailyPlanItemId: carry.rootDailyPlanItemId, taskId: carry.taskId, occurrenceId: null, sourceCarryId: carry.id, action: input.action,
+        dailyPlanItemId: carry.rootDailyPlanItemId, taskId: carry.taskId, occurrenceId: null, sourceCarryId: carry.id,
+        sourceCarryVersion: carry.version, action: input.action,
         originalScope: carry.scope, requestFingerprint: recoveryFingerprint(input), revisedScope: input.action === "reduce" ? input.revisedScope : null,
         resolvedToLocalDate: input.action === "reschedule" || input.action === "reduce" ? input.resolvedToLocalDate : null,
         returnLocalDate: input.action === "pause" ? input.returnLocalDate : null, decisionNote: input.decisionNote ?? null, timezone: workspace.timezone }).returning();
