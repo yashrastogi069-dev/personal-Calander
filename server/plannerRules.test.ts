@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentHabitStreak, dashboardSummary, goalProgress, localDateSequence, longHorizonGoalHealth, recurringLocalDates, wouldCreateDependencyCycle } from "./plannerRules";
+import { currentHabitStreak, dashboardSummary, goalProgress, isRecurringLocalDate, localDateSequence, longHorizonGoalHealth, recurringLocalDates, wouldCreateDependencyCycle } from "./plannerRules";
 
 describe("planning rules", () => {
   it("calculates task-backed goal progress across direct and project-linked work", () => {
@@ -39,6 +39,15 @@ describe("planning rules", () => {
     expect(recurringLocalDates({ frequency: "weekly", weekdays: [1, 3, 5] }, "2026-08-24", "2026-09-06", "2026-09-02")).toEqual([
       "2026-08-24", "2026-08-26", "2026-08-28", "2026-08-31", "2026-09-02",
     ]);
+  });
+
+  it("recognizes an unmaterialized cadence day without scanning a bounded occurrence window", () => {
+    expect(isRecurringLocalDate({ frequency: "daily" }, "2026-09-27", "2045-09-27")).toBe(true);
+    expect(isRecurringLocalDate({ frequency: "weekly", weekdays: [0] }, "2026-09-27", "2026-10-04")).toBe(true);
+    expect(isRecurringLocalDate({ frequency: "weekly", weekdays: [0] }, "2026-09-27", "2026-09-30")).toBe(false);
+    expect(isRecurringLocalDate({ frequency: "monthly" }, "2026-01-31", "2026-02-28")).toBe(false);
+    expect(isRecurringLocalDate({ frequency: "monthly" }, "2026-01-31", "2026-03-31")).toBe(true);
+    expect(isRecurringLocalDate({ frequency: "daily" }, "2026-09-27", "2026-10-04", "2026-10-03")).toBe(false);
   });
 
   it("breaks a habit streak on a missed eligible day", () => {

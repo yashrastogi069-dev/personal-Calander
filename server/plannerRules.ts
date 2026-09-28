@@ -90,23 +90,28 @@ export type RecurrenceRule = {
   weekdays?: number[];
 };
 
+/** Checks one date against the same cadence used by occurrence materialization. */
+export function isRecurringLocalDate(rule: RecurrenceRule, start: string, localDate: string, until?: string | null) {
+  if (localDate < start || (until && localDate > until)) return false;
+  const date = new Date(`${localDate}T12:00:00.000Z`);
+  const anchor = new Date(`${start}T12:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || Number.isNaN(anchor.getTime())) return false;
+  const interval = Math.max(1, Math.floor(rule.interval ?? 1));
+  const daysFromStart = Math.floor((date.getTime() - anchor.getTime()) / 86_400_000);
+  if (rule.frequency === "daily") return daysFromStart % interval === 0;
+  if (rule.frequency === "weekly") return Math.floor(daysFromStart / 7) % interval === 0
+    && (rule.weekdays?.includes(date.getUTCDay()) ?? date.getUTCDay() === anchor.getUTCDay());
+  const monthOffset = (date.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + date.getUTCMonth() - anchor.getUTCMonth();
+  return monthOffset % interval === 0 && date.getUTCDate() === anchor.getUTCDate();
+}
+
 export function recurringLocalDates(rule: RecurrenceRule, start: string, end: string, until?: string | null) {
   const cappedEnd = until && until < end ? until : end;
-  const interval = Math.max(1, Math.floor(rule.interval ?? 1));
   const results: string[] = [];
   let cursor = start;
   let guard = 0;
   while (cursor <= cappedEnd && guard < 5000) {
-    const date = new Date(`${cursor}T12:00:00.000Z`);
-    const daysFromStart = Math.floor((date.getTime() - new Date(`${start}T12:00:00.000Z`).getTime()) / 86_400_000);
-    const weekOffset = Math.floor(daysFromStart / 7);
-    const monthOffset = (date.getUTCFullYear() - new Date(`${start}T12:00:00.000Z`).getUTCFullYear()) * 12 + date.getUTCMonth() - new Date(`${start}T12:00:00.000Z`).getUTCMonth();
-    const matches = rule.frequency === "daily"
-      ? daysFromStart % interval === 0
-      : rule.frequency === "weekly"
-        ? weekOffset % interval === 0 && (rule.weekdays?.includes(date.getUTCDay()) ?? date.getUTCDay() === new Date(`${start}T12:00:00.000Z`).getUTCDay())
-        : monthOffset % interval === 0 && date.getUTCDate() === new Date(`${start}T12:00:00.000Z`).getUTCDate();
-    if (matches) results.push(cursor);
+    if (isRecurringLocalDate(rule, start, cursor, until)) results.push(cursor);
     cursor = shiftLocalDate(cursor, 1);
     guard += 1;
   }

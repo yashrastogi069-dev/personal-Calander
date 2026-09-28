@@ -34,7 +34,7 @@ import {
 } from "../drizzle/schema";
 import { getDb } from "./db";
 import { establishedGoalColumns, establishedProjectColumns, establishedWorkspaceColumns } from "./phase4SchemaCompatibility";
-import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
+import { dashboardSummary, isRecurringLocalDate, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
 import { reorderCommittedDailyPlanItems } from "../shared/dailyPlanOrdering";
@@ -1236,9 +1236,15 @@ export async function resolveCommitment(scope: PlannerScope, decision: RecoveryD
       const nextDate = input.action === "pause" ? input.returnLocalDate : resolvedToLocalDate;
       if (input.action === "reschedule" || input.action === "reduce") {
         if (input.resolvedToLocalDate === occurrence.localDate) throw new Error("Choose a different Plan for date for this occurrence.");
+        if (isRecurrenceRule(task.recurrenceRule)) {
+          const seriesStart = task.scheduledLocalDate ?? task.dueLocalDate ?? task.createdAt.toISOString().slice(0, 10);
+          if (isRecurringLocalDate(task.recurrenceRule, seriesStart, input.resolvedToLocalDate, task.recurrenceUntilLocalDate)) {
+            throw new Error("Choose another Plan for date. That day belongs to the recurring series, even if its occurrence has not been loaded yet.");
+          }
+        }
         const target = (await tx.select().from(taskOccurrences).where(and(eq(taskOccurrences.workspaceId, scope.workspaceId), eq(taskOccurrences.taskId, task.id), eq(taskOccurrences.localDate, input.resolvedToLocalDate))).limit(1).for("update"))[0];
-        if (target && target.state !== "pending") throw new Error("Choose another Plan for date. That occurrence already has an outcome.");
-        if (!target) await tx.insert(taskOccurrences).values({ id: nanoid(), workspaceId: scope.workspaceId, taskId: task.id, localDate: input.resolvedToLocalDate, state: "pending" });
+        if (target) throw new Error("Choose another Plan for date. This task already has an occurrence on that day.");
+        await tx.insert(taskOccurrences).values({ id: nanoid(), workspaceId: scope.workspaceId, taskId: task.id, localDate: input.resolvedToLocalDate, state: "pending" });
       }
       const changed = await tx.update(taskOccurrences).set({
         state: occurrenceState,
