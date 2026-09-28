@@ -111,6 +111,8 @@ Provide a curated module set with useful defaults. Reorder, hide, and bounded si
 
 Every module has a defined empty state, visible period, source records, and one primary next action. Avoid unexplained productivity scores.
 
+The Habits module may show a compact, optional activity heatmap using existing dated check-ins. The cells represent recorded completion, intentional skip, and an unrecorded or not-due day distinctly; a blank cell is never automatically labelled failure. Show the period, timezone basis, and a text summary, and open the underlying habit history. This is a factual view of existing records, not a new consistency score or Phase 5 behavioral analysis.
+
 Desktop uses a composed grid with unequal emphasis. Phone uses an ordered briefing with attention first. A hidden module remains discoverable through customization and its owning destination.
 
 ## 7. Tasks, Inbox, Capture, and Search

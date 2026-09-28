@@ -1283,7 +1283,7 @@ git commit -m "feat: keep active focus visible across navigation"
 
 - [ ] **Step 1: Write failing module tests**
 
-For Needs attention, Time and capacity, Habits, Goals and directions, Projects at risk, Upcoming milestones, and Review, assert a decision question, visible period, source record IDs, one primary action, defined empty state, and canonical destination. Assert no productivity score and no duplicated records.
+For Needs attention, Time and capacity, Habits, Goals and directions, Projects at risk, Upcoming milestones, and Review, assert a decision question, visible period, source record IDs, one primary action, defined empty state, and canonical destination. Assert no productivity score and no duplicated records. The Habits module may include an optional compact heatmap over existing dated check-ins, with completed, skipped, not-due, and unrecorded days distinguished; test timezone/period labels, an accessible text summary, and drill-through to canonical habit history. Do not infer missed days from empty cells or invent a new score.
 
 - [ ] **Step 2: Write preference tests**
 
