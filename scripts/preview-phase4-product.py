@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 REPOSITORY = Path(__file__).resolve().parents[1]
 AUTH_HARNESS = Path(__file__).with_name("preview-auth-states.py")
 LINKED_HARNESS = Path(__file__).with_name("preview-linked-planner.py")
-SCENARIOS = ("shell-navigation", "task-capture-search", "today")
+SCENARIOS = ("shell-navigation", "task-capture-search", "today", "offline-rejected-cache")
 DEFAULT_WIDTHS = (390, 1440)
 HEIGHTS = {320: 760, 390: 844, 768: 1024, 1440: 1000}
 
@@ -1132,6 +1132,101 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
     return result
 
 
+def run_offline_rejected_cache(browser, url: str, output: Path, width: int) -> dict:
+    """A rejected offline completion must never become confirmed durable data."""
+    auth = runpy.run_path(str(AUTH_HARNESS))
+    linked = runpy.run_path(str(LINKED_HARNESS))
+    context = browser.new_context(viewport={"width": width, "height": HEIGHTS[width]}, timezone_id="UTC", service_workers="block")
+    page = context.new_page()
+    page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    fixtures = linked["fixtures"]()
+    snapshot = fixtures["planner.workspace.snapshot"]
+    task = {
+        "id": "offline-rejected-task", "workspaceId": snapshot["workspace"]["id"],
+        "title": "Keep the confirmed task open", "description": None, "state": "not_started",
+        "priority": "medium", "horizon": "daily", "categoryId": None, "projectId": None,
+        "goalId": None, "parentTaskId": None, "dueLocalDate": None,
+        "scheduledLocalDate": "2026-09-21", "plannedStartAt": None, "plannedEndAt": None,
+        "estimateMinutes": 20, "sortOrder": 0, "version": 1, "recurrenceRule": None,
+        "scheduleMode": "manual", "outcome": "none", "completedAt": None,
+        "archivedAt": None, "clientRequestId": None,
+        "createdAt": "2026-09-20T08:00:00.000Z", "updatedAt": "2026-09-20T08:00:00.000Z",
+    }
+    snapshot["tasks"] = [task]
+    fixtures["planner.sync.conflicts"] = []
+    requests, unexpected = auth["install_preview"](context, url, "linked", fixtures)
+    read_store = """async () => await new Promise((resolve, reject) => {
+      const request = indexedDB.open('personal-calander-planner-v1');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(['snapshots', 'operations']);
+        const snapshotRequest = transaction.objectStore('snapshots').getAll();
+        const operationRequest = transaction.objectStore('operations').getAll();
+        transaction.oncomplete = () => resolve({snapshots: snapshotRequest.result, operations: operationRequest.result});
+        transaction.onerror = () => reject(transaction.error);
+      };
+    })"""
+    try:
+        page.goto(url, wait_until="networkidle")
+        today = page.locator(".today-workspace")
+        today.wait_for(state="visible", timeout=20_000)
+        row = today.locator('[data-task-record-id="offline-rejected-task"]')
+        row.wait_for(state="visible")
+        page.wait_for_function("() => document.querySelector('.today-workspace') && indexedDB")
+        page.evaluate("() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline')); }")
+        row.get_by_role("button", name="Complete Keep the confirmed task open").click()
+        row.wait_for(state="hidden")
+        page.wait_for_function("""async () => await new Promise(resolve => {
+          const request = indexedDB.open('personal-calander-planner-v1');
+          request.onsuccess = () => {
+            const count = request.result.transaction('operations').objectStore('operations').count();
+            count.onsuccess = () => resolve(count.result === 1);
+            count.onerror = () => resolve(false);
+          };
+          request.onerror = () => resolve(false);
+        })""")
+        # Allow the snapshot persistence effect to settle before inspecting its durable base.
+        page.wait_for_timeout(300)
+        stored = page.evaluate(read_store)
+        assert len(stored["operations"]) == 1, stored
+        assert len(stored["snapshots"]) == 1, stored
+        persisted_task = next(item for item in stored["snapshots"][0]["snapshot"]["tasks"] if item["id"] == task["id"])
+        assert persisted_task["state"] == "not_started", {"persistedTask": persisted_task, "reason": "Queued overlay must not pollute confirmed cache"}
+
+        operation_id = stored["operations"][0]["operationId"]
+        fixtures["planner.sync.replay"] = [{"operationId": operation_id, "status": "rejected", "code": "unresolved_commitment"}]
+        snapshot_requests_before = requests.count("planner.workspace.snapshot")
+        with page.expect_response(lambda response: "planner.workspace.snapshot" in response.url, timeout=10_000):
+            page.evaluate("() => { delete navigator.onLine; window.dispatchEvent(new Event('online')); }")
+        page.wait_for_function("""async () => await new Promise(resolve => {
+          const request = indexedDB.open('personal-calander-planner-v1');
+          request.onsuccess = () => {
+            const items = request.result.transaction('operations').objectStore('operations').getAll();
+            items.onsuccess = () => resolve(items.result.length === 1 && items.result[0].state === 'needs_review');
+            items.onerror = () => resolve(false);
+          };
+          request.onerror = () => resolve(false);
+        })""")
+        row.wait_for(state="visible")
+        assert requests.count("planner.sync.replay") >= 1, requests
+        assert requests.count("planner.workspace.snapshot") > snapshot_requests_before, requests
+        page.reload(wait_until="networkidle")
+        row.wait_for(state="visible")
+        after = page.evaluate(read_store)
+        persisted_after = next(item for item in after["snapshots"][0]["snapshot"]["tasks"] if item["id"] == task["id"])
+        assert persisted_after["state"] == "not_started", persisted_after
+        screenshot = output / f"offline-rejected-cache-{width}.png"
+        page.screenshot(path=str(screenshot), full_page=True)
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return {"scenario": "offline-rejected-cache", "width": width, "status": "PASS", "screenshot": str(screenshot), "requests": requests}
+    finally:
+        context.close()
+
+
 def run(args: argparse.Namespace) -> int:
     url = assert_loopback_url(args.url)
     output = external_output(args.output)
@@ -1153,6 +1248,8 @@ def run(args: argparse.Namespace) -> int:
                         else run_task_capture_search(browser, url, output, width)
                         if args.scenario == "task-capture-search"
                         else run_today(browser, url, output, width)
+                        if args.scenario == "today"
+                        else run_offline_rejected_cache(browser, url, output, width)
                     )
                     results.append(result)
                     print(f"PASS {args.scenario} {width}px", flush=True)

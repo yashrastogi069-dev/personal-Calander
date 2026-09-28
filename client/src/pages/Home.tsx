@@ -7296,8 +7296,10 @@ export default function Home() {
           };
         }
       );
-      invalidatePlan();
     }
+    // A rejected-only replay has no server record to merge. Revalidate even then:
+    // older clients may have persisted their queued patch into the base snapshot.
+    if (result.records.length || result.needsReview > 0) invalidatePlan();
     setSyncSummary(current => ({
       ...current,
       syncing: false,
@@ -7351,7 +7353,8 @@ export default function Home() {
       if (!plannerSyncStore)
         throw new Error("Offline storage is unavailable on this device.");
       await queueTaskUpdate(plannerSyncStore, plannerSyncScope, task, patch);
-      updateCachedTask(patch);
+      // The pending-operation overlay renders this change without changing the
+      // confirmed snapshot that is also persisted for offline recovery.
       await refreshSyncSummary();
       return { record: { ...task, ...patch }, queued: true };
     };
@@ -7443,7 +7446,8 @@ export default function Home() {
         version: 1,
         ...patch,
       };
-      addCachedTask(record);
+      // A queued create is likewise rendered by the pending-operation overlay.
+      // Keep the durable base snapshot server-confirmed.
       await refreshSyncSummary();
       return { record, queued: true };
     };
