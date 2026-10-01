@@ -40,6 +40,7 @@ import {
   materializeTaskOccurrences,
   moveDailyPlanItem,
   PlannerConflictError,
+  PlannerCapabilityError,
   PlannerPolicyError,
   RecoveryOperationReuseError,
   prepareReminderRule,
@@ -187,6 +188,7 @@ const fallbackAiDraft = (thought: string) => {
 };
 
 function plannerError(error: unknown): never {
+  if (error instanceof PlannerCapabilityError) throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
   if (error instanceof PlannerConflictError) {
     throw new TRPCError({ code: "CONFLICT", message: error.message, cause: error.current });
   }
@@ -314,9 +316,9 @@ export const plannerRouter = router({
     }),
   }),
   goal: router({
-    create: protectedProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), categoryId: z.string().nullable().optional(), parentGoalId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("yearly"), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(), progressMode: z.enum(["manual", "task", "measure", "habit"]).default("task"), progressValue: z.number().int().min(0).default(0), targetValue: z.number().int().min(1).default(100), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional() })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), categoryId: z.string().nullable().optional(), parentGoalId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("yearly"), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(), progressMode: z.enum(["manual", "task", "measure", "habit"]).default("task"), progressValue: z.number().int().min(0).default(0), targetValue: z.number().int().min(1).default(100), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional(), intentionKind: z.enum(["outcome", "direction"]).nullable().optional(), successCriteria: z.string().max(5000).nullable().optional(), standards: z.string().max(5000).nullable().optional(), reviewCadence: z.enum(["weekly", "monthly", "quarterly", "yearly"]).nullable().optional(), nextReviewLocalDate: dateString.nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...goal } = input;
-      return createGoal({ workspaceId, timezone }, goal);
+      try { return await createGoal({ workspaceId, timezone }, goal); } catch (error) { return plannerError(error); }
     }),
     update: protectedProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive(), patch: z.object({ title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(), categoryId: z.string().nullable().optional(), parentGoalId: z.string().nullable().optional(), state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(), progressMode: z.enum(["manual", "task", "measure", "habit"]).optional(), progressValue: z.number().int().min(0).optional(), targetValue: z.number().int().min(1).optional(), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional(), intentionKind: z.enum(["outcome", "direction"]).nullable().optional(), successCriteria: z.string().max(5000).nullable().optional(), standards: z.string().max(5000).nullable().optional(), reviewCadence: z.enum(["weekly", "monthly", "quarterly", "yearly"]).nullable().optional(), nextReviewLocalDate: dateString.nullable().optional() }) })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion, patch } = input;

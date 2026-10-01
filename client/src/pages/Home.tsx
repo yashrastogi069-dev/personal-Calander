@@ -6921,6 +6921,9 @@ export default function Home() {
   const createGoal = trpc.planner.goal.create.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
+  const updateGoal = trpc.planner.goal.update.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
+  });
   const createProject = trpc.planner.project.create.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
@@ -8546,20 +8549,60 @@ export default function Home() {
             ) : null}
           </section>
         ) : null}
-        {surface === "goals" ? (
+        {surface === "goals" || surface === "projects" ? (
           <section className="work-surface goal-workspace">
             <ProjectsGoalsWorkspace
               goals={snapshot.goals}
               projects={snapshot.projects}
+              milestones={snapshot.milestones}
+              tasks={snapshot.tasks}
+              habits={snapshot.habits}
+              projectDependencies={snapshot.projectDependencies}
+              goalIntentionAvailable={snapshot.goalIntentionAvailable}
+              projectRiskAvailable={snapshot.projectRiskAvailable}
+              projectDependenciesAvailable={snapshot.projectDependenciesAvailable}
+              initialTab={plannerLocation.view === "directions" ? "directions" : plannerLocation.view === "projects" ? "projects" : "outcomes"}
+              selectedRecordId={surface === "goals" ? plannerLocation.selectedRecord : null}
+              onSelectGoal={updateSelectedRecord}
+              onTabChange={(tab, selectedRecordId) => {
+                searchReturnTargetRef.current = null;
+                searchRecordFocusRef.current = null;
+                const next = { ...plannerLocation, destination: "intentions" as const, view: tab, selectedRecord: selectedRecordId ?? null };
+                setPlannerLocation(next);
+                if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
+              }}
+              onCreateGoal={async values => {
+                if (!isOnline) throw new Error("Reconnect before creating a goal. Nothing was saved.");
+                return createGoal.mutateAsync({ ...scope, ...values } as any);
+              }}
+              onUpdateGoal={async input => {
+                if (!isOnline) throw new Error("Reconnect before changing an intention. Nothing was saved.");
+                return updateGoal.mutateAsync({ ...scope, ...input } as any);
+              }}
+              onOpenRelated={(entity, id) => {
+                const goal = snapshot.goals.find(item => item.id === id);
+                const target = entity === "task" ? { destination: "tasks" as const, view: "list" as const }
+                  : entity === "project" ? { destination: "intentions" as const, view: "projects" as const }
+                    : entity === "habit" ? { destination: "habits" as const, view: "due" as const }
+                      : { destination: "intentions" as const, view: goal?.intentionKind === "direction" ? "directions" as const : "outcomes" as const };
+                const next = { ...plannerLocation, ...target, selectedRecord: id };
+                setPlannerLocation(next);
+                if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
+              }}
+              onOpenProject={project => {
+                const next = { ...plannerLocation, destination: "intentions" as const, view: "projects" as const, selectedRecord: project.id };
+                setPlannerLocation(next);
+                if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
+              }}
             />
-            <GoalPanel
+            {surface === "goals" ? <GoalPanel
               goals={snapshot.goals}
               projects={snapshot.projects}
               tasks={snapshot.tasks}
               categories={snapshot.categories}
               onCompose={() => openComposer("goal")}
-            />
-            <div className="project-listing">
+            /> : null}
+            {surface === "goals" ? <div className="project-listing">
               <div className="panel-heading">
                 <div>
                   <span className="eyebrow">Finite bodies of work</span>
@@ -8607,17 +8650,9 @@ export default function Home() {
                   action={() => openComposer("project")}
                 />
               )}
-            </div>
+            </div> : null}
+            {surface === "projects" ? <Suspense fallback={<DestinationLoading label="Projects" />}><ProjectExecutionWorkspace scope={scope} snapshot={snapshot} onOpenTasks={focusTaskSearch} /></Suspense> : null}
           </section>
-        ) : null}
-        {surface === "projects" ? (
-          <Suspense fallback={<DestinationLoading label="Projects" />}>
-            <ProjectExecutionWorkspace
-              scope={scope}
-              snapshot={snapshot}
-              onOpenTasks={focusTaskSearch}
-            />
-          </Suspense>
         ) : null}
         {surface === "habits" ? (
           <section className="work-surface habit-workspace">
@@ -8738,7 +8773,7 @@ export default function Home() {
         }}
       />
       <SearchRecordSheet
-        target={plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) && searchEntityForLocation(plannerLocation) !== "task"
+        target={surface !== "goals" && plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) && searchEntityForLocation(plannerLocation) !== "task"
           ? { entity: searchEntityForLocation(plannerLocation)!, id: plannerLocation.selectedRecord }
           : null}
         scope={scope}

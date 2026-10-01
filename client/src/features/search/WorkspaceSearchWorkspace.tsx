@@ -7,7 +7,7 @@ import { FileText, Flag, Goal, Search, TimerReset } from "lucide-react";
 import { useDeferredValue, useEffect, useState, type RefObject } from "react";
 
 export type SearchEntity = "task" | "goal" | "project" | "habit" | "review";
-export type SearchOpenEntity = { entity: SearchEntity; id: string };
+export type SearchOpenEntity = { entity: SearchEntity; id: string; intentionKind?: "outcome" | "direction" | null };
 type RetainedSearchState = { query: string; taskQuery: string; taskFilter: string; taskSort: string };
 type WorkspaceSearchWorkspaceProps = {
   scope: WorkspaceScope;
@@ -27,7 +27,7 @@ export function searchOpenLocation(target: SearchOpenEntity, retained: RetainedS
   const view = target.entity === "task"
     ? "list"
     : target.entity === "goal"
-      ? "outcomes"
+      ? target.intentionKind === "direction" ? "directions" : "outcomes"
       : target.entity === "project"
         ? "projects"
         : target.entity === "habit"
@@ -150,7 +150,8 @@ export function WorkspaceSearchWorkspace({ scope, initialQuery, onQueryChange, o
           {search.data.map(result => {
             const meta = entityMeta[result.entity];
             const Icon = meta.icon;
-            return <button type="button" key={`${result.entity}-${result.id}`} data-search-result-id={`${result.entity}:${result.id}`} className={cn("workspace-search-result", `is-${result.entity}`)} onClick={event => onOpenEntity({ entity: result.entity, id: result.id }, event.currentTarget)}><span className="workspace-search-icon"><Icon size={16} /></span><span><small>{meta.label} · {result.state.replaceAll("_", " ")}</small><strong>{result.title}</strong>{result.summary ? <p>{result.summary}</p> : <p>No additional text recorded.</p>}</span><span className="workspace-search-open">Open record</span></button>;
+            const typeLabel = result.entity === "goal" && result.intentionKind === "direction" ? "Direction" : result.entity === "goal" && result.intentionKind === "outcome" ? "Outcome" : meta.label;
+            return <button type="button" key={`${result.entity}-${result.id}`} data-search-result-id={`${result.entity}:${result.id}`} className={cn("workspace-search-result", `is-${result.entity}`)} onClick={event => onOpenEntity({ entity: result.entity, id: result.id, intentionKind: result.intentionKind }, event.currentTarget)}><span className="workspace-search-icon"><Icon size={16} aria-hidden="true" /></span><span><small>{typeLabel} · {result.state.replaceAll("_", " ")}</small><strong>{result.title}</strong>{result.summary ? <p>{result.summary}</p> : <p>No additional text recorded.</p>}</span><span className="workspace-search-open">Open record</span></button>;
           })}
         </div>
       ) : (

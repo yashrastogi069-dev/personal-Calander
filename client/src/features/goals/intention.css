@@ -31,5 +31,24 @@ button.intention-card { width: 100%; cursor: pointer; }
 .intention-detail div { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid var(--border); }
 .intention-detail div b { color: var(--ink-muted); font-size: 10px; text-transform: uppercase; }
 .intention-detail div span { color: var(--ink); font-size: 12px; }
+.intentions-create-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.intentions-create-actions > span { color: var(--ink-muted); font-size: 11px; }
+.intention-create-form { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.intention-create-form h3, .intention-detail h4 { margin: 0; color: var(--ink); font-size: 13px; }
+.intention-create-form label { display: grid; gap: 5px; color: var(--ink-muted); font-size: 11px; font-weight: 700; }
+.intention-create-form input, .intention-create-form textarea, .intention-create-form select { width: 100%; min-height: 42px; padding: 9px 11px; color: var(--ink); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-elevated); font: inherit; }
+.intention-create-form textarea { resize: vertical; }
+.intention-create-form > div, .intention-conversion > div { display: flex; justify-content: flex-end; gap: 8px; }
+.intention-create-form [role="alert"] { margin: 0; color: #b42318; font-size: 12px; }
+.intention-detail > section { display: grid; gap: 7px; padding-top: 10px; border-top: 1px solid var(--border); }
+.intention-detail > section h4 { display: flex; justify-content: space-between; }
+.intention-detail > section h4 span, .intention-detail > section small { color: var(--ink-muted); font-size: 10px; font-weight: 500; }
+.intention-detail ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.intention-detail li { display: grid; gap: 2px; }
+.intention-related-link { width: fit-content; padding: 0; color: var(--accent); border: 0; background: transparent; text-align: left; text-decoration: underline; cursor: pointer; }
+.intention-detail li small { color: var(--ink-muted); font-size: 10px; }
+.intention-detail li p { font-size: 11px; }
+.intention-conversion-preview { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--selection); }
+.intention-conversion-preview ul { margin: 0; padding-left: 18px; list-style: disc; color: var(--ink-muted); font-size: 11px; }
 @media (max-width: 560px) { .intentions-workspace { padding: 15px; }.intentions-header { gap: 10px; }.intentions-header > svg { width: 22px; }.intentions-list { grid-template-columns: 1fr; }.intentions-tabs button { flex: 1; padding-inline: 8px; font-size: 11px; } }
 @media (prefers-reduced-motion: reduce) { .intention-card { transition: none; } }

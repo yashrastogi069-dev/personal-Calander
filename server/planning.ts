@@ -18,6 +18,7 @@ import {
   habits,
   integrationConnections,
   planningAvailabilityExceptions,
+  projectDependencies,
   projects,
   pushDeliveries,
   pushSubscriptions,
@@ -100,6 +101,26 @@ async function hasAccountabilityColumn(db: Awaited<ReturnType<typeof requireDb>>
   return result.rows[0]?.available === true;
 }
 
+async function assertGoalParentIsAcyclic(db: Awaited<ReturnType<typeof requireDb>>, scope: PlannerScope, goalId: string, parentGoalId: string | null | undefined) {
+  if (!parentGoalId) return;
+  if (parentGoalId === goalId) throw new Error("A goal cannot be its own parent.");
+  const visited = new Set<string>();
+  let currentId: string | null = parentGoalId;
+  while (currentId) {
+    if (currentId === goalId) throw new Error("This parent would create a goal hierarchy cycle.");
+    if (visited.has(currentId)) throw new Error("This goal hierarchy already contains a cycle; choose a different parent.");
+    visited.add(currentId);
+    if (visited.size > 256) throw new Error("This goal hierarchy is too deep to validate safely.");
+    const parentRow: { parentGoalId: string | null } | undefined = (await db.select({ parentGoalId: goals.parentGoalId }).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, currentId))).limit(1))[0];
+    if (!parentRow) throw new Error("Select a parent goal from this workspace or clear the parent link.");
+    currentId = parentRow.parentGoalId;
+  }
+}
+
+export class PlannerCapabilityError extends Error {
+  constructor(message: string) { super(message); this.name = "PlannerCapabilityError"; }
+}
+
 async function workspaceWithAccountability<T extends { id: string }>(db: Awaited<ReturnType<typeof requireDb>>, workspace: T): Promise<T & { accountabilityLevel: AccountabilityLevel; accountabilityAvailable: boolean }> {
   const accountabilityAvailable = await hasAccountabilityColumn(db);
   if (!accountabilityAvailable) return { ...workspace, accountabilityLevel: "structured" as AccountabilityLevel, accountabilityAvailable };
@@ -177,6 +198,39 @@ async function hasCarryLedger(db: Pick<PlanningDatabase, "execute">) {
   return result.rows[0]?.available === true;
 }
 
+const goalIntentionColumnNames = ["intentionKind", "successCriteria", "standards", "reviewCadence", "nextReviewLocalDate"] as const;
+
+async function hasGoalIntentionColumns(db: Pick<PlanningDatabase, "execute">) {
+  const result = await db.execute(sql`SELECT count(*) = 5 AS available FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'goals' AND column_name IN (${sql.join(goalIntentionColumnNames.map(name => sql`${name}`), sql`, `)})`);
+  return result.rows[0]?.available === true;
+}
+
+async function hasProjectRiskColumns(db: Pick<PlanningDatabase, "execute">) {
+  const result = await db.execute(sql`SELECT count(*) = 3 AS available FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'projects' AND column_name IN ('riskLevel', 'riskNote', 'nextReviewLocalDate')`);
+  return result.rows[0]?.available === true;
+}
+
+async function hasProjectDependenciesTable(db: Pick<PlanningDatabase, "execute">) {
+  const result = await db.execute(sql`SELECT to_regclass('public."projectDependencies"') IS NOT NULL AS available`);
+  return result.rows[0]?.available === true;
+}
+
+const optionalProjectRiskColumns = { riskLevel: projects.riskLevel, riskNote: projects.riskNote, nextReviewLocalDate: projects.nextReviewLocalDate } as const;
+
+const optionalGoalIntentionColumns = {
+  intentionKind: goals.intentionKind,
+  successCriteria: goals.successCriteria,
+  standards: goals.standards,
+  reviewCadence: goals.reviewCadence,
+  nextReviewLocalDate: goals.nextReviewLocalDate,
+} as const;
+
+function goalColumnsWithIntention(available: boolean): typeof establishedGoalColumns & Partial<typeof optionalGoalIntentionColumns> {
+  return available ? { ...establishedGoalColumns, ...optionalGoalIntentionColumns } : establishedGoalColumns;
+}
+
 type ResolutionRow = typeof commitmentResolutions.$inferSelect;
 
 /** The 0004 ledger predates sourceCarryId; read its established shape without requiring 0005. */
@@ -207,11 +261,12 @@ export class PlannerPolicyError extends Error {
 export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: string; end: string }) {
   const db = await requireDb();
   const workspace = await workspaceWithAccountability(db, await ensureWorkspace(scope));
-  const [categoryRows, goalRows, milestoneRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows, planRows, planItemRows, objectiveRows, focusRows, templateRows, proposalRows, dependencyRows, integrationRows, availabilityExceptionRows] = await Promise.all([
+  const [goalIntentionAvailable, projectRiskAvailable, projectDependenciesAvailable] = await Promise.all([hasGoalIntentionColumns(db), hasProjectRiskColumns(db), hasProjectDependenciesTable(db)]);
+  const [categoryRows, goalRows, milestoneRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows, planRows, planItemRows, objectiveRows, focusRows, templateRows, proposalRows, dependencyRows, integrationRows, availabilityExceptionRows, projectDependencyRows] = await Promise.all([
     db.select().from(categories).where(eq(categories.workspaceId, scope.workspaceId)).orderBy(asc(categories.sortOrder), asc(categories.name)),
-    db.select(establishedGoalColumns).from(goals).where(eq(goals.workspaceId, scope.workspaceId)).orderBy(desc(goals.updatedAt)),
+    db.select(goalColumnsWithIntention(goalIntentionAvailable)).from(goals).where(eq(goals.workspaceId, scope.workspaceId)).orderBy(desc(goals.updatedAt)),
     db.select().from(goalMilestones).where(eq(goalMilestones.workspaceId, scope.workspaceId)).orderBy(asc(goalMilestones.dueLocalDate), desc(goalMilestones.updatedAt)),
-    db.select(establishedProjectColumns).from(projects).where(eq(projects.workspaceId, scope.workspaceId)).orderBy(desc(projects.updatedAt)),
+    db.select(projectRiskAvailable ? { ...establishedProjectColumns, ...optionalProjectRiskColumns } : establishedProjectColumns).from(projects).where(eq(projects.workspaceId, scope.workspaceId)).orderBy(desc(projects.updatedAt)),
     db.select().from(tasks).where(eq(tasks.workspaceId, scope.workspaceId)).orderBy(asc(tasks.sortOrder), desc(tasks.updatedAt)),
     db.select().from(habits).where(eq(habits.workspaceId, scope.workspaceId)).orderBy(desc(habits.updatedAt)),
     db.select().from(habitCheckIns).where(and(eq(habitCheckIns.workspaceId, scope.workspaceId), gte(habitCheckIns.localDate, range.start), lte(habitCheckIns.localDate, range.end))),
@@ -229,6 +284,7 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     db.select().from(taskDependencies).where(eq(taskDependencies.workspaceId, scope.workspaceId)),
     db.select().from(integrationConnections).where(eq(integrationConnections.workspaceId, scope.workspaceId)).orderBy(desc(integrationConnections.updatedAt)),
     db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), gte(planningAvailabilityExceptions.localDate, range.start), lte(planningAvailabilityExceptions.localDate, range.end))).orderBy(asc(planningAvailabilityExceptions.localDate)),
+    projectDependenciesAvailable ? db.select().from(projectDependencies).where(eq(projectDependencies.workspaceId, scope.workspaceId)) : Promise.resolve([]),
   ]);
   const missingPlanIds = missingCommittedPlanIds(planRows, planItemRows);
   const earlierOpenPlans: typeof planRows = [];
@@ -240,27 +296,34 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
   const visiblePlans = [...planRows, ...earlierOpenPlans].sort((left, right) => right.localDate.localeCompare(left.localDate) || left.id.localeCompare(right.id));
   const resolutionRows = await hasRecoveryLedger(db) ? await readResolutionRows(db, scope.workspaceId) : [];
   const carryRows = await hasCarryLedger(db) ? await db.select().from(carriedCommitments).where(eq(carriedCommitments.workspaceId, scope.workspaceId)).orderBy(asc(carriedCommitments.targetLocalDate), asc(carriedCommitments.id)) : [];
-  return { workspace, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, commitmentResolutions: resolutionRows, carriedCommitments: carryRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
+  return { workspace, goalIntentionAvailable, projectRiskAvailable, projectDependenciesAvailable, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, projectDependencies: projectDependencyRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, commitmentResolutions: resolutionRows, carriedCommitments: carryRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
 }
 
-export async function searchWorkspace(scope: PlannerScope, input: { query: string; limit: number }) {
+export type WorkspaceSearchResult = { id: string; title: string; summary: string | null; state: string; updatedAt: Date; entity: SearchRecordEntity; intentionKind?: "outcome" | "direction" | null };
+
+export async function searchWorkspace(scope: PlannerScope, input: { query: string; limit: number }): Promise<WorkspaceSearchResult[]> {
   const db = await requireDb();
   const phrase = input.query.trim().replace(/[\\%_]/g, "\\$&");
   const pattern = `%${phrase}%`;
+  const intentionAvailable = await hasGoalIntentionColumns(db);
+  const goalProjection: any = intentionAvailable
+    ? { id: goals.id, title: goals.title, summary: goals.description, state: goals.state, intentionKind: goals.intentionKind, updatedAt: goals.updatedAt }
+    : { id: goals.id, title: goals.title, summary: goals.description, state: goals.state, updatedAt: goals.updatedAt };
   const [taskRows, goalRows, projectRows, habitRows, reviewRows] = await Promise.all([
     db.select({ id: tasks.id, title: tasks.title, summary: tasks.description, state: tasks.state, updatedAt: tasks.updatedAt }).from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), or(like(tasks.title, pattern), like(tasks.description, pattern)))).orderBy(desc(tasks.updatedAt)).limit(input.limit),
-    db.select({ id: goals.id, title: goals.title, summary: goals.description, state: goals.state, updatedAt: goals.updatedAt }).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), or(like(goals.title, pattern), like(goals.description, pattern)))).orderBy(desc(goals.updatedAt)).limit(input.limit),
+    db.select(goalProjection).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), or(like(goals.title, pattern), like(goals.description, pattern)))).orderBy(desc(goals.updatedAt)).limit(input.limit) as Promise<any[]>,
     db.select({ id: projects.id, title: projects.title, summary: projects.description, state: projects.state, updatedAt: projects.updatedAt }).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), or(like(projects.title, pattern), like(projects.description, pattern)))).orderBy(desc(projects.updatedAt)).limit(input.limit),
     db.select({ id: habits.id, title: habits.name, summary: habits.description, state: habits.archivedAt, updatedAt: habits.updatedAt }).from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), or(like(habits.name, pattern), like(habits.description, pattern)))).orderBy(desc(habits.updatedAt)).limit(input.limit),
     db.select({ id: reviewSessions.id, kind: reviewSessions.kind, reflection: reviewSessions.reflection, state: reviewSessions.state, periodStartLocalDate: reviewSessions.periodStartLocalDate, periodEndLocalDate: reviewSessions.periodEndLocalDate, updatedAt: reviewSessions.updatedAt }).from(reviewSessions).where(and(eq(reviewSessions.workspaceId, scope.workspaceId), or(like(reviewSessions.reflection, pattern), like(reviewSessions.kind, pattern)))).orderBy(desc(reviewSessions.updatedAt)).limit(input.limit),
   ]);
-  return [
+  const results: WorkspaceSearchResult[] = [
     ...taskRows.map(row => ({ ...row, entity: "task" as const })),
-    ...goalRows.map(row => ({ ...row, entity: "goal" as const })),
+    ...goalRows.map(row => ({ ...row, entity: "goal" as const })) as WorkspaceSearchResult[],
     ...projectRows.map(row => ({ ...row, entity: "project" as const })),
     ...habitRows.map(row => ({ id: row.id, title: row.title, summary: row.summary, state: row.state ? "archived" : "active", updatedAt: row.updatedAt, entity: "habit" as const })),
     ...reviewRows.map(row => ({ id: row.id, title: `${row.kind} review · ${row.periodStartLocalDate} to ${row.periodEndLocalDate}`, summary: row.reflection, state: row.state, updatedAt: row.updatedAt, entity: "review" as const })),
   ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()).slice(0, input.limit);
+  return results;
 }
 
 /** Rejects terminal parent-task outcomes while a saved, non-archived plan still owns an open commitment. */
@@ -286,7 +349,8 @@ export async function getSearchRecord(scope: PlannerScope, input: { entity: Sear
     return (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, input.id))).limit(1))[0] ?? null;
   }
   if (input.entity === "goal") {
-    return (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0] ?? null;
+    const intentionAvailable = await hasGoalIntentionColumns(db);
+    return (await db.select(goalColumnsWithIntention(intentionAvailable)).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0] ?? null;
   }
   if (input.entity === "project") {
     return (await db.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0] ?? null;
@@ -340,10 +404,21 @@ export async function deleteCategory(scope: PlannerScope, input: { id: string; e
 
 export async function createGoal(scope: PlannerScope, input: Omit<typeof goals.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt" | "version" | "completedAt" | "archivedAt">) {
   const db = await requireDb();
-  await assertScopedRecordLinks(db, scope, { categoryId: input.categoryId });
+  const hasIntentionInput = goalIntentionColumnNames.some(key => input[key] !== undefined && input[key] !== null);
+  const intentionAvailable = hasIntentionInput ? await hasGoalIntentionColumns(db) : false;
+  if (hasIntentionInput && !intentionAvailable) throw new PlannerCapabilityError("Outcome and Direction details are unavailable until the approved Phase 4 schema migration is applied. No goal was created.");
+  await assertScopedRecordLinks(db, scope, { categoryId: input.categoryId, goalId: input.parentGoalId });
   const id = nanoid();
-  await db.insert(goals).values({ id, workspaceId: scope.workspaceId, ...input });
-  return (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, id))).limit(1))[0]!;
+  await assertGoalParentIsAcyclic(db, scope, id, input.parentGoalId);
+  if (!intentionAvailable) {
+    // Drizzle's insert serializer includes newly declared optional fields as
+    // DEFAULT columns. Use the established pre-0004 column set explicitly.
+    await db.execute(sql`INSERT INTO "goals" ("id", "workspaceId", "categoryId", "parentGoalId", "title", "description", "state", "priority", "horizon", "color", "progressMode", "progressValue", "targetValue", "startLocalDate", "dueLocalDate")
+      VALUES (${id}, ${scope.workspaceId}, ${input.categoryId ?? null}, ${input.parentGoalId ?? null}, ${input.title}, ${input.description ?? null}, ${input.state ?? "not_started"}, ${input.priority ?? "medium"}, ${input.horizon ?? "yearly"}, ${input.color ?? null}, ${input.progressMode ?? "task"}, ${input.progressValue ?? 0}, ${input.targetValue ?? 100}, ${input.startLocalDate ?? null}, ${input.dueLocalDate ?? null})`);
+  } else {
+    await db.insert(goals).values({ id, workspaceId: scope.workspaceId, ...input });
+  }
+  return (await db.select(goalColumnsWithIntention(intentionAvailable)).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, id))).limit(1))[0]!;
 }
 
 export async function archiveGoal(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
@@ -1239,22 +1314,23 @@ export async function updateGoal(scope: PlannerScope, input: {
   };
 }) {
   const additiveKeys = ["intentionKind", "successCriteria", "standards", "reviewCadence", "nextReviewLocalDate"] as const;
-  if (additiveKeys.some(key => input.patch[key] !== undefined)) {
-    throw new Error("Outcome details require the approved Phase 4 schema migration before they can be edited.");
-  }
   const db = await requireDb();
-  const existing = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
+  const hasIntentionPatch = additiveKeys.some(key => input.patch[key] !== undefined);
+  const intentionAvailable = hasIntentionPatch ? await hasGoalIntentionColumns(db) : false;
+  if (hasIntentionPatch && !intentionAvailable) throw new PlannerCapabilityError("Outcome and Direction details are unavailable until the approved Phase 4 schema migration is applied. No goal was changed.");
+  const columns = goalColumnsWithIntention(intentionAvailable);
+  const existing = (await db.select(columns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Goal was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
   await assertScopedRecordLinks(db, scope, { categoryId: input.patch.categoryId, goalId: input.patch.parentGoalId });
+  if (input.patch.parentGoalId !== undefined) await assertGoalParentIsAcyclic(db, scope, input.id, input.patch.parentGoalId);
   const patch = { ...input.patch, version: input.expectedVersion + 1 } as Record<string, unknown>;
   if (patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
   if (patch.state && patch.state !== "completed") patch.completedAt = null;
   if (patch.state === "archived") patch.archivedAt = new Date();
-  await db.update(goals).set(patch).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion)));
-  const updated = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
-  if (updated.version === existing.version) throw new PlannerConflictError(updated);
-  return updated;
+  const updatedRows = await db.update(goals).set(patch).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion))).returning({ id: goals.id });
+  if (!updatedRows.length) throw new PlannerConflictError(existing);
+  return (await db.select(columns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
 }
 
 function matchingRecoveryRetry(existing: ResolutionRow, input: RecoveryDecision) {
