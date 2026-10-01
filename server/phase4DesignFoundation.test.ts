@@ -236,6 +236,47 @@ describe("Phase 4 design foundation", () => {
       expect(productionCss).toContain(declaration);
   });
 
+  it("keeps the R24 shell/workspace theme on the A semantic tokens in both themes", () => {
+    const css = source("client/src/index.css");
+    const themeBlock = css
+      .split("/* R24 type and surface pass: the imported A tokens are the sole shell/workspace palette. */")[1]
+      ?.split("/* iPhone-first controls:")[0] ?? "";
+
+    expect(themeBlock).not.toBe("");
+    expect(themeBlock).toContain("var(--surface)");
+    expect(themeBlock).toContain("var(--surface-elevated)");
+    expect(themeBlock).toContain("var(--ink)");
+    expect(themeBlock).toContain("var(--ink-muted)");
+    expect(themeBlock).toContain("var(--border)");
+    expect(themeBlock).toContain("var(--accent)");
+    expect(themeBlock).toContain("var(--selection)");
+    expect(themeBlock).toContain("var(--completion)");
+    expect(themeBlock).not.toMatch(/\.dark[^{}]*\{[^}]*#[\da-f]{3,8}/i);
+    expect(themeBlock).toMatch(/\.planner-topbar h1\s*\{[^}]*color:\s*var\(--ink\)/);
+    expect(themeBlock).toMatch(/\.task-row-meta\s*\{[^}]*font-size:\s*14px/);
+    expect(themeBlock).toMatch(/\.time-slot time\s*\{[^}]*font-size:\s*12px/);
+    expect(themeBlock).toMatch(/\.mobile-planner-nav button\s*\{[^}]*font-size:\s*14px/);
+  });
+
+  it("keeps quiet component accents distinct from the brand action color", () => {
+    const css = source("client/src/index.css");
+    expect(css).toContain("--color-accent: var(--selection)");
+    expect(css).toContain("--color-accent-foreground: var(--ink)");
+  });
+
+  it("keeps phone Calendar actions reachable without clipping short task blocks", () => {
+    const css = source("client/src/features/calendar/calendar-execution.css");
+    const component = source("client/src/features/calendar/CalendarExecutionWorkspace.tsx");
+    const finalTheme = css.split("/* Final phone readability/touch contract;")[1] ?? "";
+
+    expect(finalTheme).toContain(".calendar-execution-page { color:var(--ink)");
+    expect(finalTheme).toContain(".calendar-selected-task-actions button");
+    expect(finalTheme).toContain("min-height:44px");
+    expect(finalTheme).toContain(".calendar-block-actions { display:none !important; }");
+    expect(component).toContain('className="calendar-selected-task-actions"');
+    expect(component).toContain("aria-label={`Actions for ${selectedTimedTask.title}`}");
+  });
+
   it("imports the token foundation once and retains one 16px body baseline", () => {
     const indexCss = source("client/src/index.css");
 

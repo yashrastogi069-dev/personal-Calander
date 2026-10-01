@@ -121,6 +121,10 @@ export class PlannerCapabilityError extends Error {
   constructor(message: string) { super(message); this.name = "PlannerCapabilityError"; }
 }
 
+export class PlannerValidationError extends Error {
+  constructor(message: string) { super(message); this.name = "PlannerValidationError"; }
+}
+
 async function workspaceWithAccountability<T extends { id: string }>(db: Awaited<ReturnType<typeof requireDb>>, workspace: T): Promise<T & { accountabilityLevel: AccountabilityLevel; accountabilityAvailable: boolean }> {
   const accountabilityAvailable = await hasAccountabilityColumn(db);
   if (!accountabilityAvailable) return { ...workspace, accountabilityLevel: "structured" as AccountabilityLevel, accountabilityAvailable };
@@ -1295,6 +1299,132 @@ export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin:
     sent: results.reduce((total, result) => total + result.sent, 0),
     results,
   };
+}
+
+type ProjectPatch = Partial<Pick<typeof projects.$inferInsert,
+  "title" | "description" | "goalId" | "categoryId" | "state" | "priority" | "horizon" | "startLocalDate" | "dueLocalDate" |
+  "riskLevel" | "riskNote" | "nextReviewLocalDate">>;
+
+function validProjectLocalDate(value: string | null | undefined) {
+  if (value == null) return true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** Established project fields work before 0004; risk/review writes require its columns. */
+export async function updateProject(scope: PlannerScope, input: { id: string; expectedVersion: number; patch: ProjectPatch }) {
+  const db = await requireDb();
+  const riskKeys = ["riskLevel", "riskNote", "nextReviewLocalDate"] as const;
+  const hasRiskPatch = riskKeys.some(key => input.patch[key] !== undefined);
+  const riskAvailable = hasRiskPatch ? await hasProjectRiskColumns(db) : false;
+  if (hasRiskPatch && !riskAvailable) throw new PlannerCapabilityError("Project risk and review details are unavailable until the approved Phase 4 schema migration is applied. No project was changed.");
+  if (!Object.keys(input.patch).length) throw new PlannerValidationError("Choose at least one project field to change.");
+  const columns = riskAvailable ? { ...establishedProjectColumns, ...optionalProjectRiskColumns } : establishedProjectColumns;
+  await assertScopedRecordLinks(db, scope, { goalId: input.patch.goalId, categoryId: input.patch.categoryId });
+  return db.transaction(async tx => {
+    const hasDatePatch = input.patch.startLocalDate !== undefined || input.patch.dueLocalDate !== undefined;
+    // Edge edits use this same workspace lock, so a date check cannot race an edge change.
+    if (hasDatePatch) {
+      const locked = await tx.execute(sql`SELECT id FROM workspaces WHERE id = ${scope.workspaceId} FOR UPDATE`);
+      if (!locked.rows.length) throw new Error("Workspace was not found.");
+    }
+    const existing = (await tx.select(columns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0];
+    if (!existing) throw new Error("Project was not found.");
+    if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+    const start = input.patch.startLocalDate === undefined ? existing.startLocalDate : input.patch.startLocalDate;
+    const due = input.patch.dueLocalDate === undefined ? existing.dueLocalDate : input.patch.dueLocalDate;
+    if (!validProjectLocalDate(start) || !validProjectLocalDate(due) || !validProjectLocalDate(input.patch.nextReviewLocalDate)) {
+      throw new PlannerValidationError("Project dates must be real calendar dates in YYYY-MM-DD format.");
+    }
+    if (start && due && start > due) throw new PlannerValidationError("Project start date must be on or before its due date.");
+    if (hasDatePatch && (start !== existing.startLocalDate || due !== existing.dueLocalDate) && await hasProjectDependenciesTable(tx)) {
+      const edges = await tx.select({ projectId: projectDependencies.projectId, dependsOnProjectId: projectDependencies.dependsOnProjectId })
+        .from(projectDependencies).where(and(eq(projectDependencies.workspaceId, scope.workspaceId), eq(projectDependencies.dependencyType, "hard"),
+          or(eq(projectDependencies.projectId, input.id), eq(projectDependencies.dependsOnProjectId, input.id))));
+      const otherIds = Array.from(new Set(edges.map(edge => edge.projectId === input.id ? edge.dependsOnProjectId : edge.projectId)));
+      if (otherIds.length) {
+        const others = await tx.select({ id: projects.id, startLocalDate: projects.startLocalDate, dueLocalDate: projects.dueLocalDate })
+          .from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), inArray(projects.id, otherIds)));
+        const byId = new Map(others.map(project => [project.id, project]));
+        for (const edge of edges) {
+          const other = byId.get(edge.projectId === input.id ? edge.dependsOnProjectId : edge.projectId);
+          if (!other) continue;
+          const previousStart = edge.projectId === input.id ? existing.startLocalDate : other.startLocalDate;
+          const previousDue = edge.dependsOnProjectId === input.id ? existing.dueLocalDate : other.dueLocalDate;
+          const nextStart = edge.projectId === input.id ? start : other.startLocalDate;
+          const nextDue = edge.dependsOnProjectId === input.id ? due : other.dueLocalDate;
+          if (nextStart && nextDue && nextDue > nextStart && !(previousStart && previousDue && previousDue > previousStart)) {
+            throw new PlannerValidationError("Project dates conflict with a hard dependency: the prerequisite is due after the dependent project starts.");
+          }
+        }
+      }
+    }
+    const patch: Record<string, unknown> = { ...input.patch, updatedAt: new Date(), version: input.expectedVersion + 1 };
+    if (patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
+    if (patch.state && patch.state !== "completed") patch.completedAt = null;
+    if (patch.state === "archived") patch.archivedAt = new Date();
+    const changed = await tx.update(projects).set(patch).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id), eq(projects.version, input.expectedVersion))).returning({ id: projects.id });
+    if (!changed.length) throw new PlannerConflictError(existing);
+    return (await tx.select(columns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.id))).limit(1))[0]!;
+  });
+}
+
+async function requireProjectDependencies(db: Awaited<ReturnType<typeof requireDb>>) {
+  if (!await hasProjectDependenciesTable(db)) throw new PlannerCapabilityError("Project dependencies are unavailable until the approved Phase 4 schema migration is applied. No dependency was changed.");
+}
+
+/** Serialize edge edits in a workspace so concurrent additions cannot form a cycle. */
+export async function addProjectDependency(scope: PlannerScope, input: { projectId: string; dependsOnProjectId: string; dependencyType: "hard" | "soft"; expectedVersion: number }) {
+  const db = await requireDb();
+  await requireProjectDependencies(db);
+  return db.transaction(async tx => {
+    const locked = await tx.execute(sql`SELECT id FROM workspaces WHERE id = ${scope.workspaceId} FOR UPDATE`);
+    if (!locked.rows.length) throw new Error("Workspace was not found.");
+    const [source, prerequisite] = await Promise.all([
+      tx.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.projectId))).limit(1),
+      tx.select({ id: projects.id, dueLocalDate: projects.dueLocalDate }).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.dependsOnProjectId))).limit(1),
+    ]);
+    if (!source[0] || !prerequisite[0]) throw new Error("Both projects must exist in this workspace before linking a dependency.");
+    if (source[0].version !== input.expectedVersion) throw new PlannerConflictError(source[0]);
+    const edges = await tx.select({ projectId: projectDependencies.projectId, dependsOnProjectId: projectDependencies.dependsOnProjectId })
+      .from(projectDependencies).where(eq(projectDependencies.workspaceId, scope.workspaceId));
+    if (edges.some(edge => edge.projectId === input.projectId && edge.dependsOnProjectId === input.dependsOnProjectId)) throw new PlannerValidationError("This project dependency already exists.");
+    if (wouldCreateDependencyCycle(edges.map(edge => ({ taskId: edge.projectId, dependsOnTaskId: edge.dependsOnProjectId })), input.projectId, input.dependsOnProjectId)) {
+      throw new PlannerValidationError("That project dependency would create a cycle.");
+    }
+    if (input.dependencyType === "hard" && source[0].startLocalDate && prerequisite[0].dueLocalDate
+      && prerequisite[0].dueLocalDate > source[0].startLocalDate) {
+      throw new PlannerValidationError("This hard dependency conflicts with project dates: the prerequisite is due after the dependent project starts.");
+    }
+    const id = nanoid();
+    await tx.insert(projectDependencies).values({ id, workspaceId: scope.workspaceId, projectId: input.projectId, dependsOnProjectId: input.dependsOnProjectId, dependencyType: input.dependencyType });
+    const changed = await tx.update(projects).set({ version: input.expectedVersion + 1, updatedAt: new Date() })
+      .where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, input.projectId), eq(projects.version, input.expectedVersion))).returning({ id: projects.id });
+    if (!changed.length) throw new PlannerConflictError(source[0]);
+    return (await tx.select().from(projectDependencies).where(and(eq(projectDependencies.workspaceId, scope.workspaceId), eq(projectDependencies.id, id))).limit(1))[0]!;
+  });
+}
+
+export async function removeProjectDependency(scope: PlannerScope, input: { id: string; expectedVersion: number; projectExpectedVersion: number }) {
+  const db = await requireDb();
+  await requireProjectDependencies(db);
+  return db.transaction(async tx => {
+    const locked = await tx.execute(sql`SELECT id FROM workspaces WHERE id = ${scope.workspaceId} FOR UPDATE`);
+    if (!locked.rows.length) throw new Error("Workspace was not found.");
+    const edge = (await tx.select().from(projectDependencies).where(and(eq(projectDependencies.workspaceId, scope.workspaceId), eq(projectDependencies.id, input.id))).limit(1))[0];
+    if (!edge) throw new Error("Project dependency was not found.");
+    if (edge.version !== input.expectedVersion) throw new PlannerConflictError(edge);
+    const source = (await tx.select(establishedProjectColumns).from(projects).where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, edge.projectId))).limit(1))[0];
+    if (!source) throw new Error("Project was not found.");
+    if (source.version !== input.projectExpectedVersion) throw new PlannerConflictError(source);
+    const removed = await tx.delete(projectDependencies).where(and(eq(projectDependencies.workspaceId, scope.workspaceId), eq(projectDependencies.id, input.id), eq(projectDependencies.version, input.expectedVersion))).returning({ id: projectDependencies.id });
+    if (!removed.length) throw new PlannerConflictError(edge);
+    const changed = await tx.update(projects).set({ version: input.projectExpectedVersion + 1, updatedAt: new Date() })
+      .where(and(eq(projects.workspaceId, scope.workspaceId), eq(projects.id, edge.projectId), eq(projects.version, input.projectExpectedVersion))).returning({ id: projects.id });
+    if (!changed.length) throw new PlannerConflictError(source);
+    return { id: input.id, removed: true, projectVersion: input.projectExpectedVersion + 1 } as const;
+  });
 }
 
 /**

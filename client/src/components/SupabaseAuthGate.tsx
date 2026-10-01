@@ -102,7 +102,7 @@ export function SupabaseAuthGate() {
         <CardContent>
           <form className="space-y-4" onSubmit={submit}>
             {!supabase ? <p role="alert">Sign-in is not configured for this deployment. Contact the deployment owner.</p> : null}
-            <Button type="button" size="lg" className="w-full" disabled={pending || !supabase} onClick={() => void signInWithGoogle()}>
+            <Button type="button" size="lg" className="w-full min-h-11" disabled={pending || !supabase} onClick={() => void signInWithGoogle()}>
               {pending ? "Working…" : "Continue with Google"}
             </Button>
             <div className="flex items-center gap-3" aria-hidden="true">
@@ -112,18 +112,18 @@ export function SupabaseAuthGate() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="supabase-email">Email</Label>
-              <Input id="supabase-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} />
+              <Input id="supabase-email" className="min-h-11" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="supabase-password">Password</Label>
-              <Input id="supabase-password" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event => setPassword(event.target.value)} />
+              <Input id="supabase-password" className="min-h-11" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event => setPassword(event.target.value)} />
             </div>
             {error ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">{error}</p> : null}
             {notice ? <p role="status" className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">{notice}</p> : null}
-            <Button type="submit" size="lg" className="w-full" disabled={pending || !supabase}>
+            <Button type="submit" size="lg" className="w-full min-h-11" disabled={pending || !supabase}>
               {pending ? "Working…" : mode === "sign-in" ? "Sign in" : "Create account"}
             </Button>
-            <button type="button" className="w-full rounded-md py-2 text-sm font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setMode(mode === "sign-in" ? "sign-up" : "sign-in"); setError(null); setNotice(null); }}>
+            <button type="button" className="min-h-11 w-full rounded-md py-2 text-sm font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setMode(mode === "sign-in" ? "sign-up" : "sign-in"); setError(null); setNotice(null); }}>
               {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
             </button>
           </form>

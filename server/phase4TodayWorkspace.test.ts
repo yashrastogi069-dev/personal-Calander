@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   TodayWorkspace,
@@ -183,6 +184,23 @@ function renderToday(overrides: Partial<Parameters<typeof TodayWorkspace>[0]> = 
 }
 
 describe("Phase 4 Today workspace", () => {
+  it("keeps Today summary metrics in two columns at narrow phone widths", () => {
+    const css = readFileSync(
+      new URL("../client/src/features/today/today-workspace.css", import.meta.url),
+      "utf8"
+    );
+    const narrowPhoneRules = css.match(
+      /@media \(max-width: 360px\)\s*\{([\s\S]*?)\n\}/
+    )?.[1];
+
+    expect(narrowPhoneRules).toBeDefined();
+    expect(narrowPhoneRules).toMatch(/\.today-summary\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(narrowPhoneRules).toMatch(/\.today-summary\s*>\s*div:nth-child\(-n\s*\+\s*2\)\s*\{[^}]*border-top:\s*0/);
+    expect(narrowPhoneRules).toMatch(/\.today-summary\s*>\s*div:nth-child\(2n\)[\s\S]*?border-right:\s*0/);
+    expect(narrowPhoneRules).toMatch(/\.today-summary\s*>\s*div:last-child\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
+    expect(css).toMatch(/\.today-summary small\s*\{[^}]*font-size:\s*14px/);
+  });
+
   it("renders the daily briefing in the canonical product order", () => {
     const html = renderToday();
     const sections = [

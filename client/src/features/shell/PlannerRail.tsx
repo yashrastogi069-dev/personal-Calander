@@ -23,6 +23,7 @@ import {
 
 export const shellSecondaryTargets = [
   { label: "Calendar", destination: "plan", view: "calendar" },
+  { label: "Roadmap", destination: "plan", view: "roadmap" },
   { label: "Goals", destination: "intentions", view: "outcomes" },
   { label: "Connections", destination: "settings", view: "connections" },
   { label: "Insights", destination: "review", view: "insights" },
@@ -38,6 +39,7 @@ const secondaryIcons: Record<
   LucideIcon
 > = {
   Calendar: CalendarDays,
+  Roadmap: CalendarDays,
   Goals: Target,
   Connections: Link2,
   Insights: BarChart3,

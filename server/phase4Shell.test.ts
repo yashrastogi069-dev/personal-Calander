@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   migratePhase4Preferences,
@@ -25,6 +26,18 @@ import appSource from "../client/src/App.tsx?raw";
 import homeSource from "../client/src/pages/Home.tsx?raw";
 import calendarExecutionSource from "../client/src/pages/CalendarExecution.tsx?raw";
 import calendarWorkspaceSource from "../client/src/features/calendar/CalendarExecutionWorkspace.tsx?raw";
+const calendarExecutionStyles = readFileSync(
+  new URL("../client/src/features/calendar/calendar-execution.css", import.meta.url),
+  "utf8"
+);
+const planWorkspaceSource = readFileSync(
+  new URL("../client/src/features/planning/PlanWorkspace.tsx", import.meta.url),
+  "utf8"
+);
+const planStageStyles = readFileSync(
+  new URL("../client/src/features/planning/plan-stages.css", import.meta.url),
+  "utf8"
+);
 
 const today = { destination: "home", view: "today" } as const;
 
@@ -62,9 +75,37 @@ describe("Phase 4 stable planner shell", () => {
     expect(calendarExecutionSource).toContain("CalendarExecutionWorkspace");
   });
 
+  it("keeps Calendar phone labels readable and touch controls at least 44px", () => {
+    expect(calendarExecutionStyles).toMatch(
+      /@media \(max-width:780px\)[\s\S]*?\.calendar-date-rail button span,[\s\S]*?font-size:12px/
+    );
+    expect(calendarExecutionStyles).toMatch(
+      /\.calendar-execution-day-controls button\s*\{\s*width:44px;\s*height:44px;/
+    );
+    expect(calendarExecutionStyles).toMatch(
+      /\.calendar-selected-task-actions button\s*\{[^}]*min-height:44px/
+    );
+    expect(calendarExecutionStyles).toContain(".calendar-block-actions { display:none !important; }");
+    expect(calendarExecutionStyles).toMatch(
+      /\.calendar-day-grid\s*\{\s*grid-template-rows:none !important;\s*grid-auto-rows:44px;/
+    );
+  });
+
+  it("replaces the cramped phone Plan strip with guided stage navigation and direct access", () => {
+    expect(planWorkspaceSource).toContain('className="plan-mobile-stepper"');
+    expect(planWorkspaceSource).toContain('aria-label="Previous planning stage"');
+    expect(planWorkspaceSource).toContain('aria-label="Next planning stage"');
+    expect(planWorkspaceSource).toContain('aria-label="Jump to planning stage"');
+    expect(planWorkspaceSource).toContain('className="plan-stage-nav"');
+    expect(planStageStyles).toMatch(/@media \(max-width: 700px\)[\s\S]*?\.plan-stage-nav \{ display:none; \}/);
+    expect(planStageStyles).toMatch(/\.plan-mobile-stepper select \{[^}]*min-height:44px/);
+    expect(planStageStyles).toMatch(/\.plan-mobile-stepper > button \{[^}]*min-height:44px/);
+  });
+
   it("keeps every legacy child view and Categories utility reachable", () => {
     expect(shellSecondaryTargets).toEqual([
       { label: "Calendar", destination: "plan", view: "calendar" },
+      { label: "Roadmap", destination: "plan", view: "roadmap" },
       { label: "Goals", destination: "intentions", view: "outcomes" },
       {
         label: "Connections",

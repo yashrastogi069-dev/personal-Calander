@@ -68,7 +68,21 @@
 
 .phase4-phone-more-list {
   display: grid;
+  gap: 20px;
+}
+
+.phase4-phone-more-group {
+  display: grid;
   gap: 8px;
+}
+
+.phase4-phone-more-heading {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--ink-muted);
+  font: 700 11px/1.35 "IBM Plex Mono", monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .phase4-phone-more-list button {

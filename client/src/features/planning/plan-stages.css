@@ -7,6 +7,7 @@
   gap: 8px;
   min-width: 0;
 }
+.plan-mobile-stepper { display:none; }
 .plan-stage-button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -31,6 +32,24 @@
 .plan-stage-button.is-active { color: var(--ink); border-color: var(--accent); background: var(--selection); box-shadow: inset 0 3px 0 var(--accent); }
 .plan-stage-button:focus-visible, .plan-calendar-stage button:focus-visible, .plan-closed-note button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .plan-stage-empty { margin: 0; color: var(--ink-muted); font-size: 14px; }
+.plan-review-panel { display: grid; gap: 16px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-elevated); }
+.plan-review-intention, .plan-review-reflection { display: grid; gap: 5px; margin: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 14px; line-height: 1.5; }
+.plan-review-intention strong, .plan-review-reflection strong { color: var(--ink-muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.plan-review-list { display: grid; gap: 8px; margin: 0; padding-left: 24px; }
+.plan-review-list li { padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.plan-review-list li::marker { color: var(--accent); font-weight: 700; }
+.plan-review-list strong { display: block; overflow-wrap: anywhere; color: var(--ink); font-size: 14px; }
+.plan-review-list span { color: var(--ink-muted); font-size: 12px; text-transform: capitalize; }
+.plan-review-next { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.plan-review-next p { margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.5; }
+.plan-review-next button { flex: none; min-height: 44px; }
+.plan-weekly-tools { min-width: 0; }
+.plan-weekly-tools summary { cursor: pointer; color: var(--ink); font-size: 16px; font-weight: 700; }
+.plan-weekly-tools summary small { display: block; margin: 4px 0 0 20px; color: var(--ink-muted); font-size: 12px; font-weight: 500; }
+.plan-weekly-tools summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+.plan-weekly-content { display: grid; gap: 12px; padding-top: 16px; }
+.plan-weekly-content > p { margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.5; }
+.plan-weekly-content > .plan-link { justify-self: start; }
 .plan-calendar-stage {
   display: flex;
   align-items: center;
@@ -63,13 +82,20 @@
 .plan-history-list span, .plan-history-list small { color: var(--ink-muted); font-size: 11px; }
 .plan-history-list p { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
 @media (max-width: 700px) {
-  .plan-stage-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-  .plan-stage-button { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 60px; padding: 8px 3px; text-align: center; }
-  .plan-stage-button span { font-size: 10px; }
-  .plan-stage-button strong { width: 100%; font-size: 11px; }
-  .plan-stage-button small { display: none; }
+  .plan-stage-nav { display:none; }
+  .plan-mobile-stepper { display:grid; grid-template-columns:44px minmax(0,1fr) auto; align-items:center; gap:8px; }
+  .plan-mobile-stepper > button { display:inline-flex; min-width:44px; min-height:44px; align-items:center; justify-content:center; gap:3px; padding:0 9px; color:var(--ink); border:1px solid var(--border); border-radius:10px; background:var(--surface-elevated); font-size:14px; font-weight:700; }
+  .plan-mobile-stepper > button:last-of-type { color:var(--primary-foreground); border-color:var(--accent); background:var(--accent); }
+  .plan-mobile-stepper > button:disabled { color:var(--ink-muted); border-color:var(--border); background:var(--surface); opacity:.56; }
+  .plan-mobile-stepper > div { display:grid; gap:3px; min-width:0; text-align:center; }
+  .plan-mobile-stepper > div > span { color:var(--ink-muted); font-size:12px; }
+  .plan-mobile-stepper > div > strong { color:var(--ink); font-size:16px; }
+  .plan-mobile-stepper select { grid-column:1 / -1; width:100%; min-height:44px; padding:0 12px; color:var(--ink); border:1px solid var(--border); border-radius:10px; background:var(--surface-elevated); font-size:14px; }
   .plan-calendar-stage { flex-direction: column; align-items: stretch; padding: 18px; }
   .plan-calendar-stage button { width: 100%; }
+  .plan-review-panel { padding: 16px; }
+  .plan-review-next { align-items: stretch; flex-direction: column; }
+  .plan-review-next button { width: 100%; }
   .plan-closed-note { align-items: stretch; flex-direction: column; }
   .weekly-evidence-edit { grid-template-columns: 1fr; }
 }

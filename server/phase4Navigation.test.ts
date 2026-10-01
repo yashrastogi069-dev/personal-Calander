@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   legacyPlannerAliases,
   phase4Destinations,
@@ -50,6 +52,23 @@ class MemoryStorage implements Storage {
 }
 
 describe("Phase 4 planner navigation", () => {
+  it("keeps legacy goal progress and project breakdown tools in the Goals disclosure", () => {
+    const homeSource = readFileSync(
+      fileURLToPath(new URL("../client/src/pages/Home.tsx", import.meta.url)),
+      "utf8"
+    );
+    const disclosure = homeSource.match(
+      /<details className="goal-legacy-tools">([\s\S]*?)<\/details>/
+    )?.[1];
+
+    expect(disclosure).toBeDefined();
+    expect(disclosure).toContain("More goal and project tools");
+    expect(disclosure).toContain("progress compass and project breakdown tools");
+    expect(disclosure).toContain("<GoalPanel");
+    expect(disclosure).toContain('className="project-listing"');
+    expect(disclosure).toContain("setBreakdownProject(project)");
+  });
+
   it("exposes the six primary groups without promoting settings to a seventh destination", () => {
     expect(phase4Destinations).toEqual([
       { id: "home", label: "Home", views: ["today", "overview"] },
@@ -259,6 +278,7 @@ describe("Phase 4 device preference migration", () => {
       "plan/calendar",
       "plan/daily",
       "review/history",
+      "plan/roadmap",
       "intentions/outcomes",
       "settings/connections",
       "review/insights",

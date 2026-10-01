@@ -101,6 +101,49 @@ function isActive(
   );
 }
 
+export function activePhonePrimaryShortcutKey(
+  location: PlannerLocationTarget,
+  primary: readonly PlannerPreferenceShortcut[]
+) {
+  const exact = primary.find(target => isActive(location, target));
+  if (exact) return plannerShortcutKey(exact);
+
+  const parent =
+    location.destination === "settings"
+      ? ({ destination: "settings", view: "account" } as const)
+      : targetForDestination(location.destination);
+  const parentShortcut = primary.find(target => isActive(parent, target));
+  return parentShortcut ? plannerShortcutKey(parentShortcut) : null;
+}
+
+const phoneMoreSections = [
+  { id: "work", label: "Work" },
+  { id: "planning", label: "Planning & review" },
+  { id: "account", label: "Account & settings" },
+] as const;
+
+function sectionForPhoneTarget(target: PlannerLocationTarget) {
+  if (target.destination === "settings") return "account";
+  if (
+    target.destination === "plan" ||
+    target.destination === "intentions" ||
+    target.destination === "review"
+  )
+    return "planning";
+  return "work";
+}
+
+export function groupPhoneMoreTargets(
+  targets: readonly PlannerPreferenceShortcut[]
+) {
+  return phoneMoreSections
+    .map(section => ({
+      ...section,
+      targets: targets.filter(target => sectionForPhoneTarget(target) === section.id),
+    }))
+    .filter(section => section.targets.length > 0);
+}
+
 function iconFor(target: PlannerLocationTarget) {
   return icons[target.destination];
 }
@@ -144,7 +187,9 @@ export function PhoneNavigation({
       target => !primaryKeys.has(plannerShortcutKey(target))
     );
   }, [preferences.order, primary]);
-  const moreIsActive = moreTargets.some(target => isActive(location, target));
+  const moreGroups = useMemo(() => groupPhoneMoreTargets(moreTargets), [moreTargets]);
+  const activePrimaryKey = activePhonePrimaryShortcutKey(location, primary);
+  const moreIsActive = activePrimaryKey === null;
 
   const navigate = (target: PlannerLocationTarget) => {
     onNavigate(target);
@@ -157,7 +202,7 @@ export function PhoneNavigation({
         {primary.map(target => {
           const Icon = iconFor(target);
           const label = labelForShortcut(target);
-          const active = isActive(location, target);
+          const active = activePrimaryKey === plannerShortcutKey(target);
           return (
             <button
               key={plannerShortcutKey(target)}
@@ -196,21 +241,35 @@ export function PhoneNavigation({
           className="phase4-phone-more-list"
           aria-label="More planning destinations"
         >
-          {moreTargets.map(target => {
-            const Icon = iconFor(target);
-            const label = labelForShortcut(target);
-            const active = isActive(location, target);
+          {moreGroups.map(group => {
+            const headingId = `phase4-phone-more-${group.id}`;
             return (
-              <button
-                key={plannerShortcutKey(target)}
-                type="button"
-                className={active ? "is-active" : undefined}
-                aria-current={active ? "page" : undefined}
-                onClick={() => navigate(target)}
+              <section
+                key={group.id}
+                className="phase4-phone-more-group"
+                aria-labelledby={headingId}
               >
-                <Icon aria-hidden="true" size={20} />
-                <span>{label}</span>
-              </button>
+                <h3 id={headingId} className="phase4-phone-more-heading">
+                  {group.label}
+                </h3>
+                {group.targets.map(target => {
+                  const Icon = iconFor(target);
+                  const label = labelForShortcut(target);
+                  const active = isActive(location, target);
+                  return (
+                    <button
+                      key={plannerShortcutKey(target)}
+                      type="button"
+                      className={active ? "is-active" : undefined}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => navigate(target)}
+                    >
+                      <Icon aria-hidden="true" size={20} />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </section>
             );
           })}
         </nav>

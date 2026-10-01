@@ -224,9 +224,14 @@ const CalendarIntegrationWorkspace = lazy(() =>
     module => ({ default: module.CalendarIntegrationWorkspace })
   )
 );
-const ProjectExecutionWorkspace = lazy(() =>
-  import("@/features/projects/ProjectExecutionWorkspace").then(module => ({
-    default: module.ProjectExecutionWorkspace,
+const ProjectDetail = lazy(() =>
+  import("@/features/goals/ProjectDetail").then(module => ({
+    default: module.ProjectDetail,
+  }))
+);
+const RoadmapWorkspace = lazy(() =>
+  import("@/features/goals/RoadmapWorkspace").then(module => ({
+    default: module.RoadmapWorkspace,
   }))
 );
 const HabitDisciplineWorkspace = lazy(() =>
@@ -6927,6 +6932,9 @@ export default function Home() {
   const createProject = trpc.planner.project.create.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
+  const updateProject = trpc.planner.project.update.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
+  });
   const createHabit = trpc.planner.habit.create.useMutation({
     onSuccess: () => {
       utils.planner.workspace.snapshot.invalidate();
@@ -6983,6 +6991,11 @@ export default function Home() {
         habitCheckIn: availableSnapshot.data.habitCheckIns,
       }
     : availableSnapshot.data;
+  // The execution surfaces intentionally hide archived projects, but Roadmap
+  // and a selected project detail must retain their recorded history.
+  const roadmapSnapshot = availableSnapshot.data
+    ? { ...snapshot, projects: availableSnapshot.data.projects }
+    : snapshot;
   const todayProjection = useMemo(() => {
     if (!snapshot) return null;
     return projectToday({
@@ -7193,6 +7206,37 @@ export default function Home() {
     setPlannerLocation(next);
     if (typeof window !== "undefined")
       writePlannerLocation(new URL(window.location.href), next, window.history);
+  };
+  const openProjectRecord = (id: string) => {
+    const next = {
+      ...plannerLocation,
+      destination: "intentions" as const,
+      view: "projects" as const,
+      selectedRecord: id,
+    };
+    setPlannerLocation(next);
+    if (typeof window !== "undefined")
+      writePlannerLocation(new URL(window.location.href), next, window.history);
+  };
+  const openTaskRecord = (id: string) => {
+    const next = {
+      ...plannerLocation,
+      destination: "tasks" as const,
+      view: "list" as const,
+      action: undefined,
+      selectedRecord: id,
+    };
+    setPlannerLocation(next);
+    if (typeof window !== "undefined")
+      writePlannerLocation(new URL(window.location.href), next, window.history);
+  };
+  const applyProjectRoadmapMove = async (input: {
+    id: string;
+    expectedVersion: number;
+    patch: { startLocalDate?: string | null; dueLocalDate?: string | null };
+  }) => {
+    if (!isOnline) throw new Error("Reconnect before changing project dates. Nothing was saved.");
+    return updateProject.mutateAsync({ ...scope, ...input });
   };
   const updateTaskBoardUrl = useCallback(
     (view: { query: string; filter: TaskBoardFilter; sort: TaskWorkspaceSort }) => {
@@ -8402,23 +8446,41 @@ export default function Home() {
         ) : null}
         {surface === "plan" ? (
           <Suspense fallback={<DestinationLoading label="Plan" />}>
-            <PlanWorkspace
-              scope={scope}
-              today={today}
-              snapshot={snapshot}
-              dashboard={dashboardQuery.data}
-              focusEarlierCommitments={focusEarlierCommitments}
-              onRecoveryIntentConsumed={() => setFocusEarlierCommitments(false)}
-              focusItemId={linkedPlanItemId}
-              isOnline={isOnline}
-              onOpenTasks={focusTaskSearch}
-              onOpenGoals={() => selectSurface("goals")}
-              onOpenCalendar={() => selectSurface("calendar")}
-            />
-            <OwnedToolsDisclosure summary="Planning and recurring work tools">
-              <DailyCompass />
-              <RecurringWorkControl />
-            </OwnedToolsDisclosure>
+            <nav className="plan-view-switch" aria-label="Planning views">
+              <button type="button" aria-current={plannerLocation.view !== "roadmap" ? "page" : undefined} onClick={() => navigatePlanner({ destination: "plan", view: "daily" })}>Daily plan</button>
+              <button type="button" aria-current={plannerLocation.view === "roadmap" ? "page" : undefined} onClick={() => navigatePlanner({ destination: "plan", view: "roadmap" })}>Roadmap</button>
+              <button type="button" onClick={() => navigatePlanner({ destination: "plan", view: "calendar" })}>Calendar</button>
+            </nav>
+            {plannerLocation.view === "roadmap" ? (
+              <RoadmapWorkspace
+                snapshot={roadmapSnapshot}
+                workspaceId={scope.workspaceId}
+                todayLocalDate={today}
+                isOnline={isOnline}
+                onOpenProject={openProjectRecord}
+                onApplyMove={applyProjectRoadmapMove}
+              />
+            ) : (
+              <>
+                <PlanWorkspace
+                  scope={scope}
+                  today={today}
+                  snapshot={snapshot}
+                  dashboard={dashboardQuery.data}
+                  focusEarlierCommitments={focusEarlierCommitments}
+                  onRecoveryIntentConsumed={() => setFocusEarlierCommitments(false)}
+                  focusItemId={linkedPlanItemId}
+                  isOnline={isOnline}
+                  onOpenTasks={focusTaskSearch}
+                  onOpenGoals={() => selectSurface("goals")}
+                  onOpenCalendar={() => selectSurface("calendar")}
+                />
+                <OwnedToolsDisclosure summary="Planning and recurring work tools">
+                  <DailyCompass />
+                  <RecurringWorkControl />
+                </OwnedToolsDisclosure>
+              </>
+            )}
           </Suspense>
         ) : null}
         {surface === "capture" ? (
@@ -8550,7 +8612,7 @@ export default function Home() {
           </section>
         ) : null}
         {surface === "goals" || surface === "projects" ? (
-          <section className="work-surface goal-workspace">
+          <section className={cn("work-surface goal-workspace", surface === "projects" && "is-projects-view", surface === "projects" && plannerLocation.selectedRecord && "has-selected-project")}>
             <ProjectsGoalsWorkspace
               goals={snapshot.goals}
               projects={snapshot.projects}
@@ -8562,7 +8624,7 @@ export default function Home() {
               projectRiskAvailable={snapshot.projectRiskAvailable}
               projectDependenciesAvailable={snapshot.projectDependenciesAvailable}
               initialTab={plannerLocation.view === "directions" ? "directions" : plannerLocation.view === "projects" ? "projects" : "outcomes"}
-              selectedRecordId={surface === "goals" ? plannerLocation.selectedRecord : null}
+              selectedRecordId={plannerLocation.selectedRecord}
               onSelectGoal={updateSelectedRecord}
               onTabChange={(tab, selectedRecordId) => {
                 searchReturnTargetRef.current = null;
@@ -8575,6 +8637,7 @@ export default function Home() {
                 if (!isOnline) throw new Error("Reconnect before creating a goal. Nothing was saved.");
                 return createGoal.mutateAsync({ ...scope, ...values } as any);
               }}
+              onCreateProject={() => openComposer("project")}
               onUpdateGoal={async input => {
                 if (!isOnline) throw new Error("Reconnect before changing an intention. Nothing was saved.");
                 return updateGoal.mutateAsync({ ...scope, ...input } as any);
@@ -8589,69 +8652,98 @@ export default function Home() {
                 setPlannerLocation(next);
                 if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
               }}
-              onOpenProject={project => {
-                const next = { ...plannerLocation, destination: "intentions" as const, view: "projects" as const, selectedRecord: project.id };
-                setPlannerLocation(next);
-                if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
-              }}
+              onOpenProject={project => openProjectRecord(project.id)}
+              onCloseProject={() => updateSelectedRecord(null)}
             />
-            {surface === "goals" ? <GoalPanel
-              goals={snapshot.goals}
-              projects={snapshot.projects}
-              tasks={snapshot.tasks}
-              categories={snapshot.categories}
-              onCompose={() => openComposer("goal")}
-            /> : null}
-            {surface === "goals" ? <div className="project-listing">
-              <div className="panel-heading">
-                <div>
-                  <span className="eyebrow">Finite bodies of work</span>
-                  <h2>Projects</h2>
-                </div>
-                <button
-                  className="text-button"
-                  onClick={() => openComposer("project")}
-                >
-                  New project <Plus size={14} />
-                </button>
-              </div>
-              {snapshot.projects.length ? (
-                snapshot.projects.map(project => (
-                  <div className="project-row" key={project.id}>
-                    <div>
-                      <strong>{project.title}</strong>
-                      <span>
-                        {project.horizon} horizon
-                        {project.dueLocalDate
-                          ? ` · due ${project.dueLocalDate}`
-                          : ""}
-                      </span>
-                    </div>
-                    <div className="project-row-actions">
-                      <button
-                        type="button"
-                        className="text-button"
-                        onClick={() => setBreakdownProject(project)}
-                      >
-                        Break down
-                      </button>
-                      <span
-                        className={cn("state-pill", `state-${project.state}`)}
-                      >
-                        {project.state.replace("_", " ")}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState
-                  title="Projects make goals executable"
-                  detail="Create a finite project and connect daily work to it."
-                  action={() => openComposer("project")}
+            {surface === "goals" ? (
+              <details className="goal-legacy-tools">
+                <summary>
+                  <span>More goal and project tools</span>
+                  <small>
+                    The progress compass and project breakdown tools are kept here.
+                  </small>
+                </summary>
+                <GoalPanel
+                  goals={snapshot.goals}
+                  projects={snapshot.projects}
+                  tasks={snapshot.tasks}
+                  categories={snapshot.categories}
+                  onCompose={() => openComposer("goal")}
                 />
-              )}
-            </div> : null}
-            {surface === "projects" ? <Suspense fallback={<DestinationLoading label="Projects" />}><ProjectExecutionWorkspace scope={scope} snapshot={snapshot} onOpenTasks={focusTaskSearch} /></Suspense> : null}
+                <div className="project-listing">
+                  <div className="panel-heading">
+                    <div>
+                      <span className="eyebrow">Finite bodies of work</span>
+                      <h2>Projects</h2>
+                    </div>
+                    <button
+                      className="text-button"
+                      onClick={() => openComposer("project")}
+                    >
+                      New project <Plus size={14} />
+                    </button>
+                  </div>
+                  {snapshot.projects.length ? (
+                    snapshot.projects.map(project => (
+                      <div className="project-row" key={project.id}>
+                        <div>
+                          <strong>{project.title}</strong>
+                          <span>
+                            {project.horizon} horizon
+                            {project.dueLocalDate
+                              ? ` · due ${project.dueLocalDate}`
+                              : ""}
+                          </span>
+                        </div>
+                        <div className="project-row-actions">
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => setBreakdownProject(project)}
+                          >
+                            Break down
+                          </button>
+                          <span
+                            className={cn("state-pill", `state-${project.state}`)}
+                          >
+                            {project.state.replace("_", " ")}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState
+                      title="Projects make goals executable"
+                      detail="Create a finite project and connect daily work to it."
+                      action={() => openComposer("project")}
+                    />
+                  )}
+                </div>
+              </details>
+            ) : null}
+            {surface === "projects" && plannerLocation.selectedRecord ? (
+              <Suspense fallback={<DestinationLoading label="Project detail" />}>
+                <ProjectDetail
+                  projectId={plannerLocation.selectedRecord}
+                  scope={scope}
+                  snapshot={roadmapSnapshot}
+                  todayLocalDate={today}
+                  isOnline={isOnline}
+                  onBack={() => updateSelectedRecord(null)}
+                  onOpenTasks={focusTaskSearch}
+                  onOpenTask={openTaskRecord}
+                  onBreakDown={project => setBreakdownProject(project)}
+                  onSelectProject={openProjectRecord}
+                  onOpenGoal={id => {
+                    const goal = snapshot.goals.find(item => item.id === id);
+                    const next = { ...plannerLocation, destination: "intentions" as const, view: goal?.intentionKind === "direction" ? "directions" as const : "outcomes" as const, selectedRecord: id };
+                    setPlannerLocation(next);
+                    if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
+                  }}
+                  onApplyMove={applyProjectRoadmapMove}
+                />
+              </Suspense>
+            ) : null}
           </section>
         ) : null}
         {surface === "habits" ? (
@@ -8697,7 +8789,7 @@ export default function Home() {
         ) : null}
         {surface === "focus" ? (
           <Suspense fallback={<DestinationLoading label="Focus" />}>
-            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} initialTaskId={focusEntryTaskId} />
+            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} initialTaskId={focusEntryTaskId} isOnline={isOnline} />
           </Suspense>
         ) : null}
         {surface === "connections" ? (
@@ -8773,7 +8865,7 @@ export default function Home() {
         }}
       />
       <SearchRecordSheet
-        target={surface !== "goals" && plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) && searchEntityForLocation(plannerLocation) !== "task"
+        target={surface !== "goals" && surface !== "projects" && plannerLocation.selectedRecord && searchEntityForLocation(plannerLocation) && searchEntityForLocation(plannerLocation) !== "task"
           ? { entity: searchEntityForLocation(plannerLocation)!, id: plannerLocation.selectedRecord }
           : null}
         scope={scope}

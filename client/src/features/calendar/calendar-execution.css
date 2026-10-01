@@ -229,3 +229,189 @@
 .calendar-execution-feedback { color:#8b3328; border-color:#e7a79d; background:#fff0ed; font-size:12px; font-weight:700; }
 @media (max-width:780px) { .calendar-execution-page { padding:16px 10px 34px; }.calendar-execution-page-top h1 { font-size:28px; }.calendar-execution-header h2 { font-size:22px; }.calendar-execution-header p { font-size:13px; }.calendar-execution-note { font-size:11px; }.calendar-inbox { border-bottom-color:#c2d9cf; }.calendar-day-grid-wrap { padding:13px 9px; }.calendar-day-grid-status { font-size:10px; }.calendar-grid-slot time { font-size:10px; }.calendar-task-block b { font-size:11px; }.calendar-task-block > span { font-size:9px; }.calendar-keyboard-guide { font-size:11px; } }
 @media (max-width:460px) { .calendar-date-rail button b { font-size:17px; }.calendar-inbox-task b { font-size:12px; }.calendar-inbox-task small { font-size:10px; }.calendar-task-block { padding:7px; } }
+
+/* Final phone readability/touch contract; keep these rules after theme layers above. */
+.calendar-selected-task-actions { display:none; }
+@media (max-width:780px) {
+  .calendar-date-rail button span,
+  .calendar-date-rail button small,
+  .calendar-day-grid-status,
+  .calendar-inbox-task small,
+  .calendar-grid-slot time,
+  .calendar-grid-hint,
+  .calendar-task-block > span {
+    font-size:12px;
+  }
+
+  .calendar-execution-day-controls button {
+    width:44px;
+    height:44px;
+  }
+
+  .calendar-date-rail button,
+  .calendar-inbox-task,
+  .calendar-inbox-empty button,
+  .calendar-rollover button,
+  .calendar-create-task,
+  .calendar-execution-open-tasks,
+  .calendar-execution-back,
+  .calendar-grid-slot,
+  .calendar-execution-feedback button {
+    min-height:44px;
+  }
+
+  /* Each 15-minute grid action receives its own non-overlapping phone hit area. */
+  .calendar-day-grid {
+    grid-template-rows:none !important;
+    grid-auto-rows:44px;
+  }
+
+  .calendar-task-block {
+    grid-template-columns:minmax(0,1fr) auto;
+    align-content:center;
+    gap:1px 8px;
+    padding:3px 6px;
+  }
+
+  .calendar-task-block > div:first-child { grid-column:1; }
+  .calendar-task-block b { font-size:13px; }
+  .calendar-task-block > span { color:var(--ink-muted) !important; font-size:12px; }
+  .calendar-block-complete,
+  .calendar-block-actions { display:none !important; }
+
+  .calendar-selected-task-actions {
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    margin:0 0 12px;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--surface-elevated);
+  }
+
+  .calendar-selected-task-actions strong {
+    flex-basis:100%;
+    overflow:hidden;
+    color:var(--ink);
+    font-size:14px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .calendar-selected-task-actions button {
+    display:inline-flex;
+    min-height:44px;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:0 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--ink);
+    background:var(--surface);
+    font-size:14px;
+    font-weight:700;
+  }
+
+  .calendar-selected-task-actions button:nth-of-type(n+3) {
+    color:var(--primary-foreground);
+    border-color:var(--accent);
+    background:var(--accent);
+  }
+
+  .calendar-selected-task-actions button:disabled { opacity:.5; }
+}
+
+/* Calendar is a full workspace: use the same approved A tokens as the shell in both themes. */
+.calendar-execution-page { color:var(--ink) !important; background:var(--surface) !important; }
+.dark .calendar-execution-page { color-scheme:dark; }
+.calendar-execution-page-top h1,
+.calendar-execution-header h2,
+.calendar-inbox-heading h3,
+.calendar-rollover h3,
+.calendar-grid-unavailable h3 { color:var(--ink) !important; }
+.calendar-execution-back,
+.calendar-execution-header p,
+.calendar-execution-note,
+.calendar-execution-note b,
+.calendar-inbox-help,
+.calendar-inbox-empty,
+.calendar-day-grid-status,
+.calendar-day-grid-status span:last-child,
+.calendar-grid-unavailable p,
+.calendar-rollover p,
+.calendar-keyboard-guide,
+.calendar-keyboard-guide > span { color:var(--ink-muted) !important; }
+.calendar-execution,
+.calendar-execution-page-state,
+.calendar-inbox-task,
+.calendar-day-grid,
+.calendar-day-grid-wrap,
+.calendar-execution-day-controls,
+.calendar-selected-task-actions { color:var(--ink) !important; border-color:var(--border) !important; background:var(--surface-elevated) !important; box-shadow:none !important; }
+.calendar-execution-header,
+.calendar-execution-note,
+.calendar-rollover,
+.calendar-keyboard-guide,
+.calendar-inbox { border-color:var(--border) !important; background:var(--surface) !important; }
+.calendar-date-rail { border-color:var(--border) !important; background:var(--selection) !important; }
+.calendar-date-rail button,
+.calendar-date-rail button small,
+.calendar-date-rail button.is-today:not(.is-selected),
+.calendar-day-controls button { color:var(--ink-muted) !important; }
+.calendar-date-rail button:hover,
+.calendar-inbox-task:hover,
+.calendar-inbox-task.is-selected { color:var(--ink) !important; border-color:var(--accent) !important; background:var(--selection) !important; }
+.calendar-date-rail button.is-selected,
+.calendar-create-task,
+.calendar-rollover button,
+.calendar-inbox-empty button { color:var(--primary-foreground) !important; border-color:var(--accent) !important; background:var(--accent) !important; box-shadow:none !important; }
+.calendar-day-grid-status,
+.calendar-grid-slot,
+.calendar-grid-slot time,
+.calendar-grid-hint { color:var(--ink-muted) !important; }
+.calendar-grid-slot { border-top-color:var(--border) !important; }
+.calendar-grid-slot.is-ready:hover,
+.calendar-grid-slot.is-ready:focus-visible,
+.calendar-grid-slot.is-keyboard-selected { background:var(--selection) !important; box-shadow:inset 3px 0 0 var(--accent) !important; }
+.calendar-task-block { color:var(--ink) !important; background:var(--selection) !important; box-shadow:none !important; }
+.calendar-task-block b { color:var(--ink) !important; }
+.calendar-block-complete,
+.calendar-block-remove,
+.calendar-block-resize button { color:var(--ink) !important; border-color:var(--border) !important; background:var(--surface-elevated) !important; }
+.calendar-execution-day-controls button:hover { color:var(--ink) !important; background:var(--selection) !important; }
+@media (max-width:780px) {
+  .calendar-date-rail { grid-template-columns:repeat(7,48px); overflow-x:auto; justify-content:start; }
+  .calendar-date-rail button { width:48px; min-height:52px; }
+}
+
+/* Semantic text completes the calendar theme: old light-only foregrounds disappeared at night. */
+.calendar-execution-page-state { color:var(--ink-muted) !important; }
+.calendar-execution-page-state h1,
+.calendar-execution-day-controls strong,
+.calendar-inbox-task b,
+.calendar-task-block b { color:var(--ink) !important; }
+.calendar-execution-day-controls button,
+.calendar-inbox-task small,
+.calendar-inbox-task > svg,
+.calendar-task-block > span,
+.calendar-keyboard-guide kbd { color:var(--ink-muted) !important; }
+.calendar-date-rail button.is-selected small { color:var(--primary-foreground) !important; }
+.calendar-inbox-heading > span {
+  color:var(--primary-foreground) !important;
+  background:var(--accent) !important;
+}
+.calendar-execution-open-tasks,
+.calendar-execution-open-tasks:hover {
+  color:var(--accent) !important;
+  border-color:var(--accent) !important;
+  background:var(--selection) !important;
+}
+.calendar-keyboard-guide kbd {
+  border-color:var(--border) !important;
+  background:var(--surface-elevated) !important;
+}
+.calendar-grid-unavailable { color:var(--ink-muted) !important; border-color:var(--border) !important; }
+.calendar-task-block.is-selected { outline:2px solid var(--accent); outline-offset:-2px; }

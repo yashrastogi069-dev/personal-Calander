@@ -20,6 +20,7 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock3,
@@ -883,6 +884,9 @@ export function PlanWorkspace({
   const [objectiveEvidenceDrafts, setObjectiveEvidenceDrafts] = useState<Record<string, string>>({});
   const [reflectionDraft, setReflectionDraft] = useState<{ planId: string; value: string } | null>(null);
   const [activeStage, setActiveStage] = useState<"recover" | "capacity" | "commit" | "reserve" | "review">("commit");
+  const planStageOrder = ["recover", "capacity", "commit", "reserve", "review"] as const;
+  const planStageLabels = { recover: "Resolve", capacity: "Capacity", commit: "Commit", reserve: "Reserve", review: "Review" } as const;
+  const activeStageIndex = planStageOrder.indexOf(activeStage);
   const [localError, setLocalError] = useState<string | null>(null);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const recoveryTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1247,12 +1251,20 @@ export function PlanWorkspace({
           ["capacity", "02", "Capacity", `${availability.freeMinutes}m free`],
           ["commit", "03", "Commit", `${currentPlanItems.length} chosen`],
           ["reserve", "04", "Reserve", "Calendar"],
-          ["review", "05", "Review", currentPlan?.state === "closed" ? "Closed" : "Open"],
+          ["review", "05", "Review", currentPlan ? `${currentPlanItems.length} saved` : "No plan"],
         ] as const).map(([stage, number, label, detail]) => (
           <button key={stage} type="button" aria-current={activeStage === stage ? "step" : undefined} className={cn("plan-stage-button", activeStage === stage && "is-active")} onClick={() => setActiveStage(stage)}>
             <span>{number}</span><strong>{label}</strong><small>{detail}</small>
           </button>
         ))}
+      </nav>
+      <nav className="plan-mobile-stepper" aria-label="Planning stage navigation">
+        <button type="button" aria-label="Previous planning stage" disabled={activeStageIndex === 0} onClick={() => setActiveStage(planStageOrder[activeStageIndex - 1])}><ChevronLeft size={18} /></button>
+        <div aria-live="polite"><span>Step {activeStageIndex + 1} of {planStageOrder.length}</span><strong>{planStageLabels[activeStage]}</strong></div>
+        <button type="button" aria-label="Next planning stage" disabled={activeStageIndex === planStageOrder.length - 1} onClick={() => setActiveStage(planStageOrder[activeStageIndex + 1])}>Next <ChevronRight size={16} /></button>
+        <select aria-label="Jump to planning stage" value={activeStage} onChange={event => setActiveStage(event.target.value as (typeof planStageOrder)[number])}>
+          {planStageOrder.map(stage => <option key={stage} value={stage}>{planStageLabels[stage]}</option>)}
+        </select>
       </nav>
       {localError ? (
         <div className="plan-inline-error" role="alert">
@@ -1296,7 +1308,7 @@ export function PlanWorkspace({
       <div className="plan-workspace-grid">
         <section
           className="daily-plan-panel"
-          hidden={activeStage !== "commit" && activeStage !== "review"}
+          hidden={activeStage !== "commit"}
           aria-labelledby="daily-plan-heading"
         >
           <div className="plan-section-heading">
@@ -1474,6 +1486,11 @@ export function PlanWorkspace({
               Open task board <ChevronRight size={16} />
             </button>
           </div>
+          {!currentPlan ? (
+            <p className="plan-stage-empty" id="plan-start-before-commit">
+              Start today’s plan above before adding a commitment.
+            </p>
+          ) : null}
           <Input
             value={taskSearch}
             onChange={event => setTaskSearch(event.target.value)}
@@ -1504,7 +1521,8 @@ export function PlanWorkspace({
                           taskId: task.id,
                         });
                     }}
-                    disabled={addItem.isPending}
+                    disabled={!currentPlan || addItem.isPending}
+                    aria-describedby={!currentPlan ? "plan-start-before-commit" : undefined}
                   >
                     Commit
                   </Button>
@@ -1526,24 +1544,54 @@ export function PlanWorkspace({
         tasks={unfinishedTasks}
         proposals={snapshot.scheduleProposals ?? []}
       /> : null}
+      {activeStage === "review" ? (
+        <section className="plan-review-panel" aria-labelledby="plan-review-heading">
+          <div className="plan-section-heading">
+            <div>
+              <span>Today’s saved plan</span>
+              <h3 id="plan-review-heading">Review your commitments</h3>
+            </div>
+            {currentPlan ? <em>{currentPlan.state === "closed" ? "Closed" : `${unresolved.length} open`}</em> : null}
+          </div>
+          {currentPlan ? (
+            <>
+              <p className="plan-review-intention"><strong>Intention</strong>{currentPlan.intention || "No intention saved"}</p>
+              {currentPlanItems.length ? (
+                <ol className="plan-review-list">
+                  {currentPlanItems.map((item: any) => (
+                    <li key={item.id}>
+                      <strong>{tasksById.get(item.taskId)?.title ?? "Missing linked task"}</strong>
+                      <span>{item.state === "wont_do" ? "Won’t do" : item.state.replace("_", " ")}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="plan-stage-empty">No commitments saved for today yet.</p>}
+              {currentPlan.reflection ? <p className="plan-review-reflection"><strong>Saved reflection</strong>{currentPlan.reflection}</p> : null}
+              <div className="plan-review-next">
+                <p>{currentPlan.state === "closed" ? "This day is closed. Reopen it in Commit if you need to make a change." : "Resolve or change commitments, then close the day in Commit."}</p>
+                <Button type="button" variant="outline" onClick={() => setActiveStage("commit")}>{currentPlan.state === "closed" ? "View closed plan" : "Manage today’s plan"} <ChevronRight size={16} /></Button>
+              </div>
+            </>
+          ) : (
+            <div className="plan-review-next">
+              <p>There is no saved plan for today. Start one in Commit to review your commitments here.</p>
+              <Button type="button" variant="outline" onClick={() => setActiveStage("commit")}>Start today’s plan <ChevronRight size={16} /></Button>
+            </div>
+          )}
+        </section>
+      ) : null}
       <section
         className="weekly-objectives-panel"
         hidden={activeStage !== "review"}
         aria-labelledby="weekly-objectives-heading"
       >
-        <div className="plan-section-heading">
-          <div>
-            <span>Weekly objectives</span>
-            <h3 id="weekly-objectives-heading">Outcomes worth evidence</h3>
-          </div>
-          <button type="button" className="plan-link" onClick={onOpenGoals}>
-            Open goals <ChevronRight size={16} />
-          </button>
-        </div>
-        <p>
-          Objectives are outcomes for the week, not another task inbox. Link
-          them to a goal or project only when the connection is real.
-        </p>
+        <details className="plan-weekly-tools">
+          <summary><span id="weekly-objectives-heading">Weekly objectives</span><small>{currentObjectives.length} this week · Add or record evidence</small></summary>
+          <div className="plan-weekly-content">
+            <p>Weekly outcomes have their own evidence and timing. They do not close today’s plan.</p>
+            <button type="button" className="plan-link" onClick={onOpenGoals}>
+              Open goals <ChevronRight size={16} />
+            </button>
         <form className="weekly-objective-form" onSubmit={submitObjective}>
           <div className="field">
             <Label htmlFor="weekly-objective-title">Weekly outcome</Label>
@@ -1669,6 +1717,8 @@ export function PlanWorkspace({
             a list of errands.
           </p>
         )}
+          </div>
+        </details>
       </section>
       {activeStage === "review" ? <section className="plan-history-panel" aria-labelledby="plan-history-heading">
         <div className="plan-section-heading"><div><span>Continuity</span><h3 id="plan-history-heading">Recent planning history</h3></div></div>

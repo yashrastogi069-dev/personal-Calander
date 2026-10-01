@@ -7,6 +7,7 @@ import {
   archivePlanningTemplate,
   archiveProject,
   addDailyPlanItem,
+  addProjectDependency,
   bulkSetTaskState,
   carryForwardWeeklyObjective,
   clearPlanningAvailabilityException,
@@ -41,6 +42,7 @@ import {
   moveDailyPlanItem,
   PlannerConflictError,
   PlannerCapabilityError,
+  PlannerValidationError,
   PlannerPolicyError,
   RecoveryOperationReuseError,
   prepareReminderRule,
@@ -55,12 +57,14 @@ import {
   resolveDailyPlanItem,
   resolveCommitment,
   removeTaskDependency,
+  removeProjectDependency,
   sendTestPush,
   searchWorkspace,
   startReviewSession,
   setReminderRuleActivation,
   updateTask,
   updateGoal,
+  updateProject,
   updateReviewChecklist,
   updateDailyPlanItem,
   updateGoalMilestone,
@@ -189,6 +193,7 @@ const fallbackAiDraft = (thought: string) => {
 
 function plannerError(error: unknown): never {
   if (error instanceof PlannerCapabilityError) throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
+  if (error instanceof PlannerValidationError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
   if (error instanceof PlannerConflictError) {
     throw new TRPCError({ code: "CONFLICT", message: error.message, cause: error.current });
   }
@@ -351,6 +356,25 @@ export const plannerRouter = router({
     create: protectedProcedure.input(scope.extend({ title: z.string().trim().min(1).max(280), description: z.string().max(10000).nullable().optional(), goalId: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), state: lifecycle.default("not_started"), priority: priority.default("medium"), horizon: horizon.default("quarterly"), startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...project } = input;
       return createProject({ workspaceId, timezone }, project);
+    }),
+    update: protectedProcedure.input(scope.extend({ id: z.string().min(1).max(64), expectedVersion: z.number().int().positive(), patch: z.object({
+      title: z.string().trim().min(1).max(280).optional(), description: z.string().max(10000).nullable().optional(),
+      goalId: z.string().min(1).max(64).nullable().optional(), categoryId: z.string().min(1).max(64).nullable().optional(),
+      state: lifecycle.optional(), priority: priority.optional(), horizon: horizon.optional(),
+      startLocalDate: dateString.nullable().optional(), dueLocalDate: dateString.nullable().optional(),
+      riskLevel: z.enum(["none", "watch", "at_risk", "blocked"]).optional(), riskNote: z.string().max(5000).nullable().optional(),
+      nextReviewLocalDate: dateString.nullable().optional(),
+    }).strict() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion, patch } = input;
+      try { return await updateProject({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
+    }),
+    addDependency: protectedProcedure.input(scope.extend({ projectId: z.string().min(1).max(64), dependsOnProjectId: z.string().min(1).max(64), dependencyType: z.enum(["hard", "soft"]), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...dependency } = input;
+      try { return await addProjectDependency({ workspaceId, timezone }, dependency); } catch (error) { return plannerError(error); }
+    }),
+    removeDependency: protectedProcedure.input(scope.extend({ id: z.string().min(1).max(64), expectedVersion: z.number().int().positive(), projectExpectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...dependency } = input;
+      try { return await removeProjectDependency({ workspaceId, timezone }, dependency); } catch (error) { return plannerError(error); }
     }),
     archive: protectedProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion } = input;

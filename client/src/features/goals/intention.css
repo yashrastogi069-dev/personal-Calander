@@ -1,11 +1,15 @@
 .intentions-workspace { display: grid; gap: 16px; margin-bottom: 18px; padding: 20px; color: var(--ink); border: 1px solid var(--border); border-radius: 16px; background: var(--surface-elevated); }
 .intentions-header { display: flex; justify-content: space-between; gap: 20px; }
 .intentions-header h2 { margin: 5px 0 7px; color: var(--ink); font: 760 clamp(22px, 3vw, 32px)/1.05 "Onest", sans-serif; letter-spacing: -.04em; }
-.intentions-header p { max-width: 68ch; margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.5; }
+.intentions-header p { max-width: 68ch; margin: 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
 .intentions-header > svg { flex: none; color: var(--accent); }
+.intentions-primary-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: none; min-height: 44px; padding: 0 16px; color: var(--primary-foreground); border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); font-size: 14px; font-weight: 750; cursor: pointer; }
+.intentions-primary-action:hover { filter: brightness(.95); }
+.intentions-primary-action:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.project-return { display: none; }
 .intentions-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 4px; border-radius: 10px; background: var(--selection); }
 .intentions-tabs button { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 12px; color: var(--ink-muted); border: 0; border-radius: 8px; background: transparent; font-weight: 700; white-space: nowrap; }
-.intentions-tabs button small { color: inherit; font: 700 10px "IBM Plex Mono", monospace; }
+.intentions-tabs button small { color: inherit; font: 700 12px "IBM Plex Mono", monospace; }
 .intentions-tabs button.is-active { color: var(--ink); background: var(--surface-elevated); box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 10%, transparent); }
 .intentions-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 9px; }
 .intention-card { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 13px; color: var(--ink); border: 1px solid var(--border); border-radius: 11px; background: var(--surface); text-align: left; }
@@ -13,33 +17,33 @@ button.intention-card { width: 100%; cursor: pointer; }
 .intention-card:hover { border-color: var(--accent); background: var(--selection); }
 .intention-card.is-selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); }
 .intention-card-icon { display: grid; flex: none; place-items: center; width: 30px; height: 30px; color: var(--accent); border-radius: 8px; background: var(--selection); }
-.intention-card > div { min-width: 0; flex: 1; }
+.intention-card > span:nth-of-type(2) { min-width: 0; flex: 1; }
 .intention-card strong, .intention-card small, .intention-card p { display: block; overflow-wrap: anywhere; }
-.intention-card strong { font-size: 13px; }
-.intention-card small { margin-top: 3px; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
-.intention-detail-line { display: block; margin-top: 6px; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
+.intention-card strong { font-size: 15px; line-height: 1.35; }
+.intention-card small { margin-top: 4px; color: var(--ink-muted); font-size: 14px; line-height: 1.4; }
+.intention-detail-line { display: block; margin-top: 6px; color: var(--ink-muted); font-size: 14px; line-height: 1.4; }
 .intention-detail-line b { color: var(--ink); }
-.intention-card p { margin: 8px 0 0; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
-.intention-kind { flex: none; padding: 4px 6px; color: var(--accent); border-radius: 999px; background: var(--selection); font: 700 9px "IBM Plex Mono", monospace; }
+.intention-card p { margin: 8px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.4; }
+.intention-kind { flex: none; padding: 5px 7px; color: var(--accent); border-radius: 999px; background: var(--selection); font: 700 12px "IBM Plex Mono", monospace; }
 .project-card { align-items: center; }
 .project-card > svg { margin-left: auto; color: var(--ink-muted); }
-.intentions-empty { grid-column: 1 / -1; margin: 0; color: var(--ink-muted); font-size: 13px; }
+.intentions-empty { grid-column: 1 / -1; margin: 0; color: var(--ink-muted); font-size: 14px; }
 .intention-detail { display: grid; gap: 8px; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-elevated); }
 .intention-detail > span { color: var(--accent); font: 700 10px "IBM Plex Mono", monospace; text-transform: uppercase; }
 .intention-detail h3 { margin: 0; color: var(--ink); font-size: 18px; }
-.intention-detail p { margin: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
+.intention-detail p { margin: 0; color: var(--ink-muted); font-size: 14px; line-height: 1.45; }
 .intention-detail div { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid var(--border); }
 .intention-detail div b { color: var(--ink-muted); font-size: 10px; text-transform: uppercase; }
-.intention-detail div span { color: var(--ink); font-size: 12px; }
+.intention-detail div span { color: var(--ink); font-size: 14px; }
 .intentions-create-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.intentions-create-actions > span { color: var(--ink-muted); font-size: 11px; }
+.intentions-create-actions > span { color: var(--ink-muted); font-size: 14px; }
 .intention-create-form { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .intention-create-form h3, .intention-detail h4 { margin: 0; color: var(--ink); font-size: 13px; }
-.intention-create-form label { display: grid; gap: 5px; color: var(--ink-muted); font-size: 11px; font-weight: 700; }
+.intention-create-form label { display: grid; gap: 5px; color: var(--ink-muted); font-size: 14px; font-weight: 700; }
 .intention-create-form input, .intention-create-form textarea, .intention-create-form select { width: 100%; min-height: 42px; padding: 9px 11px; color: var(--ink); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-elevated); font: inherit; }
 .intention-create-form textarea { resize: vertical; }
 .intention-create-form > div, .intention-conversion > div { display: flex; justify-content: flex-end; gap: 8px; }
-.intention-create-form [role="alert"] { margin: 0; color: #b42318; font-size: 12px; }
+.intention-create-form [role="alert"] { margin: 0; color: var(--destructive); font-size: 14px; }
 .intention-detail > section { display: grid; gap: 7px; padding-top: 10px; border-top: 1px solid var(--border); }
 .intention-detail > section h4 { display: flex; justify-content: space-between; }
 .intention-detail > section h4 span, .intention-detail > section small { color: var(--ink-muted); font-size: 10px; font-weight: 500; }
@@ -50,5 +54,6 @@ button.intention-card { width: 100%; cursor: pointer; }
 .intention-detail li p { font-size: 11px; }
 .intention-conversion-preview { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--selection); }
 .intention-conversion-preview ul { margin: 0; padding-left: 18px; list-style: disc; color: var(--ink-muted); font-size: 11px; }
-@media (max-width: 560px) { .intentions-workspace { padding: 15px; }.intentions-header { gap: 10px; }.intentions-header > svg { width: 22px; }.intentions-list { grid-template-columns: 1fr; }.intentions-tabs button { flex: 1; padding-inline: 8px; font-size: 11px; } }
+@media (max-width: 560px) { .intentions-workspace { padding: 15px; }.intentions-header { flex-wrap: wrap; gap: 12px; }.intentions-header > svg { width: 22px; }.intentions-primary-action { width: 100%; }.intentions-list { grid-template-columns: 1fr; }.intentions-tabs button { flex: 1 0 auto; padding-inline: 10px; font-size: 13px; } }
+@media (max-width: 680px) { .intentions-workspace.is-project-detail { gap: 0; padding: 0; border: 0; background: transparent; }.intentions-workspace.is-project-detail .intentions-header, .intentions-workspace.is-project-detail .intentions-tabs, .intentions-workspace.is-project-detail .intentions-list { display: none; }.intentions-workspace.is-project-detail .project-return { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; color: var(--accent); border: 1px solid var(--border); border-radius: 10px; background: var(--surface-elevated); font-size: 14px; font-weight: 750; text-align: left; cursor: pointer; } }
 @media (prefers-reduced-motion: reduce) { .intention-card { transition: none; } }

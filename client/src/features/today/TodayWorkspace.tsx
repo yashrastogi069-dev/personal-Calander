@@ -546,6 +546,42 @@ export function TodayWorkspace({
         </div>
       </header>
 
+      {headerAction ? (
+        <section
+          className="today-next-step-mobile"
+          data-today-section="next-step-mobile"
+          aria-label="Your next step"
+        >
+          <div>
+            <span>Next step</span>
+            <strong>
+              {headerAction.id === "resolve_recovery"
+                ? "Review earlier work"
+                : headerAction.id === "plan_today"
+                  ? "Choose what matters today"
+                  : focusTask?.title ?? "Continue your day"}
+            </strong>
+            {headerAction.id === "start_focus" ? (
+              <small>Start a focus session when you’re ready.</small>
+            ) : null}
+          </div>
+          <Button
+            type="button"
+            className="today-primary-action"
+            onClick={runHeaderAction}
+          >
+            {headerAction.id === "resolve_recovery" ? (
+              <AlertTriangle aria-hidden="true" size={18} />
+            ) : headerAction.id === "plan_today" ? (
+              <ListChecks aria-hidden="true" size={18} />
+            ) : (
+              <Play aria-hidden="true" size={18} />
+            )}
+            {headerAction.label}
+          </Button>
+        </section>
+      ) : null}
+
       <section
         className="today-summary"
         data-today-section="summary"

@@ -39,6 +39,7 @@ export type Phase4PreferenceMigrationOptions = {
 
 export const phase4SecondaryShortcutTargets = [
   { destination: "plan", view: "calendar" },
+  { destination: "plan", view: "roadmap" },
   { destination: "intentions", view: "outcomes" },
   { destination: "settings", view: "connections" },
   { destination: "review", view: "insights" },
