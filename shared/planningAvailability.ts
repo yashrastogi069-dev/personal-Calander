@@ -37,27 +37,33 @@ function localDateParts(value: Date, timezone: string) {
   return { year: part("year"), month: part("month"), day: part("day"), hour: Number(part("hour")), minute: Number(part("minute")) };
 }
 
-function localDateKey(value: Date, timezone: string) {
-  const parts = localDateParts(value, timezone);
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
-/** Converts a wall-clock time in the requested IANA zone into UTC without adding a date-library dependency. */
-export function zonedDateTimeToUtc(localDate: string, minutes: number, timezone: string) {
+/** All instants matching a local wall time. A repeated fall-back time has two matches. */
+export function zonedDateTimeCandidates(localDate: string, minutes: number, timezone: string) {
   const [year, month, day] = localDate.split("-").map(Number);
   const hours = Math.floor(minutes / 60);
   const minute = minutes % 60;
   const target = Date.UTC(year, month - 1, day, hours, minute);
-  let instant = target;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const parts = localDateParts(new Date(instant), timezone);
+  const offsets = new Set<number>();
+  for (const distance of [-36, -12, 0, 12, 36]) {
+    const probe = target + distance * 60 * 60_000;
+    const parts = localDateParts(new Date(probe), timezone);
     const rendered = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), parts.hour, parts.minute);
-    instant += target - rendered;
+    offsets.add(rendered - probe);
   }
-  return new Date(instant);
+  return Array.from(offsets).map(offset => new Date(target - offset)).filter(candidate => {
+    const parts = localDateParts(candidate, timezone);
+    return Number(parts.year) === year && Number(parts.month) === month && Number(parts.day) === day && parts.hour === hours && parts.minute === minute;
+  }).sort((left, right) => left.getTime() - right.getTime());
 }
 
-function clippedIntervals(intervals: BusyInterval[], localDate: string, timezone: string, dayStart: Date, dayEnd: Date): Interval[] {
+/** Converts a wall time to UTC; an ambiguous time picks its earlier occurrence by default. */
+export function zonedDateTimeToUtc(localDate: string, minutes: number, timezone: string, disambiguation: "earlier" | "later" = "earlier") {
+  const candidates = zonedDateTimeCandidates(localDate, minutes, timezone);
+  if (!candidates.length) throw new Error(`Local time ${localDate} ${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")} does not exist in ${timezone}.`);
+  return disambiguation === "later" ? candidates[candidates.length - 1] : candidates[0];
+}
+
+function clippedIntervals(intervals: BusyInterval[], dayStart: Date, dayEnd: Date): Interval[] {
   return intervals.flatMap(interval => {
     const start = new Date(interval.startsAt).getTime();
     const end = new Date(interval.endsAt).getTime();
@@ -65,11 +71,7 @@ function clippedIntervals(intervals: BusyInterval[], localDate: string, timezone
     const clippedStart = Math.max(start, dayStart.getTime());
     const clippedEnd = Math.min(end, dayEnd.getTime());
     if (clippedEnd <= clippedStart) return [];
-    const startParts = localDateParts(new Date(clippedStart), timezone);
-    const endParts = localDateParts(new Date(clippedEnd), timezone);
-    const startMinute = startParts.hour * 60 + startParts.minute;
-    const endMinute = localDateKey(new Date(clippedEnd), timezone) === localDate ? endParts.hour * 60 + endParts.minute : timeToMinutes("24:00");
-    return [{ start: Math.max(0, startMinute), end: Math.min(1440, endMinute || 1440) }];
+    return [{ start: clippedStart, end: clippedEnd }];
   });
 }
 
@@ -85,22 +87,20 @@ function mergeIntervals(intervals: Interval[]) {
 }
 
 function minutesInIntervals(intervals: Interval[]) {
-  return intervals.reduce((total, interval) => total + Math.max(0, interval.end - interval.start), 0);
+  return intervals.reduce((total, interval) => total + Math.max(0, interval.end - interval.start), 0) / 60_000;
 }
 
 export function planningAvailability(input: { localDate: string; timezone: string; window: PlanningWindow; reservedBlocks?: BusyInterval[]; externalBusy?: BusyInterval[] }): AvailabilitySummary {
   const workStart = timeToMinutes(input.window.workdayStartsAt);
   const workEnd = timeToMinutes(input.window.workdayEndsAt);
-  const workdayMinutes = Math.max(0, workEnd - workStart);
   const dayStart = zonedDateTimeToUtc(input.localDate, workStart, input.timezone);
-  const dayEnd = zonedDateTimeToUtc(input.localDate, workEnd, input.timezone);
-  const workWindow: Interval = { start: workStart, end: workEnd };
-  const reserved = clippedIntervals(input.reservedBlocks ?? [], input.localDate, input.timezone, dayStart, dayEnd);
-  const external = clippedIntervals(input.externalBusy ?? [], input.localDate, input.timezone, dayStart, dayEnd);
-  const inWorkWindow = (intervals: Interval[]) => intervals.map(interval => ({ start: Math.max(workWindow.start, interval.start), end: Math.min(workWindow.end, interval.end) })).filter(interval => interval.end > interval.start);
-  const scheduledMinutes = minutesInIntervals(mergeIntervals(inWorkWindow(reserved)));
-  const externalBusyMinutes = minutesInIntervals(mergeIntervals(inWorkWindow(external)));
-  const mergedBusyMinutes = minutesInIntervals(mergeIntervals(inWorkWindow([...reserved, ...external])));
+  const dayEnd = zonedDateTimeToUtc(input.localDate, workEnd, input.timezone, "later");
+  const workdayMinutes = Math.max(0, (dayEnd.getTime() - dayStart.getTime()) / 60_000);
+  const reserved = clippedIntervals(input.reservedBlocks ?? [], dayStart, dayEnd);
+  const external = clippedIntervals(input.externalBusy ?? [], dayStart, dayEnd);
+  const scheduledMinutes = minutesInIntervals(mergeIntervals(reserved));
+  const externalBusyMinutes = minutesInIntervals(mergeIntervals(external));
+  const mergedBusyMinutes = minutesInIntervals(mergeIntervals([...reserved, ...external]));
   const breakMinutes = Math.max(0, Math.min(workdayMinutes, Math.floor(input.window.defaultBreakMinutes || 0)));
   const availableMinutes = Math.max(0, workdayMinutes - breakMinutes - externalBusyMinutes);
   const freeMinutes = Math.max(0, workdayMinutes - breakMinutes - mergedBusyMinutes);
@@ -111,15 +111,16 @@ export function firstFreeSlot(input: { localDate: string; timezone: string; wind
   const duration = Math.max(1, Math.floor(input.durationMinutes));
   const start = timeToMinutes(input.window.workdayStartsAt);
   const end = timeToMinutes(input.window.workdayEndsAt);
-  if (end <= start || duration > end - start) return null;
+  if (end <= start) return null;
   const dayStart = zonedDateTimeToUtc(input.localDate, start, input.timezone);
-  const dayEnd = zonedDateTimeToUtc(input.localDate, end, input.timezone);
-  const occupied = mergeIntervals(clippedIntervals([...(input.reservedBlocks ?? []), ...(input.externalBusy ?? [])], input.localDate, input.timezone, dayStart, dayEnd).map(interval => ({ start: Math.max(start, interval.start), end: Math.min(end, interval.end) })).filter(interval => interval.end > interval.start));
-  let cursor = start;
+  const dayEnd = zonedDateTimeToUtc(input.localDate, end, input.timezone, "later");
+  if (duration * 60_000 > dayEnd.getTime() - dayStart.getTime()) return null;
+  const occupied = mergeIntervals(clippedIntervals([...(input.reservedBlocks ?? []), ...(input.externalBusy ?? [])], dayStart, dayEnd));
+  let cursor = dayStart.getTime();
   for (const interval of occupied) {
-    if (interval.start - cursor >= duration) return { startAt: zonedDateTimeToUtc(input.localDate, cursor, input.timezone), endAt: zonedDateTimeToUtc(input.localDate, cursor + duration, input.timezone) };
+    if (interval.start - cursor >= duration * 60_000) return { startAt: new Date(cursor), endAt: new Date(cursor + duration * 60_000) };
     cursor = Math.max(cursor, interval.end);
   }
-  if (end - cursor >= duration) return { startAt: zonedDateTimeToUtc(input.localDate, cursor, input.timezone), endAt: zonedDateTimeToUtc(input.localDate, cursor + duration, input.timezone) };
+  if (dayEnd.getTime() - cursor >= duration * 60_000) return { startAt: new Date(cursor), endAt: new Date(cursor + duration * 60_000) };
   return null;
 }

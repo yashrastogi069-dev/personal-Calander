@@ -1,0 +1,22 @@
+.calendar-move-preview { display: grid; gap: 13px; padding: 18px 22px; color: var(--ink); border-block: 1px solid var(--accent); background: var(--surface-elevated); }
+.calendar-move-preview-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.calendar-move-preview-heading span { color: var(--accent); font: 700 11px/1.2 "IBM Plex Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+.calendar-move-preview-heading h3 { margin: 5px 0 0; color: var(--ink); font-size: 18px; }
+.calendar-move-preview-heading > button { display: grid; place-items: center; width: 44px; height: 44px; color: var(--ink); border: 0; border-radius: 9px; background: var(--selection); }
+.calendar-move-preview dl { display: grid; gap: 0; margin: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.calendar-move-preview dl > div { display: grid; grid-template-columns: minmax(110px, 170px) minmax(0, 1fr); gap: 8px; padding: 9px 12px; border-top: 1px solid var(--border); }
+.calendar-move-preview dl > div:first-child { border-top: 0; }
+.calendar-move-preview dt { color: var(--ink-muted); font-size: 12px; }
+.calendar-move-preview dd { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.calendar-move-preview dd span { color: var(--ink-muted); }
+.calendar-move-preview dd strong { color: var(--ink); }
+.calendar-preview-warning, .calendar-preview-collision { margin: 0; padding: 9px 11px; color: var(--warning); border-radius: 8px; background: color-mix(in srgb, var(--warning) 10%, var(--surface-elevated)); font-size: 12px; line-height: 1.5; }
+.calendar-preview-collision { color: var(--destructive); background: color-mix(in srgb, var(--destructive) 10%, var(--surface-elevated)); }
+.calendar-preview-actions { display: flex; justify-content: end; flex-wrap: wrap; gap: 8px; }
+.calendar-preview-actions button, .calendar-preview-undo button { min-height: 44px; padding: 0 14px; color: var(--ink); border: 1px solid var(--border); border-radius: 9px; background: var(--surface-elevated); font-size: 13px; font-weight: 700; }
+.calendar-preview-actions button:last-child { color: var(--primary-foreground); border-color: var(--accent); background: var(--accent); }
+.calendar-preview-actions button:disabled { opacity: .48; cursor: not-allowed; }
+.calendar-preview-actions button:focus-visible, .calendar-move-preview-heading button:focus-visible, .calendar-preview-undo button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.calendar-preview-undo { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 22px; color: var(--ink); border-bottom: 1px solid var(--border); background: var(--selection); font-size: 12px; }
+.calendar-preview-undo button { flex: none; }
+@media (max-width: 640px) { .calendar-move-preview { padding: 15px 13px; }.calendar-move-preview dl > div { grid-template-columns: 1fr; gap: 3px; }.calendar-preview-actions button { flex: 1; }.calendar-preview-undo { padding: 10px 13px; } }

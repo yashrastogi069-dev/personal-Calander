@@ -1,0 +1,149 @@
+.calendar-matrix {
+  min-width: 0;
+  overflow: hidden;
+  padding: 18px;
+  color: #244c3d;
+}
+.calendar-surface .calendar-matrix { overflow: hidden; scroll-snap-type: none; }
+.calendar-surface .calendar-matrix::after { content: none; display: none; }
+
+.calendar-matrix .matrix-header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto 18px;
+  text-align: center;
+}
+.calendar-matrix .matrix-header > div { display: grid; gap: 2px; min-width: 0; }
+.calendar-matrix .matrix-header span,
+.calendar-matrix .matrix-preview-eyebrow {
+  color: #5f8272;
+  font: 700 10px/1.3 "IBM Plex Mono", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.calendar-matrix .matrix-header strong {
+  color: #1f4938;
+  font: 750 clamp(16px, 2vw, 22px)/1.2 "Onest", sans-serif;
+  letter-spacing: -.035em;
+}
+.calendar-matrix .matrix-header button { width: 42px; height: 42px; }
+.calendar-matrix .calendar-task-legend { margin: 0 0 14px; }
+.calendar-matrix .calendar-task-legend b { color: #2b6c52; }
+
+.matrix-move-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #cee0d4;
+  border-radius: 13px;
+  background: #eaf3ed;
+}
+.matrix-move-tools label { display: grid; min-width: 0; gap: 5px; color: #416954; font: 700 11px/1.2 "Onest", sans-serif; }
+.matrix-move-tools select,
+.matrix-move-tools input {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  padding: 0 10px;
+  color: #244c3d;
+  border: 1px solid #adcbb8;
+  border-radius: 8px;
+  background: #fff;
+  font: 600 12px "Onest", sans-serif;
+}
+.matrix-move-tools > button,
+.matrix-preview-actions button {
+  min-height: 39px;
+  padding: 0 14px;
+  color: #fff;
+  border: 1px solid #2c7055;
+  border-radius: 8px;
+  background: #2c7055;
+  font: 750 12px "Onest", sans-serif;
+  cursor: pointer;
+}
+.matrix-move-tools > button:disabled,
+.matrix-preview-actions button:disabled,
+.matrix-day-target:disabled { opacity: .48; cursor: not-allowed; }
+.matrix-move-instruction { margin: 9px 2px 16px; color: #5a7565; font-size: 11px; line-height: 1.4; }
+.matrix-preview { display: grid; gap: 8px; margin: 0 0 16px; padding: 16px; border: 1px solid #95bd9c; border-radius: 13px; background: #f7fcf8; box-shadow: 0 8px 24px rgba(25, 67, 43, .08); }
+.matrix-preview h3 { margin: 3px 0 2px; color: #1f4938; font: 750 17px/1.25 "Onest", sans-serif; }
+.matrix-preview p { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; margin: 0; color: #355a45; font-size: 12px; }
+.matrix-preview p b { color: #2b6148; }
+.matrix-preview .matrix-preview-fixed { color: #667b6b; }
+.matrix-preview .matrix-preview-warning { color: #85532e; }
+.matrix-preview-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
+.matrix-preview-actions button:first-child { color: #315c43; border-color: #b8d0be; background: #fff; }
+.matrix-feedback { margin: 0 0 14px; padding: 10px 12px; color: #22573f; border: 1px solid #b4d8bd; border-radius: 8px; background: #f0f8f1; font-size: 12px; }
+
+.calendar-matrix .matrix-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; min-width: 0; }
+.matrix-weekdays { display: contents; }
+.matrix-weekdays span { padding: 0 5px 4px; color: #688173; font: 750 10px "IBM Plex Mono", monospace; text-align: center; text-transform: uppercase; }
+.matrix-leading-day { min-width: 0; }
+.calendar-matrix .matrix-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 138px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid #d0e1d6;
+  border-radius: 11px;
+  background: #fbfdfa;
+}
+.calendar-matrix .matrix-cell.is-today { border-color: #58a47c; background: #f0f8f2; }
+.calendar-matrix .matrix-cell.is-target { box-shadow: inset 0 0 0 2px #4f9770; }
+.calendar-matrix .matrix-cell > time { display: block; margin: 0 0 5px; color: #315c47; font: 750 11px/1.25 "IBM Plex Mono", monospace; }
+.matrix-day-target { min-height: 24px; margin-bottom: 4px; padding: 2px 6px; color: #2d6f50; border: 1px solid #b8d8c2; border-radius: 6px; background: #f3faf4; font: 700 9px "Onest", sans-serif; cursor: pointer; }
+.matrix-task { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 5px; overflow: hidden; color: #355949; white-space: normal; }
+.matrix-task i { width: 6px; height: 6px; flex: none; border-radius: 50%; }
+.matrix-task > button,
+.matrix-task > span { display: flex; align-items: baseline; gap: 5px; min-width: 0; width: 100%; padding: 2px 0; color: inherit; border: 0; background: transparent; text-align: left; cursor: inherit; }
+.matrix-task > button { cursor: grab; }
+.matrix-task > button:hover .matrix-task-title { text-decoration: underline; }
+.matrix-task-kind { flex: none; padding: 2px 4px; color: #2b7250; border-radius: 4px; background: #e2f2e6; font: 750 8px/1 "IBM Plex Mono", monospace; text-transform: uppercase; }
+.matrix-task.is-deadline .matrix-task-kind { color: #855227; background: #fff0d9; }
+.matrix-task-title { min-width: 0; overflow: hidden; font: 600 10px/1.3 "Onest", sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-matrix .matrix-empty { display: block; margin-top: 8px; color: #8b9c90; font-size: 10px; line-height: 1.3; }
+.calendar-matrix .matrix-overflow { width: auto; max-width: 100%; white-space: normal; }
+
+.matrix-months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.matrix-year .matrix-months { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.matrix-month { min-width: 0; min-height: 180px; padding: 14px; border: 1px solid #d0e1d6; border-radius: 12px; background: #fbfdfa; }
+.matrix-month h3 { margin: 0; color: #254d3a; font: 760 16px/1.2 "Onest", sans-serif; }
+.matrix-month > p { margin: 4px 0 12px; color: #63806d; font: 700 10px "IBM Plex Mono", monospace; }
+.matrix-month-items { display: grid; gap: 3px; }
+.matrix-month-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 4px; min-width: 0; }
+.matrix-month-item > time { color: #78917e; font: 750 10px "IBM Plex Mono", monospace; }
+.matrix-month-item .matrix-task { margin-top: 0; }
+
+.calendar-matrix button:focus-visible,
+.calendar-matrix select:focus-visible,
+.calendar-matrix input:focus-visible { outline: 2px solid #2e8763; outline-offset: 2px; }
+@media (max-width: 960px) {
+  .matrix-year .matrix-months { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .calendar-matrix .matrix-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .matrix-weekdays,
+  .matrix-leading-day { display: none; }
+}
+@media (max-width: 680px) {
+  .calendar-matrix { padding: 12px; overflow: hidden; }
+  .calendar-matrix .matrix-header { gap: 6px; grid-template-columns: 42px minmax(0, 1fr) 42px; }
+  .matrix-move-tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .matrix-move-tools > button { grid-column: 1 / -1; }
+  .calendar-matrix .matrix-grid,
+  .matrix-months,
+  .matrix-year .matrix-months { grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+}
+@media (max-width: 370px) {
+  .matrix-move-tools { grid-template-columns: minmax(0, 1fr); }
+  .matrix-move-tools > button { grid-column: auto; }
+  .calendar-matrix .matrix-cell { min-height: 126px; padding: 8px; }
+  .matrix-task > button,
+  .matrix-task > span { display: grid; gap: 2px; }
+  .matrix-task-kind { justify-self: start; }
+}

@@ -195,6 +195,8 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
+import { assertCalendarPreviewFresh, previewCalendarMutation, type CalendarMutationPreview } from "@shared/calendarMovePreview";
+import "./calendar-matrix.css";
 
 const FocusWorkspace = lazy(() =>
   import("@/features/focus/FocusWorkspace").then(module => ({
@@ -8407,6 +8409,7 @@ export default function Home() {
               isOnline={isOnline}
               onOpenTasks={focusTaskSearch}
               onOpenGoals={() => selectSurface("goals")}
+              onOpenCalendar={() => selectSurface("calendar")}
             />
             <OwnedToolsDisclosure summary="Planning and recurring work tools">
               <DailyCompass />
@@ -8904,71 +8907,116 @@ function CalendarMatrix({
   onMoveDay: (amount: number) => void;
   onOpenTasks: () => void;
 }) {
-  const categoryColors = new Map(
-    categories.map(category => [category.id, category.color])
-  );
   const scope = useWorkspaceScope();
   const utils = trpc.useUtils();
-  const slots =
-    mode === "Week" ? 7 : mode === "Month" ? 35 : mode === "Quarter" ? 12 : 12;
-  const step =
-    mode === "Week" ? 1 : mode === "Month" ? 1 : mode === "Quarter" ? 7 : 30;
-  const start = shiftLocalDate(
-    anchor,
-    mode === "Month"
-      ? -14
-      : mode === "Week"
-        ? -3
-        : -Math.floor(slots / 2) * step
-  );
-  const dates = Array.from({ length: slots }, (_, index) =>
-    shiftLocalDate(start, index * step)
-  );
-  const refresh = () => {
-    utils.planner.workspace.snapshot.invalidate();
-    utils.planner.dashboard.invalidate();
+  const categoryColors = new Map(categories.map(category => [category.id, category.color]));
+  const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [targetDate, setTargetDate] = useState("");
+  const [pendingPreview, setPendingPreview] = useState<{ taskId: string; targetDate: string; reviewedVersion: number; preview: CalendarMutationPreview } | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const updateTask = trpc.planner.task.update.useMutation();
+
+  const anchorDate = new Date(`${anchor}T12:00:00.000Z`);
+  const year = anchorDate.getUTCFullYear();
+  const month = anchorDate.getUTCMonth();
+  const weekOffset = (anchorDate.getUTCDay() + 6) % 7;
+  const quarterMonth = Math.floor(month / 3) * 3;
+  const start = mode === "Week" ? shiftLocalDate(anchor, -weekOffset)
+    : `${year}-${String((mode === "Quarter" ? quarterMonth : mode === "Year" ? 0 : month) + 1).padStart(2, "0")}-01`;
+  const startDate = new Date(`${start}T12:00:00.000Z`);
+  const endDate = new Date(startDate);
+  if (mode === "Week") endDate.setUTCDate(endDate.getUTCDate() + 7);
+  else endDate.setUTCMonth(endDate.getUTCMonth() + (mode === "Quarter" ? 3 : mode === "Year" ? 12 : 1));
+  const end = endDate.toISOString().slice(0, 10);
+  const last = shiftLocalDate(end, -1);
+  const dayCount = Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000);
+  const dates = Array.from({ length: dayCount }, (_, index) => shiftLocalDate(start, index));
+  const monthStarts = mode === "Quarter" || mode === "Year"
+    ? Array.from({ length: mode === "Quarter" ? 3 : 12 }, (_, index) => {
+        const date = new Date(startDate);
+        date.setUTCMonth(date.getUTCMonth() + index);
+        return date.toISOString().slice(0, 10);
+      }) : [];
+  const dateLabel = (date: string, options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00.000Z`));
+  const periodLabel = mode === "Week"
+    ? `${dateLabel(start, { month: "short", day: "numeric" })} – ${dateLabel(last, { month: "short", day: "numeric", year: "numeric" })}`
+    : mode === "Quarter"
+      ? `${dateLabel(start, { month: "short" })} – ${dateLabel(last, { month: "short", year: "numeric" })}`
+      : dateLabel(start, { month: "long", year: "numeric" });
+  const navigatePeriod = (direction: -1 | 1) => {
+    const adjacent = new Date(startDate);
+    if (mode === "Week") adjacent.setUTCDate(adjacent.getUTCDate() + direction * 7);
+    else adjacent.setUTCMonth(adjacent.getUTCMonth() + direction * (mode === "Quarter" ? 3 : mode === "Year" ? 12 : 1));
+    onMoveDay(Math.round((adjacent.getTime() - anchorDate.getTime()) / 86_400_000));
+    setPendingPreview(null);
+    setFeedback(null);
   };
-  const updateTask = trpc.planner.task.update.useMutation({
-    onSuccess: refresh,
-  });
-  const scheduleFromDrop = (taskId: string, localDate: string) => {
-    const task = tasks.find(item => item.id === taskId);
-    if (task)
-      updateTask.mutate({
-        ...scope,
-        id: task.id,
-        expectedVersion: task.version,
-        patch: { scheduledLocalDate: localDate },
-      });
+  const selectableTasks = tasks.filter(task => task.state !== "completed" && task.state !== "archived");
+  const selectedTask = selectableTasks.find(task => task.id === selectedTaskId);
+  const previewTask = pendingPreview && tasks.find(task => task.id === pendingPreview.taskId);
+  const previewIsStale = Boolean(pendingPreview && (!previewTask || previewTask.version !== pendingPreview.reviewedVersion));
+  const proposeMove = (taskId: string, localDate: string) => {
+    const task = selectableTasks.find(item => item.id === taskId);
+    if (!task || localDate < start || localDate >= end) {
+      setFeedback("Choose a task and a day in this calendar period.");
+      return;
+    }
+    const preview = previewCalendarMutation({
+      task,
+      mutation: { kind: "planned_day", localDate },
+      context: { timezone: scope.timezone, window: { workdayStartsAt: "09:00", workdayEndsAt: "17:00", defaultBreakMinutes: 0 } },
+    });
+    setSelectedTaskId(taskId);
+    setTargetDate(localDate);
+    setPendingPreview({ taskId, targetDate: localDate, reviewedVersion: task.version, preview });
+    setFeedback(null);
   };
+  const applyMove = async () => {
+    if (!pendingPreview) return;
+    try {
+      const current = tasks.find(task => task.id === pendingPreview.taskId);
+      if (!current) throw new Error("This task is no longer available. Choose it again.");
+      const action = assertCalendarPreviewFresh(pendingPreview.preview, current, "apply");
+      await updateTask.mutateAsync({ ...scope, id: action.id, expectedVersion: action.expectedVersion, patch: action.patch });
+      await Promise.all([utils.planner.workspace.snapshot.invalidate(), utils.planner.dashboard.invalidate()]);
+      setPendingPreview(null);
+      setSelectedTaskId("");
+      setFeedback(`Planned day moved to ${dateLabel(pendingPreview.targetDate, { weekday: "long", month: "long", day: "numeric" })}. Deadline unchanged.`);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Could not move the planned day. Review the task and try again.");
+    }
+  };
+  const renderTask = (task: any, kind: "planned" | "deadline", key: string) => (
+    <div className={cn("matrix-task", `is-${kind}`)} key={key}>
+      <i style={{ background: categoryColors.get(task.categoryId) ?? "#528f76" }} aria-hidden="true" />
+      {kind === "planned" ? (
+        <button type="button" draggable onClick={() => { setSelectedTaskId(task.id); setPendingPreview(null); setFeedback(null); }}
+          onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", task.id); setSelectedTaskId(task.id); }}
+          aria-label={`Select ${task.title} to move its planned day`}>
+          <span className="matrix-task-kind">Planned</span><span className="matrix-task-title">{task.title}</span>
+        </button>
+      ) : <span><span className="matrix-task-kind">Deadline</span><span className="matrix-task-title">{task.title}</span></span>}
+    </div>
+  );
+  const projectionsOn = (date: string) => tasks.flatMap(task => [
+    ...(task.scheduledLocalDate === date ? [{ task, kind: "planned" as const }] : []),
+    ...(task.dueLocalDate === date ? [{ task, kind: "deadline" as const }] : []),
+  ]);
   return (
     <div className={cn("calendar-matrix", `matrix-${mode.toLowerCase()}`)}>
       <div className="matrix-header">
-        <button
-          onClick={() => onMoveDay(-slots * step)}
-          aria-label="Previous calendar period"
-        >
+        <button type="button" onClick={() => navigatePeriod(-1)} aria-label={`Previous ${mode.toLowerCase()}`}>
           <ChevronLeft size={17} />
         </button>
-        <strong>
-          {mode === "Year"
-            ? anchor.slice(0, 4)
-            : displayLocalDate(anchor, scope.timezone, {
-                month: "long",
-                year: "numeric",
-              })}
-        </strong>
-        <button
-          onClick={() => onMoveDay(slots * step)}
-          aria-label="Next calendar period"
-        >
+        <div><span>{mode} view</span><strong>{periodLabel}</strong></div>
+        <button type="button" onClick={() => navigatePeriod(1)} aria-label={`Next ${mode.toLowerCase()}`}>
           <ChevronRight size={17} />
         </button>
       </div>
       <div className="calendar-task-legend">
         <span>
-          Tasks and time blocks live here. Repeated habits have a separate
-          tracker and calendar.
+          <b>Planned</b> is when you intend to work. <b>Deadline</b> is when work is due. Repeated habits have a separate tracker and calendar.
         </span>
         <button
           type="button"
@@ -8979,63 +9027,79 @@ function CalendarMatrix({
           Open Habit tracker
         </button>
       </div>
-      <div className="matrix-grid">
-        {dates.map(date => {
-          const scheduledItems = tasks.filter(
-            task =>
-              task.scheduledLocalDate === date || task.dueLocalDate === date
-          );
-          const items = scheduledItems.slice(0, 3);
-          const hiddenCount = scheduledItems.length - items.length;
-          return (
-            <article
-              key={date}
-              className={cn("matrix-cell", date === today && "is-today")}
-              onDragOver={event => event.preventDefault()}
-              onDrop={event =>
-                scheduleFromDrop(event.dataTransfer.getData("text/plain"), date)
-              }
-            >
-              <time>
-                {mode === "Quarter" || mode === "Year"
-                  ? displayLocalDate(date, scope.timezone, {
-                      month: "short",
-                      year: mode === "Year" ? "2-digit" : undefined,
-                    })
-                  : displayLocalDate(date, scope.timezone, {
-                      weekday: mode === "Week" ? "short" : undefined,
-                      month: "short",
-                      day: "numeric",
-                    })}
-              </time>
-              {items.map(task => (
-                <div className="matrix-task" key={task.id}>
-                  <i
-                    style={{
-                      background:
-                        categoryColors.get(task.categoryId) ?? "#C6F06A",
-                    }}
-                  />
-                  {task.title}
-                </div>
-              ))}
-              {hiddenCount > 0 ? (
-                <button
-                  type="button"
-                  className="matrix-overflow"
-                  onClick={onOpenTasks}
-                  aria-label={`Open Tasks and search to review ${hiddenCount} more task${hiddenCount === 1 ? "" : "s"} on ${date}`}
-                >
-                  View {hiddenCount} more in Tasks
-                </button>
-              ) : null}
-              {items.length === 0 ? (
-                <span className="matrix-empty">—</span>
-              ) : null}
-            </article>
-          );
-        })}
+      <div className="matrix-move-tools" aria-label="Move a task's planned day">
+        <label>Task
+          <select value={selectedTaskId} onChange={event => { setSelectedTaskId(event.target.value); setPendingPreview(null); setFeedback(null); }}>
+            <option value="">Choose a task</option>
+            {selectableTasks.map(task => <option value={task.id} key={task.id}>{task.title}</option>)}
+          </select>
+        </label>
+        <label>New planned day
+          <input type="date" min={start} max={last} value={targetDate} onChange={event => { setTargetDate(event.target.value); setPendingPreview(null); setFeedback(null); }} />
+        </label>
+        <button type="button" onClick={() => proposeMove(selectedTaskId, targetDate)} disabled={!selectedTask || !targetDate}>Review move</button>
       </div>
+      <p className="matrix-move-instruction">Select a planned task, then choose a day or drop it on a day. Review the change before applying it.</p>
+      {pendingPreview ? (
+        <section className="matrix-preview" aria-label="Planned day move preview" aria-live="polite">
+          <div><span className="matrix-preview-eyebrow">Review planned day</span><h3>{previewTask?.title ?? "Task changed"}</h3></div>
+          {pendingPreview.preview.changes.length ? pendingPreview.preview.changes.map(change =>
+            <p key={change.field}><b>{change.label}</b> <span>{change.before ? dateLabel(change.before, { month: "short", day: "numeric", year: "numeric" }) : "Unplanned"} → {change.after ? dateLabel(change.after, { month: "short", day: "numeric", year: "numeric" }) : "Unplanned"}</span></p>
+          ) : <p>This task is already planned for that day.</p>}
+          <p className="matrix-preview-fixed">Deadline stays {previewTask?.dueLocalDate ? dateLabel(previewTask.dueLocalDate, { month: "short", day: "numeric", year: "numeric" }) : "unset"}.</p>
+          {pendingPreview.preview.warnings.map(warning => <p className="matrix-preview-warning" key={warning}>{warning}</p>)}
+          {pendingPreview.preview.collisions.map(collision => <p className="matrix-preview-warning" key={collision.id}>Conflicts with {collision.title}.</p>)}
+          {previewIsStale ? <p className="matrix-preview-warning">The task changed since this preview. Review it again.</p> : null}
+          <div className="matrix-preview-actions">
+            <button type="button" onClick={() => setPendingPreview(null)}>Cancel</button>
+            <button type="button" onClick={applyMove} disabled={!pendingPreview.preview.apply || previewIsStale || updateTask.isPending}>{updateTask.isPending ? "Moving…" : "Apply move"}</button>
+          </div>
+        </section>
+      ) : null}
+      {feedback ? <p className="matrix-feedback" role="status">{feedback}</p> : null}
+      {mode === "Week" || mode === "Month" ? (
+        <div className="matrix-grid" aria-label={`${mode} ${start} to ${last}`}>
+          {mode === "Month" ? <div className="matrix-weekdays" aria-hidden="true">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => <span key={day}>{day}</span>)}</div> : null}
+          {mode === "Month" ? Array.from({ length: (startDate.getUTCDay() + 6) % 7 }, (_, index) => <span className="matrix-leading-day" aria-hidden="true" key={`leading-${index}`} />) : null}
+          {dates.map(date => {
+            const items = projectionsOn(date);
+            const visible = items.slice(0, 3);
+            const hidden = items.length - visible.length;
+            return <article key={date} className={cn("matrix-cell", date === today && "is-today", targetDate === date && "is-target")}
+              onDragOver={event => { if (event.dataTransfer.types.includes("text/plain")) event.preventDefault(); }}
+              onDrop={event => { event.preventDefault(); proposeMove(event.dataTransfer.getData("text/plain"), date); }}>
+              <time dateTime={date}>{dateLabel(date, { weekday: "short", month: "short", day: "numeric" })}</time>
+              <button type="button" className="matrix-day-target" disabled={!selectedTask} onClick={() => proposeMove(selectedTaskId, date)} aria-label={`Review moving ${selectedTask?.title ?? "selected task"} to ${date}`}>Move here</button>
+              {visible.map(({ task, kind }) => renderTask(task, kind, `${task.id}-${kind}`))}
+              {hidden > 0 ? <button type="button" className="matrix-overflow" onClick={onOpenTasks}>View {hidden} more in Tasks</button> : null}
+              {!items.length ? <span className="matrix-empty">No plans or deadlines</span> : null}
+            </article>;
+          })}
+        </div>
+      ) : (
+        <div className="matrix-months" aria-label={`${mode} ${start} to ${last}`}>
+          {monthStarts.map(monthStart => {
+            const monthEnd = new Date(`${monthStart}T12:00:00.000Z`);
+            monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+            const nextMonth = monthEnd.toISOString().slice(0, 10);
+            const monthly = tasks.flatMap(task => [
+              ...(task.scheduledLocalDate >= monthStart && task.scheduledLocalDate < nextMonth ? [{ task, kind: "planned" as const, date: task.scheduledLocalDate }] : []),
+              ...(task.dueLocalDate >= monthStart && task.dueLocalDate < nextMonth ? [{ task, kind: "deadline" as const, date: task.dueLocalDate }] : []),
+            ]).sort((a, b) => a.date.localeCompare(b.date));
+            const plannedCount = monthly.filter(item => item.kind === "planned").length;
+            const deadlineCount = monthly.length - plannedCount;
+            return <article className="matrix-month" key={monthStart}>
+              <h3>{dateLabel(monthStart, { month: "long" })}</h3>
+              <p>{plannedCount} planned · {deadlineCount} deadlines</p>
+              <div className="matrix-month-items">
+                {monthly.slice(0, 4).map(({ task, kind, date }) => <div key={`${task.id}-${kind}`} className="matrix-month-item"><time dateTime={date}>{date.slice(-2)}</time>{renderTask(task, kind, `${task.id}-${kind}`)}</div>)}
+                {!monthly.length ? <span className="matrix-empty">No plans or deadlines</span> : null}
+              </div>
+              {monthly.length > 4 ? <button type="button" className="matrix-overflow" onClick={onOpenTasks}>View {monthly.length - 4} more in Tasks</button> : null}
+            </article>;
+          })}
+        </div>
+      )}
     </div>
   );
 }

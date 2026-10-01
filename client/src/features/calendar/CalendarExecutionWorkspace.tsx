@@ -3,12 +3,14 @@ import { displayLocalDate, shiftLocalDate, type WorkspaceScope } from "@/lib/wor
 import { trpc } from "@/lib/trpc";
 import { isTaskCalendarProjection, roundedTaskReservationMinutes, taskReservationGridMinutes, taskReservationLocalParts } from "@shared/taskReservation";
 import { zonedDateTimeToUtc } from "@shared/planningAvailability";
+import { assertCalendarPreviewFresh, previewCalendarMutation, type CalendarMutationPreview } from "@shared/calendarMovePreview";
 import { nextFreeReservationMinute, plannerShortcutCommand } from "@shared/plannerKeyboard";
 import { resolveMobileCalendarGesture } from "@shared/mobileCalendarGesture";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, GripVertical, Inbox, LockKeyhole, MoveRight, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import "./calendar-execution.css";
+import "./calendar-preview.css";
 
 type CalendarExecutionSnapshot = {
   workspace: { workdayStartsAt: string; workdayEndsAt: string };
@@ -45,8 +47,11 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<{ taskId: string; preview: CalendarMutationPreview } | null>(null);
+  const [lastApplied, setLastApplied] = useState<{ taskId: string; preview: CalendarMutationPreview } | null>(null);
   const calendarPointerStart = useRef<{ x: number; y: number; pointerType: string } | null>(null);
   const reserveTask = trpc.planner.task.reserve.useMutation();
+  const updateTask = trpc.planner.task.update.useMutation();
   const nearbyDates = useMemo(() => Array.from({ length: 7 }, (_, index) => shiftLocalDate(selectedDate, index - 3)), [selectedDate]);
   const recordCalendarPointerStart = (event: React.PointerEvent<HTMLElement>) => { calendarPointerStart.current = { x: event.clientX, y: event.clientY, pointerType: event.pointerType }; };
   const resolveCalendarSwipe = (event: React.PointerEvent<HTMLElement>) => {
@@ -91,18 +96,59 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
       setFeedback(`This ${durationMinutes}-minute reservation does not fit before ${timeLabel(workEnd)}. Choose an earlier slot, resize it, or update availability.`);
       return;
     }
-    const plannedStartAt = zonedDateTimeToUtc(selectedDate, minute, scope.timezone);
-    const plannedEndAt = zonedDateTimeToUtc(selectedDate, minute + durationMinutes, scope.timezone);
-    setFeedback(null);
     try {
-      await reserveTask.mutateAsync({ ...scope, id: task.id, expectedVersion: task.version, localDate: selectedDate, plannedStartAt, plannedEndAt });
-      setSelectedTaskId(task.id);
-      await Promise.all([utils.planner.workspace.snapshot.invalidate(), utils.planner.dashboard.invalidate()]);
-      const defaultDuration = !task.estimateMinutes;
-      toast.success(`${task.title} reserved at ${timeLabel(minute)}${defaultDuration ? " for a visible 30-minute default" : ""}.`);
+      const plannedStartAt = zonedDateTimeToUtc(selectedDate, minute, scope.timezone);
+      const plannedEndAt = zonedDateTimeToUtc(selectedDate, minute + durationMinutes, scope.timezone);
+      const preview = previewCalendarMutation({
+        task,
+        mutation: { kind: "reservation", localDate: selectedDate, startsAt: plannedStartAt, endsAt: plannedEndAt },
+        context: {
+          timezone: scope.timezone,
+          window: { workdayStartsAt: exception?.workdayStartsAt ?? snapshot.workspace.workdayStartsAt, workdayEndsAt: exception?.workdayEndsAt ?? snapshot.workspace.workdayEndsAt, defaultBreakMinutes: 0 },
+          isUnavailable: Boolean(exception?.isUnavailable),
+          reservations: activeTasks.filter(item => item.plannedStartAt && item.plannedEndAt).map(item => ({ id: item.id, title: item.title, startsAt: item.plannedStartAt, endsAt: item.plannedEndAt })),
+          externalBusy: snapshot.externalEvents.filter(item => item.status === "active").map(item => ({ id: item.id, title: item.title ?? "Busy calendar time", startsAt: item.startsAt, endsAt: item.endsAt })),
+        },
+      });
+      setPendingPreview({ taskId: task.id, preview });
+      setLastApplied(null);
+      setFeedback(null);
     } catch (error) {
       setFeedback(errorMessage(error));
     }
+  };
+  const applyPreview = async () => {
+    if (!pendingPreview) return;
+    const task = activeTasks.find(item => item.id === pendingPreview.taskId);
+    if (!task) { setFeedback("The task is no longer available. Review the calendar again."); setPendingPreview(null); return; }
+    try {
+      const action = assertCalendarPreviewFresh(pendingPreview.preview, task, "apply");
+      const reservation = pendingPreview.preview.reservation;
+      if (!reservation) throw new Error("This reservation preview is incomplete. Review it again.");
+      await reserveTask.mutateAsync({ ...scope, id: action.id, expectedVersion: action.expectedVersion, ...reservation });
+      setSelectedTaskId(task.id);
+      setLastApplied(pendingPreview);
+      setPendingPreview(null);
+      await Promise.all([utils.planner.workspace.snapshot.invalidate(), utils.planner.dashboard.invalidate()]);
+      toast.success(`${task.title} reserved. Its deadline and estimate were not changed.`);
+    } catch (error) { setFeedback(errorMessage(error)); setPendingPreview(null); }
+  };
+  const undoLastReservation = async () => {
+    if (!lastApplied) return;
+    const task = activeTasks.find(item => item.id === lastApplied.taskId);
+    if (!task) { setFeedback("The task is no longer available. Undo was not applied."); setLastApplied(null); return; }
+    try {
+      const action = assertCalendarPreviewFresh(lastApplied.preview, task, "undo");
+      const previous = action.patch;
+      if (previous.plannedStartAt && previous.plannedEndAt && previous.scheduledLocalDate) {
+        await reserveTask.mutateAsync({ ...scope, id: action.id, expectedVersion: action.expectedVersion, localDate: previous.scheduledLocalDate, plannedStartAt: previous.plannedStartAt, plannedEndAt: previous.plannedEndAt });
+      } else {
+        await updateTask.mutateAsync({ ...scope, id: action.id, expectedVersion: action.expectedVersion, patch: previous });
+      }
+      setLastApplied(null);
+      await Promise.all([utils.planner.workspace.snapshot.invalidate(), utils.planner.dashboard.invalidate()]);
+      toast.success("Reservation restored to its previous state.");
+    } catch (error) { setFeedback(errorMessage(error)); setLastApplied(null); }
   };
 
   const completeTask = async (task: any) => {
@@ -192,6 +238,14 @@ export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPre
     </header>
     <nav className="calendar-date-rail" aria-label="Choose a nearby calendar day" onPointerDown={recordCalendarPointerStart} onPointerUp={resolveCalendarSwipe} onPointerCancel={() => { calendarPointerStart.current = null; }}>{nearbyDates.map(date => <button type="button" key={date} className={cn(date === selectedDate && "is-selected", date === today && "is-today")} aria-current={date === selectedDate ? "date" : undefined} onClick={() => setSelectedDate(date)}><span>{displayLocalDate(date, scope.timezone, { weekday: "short" })}</span><b>{displayLocalDate(date, scope.timezone, { day: "numeric" })}</b><small>{date === today ? "Today" : date === selectedDate ? "Selected" : ""}</small></button>)}</nav>
     <div className="calendar-execution-note"><CalendarDays size={16} /><span><b>Manual reservation</b> changes only this task’s plan and time block. Flexible proposals remain review-first.</span></div>
+    {pendingPreview ? <section className="calendar-move-preview" aria-labelledby="calendar-move-preview-heading" role="region">
+      <div className="calendar-move-preview-heading"><div><span>Review before applying</span><h3 id="calendar-move-preview-heading">{activeTasks.find(task => task.id === pendingPreview.taskId)?.title ?? "Task"}</h3></div><button type="button" aria-label="Cancel reservation preview" onClick={() => setPendingPreview(null)}><X size={18} /></button></div>
+      <dl>{pendingPreview.preview.changes.map(change => <div key={change.field}><dt>{change.label}</dt><dd><span>{change.before ?? "Not set"}</span><MoveRight size={14} aria-hidden="true" /><strong>{change.after ?? "Not set"}</strong></dd></div>)}</dl>
+      {pendingPreview.preview.warnings.map(warning => <p key={warning} className="calendar-preview-warning">{warning}</p>)}
+      {pendingPreview.preview.collisions.length ? <p className="calendar-preview-collision">Overlaps {pendingPreview.preview.collisions.map(item => item.title).join(", ")}. Choose another time; nothing has changed.</p> : null}
+      <div className="calendar-preview-actions"><button type="button" onClick={() => setPendingPreview(null)}>Cancel</button><button type="button" onClick={() => void applyPreview()} disabled={!pendingPreview.preview.apply || reserveTask.isPending}>{reserveTask.isPending ? "Applying…" : "Apply reservation"}</button></div>
+    </section> : null}
+    {lastApplied ? <div className="calendar-preview-undo" role="status"><span>Reservation applied. You can undo until this task changes again.</span><button type="button" onClick={() => void undoLastReservation()} disabled={reserveTask.isPending || updateTask.isPending}>Undo</button></div> : null}
     <section className="calendar-rollover" aria-labelledby="calendar-rollover-heading"><div><h3 id="calendar-rollover-heading">Morning rollover</h3><p>{rolloverLoading ? "Reviewing yesterday’s unfinished reservations…" : rolloverPreview?.candidates.length ? `${rolloverPreview.candidates.length} unfinished reservation${rolloverPreview.candidates.length === 1 ? "" : "s"} from ${rolloverPreview.fromLocalDate} can return to unreserved work. Applying clears Reserve time only; task state, Plan for date, and recurrence stay unchanged.` : "No unfinished prior-day reservations are waiting for review."}</p></div>{rolloverPreview?.candidates.length ? <button type="button" onClick={() => void onApplyMorningRollover()} disabled={rolloverPending}>{rolloverPending ? "Applying rollover…" : `Apply ${rolloverPreview.candidates.length} rollover${rolloverPreview.candidates.length === 1 ? "" : "s"}`}</button> : null}</section>
     <div className="calendar-keyboard-guide" aria-label="Calendar keyboard shortcuts"><span>Keyboard</span><p><kbd>n</kbd> new task <kbd>t</kbd> today <kbd>↑</kbd><kbd>↓</kbd> or <kbd>←</kbd><kbd>→</kbd> move grid selection <kbd>Enter</kbd> reserve the selected inbox task in the next free slot.</p></div>
     <div className="calendar-execution-layout">

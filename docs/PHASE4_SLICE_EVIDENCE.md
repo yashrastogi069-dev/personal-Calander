@@ -51,3 +51,9 @@ Behavior labels describe the intended Phase 4 presentation relative to the prese
 Each implementation slice must append one row to the opening table and identify the exact capabilities moved, affected records and mutations, URL/preference adapters, state coverage, automated checks, synthetic viewport evidence, remaining physical-device proof, and rollback boundary. A row may claim only evidence produced by that slice. Synthetic browser evidence must never be described as physical-device verification.
 
 Rollback means routing or code rollback to the last compatible commit. It never means deleting planner records, clearing IndexedDB, erasing queued operations or conflicts, purging service-worker or unrelated caches, replaying a baseline over populated tables, or rewriting IDs/history.
+
+## Task 15 verification checkpoint (2026-10-01)
+
+Task 15 adds a resumable five-stage Plan flow (Resolve, Capacity, Commit, Reserve, Review), recent history, an explicit Calendar handoff, evidence-required weekly completion, and safe reopening of closed daily plans. Calendar now uses true Week/Month/Quarter/Year periods, keeps Planned day separate from Deadline, and requires a reviewed, version-bound Apply for planned-day and reservation changes. Reservation writes continue through the authoritative collision/window validator; no migration, reset, deployment, or live database write was run.
+
+Evidence: 86 Vitest files, 546 passed and 3 skipped; `tsc --noEmit`; production build with PWA release `4ff8b87f8fa9751b`; synthetic Playwright `scripts/preview-task15.py` passed at 320/390/768/1440 with zero page-level horizontal overflow and no screenshots. Physical iPhone, VoiceOver, live Supabase/Preview, and deployment remain separate gates.

@@ -1,0 +1,76 @@
+.plan-workspace [hidden] { display: none !important; }
+.plan-workspace-grid:has(> .daily-plan-panel[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.plan-workspace-grid:has(> .plan-context-panel[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.plan-stage-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.plan-stage-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: baseline;
+  gap: 1px 8px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 10px 12px;
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  text-align: left;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.plan-stage-button span { grid-row: span 2; align-self: center; color: var(--accent); font: 700 12px/1 "IBM Plex Mono", monospace; }
+.plan-stage-button strong { overflow: hidden; color: var(--ink); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.plan-stage-button small { overflow: hidden; color: var(--ink-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.plan-stage-button:hover { border-color: var(--accent); background: var(--selection); }
+.plan-stage-button:active { transform: scale(.985); }
+.plan-stage-button.is-active { color: var(--ink); border-color: var(--accent); background: var(--selection); box-shadow: inset 0 3px 0 var(--accent); }
+.plan-stage-button:focus-visible, .plan-calendar-stage button:focus-visible, .plan-closed-note button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.plan-stage-empty { margin: 0; color: var(--ink-muted); font-size: 14px; }
+.plan-calendar-stage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-elevated);
+}
+.plan-calendar-stage span { color: var(--accent); font: 700 11px/1.2 "IBM Plex Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+.plan-calendar-stage h3 { margin: 6px 0 8px; color: var(--ink); font-size: clamp(19px, 2vw, 24px); line-height: 1.15; }
+.plan-calendar-stage p { max-width: 65ch; margin: 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+.plan-calendar-stage button { flex: none; min-height: 44px; }
+.plan-closed-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.plan-closed-note p { display: flex; align-items: center; gap: 6px; margin: 0; }
+.plan-closed-note button { min-height: 44px; padding: 0 12px; color: var(--accent); border: 1px solid var(--border); border-radius: 9px; background: var(--surface-elevated); font-weight: 700; }
+.plan-closed-note button:hover { background: var(--selection); }
+.weekly-evidence-edit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 9px; min-width: 0; width: 100%; }
+.weekly-evidence-edit label { grid-column: 1 / -1; color: var(--ink-muted); font-size: 12px; }
+.weekly-evidence-edit input { min-width: 0; }
+.weekly-evidence-edit button { min-height: 44px; padding: 0 10px; color: var(--accent); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-elevated); font-size: 12px; font-weight: 700; }
+.weekly-evidence-edit button:disabled { opacity: .5; cursor: not-allowed; }
+.weekly-evidence-edit button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.plan-history-panel { display: grid; gap: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-elevated); }
+.plan-history-panel > p { margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.5; }
+.plan-history-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.plan-history-list article { display: grid; gap: 4px; align-content: start; min-width: 0; padding: 12px; color: var(--ink); border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.plan-history-list strong { overflow-wrap: anywhere; font-size: 13px; }
+.plan-history-list span, .plan-history-list small { color: var(--ink-muted); font-size: 11px; }
+.plan-history-list p { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+@media (max-width: 700px) {
+  .plan-stage-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .plan-stage-button { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 60px; padding: 8px 3px; text-align: center; }
+  .plan-stage-button span { font-size: 10px; }
+  .plan-stage-button strong { width: 100%; font-size: 11px; }
+  .plan-stage-button small { display: none; }
+  .plan-calendar-stage { flex-direction: column; align-items: stretch; padding: 18px; }
+  .plan-calendar-stage button { width: 100%; }
+  .plan-closed-note { align-items: stretch; flex-direction: column; }
+  .weekly-evidence-edit { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .plan-stage-button { transition: none; } }

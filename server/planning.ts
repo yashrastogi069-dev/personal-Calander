@@ -666,7 +666,9 @@ export async function upsertDailyPlan(scope: PlannerScope, input: { localDate: s
     return (await db.select().from(dailyPlans).where(and(eq(dailyPlans.workspaceId, scope.workspaceId), eq(dailyPlans.id, id))).limit(1))[0]!;
   }
   if (input.expectedVersion !== undefined && existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
-  if (existing.state === "closed" && nextState !== "closed") throw new Error("A closed daily plan cannot be reopened. Start a new plan for the next day instead.");
+  if (existing.state === "closed" && nextState !== "closed" && !(input.state === "active" && input.expectedVersion !== undefined)) {
+    throw new Error("Reopen a closed daily plan explicitly with its current version.");
+  }
   const patch: Record<string, unknown> = { state: nextState, version: existing.version + 1 };
   if (input.intention !== undefined) patch.intention = input.intention;
   if (input.reflection !== undefined) patch.reflection = input.reflection;
@@ -815,11 +817,17 @@ export async function updateWeeklyObjective(scope: PlannerScope, input: { id: st
   const existing = (await db.select().from(weeklyObjectives).where(and(eq(weeklyObjectives.workspaceId, scope.workspaceId), eq(weeklyObjectives.id, input.id))).limit(1))[0];
   if (!existing) throw new Error("Weekly objective was not found.");
   if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  const evidence = input.patch.evidence === undefined ? existing.evidence : input.patch.evidence;
+  const remainsCompleted = (input.patch.state ?? existing.state) === "completed";
+  if (remainsCompleted && (input.patch.state === "completed" || input.patch.evidence !== undefined) && !evidence?.trim()) {
+    throw new Error("Record what happened before completing this weekly objective. Completion needs real evidence.");
+  }
   await assertScopedRecordLinks(db, scope, {
     goalId: input.patch.goalId === undefined ? existing.goalId : input.patch.goalId,
     projectId: input.patch.projectId === undefined ? existing.projectId : input.patch.projectId,
   });
   const patch: Record<string, unknown> = { ...input.patch, version: input.expectedVersion + 1 };
+  if (typeof input.patch.evidence === "string") patch.evidence = input.patch.evidence.trim();
   if (input.patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
   if (input.patch.state && input.patch.state !== "completed") patch.completedAt = null;
   if (input.patch.state === "archived") patch.archivedAt = new Date();

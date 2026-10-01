@@ -13,6 +13,23 @@ async function requireDb() {
   return db;
 }
 
+type ReservationState = { scheduledLocalDate: string | null; plannedStartAt: Date | string | null; plannedEndAt: Date | string | null };
+
+function sameInstant(left: Date | string | null, right: Date | string | null) {
+  if (left === null || right === null) return left === right;
+  const leftTime = new Date(left).getTime();
+  const rightTime = new Date(right).getTime();
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime === rightTime;
+}
+
+export function scheduleProposalSourceMatchesTask(proposal: { previousScheduledLocalDate: string | null; previousStartAt: Date | string | null; previousEndAt: Date | string | null }, task: ReservationState) {
+  return proposal.previousScheduledLocalDate === task.scheduledLocalDate && sameInstant(proposal.previousStartAt, task.plannedStartAt) && sameInstant(proposal.previousEndAt, task.plannedEndAt);
+}
+
+export function scheduleProposalTargetMatchesTask(proposal: { localDate: string; proposedStartAt: Date | string; proposedEndAt: Date | string }, task: ReservationState) {
+  return proposal.localDate === task.scheduledLocalDate && sameInstant(proposal.proposedStartAt, task.plannedStartAt) && sameInstant(proposal.proposedEndAt, task.plannedEndAt);
+}
+
 function timeLabel(value: Date, timezone: string) {
   return new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(value);
 }
@@ -26,7 +43,10 @@ export async function createScheduleProposal(scope: PlannerScope, input: { taskI
     db.select().from(planningAvailabilityExceptions).where(and(eq(planningAvailabilityExceptions.workspaceId, scope.workspaceId), eq(planningAvailabilityExceptions.localDate, input.localDate))).limit(1),
   ]);
   if (!task[0] || !workspace[0]) throw new Error("Task or planning workspace was not found.");
-  if (existing[0]) return existing[0];
+  if (existing[0]) {
+    if (!scheduleProposalSourceMatchesTask(existing[0], task[0])) throw new Error("This scheduling proposal was based on an earlier task reservation. Dismiss it and request a new proposal.");
+    return existing[0];
+  }
   const exceptionRecord = exception[0];
   const eligibility = schedulingEligibility(task[0], Boolean(exceptionRecord?.isUnavailable));
   if (eligibility) throw new Error(eligibility);
@@ -53,6 +73,7 @@ export async function approveScheduleProposal(scope: PlannerScope, input: { id: 
   const task = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, proposal.taskId))).limit(1))[0];
   if (!task) throw new Error("The linked task no longer exists.");
   if (task.version !== input.taskExpectedVersion) throw new PlannerConflictError(task);
+  if (!scheduleProposalSourceMatchesTask(proposal, task)) throw new Error("This scheduling proposal is stale because the task reservation changed. Review it again.");
   await db.transaction(async tx => {
     await tx.update(tasks).set({ scheduledLocalDate: proposal.localDate, plannedStartAt: proposal.proposedStartAt, plannedEndAt: proposal.proposedEndAt, scheduleMode: "flexible", version: task.version + 1 }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, task.id), eq(tasks.version, task.version)));
     await tx.update(scheduleProposals).set({ state: "approved", version: proposal.version + 1 }).where(and(eq(scheduleProposals.workspaceId, scope.workspaceId), eq(scheduleProposals.id, proposal.id), eq(scheduleProposals.version, proposal.version)));
@@ -81,6 +102,7 @@ export async function undoScheduleProposal(scope: PlannerScope, input: { id: str
   const task = (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, proposal.taskId))).limit(1))[0];
   if (!task) throw new Error("The linked task no longer exists.");
   if (task.version !== input.taskExpectedVersion) throw new PlannerConflictError(task);
+  if (!scheduleProposalTargetMatchesTask(proposal, task)) throw new Error("This approved reservation changed since the proposal was applied. Review it before undoing.");
   await db.transaction(async tx => {
     await tx.update(tasks).set({ scheduledLocalDate: proposal.previousScheduledLocalDate, plannedStartAt: proposal.previousStartAt, plannedEndAt: proposal.previousEndAt, version: task.version + 1 }).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, task.id), eq(tasks.version, task.version)));
     await tx.update(scheduleProposals).set({ state: "undone", version: proposal.version + 1 }).where(and(eq(scheduleProposals.workspaceId, scope.workspaceId), eq(scheduleProposals.id, proposal.id), eq(scheduleProposals.version, proposal.version)));

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import "./plan-stages.css";
 
 type PlanWorkspaceProps = {
   scope: WorkspaceScope;
@@ -39,6 +40,7 @@ type PlanWorkspaceProps = {
   dashboard: any;
   onOpenTasks: () => void;
   onOpenGoals: () => void;
+  onOpenCalendar: () => void;
   focusEarlierCommitments?: boolean;
   onRecoveryIntentConsumed?: () => void;
   focusItemId?: string | null;
@@ -866,18 +868,21 @@ export function PlanWorkspace({
   dashboard,
   onOpenTasks,
   onOpenGoals,
+  onOpenCalendar,
   focusEarlierCommitments = false,
   onRecoveryIntentConsumed,
   focusItemId = null,
   isOnline = true,
 }: PlanWorkspaceProps) {
   const utils = trpc.useUtils();
-  const [intention, setIntention] = useState("");
+  const [intentionDraft, setIntentionDraft] = useState<{ planId: string | null; value: string } | null>(null);
   const [taskSearch, setTaskSearch] = useState("");
   const [objectiveTitle, setObjectiveTitle] = useState("");
   const [objectiveGoalId, setObjectiveGoalId] = useState("none");
   const [objectiveProjectId, setObjectiveProjectId] = useState("none");
-  const [reflection, setReflection] = useState("");
+  const [objectiveEvidenceDrafts, setObjectiveEvidenceDrafts] = useState<Record<string, string>>({});
+  const [reflectionDraft, setReflectionDraft] = useState<{ planId: string; value: string } | null>(null);
+  const [activeStage, setActiveStage] = useState<"recover" | "capacity" | "commit" | "reserve" | "review">("commit");
   const [localError, setLocalError] = useState<string | null>(null);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const recoveryTriggerRef = useRef<HTMLButtonElement>(null);
@@ -946,6 +951,19 @@ export function PlanWorkspace({
   const currentPlan = (snapshot.dailyPlans ?? []).find(
     (plan: any) => plan.localDate === today && plan.state !== "archived"
   );
+  const intention = intentionDraft && intentionDraft.planId === (currentPlan?.id ?? null)
+    ? intentionDraft.value
+    : (currentPlan?.intention ?? "");
+  const reflection = reflectionDraft && reflectionDraft.planId === currentPlan?.id
+    ? reflectionDraft.value
+    : (currentPlan?.reflection ?? "");
+  useEffect(() => {
+    const saved = window.sessionStorage.getItem(`plan-stage:${scope.workspaceId}`);
+    if (saved === "recover" || saved === "capacity" || saved === "commit" || saved === "reserve" || saved === "review") setActiveStage(saved);
+  }, [scope.workspaceId]);
+  useEffect(() => {
+    window.sessionStorage.setItem(`plan-stage:${scope.workspaceId}`, activeStage);
+  }, [scope.workspaceId, activeStage]);
   const currentPlanItems = (snapshot.dailyPlanItems ?? [])
     .filter((item: any) => item.dailyPlanId === currentPlan?.id)
     .sort((left: any, right: any) => left.position - right.position);
@@ -983,6 +1001,7 @@ export function PlanWorkspace({
   );
   useEffect(() => {
     if (!hasFocusedItem) return;
+    setActiveStage("commit");
     const frame = window.requestAnimationFrame(() => {
       const row = document.getElementById(`daily-commitment-${focusItemId}`);
       row?.scrollIntoView({ block: "center" });
@@ -992,6 +1011,7 @@ export function PlanWorkspace({
   }, [focusItemId, hasFocusedItem]);
   useEffect(() => {
     if (!focusEarlierCommitments) return;
+    setActiveStage("recover");
     if (recoveryEntries.length) {
       document.getElementById("earlier-commitments")?.focus();
       setRecoveryOpen(true);
@@ -1043,6 +1063,14 @@ export function PlanWorkspace({
       objective.weekStartLocalDate === weekStart &&
       objective.state !== "archived"
   );
+  const recentPlans = (snapshot.dailyPlans ?? [])
+    .filter((plan: any) => plan.localDate < today && plan.state !== "archived")
+    .sort((left: any, right: any) => right.localDate.localeCompare(left.localDate))
+    .slice(0, 7);
+  const earlierObjectives = (snapshot.weeklyObjectives ?? [])
+    .filter((objective: any) => objective.weekStartLocalDate < weekStart)
+    .sort((left: any, right: any) => right.weekStartLocalDate.localeCompare(left.weekStartLocalDate))
+    .slice(0, 8);
   const availabilityException = (
     snapshot.planningAvailabilityExceptions ?? []
   ).find((exception: any) => exception.localDate === today);
@@ -1101,6 +1129,11 @@ export function PlanWorkspace({
       intention: intention.trim() || null,
       state: currentPlan.state,
     });
+  };
+  const reopenPlan = () => {
+    if (!currentPlan || currentPlan.state !== "closed") return;
+    setLocalError(null);
+    upsertPlan.mutate({ ...scope, localDate: today, expectedVersion: currentPlan.version, state: "active" });
   };
   const resolve = (
     item: any,
@@ -1179,6 +1212,7 @@ export function PlanWorkspace({
   return (
     <section
       className="plan-workspace"
+      data-plan-stage={activeStage}
       aria-labelledby="plan-workspace-heading"
     >
       <RecoveryFlow
@@ -1207,6 +1241,19 @@ export function PlanWorkspace({
           })}
         </span>
       </header>
+      <nav className="plan-stage-nav" aria-label="Planning stages">
+        {([
+          ["recover", "01", "Resolve", recoveryEntries.length ? `${recoveryEntries.length} open` : "Clear"],
+          ["capacity", "02", "Capacity", `${availability.freeMinutes}m free`],
+          ["commit", "03", "Commit", `${currentPlanItems.length} chosen`],
+          ["reserve", "04", "Reserve", "Calendar"],
+          ["review", "05", "Review", currentPlan?.state === "closed" ? "Closed" : "Open"],
+        ] as const).map(([stage, number, label, detail]) => (
+          <button key={stage} type="button" aria-current={activeStage === stage ? "step" : undefined} className={cn("plan-stage-button", activeStage === stage && "is-active")} onClick={() => setActiveStage(stage)}>
+            <span>{number}</span><strong>{label}</strong><small>{detail}</small>
+          </button>
+        ))}
+      </nav>
       {localError ? (
         <div className="plan-inline-error" role="alert">
           <CircleAlert size={17} />
@@ -1220,7 +1267,7 @@ export function PlanWorkspace({
           </button>
         </div>
       ) : null}
-      {recoveryEntries.length ? (
+      {activeStage === "recover" ? (
         <section
           id="earlier-commitments"
           className="plan-candidate-panel"
@@ -1238,17 +1285,18 @@ export function PlanWorkspace({
             These promises stay attached to their original day until you choose
             an outcome.
           </p>
-          <RecoveryIndicator
+          {recoveryEntries.length ? <RecoveryIndicator
             count={recoveryEntries.length}
             level={(snapshot.workspace.accountabilityLevel ?? "structured") as AccountabilityLevel}
             onOpen={() => setRecoveryOpen(true)}
             buttonRef={recoveryTriggerRef}
-          />
+          /> : <p className="plan-stage-empty">No earlier commitments need resolution. Your history remains intact.</p>}
         </section>
       ) : null}
       <div className="plan-workspace-grid">
         <section
           className="daily-plan-panel"
+          hidden={activeStage !== "commit" && activeStage !== "review"}
           aria-labelledby="daily-plan-heading"
         >
           <div className="plan-section-heading">
@@ -1272,7 +1320,7 @@ export function PlanWorkspace({
               <Input
                 id="daily-intention"
                 value={intention}
-                onChange={event => setIntention(event.target.value)}
+                onChange={event => setIntentionDraft({ planId: null, value: event.target.value })}
                 maxLength={3000}
                 placeholder="What would make today feel well spent?"
               />
@@ -1292,16 +1340,15 @@ export function PlanWorkspace({
                 <Input
                   id="daily-intention"
                   value={intention}
-                  onChange={event => setIntention(event.target.value)}
+                  onChange={event => setIntentionDraft({ planId: currentPlan.id, value: event.target.value })}
                   maxLength={3000}
-                  placeholder={
-                    currentPlan.intention || "Name the direction for today"
-                  }
+                  placeholder="Name the direction for today"
+                  disabled={currentPlan.state === "closed"}
                 />
                 <button
                   type="button"
                   onClick={saveIntention}
-                  disabled={upsertPlan.isPending}
+                  disabled={upsertPlan.isPending || currentPlan.state === "closed" || intention.trim() === (currentPlan.intention ?? "")}
                 >
                   Save intention
                 </button>
@@ -1342,7 +1389,7 @@ export function PlanWorkspace({
                   <Input
                     id="daily-reflection"
                     value={reflection}
-                    onChange={event => setReflection(event.target.value)}
+                    onChange={event => setReflectionDraft({ planId: currentPlan.id, value: event.target.value })}
                     maxLength={5000}
                     placeholder="What should tomorrow inherit from today?"
                   />
@@ -1359,15 +1406,15 @@ export function PlanWorkspace({
                   </Button>
                 </div>
               ) : (
-                <p className="plan-closed-note">
-                  <Check size={16} /> Closed deliberately. Reflection remains in
-                  today’s plan history.
-                </p>
+                <div className="plan-closed-note">
+                  <p><Check size={16} /> Closed deliberately. Reflection remains in today’s plan history.</p>
+                  <button type="button" onClick={reopenPlan} disabled={upsertPlan.isPending}>Reopen this day</button>
+                </div>
               )}
             </>
           )}
         </section>
-        <aside className="plan-context-panel">
+        <aside className="plan-context-panel" hidden={activeStage !== "capacity"}>
           <div className="plan-section-heading">
             <div>
               <span>Real capacity</span>
@@ -1413,7 +1460,7 @@ export function PlanWorkspace({
           <AccountabilitySettings workspace={snapshot.workspace} scope={scope} isOnline={isOnline} />
         </aside>
       </div>
-      {currentPlan?.state !== "closed" ? (
+      {activeStage === "commit" && currentPlan?.state !== "closed" ? (
         <section
           className="plan-candidate-panel"
           aria-labelledby="commitment-candidates-heading"
@@ -1472,14 +1519,16 @@ export function PlanWorkspace({
           )}
         </section>
       ) : null}
-      <ScheduleAssistance
+      {activeStage === "reserve" ? <section className="plan-calendar-stage" aria-labelledby="plan-calendar-stage-heading"><div><span>Reserve real time</span><h3 id="plan-calendar-stage-heading">Turn commitments into a believable calendar</h3><p>Review availability and place focus blocks in Calendar. A reservation changes planned time, not the task deadline or your daily commitment.</p></div><Button type="button" onClick={onOpenCalendar}>Open Calendar <ChevronRight size={16} /></Button></section> : null}
+      {activeStage === "reserve" ? <ScheduleAssistance
         scope={scope}
         today={today}
         tasks={unfinishedTasks}
         proposals={snapshot.scheduleProposals ?? []}
-      />
+      /> : null}
       <section
         className="weekly-objectives-panel"
+        hidden={activeStage !== "review"}
         aria-labelledby="weekly-objectives-heading"
       >
         <div className="plan-section-heading">
@@ -1566,6 +1615,11 @@ export function PlanWorkspace({
                     </small>
                   </span>
                 </div>
+                <div className="weekly-evidence-edit">
+                  <Label htmlFor={`weekly-evidence-${objective.id}`}>Evidence of progress</Label>
+                  <Input id={`weekly-evidence-${objective.id}`} value={objectiveEvidenceDrafts[objective.id] ?? objective.evidence ?? ""} onChange={event => setObjectiveEvidenceDrafts(current => ({ ...current, [objective.id]: event.target.value }))} maxLength={5000} placeholder="What actually happened?" />
+                  <button type="button" onClick={() => updateObjective.mutate({ ...scope, id: objective.id, expectedVersion: objective.version, patch: { evidence: (objectiveEvidenceDrafts[objective.id] ?? "").trim() } })} disabled={updateObjective.isPending || objectiveEvidenceDrafts[objective.id] === undefined || !objectiveEvidenceDrafts[objective.id].trim() || objectiveEvidenceDrafts[objective.id].trim() === (objective.evidence ?? "")}>Save evidence</button>
+                </div>
                 <div>
                   <button
                     type="button"
@@ -1576,13 +1630,13 @@ export function PlanWorkspace({
                         expectedVersion: objective.version,
                         patch: {
                           state: "completed",
-                          evidence:
-                            objective.evidence || "Completed this week.",
+                          evidence: (objectiveEvidenceDrafts[objective.id] ?? objective.evidence ?? "").trim(),
                         },
                       })
                     }
                     disabled={
                       updateObjective.isPending ||
+                      !(objectiveEvidenceDrafts[objective.id] ?? objective.evidence ?? "").trim() ||
                       objective.state === "completed"
                     }
                   >
@@ -1616,6 +1670,12 @@ export function PlanWorkspace({
           </p>
         )}
       </section>
+      {activeStage === "review" ? <section className="plan-history-panel" aria-labelledby="plan-history-heading">
+        <div className="plan-section-heading"><div><span>Continuity</span><h3 id="plan-history-heading">Recent planning history</h3></div></div>
+        <p>Past days and weekly outcomes remain visible. Reopening today keeps its existing commitments and reflection.</p>
+        {recentPlans.length ? <div className="plan-history-list">{recentPlans.map((plan: any) => <article key={plan.id}><strong>{plan.localDate}</strong><span>{plan.state}</span><p>{plan.intention || "No intention recorded"}</p>{plan.reflection ? <small>Reflection: {plan.reflection}</small> : null}</article>)}</div> : <p>No earlier daily plans are in this snapshot.</p>}
+        {earlierObjectives.length ? <div className="plan-history-list">{earlierObjectives.map((objective: any) => <article key={objective.id}><strong>{objective.title}</strong><span>{objective.weekStartLocalDate} · {objective.state}</span>{objective.carriedForwardFromId ? <small>Continued from an earlier objective</small> : null}{objective.evidence ? <p>Evidence: {objective.evidence}</p> : null}</article>)}</div> : null}
+      </section> : null}
     </section>
   );
 }
