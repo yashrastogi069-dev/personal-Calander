@@ -1222,6 +1222,41 @@ export async function dispatchProjectReminderSweep(db: PlanningDatabase, origin:
   };
 }
 
+/**
+ * Updates an established goal with an optimistic version guard. Additive
+ * intention metadata is intentionally gated until migration 0004 is approved;
+ * this prevents a pre-migration workspace from failing on unknown columns.
+ */
+export async function updateGoal(scope: PlannerScope, input: {
+  id: string;
+  expectedVersion: number;
+  patch: Partial<Pick<typeof goals.$inferInsert, "title" | "description" | "categoryId" | "parentGoalId" | "state" | "priority" | "horizon" | "color" | "progressMode" | "progressValue" | "targetValue" | "startLocalDate" | "dueLocalDate">> & {
+    intentionKind?: "outcome" | "direction" | null;
+    successCriteria?: string | null;
+    standards?: string | null;
+    reviewCadence?: "weekly" | "monthly" | "quarterly" | "yearly" | null;
+    nextReviewLocalDate?: string | null;
+  };
+}) {
+  const additiveKeys = ["intentionKind", "successCriteria", "standards", "reviewCadence", "nextReviewLocalDate"] as const;
+  if (additiveKeys.some(key => input.patch[key] !== undefined)) {
+    throw new Error("Outcome details require the approved Phase 4 schema migration before they can be edited.");
+  }
+  const db = await requireDb();
+  const existing = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Goal was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  await assertScopedRecordLinks(db, scope, { categoryId: input.patch.categoryId, goalId: input.patch.parentGoalId });
+  const patch = { ...input.patch, version: input.expectedVersion + 1 } as Record<string, unknown>;
+  if (patch.state === "completed" && !existing.completedAt) patch.completedAt = new Date();
+  if (patch.state && patch.state !== "completed") patch.completedAt = null;
+  if (patch.state === "archived") patch.archivedAt = new Date();
+  await db.update(goals).set(patch).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id), eq(goals.version, input.expectedVersion)));
+  const updated = (await db.select(establishedGoalColumns).from(goals).where(and(eq(goals.workspaceId, scope.workspaceId), eq(goals.id, input.id))).limit(1))[0]!;
+  if (updated.version === existing.version) throw new PlannerConflictError(updated);
+  return updated;
+}
+
 function matchingRecoveryRetry(existing: ResolutionRow, input: RecoveryDecision) {
   if (existing.requestFingerprint && existing.requestFingerprint !== recoveryFingerprint(input)) throw new RecoveryOperationReuseError();
   const nextDate = input.action === "reschedule" || input.action === "reduce" ? input.resolvedToLocalDate : null;

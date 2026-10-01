@@ -90,6 +90,7 @@ import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
 import { projectToday } from "@shared/todayProjection";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
+import { ProjectsGoalsWorkspace } from "@/features/goals/ProjectsGoalsWorkspace";
 import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace";
 import { TodayWorkspace } from "@/features/today/TodayWorkspace";
 import { buildRecoveryEntries } from "@/features/recovery/recoveryModel";
@@ -8547,6 +8548,10 @@ export default function Home() {
         ) : null}
         {surface === "goals" ? (
           <section className="work-surface goal-workspace">
+            <ProjectsGoalsWorkspace
+              goals={snapshot.goals}
+              projects={snapshot.projects}
+            />
             <GoalPanel
               goals={snapshot.goals}
               projects={snapshot.projects}

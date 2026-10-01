@@ -1,5 +1,11 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-01 Task 16 local delivery checkpoint
+
+Task 16 adds an additive Projects & Goals presentation with separate Projects, Outcome goals, and Directions tabs. Existing goals without intention metadata remain legacy-compatible; no title inference or automatic conversion occurs. Outcome cards expose measurable progress/date/success context, while Directions emphasize durable standards without forcing a percentage or deadline. Selecting a goal opens a detail view without changing linked tasks, projects, milestones, dates, progress, IDs, or history.
+
+The server now exposes an ownership- and expected-version-guarded `goal.update` contract for established fields. Optional intention metadata is accepted at the contract boundary but deliberately rejected until the separately approved `0004_phase4_product_model.sql` migration is applied, preventing pre-migration workspaces from selecting or writing unknown columns. No migration, live database write, reset, deployment, or merge was run. Focused semantics tests passed 4/4; TypeScript and production client/PWA/server build passed (PWA release `b8f32f314a9dca6d`).
+
 ## 2026-10-01 Task 15 local delivery checkpoint
 
 Task 15 is implemented on `dev/personal-calendar-workbench`: resumable Plan stages, planning history, safe closed-day reopening, user-entered weekly evidence, true Calendar horizons, separate Planned/Deadline semantics, reviewed calendar mutation previews, named collision feedback, DST/availability-safe validation, and stale-version Apply/Undo guards. Existing task and reservation mutations are preserved; no database migration, reset, live write, merge, or deployment was run. Local evidence is recorded in `docs/PHASE4_SLICE_EVIDENCE.md`; the screenshot-free synthetic browser gate is `scripts/preview-task15.py`.
