@@ -1,6 +1,8 @@
 # Agent flow and active handoff
 
-Last updated: 2026-09-12
+> Current entry point (2026-10-01): read [AGENTS.md](../AGENTS.md), [MEMORY.md](../MEMORY.md), [project state](PROJECT_STATE.md), and [the independent stack handoff](INDEPENDENT_STACK_HANDOFF.md). This file contains earlier detailed checkpoints below; their opening status and next-step claims are historical. Use [agent session memory](AGENT_MEMORY.md) for explicit persistent capture and retrieval. Do not assume the host conversation transcript is automatically captured.
+
+Historical notes last updated: 2026-09-12
 
 ## Phase 4 discovery
 

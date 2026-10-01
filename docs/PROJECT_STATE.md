@@ -12,6 +12,7 @@ Updated 2026-10-01. Read [the independent stack handoff](INDEPENDENT_STACK_HANDO
 | Phase 5 | Backlog only | Deeper analytics follow Phase 4; [backlog](PHASE5_ANALYTICS_BACKLOG.md) |
 | Schema | 0004/0005 are additive and locally tested, not live-approved | Fresh strict-TLS read-only inventory, restore-tested backup, exact approval packets and compatible rollout required |
 | Deployment | Task 16 is pushed to the workbench Git branch | Current Vercel Preview and live schema have not been verified for this commit |
+| Agent memory | Local SQLite session/memory CLI is implemented and tested; capture is explicit | Fresh-process integration evidence is in `npm run test:agent-memory`; host transcript auto-capture is unavailable |
 
 Task 16 local evidence: focused tests 4/4, TypeScript pass, production client/PWA/server build pass, release `b8f32f314a9dca6d`. Those checks do not cover creation/conversion, complete selected-goal detail, or a migration-aware read/write path. Full Phase 4 acceptance and live deployment are still open. See [slice evidence](PHASE4_SLICE_EVIDENCE.md).
 

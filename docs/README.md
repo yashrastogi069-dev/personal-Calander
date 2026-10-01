@@ -9,6 +9,8 @@
 | [Product specification](PRODUCT_SPEC.md) | Concise product purpose and behavior |
 | [Architecture](ARCHITECTURE.md) | Current system boundaries, followed by marked historical design |
 | [Decisions](DECISIONS.md) | Current product and engineering choices |
+| [Technical debt](TECH_DEBT.md) | Prioritized unresolved correctness, security, and delivery issues |
+| [Agent session memory](AGENT_MEMORY.md) | Local session capture, recovery, retrieval, and deletion workflow |
 | [Testing](TESTING.md) | Current verification contract and historical evidence |
 | [Security](SECURITY.md) | Identity, integrity, secrets, migration safety |
 | [Backend API](backend/API.md) / [database](backend/DATABASE.md) | Route and schema maps |

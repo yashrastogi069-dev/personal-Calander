@@ -5,6 +5,8 @@ Personal Calendar is a personal planning workspace for tasks, habits, plans, pro
 ## Start here
 
 - [Current project state](docs/PROJECT_STATE.md) and [independent stack handoff](docs/INDEPENDENT_STACK_HANDOFF.md)
+- [Technical debt register](docs/TECH_DEBT.md)
+- [Agent session memory](docs/AGENT_MEMORY.md)
 - [Product specification](docs/PRODUCT_SPEC.md), [architecture](docs/ARCHITECTURE.md), and [decisions](docs/DECISIONS.md)
 - [Testing](docs/TESTING.md), [security](docs/SECURITY.md), [API](docs/backend/API.md), and [database](docs/backend/DATABASE.md)
 - [Phase 4 plan](docs/superpowers/plans/2026-09-14-phase4-total-product-redesign.md) and [slice evidence](docs/PHASE4_SLICE_EVIDENCE.md)
