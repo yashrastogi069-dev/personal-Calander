@@ -327,6 +327,11 @@ export function dashboardSummary(input: {
   const activeTasks = input.tasks.filter(task => task.state !== "completed" && task.state !== "archived");
   const focusSessions = input.focusSessions ?? [];
   const timezone = input.timezone ?? "UTC";
+  const localDateForInstant = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+    const part = (type: string) => parts.find(value => value.type === type)?.value ?? "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  };
   const today = activeTasks.filter(task => task.scheduledLocalDate === input.todayLocalDate || task.dueLocalDate === input.todayLocalDate);
   const allTodayTasks = input.tasks.filter(task => task.scheduledLocalDate === input.todayLocalDate || task.dueLocalDate === input.todayLocalDate);
   const upcomingEnd = shiftLocalDate(input.todayLocalDate, 7);
@@ -335,7 +340,7 @@ export function dashboardSummary(input: {
   const plannedMinutes = capacityForecast.plannedMinutes;
   const carryoverTasks = activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate < input.todayLocalDate);
   const blockedTasks = activeTasks.filter(task => task.state === "blocked");
-  const completedToday = input.tasks.filter(task => task.completedAt?.toISOString().slice(0, 10) === input.todayLocalDate).length;
+  const completedToday = input.tasks.filter(task => task.completedAt && localDateForInstant(task.completedAt) === input.todayLocalDate).length;
   const scheduledThroughToday = input.tasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate <= input.todayLocalDate && task.state !== "archived");
   const finishedScheduledThroughToday = scheduledThroughToday.filter(task => task.state === "completed");
   const datedWorkThroughToday = input.tasks.filter(task => (task.scheduledLocalDate ?? task.dueLocalDate) && (task.scheduledLocalDate ?? task.dueLocalDate)! <= input.todayLocalDate && task.state !== "archived");
@@ -360,9 +365,15 @@ export function dashboardSummary(input: {
     todayLocalDate: input.todayLocalDate,
   });
 
+  const completedByLocalDate = new Map<string, number>();
+  for (const task of input.tasks) {
+    if (!task.completedAt) continue;
+    const localDate = localDateForInstant(task.completedAt);
+    completedByLocalDate.set(localDate, (completedByLocalDate.get(localDate) ?? 0) + 1);
+  }
   const completionTrend = localDateSequence(input.rangeStart, input.rangeEnd).map(localDate => ({
     localDate,
-    completed: input.tasks.filter(task => task.completedAt?.toISOString().slice(0, 10) === localDate).length,
+    completed: completedByLocalDate.get(localDate) ?? 0,
   }));
 
   const categoryDistribution = Array.from(input.categoryNames.entries()).map(([id, name]) => ({
@@ -375,13 +386,8 @@ export function dashboardSummary(input: {
   const weekday = new Date(`${input.todayLocalDate}T12:00:00.000Z`).getUTCDay();
   const weekStart = shiftLocalDate(input.todayLocalDate, weekday === 0 ? -6 : 1 - weekday);
   const weekEnd = shiftLocalDate(weekStart, 6);
-  const localDateForSession = (date: Date) => {
-    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
-    const part = (type: string) => parts.find(value => value.type === type)?.value ?? "";
-    return `${part("year")}-${part("month")}-${part("day")}`;
-  };
   const plannedFocusMinutes = input.tasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate >= weekStart && task.scheduledLocalDate <= weekEnd && task.state !== "archived").reduce((total, task) => total + (task.estimateMinutes ?? 0), 0);
-  const completedFocusMinutes = Math.round(focusSessions.filter(session => session.state === "completed" && localDateForSession(session.startedAt) >= weekStart && localDateForSession(session.startedAt) <= weekEnd).reduce((total, session) => total + session.activeSeconds, 0) / 60);
+  const completedFocusMinutes = Math.round(focusSessions.filter(session => session.state === "completed" && localDateForInstant(session.startedAt) >= weekStart && localDateForInstant(session.startedAt) <= weekEnd).reduce((total, session) => total + session.activeSeconds, 0) / 60);
   const carryoverTrend = localDateSequence(weekStart, input.todayLocalDate).map(localDate => ({ localDate, carryover: activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate < localDate).length }));
   const plannedInRange = activeTasks.filter(task => task.scheduledLocalDate && task.scheduledLocalDate >= input.rangeStart && task.scheduledLocalDate <= input.rangeEnd);
   const categoryAllocation = Array.from(input.categoryNames.entries()).map(([id, name]) => ({ id, name, plannedMinutes: plannedInRange.filter(task => task.categoryId === id).reduce((total, task) => total + (task.estimateMinutes ?? 0), 0), taskCount: plannedInRange.filter(task => task.categoryId === id).length })).filter(item => item.taskCount > 0);

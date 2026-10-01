@@ -192,15 +192,41 @@ def synthetic_fixtures(large_roadmap: bool = False) -> dict:
         "schedule": {"weekdays": [1, 2, 3, 4, 5], "startLocalDate": "2026-08-01"},
         "color": "#5B8F79", "goalId": "preview-outcome",
         "createdAt": "2026-08-01T00:00:00Z", "version": 1,
+    }, {
+        "id": "preview-habit-weekly", "workspaceId": workspace_id,
+        "name": "Read before bed", "title": "Read before bed",
+        "frequency": "times_per_week", "schedule": {"timesPerWeek": 3, "startLocalDate": "2026-08-01"},
+        "color": "#55758A", "goalId": "preview-outcome", "createdAt": "2026-08-01T00:00:00Z", "version": 2,
+    }, {
+        "id": "preview-habit-return", "workspaceId": workspace_id,
+        "name": "Journal for five minutes", "title": "Journal for five minutes",
+        "frequency": "daily", "schedule": {"startLocalDate": "2026-08-01"},
+        "color": "#936B4F", "createdAt": "2026-08-01T00:00:00Z", "version": 1,
+    }, {
+        "id": "preview-habit-paused", "workspaceId": workspace_id,
+        "name": "Stretching", "title": "Stretching",
+        "frequency": "daily", "schedule": {"startLocalDate": "2026-08-01", "pauseStartedLocalDate": "2026-09-30", "pauseUntilLocalDate": "2026-10-05"},
+        "color": "#776E92", "createdAt": "2026-08-01T00:00:00Z", "version": 4,
+    }, {
+        "id": "preview-habit-archived", "workspaceId": workspace_id,
+        "name": "Old morning walk", "title": "Old morning walk",
+        "frequency": "daily", "schedule": {"startLocalDate": "2026-08-01"},
+        "color": "#797D70", "createdAt": "2026-08-01T00:00:00Z", "archivedAt": "2026-09-30T00:00:00Z", "version": 3,
     }]
     snapshot["habitCheckIns"] = [
         {
             "id": f"preview-check-{day}", "workspaceId": workspace_id,
             "habitId": "preview-habit", "localDate": f"2026-09-{day:02d}",
-            "state": "completed" if day % 3 else "skipped",
+            "state": "completed" if day % 3 else "skipped", "version": 1,
         }
         for day in range(1, 21) if datetime(2026, 9, day).weekday() < 5
     ]
+    snapshot["habitCheckIns"].extend([
+        {"id": "preview-weekly-1", "workspaceId": workspace_id, "habitId": "preview-habit-weekly", "localDate": "2026-09-28", "state": "completed", "note": "Fiction", "version": 1},
+        {"id": "preview-weekly-2", "workspaceId": workspace_id, "habitId": "preview-habit-weekly", "localDate": "2026-09-29", "state": "completed", "note": "History", "version": 1},
+        {"id": "preview-return-1", "workspaceId": workspace_id, "habitId": "preview-habit-return", "localDate": "2026-09-20", "state": "completed", "version": 1},
+        {"id": "preview-archived-1", "workspaceId": workspace_id, "habitId": "preview-habit-archived", "localDate": "2026-09-30", "state": "completed", "version": 1},
+    ])
     fixtures["planner.habit.practiceEvidence"] = {"checkIns": snapshot["habitCheckIns"]}
     fixtures["planner.dashboard"] = {"workspace": snapshot["workspace"]}
     fixtures["planner.search.workspace"] = []
@@ -252,7 +278,7 @@ def main() -> None:
                         )
                         context.add_init_script(f"localStorage.setItem('theme', '{theme}')")
                         page = context.new_page()
-                        page.clock.set_fixed_time(datetime(2026, 9, 20, 9, tzinfo=timezone.utc))
+                        page.clock.set_fixed_time(datetime(2026, 10, 1, 9, tzinfo=timezone.utc) if name == "habits" else datetime(2026, 9, 20, 9, tzinfo=timezone.utc))
                         page.on("pageerror", lambda error: errors.append(str(error)))
                         requests, rejected = auth["install_preview"](context, url, "linked", fixtures)
                         page.goto(
@@ -275,6 +301,34 @@ def main() -> None:
                             "unexpectedRequests": rejected, "plannerRequests": requests,
                         })
                         unexpected.extend(rejected)
+
+                        if name == "habits":
+                            page.locator(".habit-workspace").wait_for(state="visible")
+                            assert page.locator(".habit-list-item").count() == 4
+                            assert page.locator(".habit-list-group").count() >= 3
+                            assert page.locator(".habit-trace").is_visible()
+                            assert page.locator(".habit-calendar").is_visible()
+                            assert page.locator(".habit-calendar-labels").is_visible()
+                            assert page.locator(".habit-calendar").evaluate("element => getComputedStyle(element).gridTemplateColumns.split(' ').length") == 7
+                            assert page.locator(".habit-archived").count() == 1
+                            assert page.locator(".habit-return").count() >= 1
+                            assert page.locator(".habit-practice").bounding_box()["y"] < page.locator(".habit-selected").bounding_box()["y"]
+                            assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+                            page.get_by_role("button", name="Previous month").click()
+                            assert page.locator(".habit-calendar-extra").count() >= 2
+                            page.get_by_role("button", name="History", exact=True).click()
+                            assert page.locator(".habit-correction").is_visible()
+                            page.get_by_role("button", name="Settings", exact=True).click()
+                            assert page.locator(".habit-settings").is_visible()
+                            assert page.get_by_role("button", name="Save settings").is_visible()
+                            assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+
+                        if name == "today":
+                            assert page.get_by_role("heading", name="Today’s habits").is_visible()
+
+                        if name == "review-insights":
+                            assert page.get_by_role("heading", name="Tasks completed over time").is_visible()
+                            assert page.get_by_role("heading", name="Tasks by category").is_visible()
 
                         if name == "projects" and theme == "light":
                             if width <= 680:

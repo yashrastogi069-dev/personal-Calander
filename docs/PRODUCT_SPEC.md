@@ -38,6 +38,10 @@ The portfolio Roadmap answers: which projects overlap, what goal checkpoint come
 
 A person can use the view to turn a quarterly outcome into a project checkpoint and then into work for this week. Undated and archived records remain visible and honest. Date editing previews exactly which project dates change, names dependency/milestone consequences, and explicitly states that linked goal, task, and milestone dates do not move. A hard dependency conflict must block Apply in both UI and backend. Local edits may refresh immediately through query invalidation, but periodic cross-device refresh is not instant real-time collaboration; that claim requires an authenticated push/invalidation path plus reconnection and conflict evidence.
 
+## Habit practice contract
+
+Home answers which scheduled habits need attention today and shows remaining flexible weekly progress without making a weekly target look due every day. Habits owns the full visual tick trace, calendar, history, settings, notes, archive, and return decisions. Complete, Skip, and an explicitly recorded Miss are different facts; an empty past date stays unrecorded. A gap offers Resume, Revise, or Pause to a review date without manufacturing a backlog or changing past check-ins. The calendar can retrieve older archived history by bounded month windows. Corrections and clears require the observed check-in ID/version so a stale tab cannot silently overwrite another edit. Saved reminder time is not notification delivery. Existing IDs, dated records, and linked goals/categories survive a presentation or schedule change.
+
 ## Scope and release gates
 
 Phase 4 includes product flow and visual redesign across the whole app, preserving existing behavior. Variant A colors are selected; task lanes keep their exact R20 dark colors. Task 20 adds Overview with configurable order, visibility, and bounded size. Phase 5 is reserved for deeper longitudinal analytics. Phone notification/reminder work remains last in the Phase 4 sequence.

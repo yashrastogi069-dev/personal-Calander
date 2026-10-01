@@ -280,6 +280,9 @@
 .today-habit-row.is-complete .today-habit-mark { color: white; background: var(--habit-color); }
 .today-habit-row.is-skipped .today-habit-mark { color: #6b7d75; background: #e7eeea; }
 .today-habit-row strong { display: block; color: var(--today-ink); font-size: 15px; font-weight: 820; }
+.today-habit-title { display: block; min-height: 44px; padding: 0; border: 0; color: var(--today-ink); background: transparent; font: 820 15px/1.35 "Onest", sans-serif; text-align: left; cursor: pointer; }
+.today-habit-title:hover { text-decoration: underline; }
+.today-habit-title:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
 .today-habit-row small { display: block; margin-top: 3px; color: var(--today-muted); font-size: 14px; font-weight: 650; }
 .today-habit-actions { display: flex; gap: 6px; }
 .today-habit-actions button { min-width: 44px; min-height: 44px; padding: 0 11px; border: 1px solid var(--today-line); border-radius: 10px; color: var(--today-accent-deep); background: #f8fcfa; font-size: 14px; font-weight: 800; }

@@ -1,0 +1,966 @@
+.habit-workspace {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  color: var(--ink);
+  font:
+    400 16px/1.5 Onest,
+    system-ui,
+    sans-serif;
+}
+.habit-workspace *,
+.habit-workspace *::before,
+.habit-workspace *::after {
+  box-sizing: border-box;
+}
+.habit-workspace h2,
+.habit-workspace h3,
+.habit-workspace h4,
+.habit-workspace p {
+  margin: 0;
+}
+.habit-workspace h2 {
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+.habit-workspace h3 {
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.habit-workspace h4 {
+  font-size: 17px;
+  line-height: 1.3;
+}
+.habit-workspace p {
+  overflow-wrap: anywhere;
+}
+.habit-workspace button,
+.habit-workspace input,
+.habit-workspace select,
+.habit-workspace textarea,
+.habit-workspace summary {
+  font: inherit;
+}
+.habit-workspace button {
+  min-height: 44px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.habit-workspace button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.habit-workspace :is(button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.habit-workspace-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.habit-workspace-header p {
+  margin-top: 6px;
+  color: var(--ink-muted);
+  max-width: 62ch;
+}
+.habit-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+.habit-secondary {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--primary-foreground);
+  font-weight: 700 !important;
+}
+.habit-workspace .habit-primary:hover:not(:disabled) {
+  filter: brightness(0.93);
+}
+.habit-workspace .habit-primary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.habit-banner {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--selection);
+  color: var(--ink);
+  font-size: 14px;
+}
+.habit-banner.is-error {
+  color: var(--destructive);
+}
+.habit-banner button {
+  min-height: 44px;
+  margin-left: 6px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+.habit-empty {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-elevated);
+}
+.habit-empty p {
+  margin: 6px 0 16px;
+  color: var(--ink-muted);
+}
+.habit-empty button {
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--primary-foreground);
+}
+.habit-views {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-elevated);
+}
+.habit-views button {
+  min-width: 96px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-views button:hover,
+.habit-views button.is-active {
+  background: var(--selection);
+}
+.habit-views button.is-active {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.habit-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+}
+.habit-list,
+.habit-selected,
+.habit-practice,
+.habit-history,
+.habit-settings {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-elevated);
+}
+.habit-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.habit-practice {
+  order: 1;
+}
+.habit-history {
+  order: 2;
+}
+.habit-selected {
+  order: 3;
+}
+.habit-settings {
+  order: 4;
+}
+.habit-list-items {
+  grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+}
+.habit-history:not(.is-reviewing)
+  :is(.habit-correction, .habit-month-summary, .habit-year) {
+  display: none;
+}
+.habit-history.is-loading
+  :is(
+    .habit-calendar-labels,
+    .habit-calendar,
+    .habit-calendar-legend,
+    .habit-day-review,
+    .habit-correction,
+    .habit-month-summary,
+    .habit-year
+  ) {
+  display: none;
+}
+.habit-section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.habit-section-heading span {
+  color: var(--ink-muted);
+  font:
+    600 14px/1.3 "IBM Plex Mono",
+    monospace;
+}
+.habit-section-heading p {
+  margin-top: 4px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-list-items {
+  display: grid;
+  gap: 8px;
+}
+.habit-list-groups {
+  display: grid;
+  gap: 19px;
+}
+.habit-list-group {
+  min-width: 0;
+}
+.habit-list-group h4 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
+}
+.habit-list-group h4 span {
+  color: var(--ink-muted);
+  font:
+    650 13px "IBM Plex Mono",
+    monospace;
+}
+.habit-list-item {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 12px;
+}
+.habit-list-item.is-selected {
+  background: var(--selection);
+}
+.habit-list-select {
+  display: grid;
+  width: 100%;
+  align-content: center;
+  gap: 2px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+.habit-list-select strong {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+.habit-list-select span {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-list-actions {
+  display: flex;
+  gap: 8px;
+}
+.habit-list-actions button {
+  flex: 1;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+.habit-list-actions button:hover:not(:disabled),
+.habit-workspace button:not(.habit-primary):hover:not(:disabled) {
+  background: var(--selection);
+}
+.habit-archived {
+  margin-top: 16px;
+}
+.habit-archived summary,
+.habit-year summary {
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+}
+.habit-archived-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  text-align: left;
+}
+.habit-archived-row span {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-selected-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+.habit-selected-top h3 {
+  overflow-wrap: anywhere;
+  font-size: 24px;
+}
+.habit-selected-top p {
+  margin-top: 4px;
+  color: var(--ink-muted);
+}
+.habit-status {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--selection);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+.habit-context span,
+.habit-context button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+}
+.habit-context button {
+  min-height: 44px;
+}
+.habit-next {
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.habit-next > span {
+  font-size: 18px;
+  font-weight: 700;
+}
+.habit-next small {
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.habit-return {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--selection);
+}
+.habit-return p {
+  margin-top: 4px;
+  font-size: 14px;
+}
+.habit-return-actions,
+.habit-practice-actions,
+.habit-correction-actions,
+.habit-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.habit-return-actions button,
+.habit-practice-actions button,
+.habit-correction-actions button,
+.habit-settings-actions button,
+.habit-settings > button,
+.habit-archive-action button {
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-return-actions label {
+  display: grid;
+  gap: 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-return-actions input {
+  min-height: 44px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+}
+.habit-muted {
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.habit-practice-actions {
+  margin-top: 16px;
+}
+.habit-today-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--selection);
+  color: var(--ink);
+}
+.habit-today-summary strong {
+  font-size: 16px;
+}
+.habit-today-summary span {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-trace {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.habit-trace-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 2px 2px 10px;
+}
+.habit-trace-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) repeat(7, minmax(44px, 1fr));
+  gap: 6px;
+  min-width: 500px;
+  align-items: center;
+}
+.habit-trace-day {
+  display: grid;
+  justify-items: center;
+  color: var(--ink-muted);
+  font:
+    650 13px/1.3 "IBM Plex Mono",
+    monospace;
+}
+.habit-trace-day small {
+  font-size: 12px;
+}
+.habit-trace-row {
+  display: contents;
+}
+.habit-trace-row strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.habit-trace-row button {
+  display: grid;
+  width: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 800;
+}
+.habit-trace-row button.is-completed {
+  border-color: var(--completion);
+  background: var(--completion);
+  color: var(--surface-elevated);
+}
+.habit-trace-row button.is-skipped,
+.habit-trace-row button.is-missed {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.habit-trace-row button.is-open {
+  border-style: dashed;
+}
+.habit-trace-row button.is-rest {
+  opacity: 0.45;
+}
+.habit-month-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+.habit-month-controls strong {
+  text-align: center;
+  font-size: 16px;
+}
+.habit-month-controls button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+}
+.habit-calendar-labels,
+.habit-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.habit-calendar-labels {
+  margin-bottom: 5px;
+  color: var(--ink-muted);
+  text-align: center;
+  font:
+    600 13px/1.4 "IBM Plex Mono",
+    monospace;
+}
+.habit-calendar button {
+  display: grid;
+  min-width: 0;
+  min-height: 58px;
+  align-content: center;
+  justify-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.habit-calendar button.is-selected,
+.habit-day-list button.is-selected {
+  border-color: var(--accent);
+  background: var(--selection);
+}
+.habit-calendar time {
+  font:
+    700 15px/1.2 "IBM Plex Mono",
+    monospace;
+}
+.habit-calendar small {
+  color: var(--ink-muted);
+  font:
+    600 12px/1.2 "IBM Plex Mono",
+    monospace;
+}
+.habit-calendar .habit-calendar-extra {
+  color: var(--accent);
+  font-weight: 800;
+}
+.habit-calendar-legend {
+  margin-top: 9px !important;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+.habit-day-review,
+.habit-correction,
+.habit-month-summary,
+.habit-year {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.habit-day-list {
+  display: grid;
+  gap: 6px;
+}
+.habit-day-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  text-align: left;
+}
+.habit-day-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.habit-day-row > button {
+  flex: 1;
+  min-width: 0;
+}
+.habit-day-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.habit-day-actions button {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-day-list button strong {
+  overflow-wrap: anywhere;
+}
+.habit-day-list button span {
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-correction > p,
+.habit-month-summary > p,
+.habit-year > p {
+  margin: 5px 0 10px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-correction > label {
+  display: block;
+  margin: 12px 0 5px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-correction textarea,
+.habit-fields :is(input:not([type="checkbox"]), select, textarea) {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font-size: 16px;
+}
+.habit-correction textarea,
+.habit-fields textarea {
+  resize: vertical;
+}
+.habit-correction-actions {
+  margin-top: 10px;
+}
+.habit-correction-actions button:last-child {
+  margin-left: auto;
+  color: var(--destructive);
+}
+.habit-selected-month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 12px;
+}
+.habit-selected-month button {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font:
+    700 13px "IBM Plex Mono",
+    monospace;
+}
+.habit-selected-month button.is-completed {
+  border-color: var(--completion);
+  background: var(--completion);
+  color: var(--surface-elevated);
+}
+.habit-selected-month button.is-skipped,
+.habit-selected-month button.is-missed {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.habit-selected-month button.is-unrecorded {
+  border-style: dashed;
+}
+.habit-selected-month button[aria-pressed="true"] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.habit-year > div {
+  display: grid;
+  gap: 0;
+}
+.habit-year > div > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.habit-year span {
+  color: var(--ink-muted);
+}
+.habit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.habit-fields > label {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-fields > label:nth-child(2),
+.habit-weekdays {
+  grid-column: 1 / -1;
+}
+.habit-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.habit-weekdays legend {
+  padding: 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-weekdays label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.habit-weekdays input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.habit-fields input[type="color"] {
+  padding: 3px;
+}
+.habit-settings-actions {
+  margin-top: 16px;
+}
+.habit-archive-action {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.habit-pause-settings {
+  display: grid;
+  justify-items: start;
+  gap: 9px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.habit-pause-settings p {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-pause-settings label {
+  display: grid;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-pause-settings input {
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+}
+.habit-pause-settings button {
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.habit-archive-action p {
+  margin-bottom: 10px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.habit-archive-action button {
+  color: var(--destructive);
+}
+@media (max-width: 900px) {
+  .habit-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+  .habit-list-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .habit-workspace {
+    gap: 12px;
+  }
+  .habit-workspace-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .habit-workspace-header .habit-primary {
+    align-self: start;
+  }
+  .habit-header-actions {
+    justify-content: start;
+  }
+  .habit-views {
+    width: 100%;
+  }
+  .habit-views button {
+    flex: 1;
+    min-width: 0;
+    padding: 0 5px;
+  }
+  .habit-list,
+  .habit-selected,
+  .habit-practice,
+  .habit-history,
+  .habit-settings {
+    padding: 15px;
+  }
+  .habit-list-items,
+  .habit-fields {
+    grid-template-columns: 1fr;
+  }
+  .habit-selected-top {
+    flex-wrap: wrap;
+  }
+  .habit-calendar-labels,
+  .habit-calendar,
+  .habit-selected-month {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .habit-calendar button {
+    min-height: 58px;
+    padding: 2px;
+  }
+  .habit-calendar time {
+    font-size: 13px;
+  }
+  .habit-calendar small {
+    font-size: 10px;
+  }
+  .habit-selected-month button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  .habit-day-list button {
+    align-items: start;
+    flex-direction: column;
+  }
+  .habit-day-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .habit-day-row > button {
+    flex-direction: row;
+    align-items: center;
+  }
+  .habit-day-actions {
+    width: 100%;
+  }
+  .habit-day-actions button {
+    flex: 1;
+  }
+  .habit-correction-actions button {
+    flex: 1 1 calc(50% - 8px);
+  }
+  .habit-correction-actions button:last-child {
+    margin-left: 0;
+  }
+  .habit-practice-actions button {
+    flex: 1 1 100%;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .habit-workspace button {
+    transition:
+      background-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+      transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .habit-workspace button {
+    transition: none;
+  }
+}

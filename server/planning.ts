@@ -939,6 +939,70 @@ export async function createHabit(scope: PlannerScope, input: Omit<typeof habits
   return (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, id))).limit(1))[0]!;
 }
 
+type HabitPatch = Partial<Pick<typeof habits.$inferInsert,
+  "name" | "description" | "goalId" | "categoryId" | "color" | "frequency" | "schedule" | "reminderTime">>;
+
+function validatedHabitSchedule(frequency: typeof habits.$inferSelect.frequency, existing: unknown, incoming: unknown): Record<string, unknown> {
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new PlannerValidationError("Choose a valid habit schedule.");
+  const previous = existing && typeof existing === "object" && !Array.isArray(existing) ? existing as Record<string, unknown> : {};
+  const schedule = { ...previous, ...incoming as Record<string, unknown> };
+  for (const key of ["pauseUntilLocalDate", "pauseStartedLocalDate", "returnAcknowledgedAtLocalDate"] as const) {
+    if (schedule[key] === null) delete schedule[key];
+    else if (schedule[key] !== undefined && (typeof schedule[key] !== "string" || !validProjectLocalDate(schedule[key]))) {
+      throw new PlannerValidationError("Habit return dates must be real calendar dates in YYYY-MM-DD format.");
+    }
+  }
+  if (schedule.startLocalDate !== undefined && (typeof schedule.startLocalDate !== "string" || !validProjectLocalDate(schedule.startLocalDate))) {
+    throw new PlannerValidationError("Habit start date must be a real calendar date in YYYY-MM-DD format.");
+  }
+  if (schedule.pauseUntilLocalDate && schedule.pauseStartedLocalDate && schedule.pauseUntilLocalDate <= schedule.pauseStartedLocalDate) {
+    throw new PlannerValidationError("Habit review date must be after the pause start date.");
+  }
+  if (frequency === "days_of_week") {
+    const weekdays = schedule.weekdays;
+    if (!Array.isArray(weekdays) || !weekdays.length || weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6) || new Set(weekdays).size !== weekdays.length) {
+      throw new PlannerValidationError("Choose distinct scheduled weekdays from Sunday (0) through Saturday (6).");
+    }
+  } else if (frequency === "times_per_week") {
+    const quota = schedule.timesPerWeek ?? schedule.targetPerWeek ?? schedule.count;
+    if (!Number.isInteger(quota) || (quota as number) < 1 || (quota as number) > 7) {
+      throw new PlannerValidationError("Choose a habit target of one to seven times per week.");
+    }
+  } else if (frequency === "interval") {
+    if (!Number.isSafeInteger(schedule.intervalDays) || (schedule.intervalDays as number) < 1 || !schedule.startLocalDate) {
+      throw new PlannerValidationError("Choose a positive interval and a real start date.");
+    }
+  } else if (frequency !== "daily") {
+    throw new PlannerValidationError("Choose a supported habit frequency.");
+  }
+  return schedule;
+}
+
+/** Edits established habit columns only; schedule metadata stays inside the existing JSON column. */
+export async function updateHabit(scope: PlannerScope, input: { id: string; expectedVersion: number; patch: HabitPatch }) {
+  const db = await requireDb();
+  const existing = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0];
+  if (!existing) throw new Error("Habit was not found.");
+  if (existing.version !== input.expectedVersion) throw new PlannerConflictError(existing);
+  if (existing.archivedAt) throw new PlannerValidationError("Restore this archived habit before editing it.");
+  if (!Object.keys(input.patch).length) throw new PlannerValidationError("Choose at least one habit field to change.");
+  if (input.patch.name !== undefined && (!input.patch.name.trim() || input.patch.name.length > 160)) throw new PlannerValidationError("Name the habit in 160 characters or fewer.");
+  if (input.patch.description != null && input.patch.description.length > 10000) throw new PlannerValidationError("Habit description is too long.");
+  if (input.patch.color !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(input.patch.color)) throw new PlannerValidationError("Choose a six-digit habit color.");
+  if (input.patch.reminderTime != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.patch.reminderTime)) throw new PlannerValidationError("Habit reminder time must be a valid local time.");
+  await assertScopedRecordLinks(db, scope, { goalId: input.patch.goalId, categoryId: input.patch.categoryId });
+  const patch = { ...input.patch, updatedAt: new Date(), version: input.expectedVersion + 1 };
+  if (input.patch.name !== undefined) patch.name = input.patch.name.trim();
+  if (input.patch.schedule !== undefined || input.patch.frequency !== undefined) {
+    patch.schedule = validatedHabitSchedule(input.patch.frequency ?? existing.frequency, existing.schedule, input.patch.schedule ?? existing.schedule);
+  }
+  const changed = await db.update(habits).set(patch).where(and(
+    eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id), eq(habits.version, input.expectedVersion), sql`${habits.archivedAt} IS NULL`
+  )).returning({ id: habits.id });
+  if (!changed.length) throw new PlannerConflictError(existing);
+  return (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0]!;
+}
+
 export async function archiveHabit(scope: PlannerScope, input: { id: string; expectedVersion: number }) {
   const db = await requireDb();
   const existing = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.id))).limit(1))[0];
@@ -962,29 +1026,58 @@ export async function restoreHabit(scope: PlannerScope, input: { id: string; exp
   return updated;
 }
 
-export async function upsertHabitCheckIn(scope: PlannerScope, input: { habitId: string; localDate: string; state: "completed" | "skipped" | "missed"; note?: string | null }) {
+type ExpectedHabitCheckIn = { id: string; version: number };
+
+export async function upsertHabitCheckIn(scope: PlannerScope, input: { habitId: string; localDate: string; state: "completed" | "skipped" | "missed"; note?: string | null; expectedCheckIn?: ExpectedHabitCheckIn | null }) {
   const db = await requireDb();
   const habit = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.habitId))).limit(1))[0];
   if (!habit) throw new Error("Habit was not found.");
-  const id = nanoid();
-  const completedAt = input.state === "completed" ? new Date() : null;
-  const habitInsert = db.insert(habitCheckIns).values({ id, workspaceId: scope.workspaceId, habitId: input.habitId, localDate: input.localDate, timezoneAtCheckIn: scope.timezone, state: input.state, note: input.note ?? null, completedAt });
-  if (typeof (habitInsert as any).onConflictDoUpdate === "function") {
-    await (habitInsert as any).onConflictDoUpdate({ target: [habitCheckIns.habitId, habitCheckIns.localDate], set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
-  } else {
-    await (habitInsert as any).onDuplicateKeyUpdate({ set: { state: input.state, note: input.note ?? null, completedAt, timezoneAtCheckIn: scope.timezone } });
+  if (habit.archivedAt) throw new PlannerValidationError("Restore this archived habit before recording it.");
+  if (!validProjectLocalDate(input.localDate) || input.localDate > currentLocalDate(scope.timezone)) {
+    throw new PlannerValidationError("Record a real local date no later than today.");
   }
-  return (await db.select().from(habitCheckIns).where(and(eq(habitCheckIns.habitId, input.habitId), eq(habitCheckIns.localDate, input.localDate))).limit(1))[0]!;
+  const completedAt = input.state === "completed" ? new Date() : null;
+  const scopedDate = and(eq(habitCheckIns.workspaceId, scope.workspaceId), eq(habitCheckIns.habitId, input.habitId), eq(habitCheckIns.localDate, input.localDate));
+  if (input.expectedCheckIn) {
+    const changed = await db.update(habitCheckIns).set({
+      state: input.state,
+      ...(input.note !== undefined ? { note: input.note } : {}),
+      completedAt,
+      timezoneAtCheckIn: scope.timezone,
+      updatedAt: new Date(),
+      version: input.expectedCheckIn.version + 1,
+    }).where(and(scopedDate, eq(habitCheckIns.id, input.expectedCheckIn.id), eq(habitCheckIns.version, input.expectedCheckIn.version))).returning();
+    if (changed[0]) return changed[0];
+  } else {
+    // Both explicit null and older callers may create an empty date, but neither may replace its record.
+    const created = await db.insert(habitCheckIns).values({
+      id: nanoid(), workspaceId: scope.workspaceId, habitId: input.habitId, localDate: input.localDate,
+      timezoneAtCheckIn: scope.timezone, state: input.state, note: input.note ?? null, completedAt,
+    }).onConflictDoNothing({ target: [habitCheckIns.habitId, habitCheckIns.localDate] }).returning();
+    if (created[0]) return created[0];
+  }
+  const current = (await db.select().from(habitCheckIns).where(scopedDate).limit(1))[0] ?? null;
+  throw new PlannerConflictError(current);
 }
 
-/** Removes a recorded check-in so the date becomes genuinely unrecorded again. This is safe to retry. */
-export async function clearHabitCheckIn(scope: PlannerScope, input: { habitId: string; localDate: string }) {
+/** Clears only the exact version the caller saw; a retry is harmless until a new row appears. */
+export async function clearHabitCheckIn(scope: PlannerScope, input: { habitId: string; localDate: string; expectedCheckIn?: ExpectedHabitCheckIn }) {
   const db = await requireDb();
-  await db.delete(habitCheckIns).where(and(
-    eq(habitCheckIns.workspaceId, scope.workspaceId),
-    eq(habitCheckIns.habitId, input.habitId),
-    eq(habitCheckIns.localDate, input.localDate)
-  ));
+  const habit = (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, input.habitId))).limit(1))[0];
+  if (!habit) throw new Error("Habit was not found.");
+  if (habit.archivedAt) throw new PlannerValidationError("Restore this archived habit before changing its history.");
+  if (!validProjectLocalDate(input.localDate) || input.localDate > currentLocalDate(scope.timezone)) {
+    throw new PlannerValidationError("Change a real local date no later than today.");
+  }
+  const scopedDate = and(eq(habitCheckIns.workspaceId, scope.workspaceId), eq(habitCheckIns.habitId, input.habitId), eq(habitCheckIns.localDate, input.localDate));
+  if (input.expectedCheckIn) {
+    const removed = await db.delete(habitCheckIns).where(and(scopedDate,
+      eq(habitCheckIns.id, input.expectedCheckIn.id), eq(habitCheckIns.version, input.expectedCheckIn.version)
+    )).returning({ id: habitCheckIns.id });
+    if (removed.length) return { habitId: input.habitId, localDate: input.localDate, cleared: true } as const;
+  }
+  const current = (await db.select().from(habitCheckIns).where(scopedDate).limit(1))[0] ?? null;
+  if (current) throw new PlannerConflictError(current);
   return { habitId: input.habitId, localDate: input.localDate, cleared: true } as const;
 }
 

@@ -64,6 +64,7 @@ import {
   setReminderRuleActivation,
   updateTask,
   updateGoal,
+  updateHabit,
   updateProject,
   updateReviewChecklist,
   updateDailyPlanItem,
@@ -423,6 +424,17 @@ export const plannerRouter = router({
       const { workspaceId, timezone, ...habit } = input;
       return createHabit({ workspaceId, timezone }, habit);
     }),
+    update: protectedProcedure.input(scope.extend({ id: z.string().min(1), expectedVersion: z.number().int().positive(), patch: z.object({
+      name: z.string().trim().min(1).max(160).optional(), description: z.string().max(10000).nullable().optional(),
+      goalId: z.string().nullable().optional(), categoryId: z.string().nullable().optional(),
+      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+      frequency: z.enum(["daily", "days_of_week", "times_per_week", "interval"]).optional(),
+      schedule: z.record(z.string(), z.unknown()).optional(),
+      reminderTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+    }).strict() })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, id, expectedVersion, patch } = input;
+      try { return await updateHabit({ workspaceId, timezone }, { id, expectedVersion, patch }); } catch (error) { return plannerError(error); }
+    }),
     archive: protectedProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, id, expectedVersion } = input;
       try { return await archiveHabit({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
@@ -431,8 +443,12 @@ export const plannerRouter = router({
       const { workspaceId, timezone, id, expectedVersion } = input;
       try { return await restoreHabit({ workspaceId, timezone }, { id, expectedVersion }); } catch (error) { return plannerError(error); }
     }),
-    checkIn: protectedProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, state: z.enum(["completed", "skipped", "missed"]), note: z.string().max(1000).nullable().optional() })).mutation(async ({ input }) => upsertHabitCheckIn(input, input)),
-    clearCheckIn: protectedProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString })).mutation(async ({ input }) => clearHabitCheckIn(input, input)),
+    checkIn: protectedProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, state: z.enum(["completed", "skipped", "missed"]), note: z.string().max(1000).nullable().optional(), expectedCheckIn: z.object({ id: z.string().min(1).max(64), version: z.number().int().positive() }).strict().nullable().optional() })).mutation(async ({ input }) => {
+      try { return await upsertHabitCheckIn(input, input); } catch (error) { return plannerError(error); }
+    }),
+    clearCheckIn: protectedProcedure.input(scope.extend({ habitId: z.string(), localDate: dateString, expectedCheckIn: z.object({ id: z.string().min(1).max(64), version: z.number().int().positive() }).strict().optional() })).mutation(async ({ input }) => {
+      try { return await clearHabitCheckIn(input, input); } catch (error) { return plannerError(error); }
+    }),
     practiceEvidence: protectedProcedure.input(scope.extend({ endLocalDate: dateString })).query(async ({ input }) => getHabitPracticeEvidence(input, input)),
   }),
   dailyCheckIn: router({

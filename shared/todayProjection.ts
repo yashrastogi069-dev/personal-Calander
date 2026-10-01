@@ -1,4 +1,4 @@
-import { isHabitScheduledOnLocalDate, type CalendarHabit } from "./habitSchedule";
+import { habitWeeklyTarget, isHabitAvailableOnLocalDate, isHabitScheduledOnLocalDate, type CalendarHabit } from "./habitSchedule";
 import { planningAvailability } from "./planningAvailability";
 
 type DateValue = Date | string;
@@ -128,6 +128,8 @@ export type TodayHabitRow = {
   title: string;
   checkInId: string | null;
   state: "due" | string;
+  cadence?: "dated" | "weekly_target";
+  weekProgress?: { completed: number; target: number };
 };
 
 export type TodayCompletionEvidence = {
@@ -161,6 +163,12 @@ export type TodayProjection = {
 
 function dateValue(value: DateValue) {
   return value instanceof Date ? value : new Date(value);
+}
+
+function mondayOfLocalDate(localDate: string) {
+  const value = new Date(`${localDate}T12:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() - ((value.getUTCDay() + 6) % 7));
+  return value.toISOString().slice(0, 10);
 }
 
 function localDateForInstant(value: DateValue, timezone: string) {
@@ -355,11 +363,20 @@ export function projectToday(input: TodayProjectionInput): TodayProjection {
   const checkInByHabitId = new Map(
     input.habitCheckIns.filter(checkIn => checkIn.localDate === localDate).map(checkIn => [checkIn.habitId, checkIn]),
   );
+  const weekStartLocalDate = mondayOfLocalDate(localDate);
   const habits: TodayHabitRow[] = input.habits
-    .filter(habit => !habit.archivedAt && isHabitScheduledOnLocalDate(habit, localDate))
-    .map<TodayHabitRow>(habit => {
+    .filter(habit => !habit.archivedAt)
+    .flatMap<TodayHabitRow>(habit => {
       const checkIn = checkInByHabitId.get(habit.id);
-      return { kind: "habit", recordId: habit.id, title: habit.name, checkInId: checkIn?.id ?? null, state: checkIn?.state ?? "due" };
+      if (habit.frequency === "times_per_week") {
+        const target = habitWeeklyTarget(habit);
+        if (!target || !isHabitAvailableOnLocalDate(habit, localDate)) return [];
+        const completed = input.habitCheckIns.filter(row => row.habitId === habit.id && row.localDate >= weekStartLocalDate && row.localDate <= localDate && row.state === "completed").length;
+        if (completed >= target && !checkIn) return [];
+        return [{ kind: "habit", recordId: habit.id, title: habit.name, checkInId: checkIn?.id ?? null, state: checkIn?.state ?? "weekly_opportunity", cadence: "weekly_target", weekProgress: { completed, target } }];
+      }
+      if (!isHabitScheduledOnLocalDate(habit, localDate)) return [];
+      return [{ kind: "habit", recordId: habit.id, title: habit.name, checkInId: checkIn?.id ?? null, state: checkIn?.state ?? "due", cadence: "dated" }];
     })
     .sort((left, right) => left.title.localeCompare(right.title) || left.recordId.localeCompare(right.recordId));
 

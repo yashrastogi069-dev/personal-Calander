@@ -1,5 +1,9 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-01 Task 18 local Habits checkpoint
+
+Task 18 is implemented locally on `dev/personal-calendar-workbench` and awaits owner approval. The liked visual tick trace and month calendar are retained in a single Habits workspace; Home has compact due/flexible habit actions and Insights retains the previously visible task/category charts. A ten-day gap offers Resume/Revise/deliberate Pause without backfill; flexible weekly targets and explicit missed/skip/unrecorded facts remain distinct. Habit settings and check-in corrections are workspace-scoped and version guarded using existing columns. Older archived history can be read in bounded windows. No Supabase migration, live record write, Vercel deployment, or `main` merge occurred for this slice. Exact local test/build/browser evidence is in `docs/PHASE4_SLICE_EVIDENCE.md`. The independent TLS/read-only inventory, backup, migration approval, live Preview, and physical-device gates below are unchanged.
+
 ## 2026-10-01 Task 16 local delivery checkpoint
 
 Task 16's functional local slice is implemented: Projects, Outcome goals, and Directions have separate views; users can create and explicitly convert intentions when the additive schema is available; metadata reads/writes are capability-gated when it is not; and selected detail connects tasks, projects, habits, milestones, risks, dependencies, and next actions. Legacy goals retain their meaning until the user explicitly classifies them. Hierarchy links are workspace-scoped and cycle-checked, updates are expected-version guarded, and no existing IDs/history are rewritten.

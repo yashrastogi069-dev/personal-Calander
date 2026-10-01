@@ -168,6 +168,20 @@ describe("projectToday", () => {
     ]);
   });
 
+  it("shows a flexible weekly target as a weekly opportunity, not a dated daily miss", () => {
+    const weekly = { id: "habit-weekly", workspaceId: "workspace-1", name: "Strength", frequency: "times_per_week" as const, schedule: { timesPerWeek: 3 }, archivedAt: null };
+    const oneDone = [{ id: "check-monday", habitId: weekly.id, localDate: "2026-09-14", state: "completed" }];
+    expect(projectToday(baseInput({ habits: [weekly], habitCheckIns: oneDone })).habits).toEqual([
+      expect.objectContaining({ recordId: weekly.id, state: "weekly_opportunity", cadence: "weekly_target", weekProgress: { completed: 1, target: 3 } }),
+    ]);
+    const targetMet = [...oneDone,
+      { id: "check-tuesday", habitId: weekly.id, localDate: "2026-09-15", state: "completed" },
+      { id: "check-wednesday", habitId: weekly.id, localDate: "2026-09-16", state: "completed" },
+    ];
+    expect(projectToday(baseInput({ habits: [weekly], habitCheckIns: targetMet })).habits).toEqual([]);
+    expect(projectToday(baseInput({ habits: [{ ...weekly, schedule: { timesPerWeek: 3, pauseStartedLocalDate: "2026-09-19", pauseUntilLocalDate: "2026-09-22" } }], habitCheckIns: oneDone })).habits).toEqual([]);
+  });
+
   it("keeps appointments as read-only source rows in chronological order", () => {
     const input = baseInput({
       externalEvents: [

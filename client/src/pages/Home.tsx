@@ -5101,8 +5101,9 @@ function FullComposer({
     estimateMinutes: number | null;
     recurrenceRule: Record<string, unknown> | null;
     recurrenceUntilLocalDate: string | null;
-    habitFrequency: "daily" | "days_of_week" | "interval" | null;
+    habitFrequency: "daily" | "days_of_week" | "times_per_week" | "interval" | null;
     habitSchedule: Record<string, unknown> | null;
+    habitReminderTime?: string | null;
   }) => Promise<void>;
   onManageCategories: () => void;
 }) {
@@ -5119,11 +5120,13 @@ function FullComposer({
   const [recurrenceInterval, setRecurrenceInterval] = useState("1");
   const [recurrenceUntilLocalDate, setRecurrenceUntilLocalDate] = useState("");
   const [habitFrequency, setHabitFrequency] = useState<
-    "daily" | "days_of_week" | "interval"
+    "daily" | "days_of_week" | "times_per_week" | "interval"
   >("daily");
   const [habitWeekdays, setHabitWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [habitTimesPerWeek, setHabitTimesPerWeek] = useState("3");
   const [habitIntervalDays, setHabitIntervalDays] = useState("2");
   const [habitAnchorLocalDate, setHabitAnchorLocalDate] = useState("");
+  const [habitReminderTime, setHabitReminderTime] = useState("");
   const [goalId, setGoalId] = useState("none");
   const [parentGoalId, setParentGoalId] = useState("none");
   const [goalHorizon, setGoalHorizon] = useState<
@@ -5168,6 +5171,10 @@ function FullComposer({
             interval: Math.max(1, Number(recurrenceInterval) || 1),
           }
         : null;
+    if (kind === "habit" && habitFrequency === "times_per_week" && (!Number.isInteger(Number(habitTimesPerWeek)) || Number(habitTimesPerWeek) < 1 || Number(habitTimesPerWeek) > 7)) {
+      setFormError("Choose a weekly target from 1 to 7.");
+      return;
+    }
     const habitSchedule =
       kind !== "habit"
         ? null
@@ -5179,6 +5186,8 @@ function FullComposer({
                   ? habitWeekdays
                   : [1, 2, 3, 4, 5],
               }
+            : habitFrequency === "times_per_week"
+              ? { timesPerWeek: Number(habitTimesPerWeek) }
             : {
                 intervalDays: Math.max(1, Number(habitIntervalDays) || 1),
                 ...(habitAnchorLocalDate
@@ -5205,6 +5214,7 @@ function FullComposer({
           : null,
         habitFrequency: kind === "habit" ? habitFrequency : null,
         habitSchedule,
+        habitReminderTime: kind === "habit" ? habitReminderTime || null : null,
       });
       setTitle("");
       setDueLocalDate("");
@@ -5220,8 +5230,10 @@ function FullComposer({
       setRecurrenceUntilLocalDate("");
       setHabitFrequency("daily");
       setHabitWeekdays([1, 2, 3, 4, 5]);
+      setHabitTimesPerWeek("3");
       setHabitIntervalDays("2");
       setHabitAnchorLocalDate("");
+      setHabitReminderTime("");
       onOpenChange(false);
     } catch (error) {
       setFormError(
@@ -5464,7 +5476,7 @@ function FullComposer({
                 <Select
                   value={habitFrequency}
                   onValueChange={value => {
-                    const next = value as "daily" | "days_of_week" | "interval";
+                    const next = value as "daily" | "days_of_week" | "times_per_week" | "interval";
                     setHabitFrequency(next);
                     if (next === "days_of_week" && habitWeekdays.length === 0)
                       setHabitWeekdays([1, 2, 3, 4, 5]);
@@ -5478,6 +5490,7 @@ function FullComposer({
                     <SelectItem value="days_of_week">
                       Selected weekdays
                     </SelectItem>
+                    <SelectItem value="times_per_week">Flexible times per week</SelectItem>
                     <SelectItem value="interval">Every N days</SelectItem>
                   </SelectContent>
                 </Select>
@@ -5546,6 +5559,8 @@ function FullComposer({
                   </div>
                 </div>
               ) : null}
+              {habitFrequency === "times_per_week" ? <div className="field"><Label htmlFor="habit-weekly-target">Times per week</Label><Input id="habit-weekly-target" type="number" min="1" max="7" value={habitTimesPerWeek} onChange={event => setHabitTimesPerWeek(event.target.value)} /><p className="recurrence-help">A flexible weekly target, not a requirement on particular weekdays.</p></div> : null}
+              <div className="field"><Label htmlFor="habit-reminder-time">Reminder time (optional)</Label><Input id="habit-reminder-time" type="time" value={habitReminderTime} onChange={event => setHabitReminderTime(event.target.value)} /><p className="recurrence-help">Saved in your workspace. Device delivery depends on notification setup.</p></div>
             </div>
           ) : null}
           <div className="field">
@@ -6941,6 +6956,13 @@ export default function Home() {
       utils.planner.dashboard.invalidate();
     },
   });
+  const updateHabit = trpc.planner.habit.update.useMutation({
+    onSuccess: () => {
+      utils.planner.workspace.snapshot.invalidate();
+      utils.planner.dashboard.invalidate();
+      utils.planner.habit.practiceEvidence.invalidate();
+    },
+  });
   const [habitActionError, setHabitActionError] = useState<string | null>(null);
   const [calendarActionError, setCalendarActionError] = useState<string | null>(
     null
@@ -6954,9 +6976,11 @@ export default function Home() {
         kind: "checkIn";
         habitId: string;
         localDate: string;
-        state: "completed" | "skipped";
+        state: "completed" | "skipped" | "missed";
+        note?: string | null;
+        expectedCheckIn: { id: string; version: number } | null;
       }
-    | { kind: "clear"; habitId: string; localDate: string }
+    | { kind: "clear"; habitId: string; localDate: string; expectedCheckIn: { id: string; version: number } }
     | null
   >(null);
   const refreshHabitData = async () => {
@@ -6965,15 +6989,36 @@ export default function Home() {
     await Promise.all([
       utils.planner.workspace.snapshot.invalidate(),
       utils.planner.dashboard.invalidate(),
+      utils.planner.habit.practiceEvidence.invalidate(),
     ]);
   };
   const habitCheckIn = trpc.planner.habit.checkIn.useMutation({
     onSuccess: refreshHabitData,
-    onError: error => setHabitActionError(error.message),
+    onError: error => {
+      setHabitActionError(error.data?.code === "CONFLICT" ? "This habit record changed elsewhere. Refresh its history before trying again." : error.message);
+      if (error.data?.code === "CONFLICT") {
+        setLastHabitAction(null);
+        void utils.planner.workspace.snapshot.invalidate();
+        void utils.planner.habit.practiceEvidence.invalidate();
+      }
+    },
   });
   const clearHabitCheckIn = trpc.planner.habit.clearCheckIn.useMutation({
     onSuccess: refreshHabitData,
-    onError: error => setHabitActionError(error.message),
+    onError: error => {
+      setHabitActionError(error.data?.code === "CONFLICT" ? "This habit record changed elsewhere. Refresh its history before trying again." : error.message);
+      if (error.data?.code === "CONFLICT") {
+        setLastHabitAction(null);
+        void utils.planner.workspace.snapshot.invalidate();
+        void utils.planner.habit.practiceEvidence.invalidate();
+      }
+    },
+  });
+  const archiveHabitFromWorkspace = trpc.planner.habit.archive.useMutation({
+    onSuccess: refreshHabitData,
+  });
+  const restoreHabitFromWorkspace = trpc.planner.habit.restore.useMutation({
+    onSuccess: refreshHabitData,
   });
 
   useEffect(() => {
@@ -7217,6 +7262,11 @@ export default function Home() {
     setPlannerLocation(next);
     if (typeof window !== "undefined")
       writePlannerLocation(new URL(window.location.href), next, window.history);
+  };
+  const openHabitRecord = (id: string) => {
+    const next = { ...plannerLocation, destination: "habits" as const, view: "due" as const, selectedRecord: id };
+    setPlannerLocation(next);
+    if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
   };
   const openTaskRecord = (id: string) => {
     const next = {
@@ -7668,16 +7718,34 @@ export default function Home() {
   const recordHabitCheckIn = (
     habitId: string,
     localDate: string,
-    state: "completed" | "skipped"
+    state: "completed" | "skipped" | "missed",
+    note?: string | null,
+    expectedCheckIn?: { id: string; version: number } | null
   ) => {
+    if (!isOnline) {
+      setHabitActionError("Reconnect before recording a habit. Nothing was saved.");
+      return;
+    }
     setHabitActionError(null);
-    setLastHabitAction({ kind: "checkIn", habitId, localDate, state });
-    habitCheckIn.mutate({ ...scope, habitId, localDate, state });
+    const snapshotRecord = snapshot?.habitCheckIns.find(item => item.habitId === habitId && item.localDate === localDate);
+    const expected = expectedCheckIn === undefined ? (snapshotRecord ? { id: snapshotRecord.id, version: snapshotRecord.version } : null) : expectedCheckIn;
+    setLastHabitAction({ kind: "checkIn", habitId, localDate, state, note, expectedCheckIn: expected });
+    habitCheckIn.mutate({ ...scope, habitId, localDate, state, note, expectedCheckIn: expected });
   };
-  const undoHabitCheckIn = (habitId: string, localDate: string) => {
+  const undoHabitCheckIn = (habitId: string, localDate: string, expectedCheckIn?: { id: string; version: number }) => {
+    if (!isOnline) {
+      setHabitActionError("Reconnect before clearing a habit record. Nothing was changed.");
+      return;
+    }
     setHabitActionError(null);
-    setLastHabitAction({ kind: "clear", habitId, localDate });
-    clearHabitCheckIn.mutate({ ...scope, habitId, localDate });
+    const snapshotRecord = snapshot?.habitCheckIns.find(item => item.habitId === habitId && item.localDate === localDate);
+    const expected = expectedCheckIn ?? (snapshotRecord ? { id: snapshotRecord.id, version: snapshotRecord.version } : null);
+    if (!expected) {
+      setHabitActionError("This record is not loaded. Refresh habit history before clearing it.");
+      return;
+    }
+    setLastHabitAction({ kind: "clear", habitId, localDate, expectedCheckIn: expected });
+    clearHabitCheckIn.mutate({ ...scope, habitId, localDate, expectedCheckIn: expected });
   };
   const retryHabitAction = () => {
     if (!lastHabitAction) return;
@@ -7685,9 +7753,11 @@ export default function Home() {
       recordHabitCheckIn(
         lastHabitAction.habitId,
         lastHabitAction.localDate,
-        lastHabitAction.state
+        lastHabitAction.state,
+        lastHabitAction.note,
+        lastHabitAction.expectedCheckIn
       );
-    else undoHabitCheckIn(lastHabitAction.habitId, lastHabitAction.localDate);
+    else undoHabitCheckIn(lastHabitAction.habitId, lastHabitAction.localDate, lastHabitAction.expectedCheckIn);
   };
   const moveTaskToLane = async (
     task: any,
@@ -8074,8 +8144,9 @@ export default function Home() {
     estimateMinutes: number | null;
     recurrenceRule: Record<string, unknown> | null;
     recurrenceUntilLocalDate: string | null;
-    habitFrequency: "daily" | "days_of_week" | "interval" | null;
+    habitFrequency: "daily" | "days_of_week" | "times_per_week" | "interval" | null;
     habitSchedule: Record<string, unknown> | null;
+    habitReminderTime?: string | null;
   }) => {
     if (composerKind === "task")
       await persistTaskCreate({
@@ -8129,6 +8200,7 @@ export default function Home() {
         color: "#C6F06A",
         frequency: values.habitFrequency ?? "daily",
         schedule: values.habitSchedule ?? { cadence: "daily" },
+        reminderTime: values.habitReminderTime ?? null,
       });
   };
   const createFromCapture = async (
@@ -8265,7 +8337,7 @@ export default function Home() {
     Year: "Connect annual direction to current work.",
   };
 
-  const habitPending = habitCheckIn.isPending || clearHabitCheckIn.isPending;
+  const habitPending = habitCheckIn.isPending || clearHabitCheckIn.isPending || updateHabit.isPending || archiveHabitFromWorkspace.isPending || restoreHabitFromWorkspace.isPending;
   const settingsSyncReady =
     !availableSnapshot.isCached &&
     syncSummary.pending === 0 &&
@@ -8429,6 +8501,7 @@ export default function Home() {
                 selectSurface("plan");
               }}
               onOpenHabits={() => selectSurface("habits")}
+              onOpenHabit={openHabitRecord}
               onToggleTask={toggleTask}
               onArchiveTask={archiveTaskFromPhone}
               onUpdateTask={persistTaskPatch}
@@ -8747,44 +8820,45 @@ export default function Home() {
           </section>
         ) : null}
         {surface === "habits" ? (
-          <section className="work-surface habit-workspace">
-            <HabitPanel
-              habits={snapshot.habits}
-              checkIns={snapshot.habitCheckIn}
-              today={today}
-              streaks={dashboardQuery.data?.streaks}
-              onCheckIn={recordHabitCheckIn}
-              onClearCheckIn={undoHabitCheckIn}
-              onRetry={retryHabitAction}
-              pending={habitPending}
-              error={habitActionError}
-              onCompose={() => openComposer("habit")}
-            />
-            <HabitCalendarTracker
-              habits={snapshot.habits}
-              checkIns={snapshot.habitCheckIn}
-              today={today}
-              onCheckIn={recordHabitCheckIn}
-              onClearCheckIn={undoHabitCheckIn}
-              pending={habitPending}
-            />
-            <Suspense
-              fallback={<DestinationLoading label="Habit discipline" />}
-            >
+          <section className="work-surface habit-destination">
+            <Suspense fallback={<DestinationLoading label="Habits" />}>
               <HabitDisciplineWorkspace
                 scope={scope}
                 habits={snapshot.habits}
                 checkIns={snapshot.habitCheckIns}
+                goals={snapshot.goals}
+                categories={snapshot.categories}
+                streaks={dashboardQuery.data?.streaks}
                 today={today}
+                selectedHabitId={plannerLocation.selectedRecord}
+                onSelectedHabitChange={updateSelectedRecord}
                 onCheckIn={recordHabitCheckIn}
                 onClearCheckIn={undoHabitCheckIn}
+                onCompose={() => openComposer("habit")}
+                onOpenTracking={() => selectSurface("insights")}
+                onOpenGoal={id => {
+                  const goal = snapshot.goals.find(item => item.id === id);
+                  const next = { ...plannerLocation, destination: "intentions" as const, view: goal?.intentionKind === "direction" ? "directions" as const : "outcomes" as const, selectedRecord: id };
+                  setPlannerLocation(next);
+                  if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
+                }}
+                onUpdateHabit={async input => {
+                  if (!isOnline) throw new Error("Reconnect before changing a habit. Your draft is still here.");
+                  return updateHabit.mutateAsync({ ...scope, ...input });
+                }}
+                onArchiveHabit={async (id, expectedVersion) => {
+                  if (!isOnline) throw new Error("Reconnect before archiving a habit.");
+                  return archiveHabitFromWorkspace.mutateAsync({ ...scope, id, expectedVersion });
+                }}
+                onRestoreHabit={async (id, expectedVersion) => {
+                  if (!isOnline) throw new Error("Reconnect before restoring a habit.");
+                  return restoreHabitFromWorkspace.mutateAsync({ ...scope, id, expectedVersion });
+                }}
+                isOnline={isOnline}
                 pending={habitPending}
+                error={habitActionError}
               />
             </Suspense>
-            <AnalyticsPanel
-              dashboard={dashboardQuery.data}
-              categories={snapshot.categories}
-            />
           </section>
         ) : null}
         {surface === "focus" ? (

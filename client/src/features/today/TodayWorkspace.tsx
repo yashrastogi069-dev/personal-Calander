@@ -230,6 +230,7 @@ export type TodayWorkspaceProps = {
   onStartFocus: (task: CanonicalTask) => void;
   onResolveRecovery: () => void;
   onOpenHabits: () => void;
+  onOpenHabit?: (habitId: string) => void;
   onToggleTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onUpdateTask: (
@@ -285,6 +286,7 @@ export function TodayWorkspace({
   onStartFocus,
   onResolveRecovery,
   onOpenHabits,
+  onOpenHabit,
   onToggleTask,
   onArchiveTask,
   onUpdateTask,
@@ -706,6 +708,7 @@ export function TodayWorkspace({
         onClearCheckIn={onClearHabitCheckIn}
         onRetry={onRetryHabit}
         onOpenHabits={onOpenHabits}
+        onOpenHabit={onOpenHabit}
         onUnsupportedOffline={setUnsupportedMessage}
       />
 

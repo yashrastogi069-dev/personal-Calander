@@ -1155,6 +1155,8 @@ git commit -m "feat: add project portfolio roadmap"
 
 ### Task 18: Reframe Habits around return and correction
 
+Local implementation and verification checkpoint: see `docs/PHASE4_SLICE_EVIDENCE.md`. The owner requested a stop for approval after this task; Tasks 19 onward are not started by this checkpoint.
+
 **Files:**
 - Create: `shared/habitRecovery.ts`
 - Create: `server/habitRecovery.test.ts`
@@ -1162,46 +1164,45 @@ git commit -m "feat: add project portfolio roadmap"
 - Modify: `client/src/features/today/TodayHabits.tsx`
 - Modify: `server/habitConsistency.test.ts`
 - Modify: `server/habitSchedule.test.ts`
-- Modify: `scripts/preview-phase4-product.py`
+- Modify: `scripts/preview-ui-review.py`
 
 **Interfaces:**
 - Produces: `habitReturnDecision(habit, checkIns, today)` and recovery-oriented practice UI.
 - Consumes: existing daily/weekday/times-per-week/interval schedules and check-in correction services.
 
-- [ ] **Step 1: Write failing state tests**
+- [x] **Step 1: Write state and regression tests**
 
 Cover completed/skipped/missed/not-yet-due, next opportunity, recent consistency, interrupted schedule, no unlimited backlog after ten days, corrected history, and times-per-week semantics without inventing a daily occurrence.
 
-- [ ] **Step 2: Run red tests**
+- [ ] **Step 2: Run red tests** (not captured before implementation; final green and regression evidence is recorded in the slice ledger)
 
 Run: `.\node_modules\.bin\vitest.cmd run server\habitRecovery.test.ts server\habitConsistency.test.ts server\habitSchedule.test.ts server\planning.habit.test.ts`
 
 Expected: existing schedule/persistence tests pass; return-decision assertions fail before implementation.
 
-- [ ] **Step 3: Implement pure return guidance**
+- [x] **Step 3: Implement pure return guidance**
 
 Return choices are resume current schedule, revise schedule, or pause until a review point. Because habit writes remain online-only, offline forms retain edits and show reconnect guidance before save. Saved Habit views retain their configuration, pin, order, version, and workspace scope.
 
-- [ ] **Step 4: Upgrade Today and Habits presentation**
+- [x] **Step 4: Upgrade Today and Habits presentation**
 
 Today renders only due practices, never duplicated task records. History keeps explicit corrections and notes. Streak remains optional evidence; return guidance and next opportunity are primary.
 
-- [ ] **Step 5: Run tests and browser checks**
+- [x] **Step 5: Run tests and browser checks**
 
 Run:
 
 ```powershell
 .\node_modules\.bin\vitest.cmd run server\habitRecovery.test.ts server\habitConsistency.test.ts server\habitSchedule.test.ts server\planning.habit.test.ts server\plannerRules.test.ts
 .\node_modules\.bin\tsc.cmd --noEmit
-python scripts\preview-phase4-product.py --url http://127.0.0.1:14775 --scenario habit-return
+python scripts\preview-ui-review.py --url http://127.0.0.1:14775 --only habits,today,review-insights --widths 320,390,768,1440 --no-screenshots --output "$env:TEMP\personal-calendar-t18-final-2"
 ```
 
 Expected: PASS; ten missed opportunities remain historical facts rather than ten mandatory recovery rows.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit a local Task 18 checkpoint (no push or deployment in this step)**
 
 ```powershell
-git add shared/habitRecovery.ts server/habitRecovery.test.ts client/src/features/habits/HabitDisciplineWorkspace.tsx client/src/features/today/TodayHabits.tsx server/habitConsistency.test.ts server/habitSchedule.test.ts scripts/preview-phase4-product.py
 git commit -m "feat: orient habits around consistent return"
 ```
 

@@ -124,6 +124,31 @@ describe("planning rules", () => {
     expect(summary.decisionSignals).toMatchObject({ scheduleReliability: 50, carryoverRate: 50, averageBlockedAgeDays: 0, estimateCoverage: 100, goalsWithVisibleProgress: 0 });
   });
 
+  it("buckets completed tasks by workspace-local day at the UTC boundary", () => {
+    const completedTask = (id: string, completedAt: string) => ({
+      id, goalId: null, projectId: null, categoryId: null,
+      state: "completed" as const, dueLocalDate: null, scheduledLocalDate: null,
+      estimateMinutes: null, completedAt: new Date(completedAt),
+    });
+    const summary = dashboardSummary({
+      tasks: [
+        completedTask("local-midnight", "2026-08-23T18:30:00.000Z"),
+        completedTask("before-next-midnight", "2026-08-24T18:29:59.000Z"),
+        completedTask("next-local-day", "2026-08-24T18:30:00.000Z"),
+      ],
+      goals: [], projectGoalById: new Map(), categoryNames: new Map(),
+      habitCheckIns: [], habitIds: [], timezone: "Asia/Kolkata",
+      todayLocalDate: "2026-08-25", rangeStart: "2026-08-24", rangeEnd: "2026-08-25",
+      capacityMinutes: 360,
+    });
+    expect(summary.completionTrend).toEqual([
+      { localDate: "2026-08-24", completed: 2 },
+      { localDate: "2026-08-25", completed: 1 },
+    ]);
+    expect(summary.planningHealth.completedToday).toBe(1);
+    expect(summary.counts.completedInRange).toBe(3);
+  });
+
   it("exposes a per-habit streak value in the dashboard summary", () => {
     const summary = dashboardSummary({
       tasks: [],
