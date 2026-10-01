@@ -1,5 +1,17 @@
 # Testing Strategy
 
+## Current verification contract (2026-10-01)
+
+Run `pnpm check`, targeted Vitest for the changed rules, and `pnpm build` for local client/PWA/server changes. Vercel packaging uses `pnpm build:client`; validate that artifact for deployment changes. Full `pnpm test` and the scenario browser scripts are release gates when the scope warrants them. Record the exact command, pass count, build release, viewport, and limitations in [Phase 4 slice evidence](PHASE4_SLICE_EVIDENCE.md).
+
+The current suite covers planning rules, server contracts, optimistic versions, migration preservation, recovery, offline sync, notification scheduling, PWA behavior, and several Phase 4 slices. Synthetic browser scripts under `scripts/preview-*.py` use isolated fixtures for phone and desktop checks. A local browser pass is not a live Vercel pass; a synthetic device pass is not a physical iPhone or VoiceOver pass. Do not infer live schema compatibility from local PGlite tests.
+
+For the latest recorded Task 16 slice, focused intention tests passed 4/4, TypeScript passed, and production client/PWA/server build passed with release `b8f32f314a9dca6d`. That evidence covers the implemented presentation and pure semantics only; it does not prove a complete editable Outcome/Direction flow, live migration, or full Phase 4 signoff. See [project state](PROJECT_STATE.md) for open work.
+
+The dated sections below are retained as historical evidence. Their counts and public deployment claims apply to those checkpoints and are not current release verification.
+
+## Historical verification notes
+
 ## Business rules
 
 Unit tests will cover lifecycle transitions, dependency cycle rejection, horizon validation, optimistic update rollback, conflict detection, recurrence generation, skipped/missed/completed outcomes, habit streak math, timezone date conversion, calendar rescheduling, and dashboard aggregates.

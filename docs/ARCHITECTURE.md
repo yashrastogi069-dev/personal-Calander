@@ -1,5 +1,28 @@
 # Architecture and Reliability Contract
 
+## Current architecture (2026-10-01)
+
+The application is a React/Vite PWA with an Express/tRPC backend. The local server is `server/_core/index.ts`; Vercel uses the entrypoints in `api/` and the bundled planner app configured in `vercel.json`. `client/src/pages/Home.tsx` coordinates the authenticated planner snapshot and feature workspaces. `shared/` contains pure projections, validation, and presentation contracts. Drizzle maps the PostgreSQL schema in `drizzle/schema.ts`.
+
+```mermaid
+flowchart LR
+  UI[React PWA] --> AUTH[Supabase Auth]
+  UI --> CACHE[Account-scoped IndexedDB cache and task queue]
+  UI --> API[Express / tRPC]
+  API --> OWNER[Workspace owner check]
+  OWNER --> DB[(PostgreSQL planner tables)]
+  API --> PUSH[Web push and read-only calendar feed]
+  JOB[Approved reminder sweep] --> API
+```
+
+The browser supplies a bearer token and workspace selector. The server verifies the Supabase user and workspace ownership before protected planner procedures run. The database is authoritative for synchronized records; the device cache supports offline reading and supported task writes. Reconnection replays queued operations and exposes field conflicts for review. A sign-out hides the prior account's cache rather than erasing records. See [API](backend/API.md), [database](backend/DATABASE.md), and [security](SECURITY.md).
+
+The product separates task deadline, planned local day, UTC reservation, daily commitment, occurrence, and actual focus. Date-only values follow the workspace timezone. Record IDs, versions, links, and dated history remain stable across projections and layouts. Calendar and Overview do not own copies of tasks. The private `.ics` feed is outgoing read-only; incoming Apple events and Gmail are not implemented.
+
+The old design below documents the original anonymous workspace model. It is historical and must not be used to implement current authentication or ownership. For current migration and rollout status, use [the handoff](INDEPENDENT_STACK_HANDOFF.md).
+
+## Historical anonymous-workspace design (superseded)
+
 ## Boundary and ownership model
 
 Personal Calendar is implemented as a browser-scoped planning workspace backed by a full-stack application. A cryptographically random `workspaceId` is generated once in the browser and stored locally. Every API request carries it, and every persisted planning record is constrained by it. This gives a person a separate, opaque guest workspace without requiring sign-in.

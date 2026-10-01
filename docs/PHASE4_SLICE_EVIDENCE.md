@@ -60,6 +60,8 @@ Evidence: 86 Vitest files, 546 passed and 3 skipped; `tsc --noEmit`; production 
 
 ## Task 16 verification checkpoint (2026-10-01)
 
+Acceptance status: partial. A follow-up source audit found no working create/convert path for intention metadata while migration 0004 is deferred, and the selected-goal detail is not yet the full linked-work/milestone/risk/review surface. The checks below support only the implemented presentation and pure helper behavior.
+
 Task 16 adds the additive Projects & Goals workspace with Projects, Outcome goals, and Directions tabs plus a selected intention detail view. Presentation is pure: absent `intentionKind` remains a legacy goal, no title inference occurs, Outcomes retain progress/date/success semantics, and Directions de-emphasize forced percentage/date language without deleting stored fields. The existing GoalPanel and project tools remain below the new surface. The `goal.update` route is ownership/version guarded; additive metadata writes are explicitly gated until migration 0004 is separately approved, so pre-migration reads and records remain safe.
 
 Evidence: focused `server/goalIntentions.test.ts` passed 4/4; `tsc --noEmit` passed; production client/PWA/server build passed with PWA release `b8f32f314a9dca6d` (2,588 modules). The existing large-chunk warning remains non-blocking. No migration, live database write, deployment, physical-iPhone, VoiceOver, or Vercel verification was performed in this slice.

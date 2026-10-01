@@ -2,6 +2,8 @@
 
 ## 2026-10-01 Task 16 local delivery checkpoint
 
+Follow-up audit: this commit delivered a visual/pure-semantics slice, not the complete Task 16 experience. The current API rejects intention metadata writes and ordinary goal snapshots omit that metadata while migration 0004 is deferred. Users cannot yet create or convert a Direction through the app; the selected detail also lacks linked work, milestones, risks/dependencies, and next-review controls. Finish these before marking Task 16 accepted. The focused local checks below do not cover those gaps.
+
 Task 16 adds an additive Projects & Goals presentation with separate Projects, Outcome goals, and Directions tabs. Existing goals without intention metadata remain legacy-compatible; no title inference or automatic conversion occurs. Outcome cards expose measurable progress/date/success context, while Directions emphasize durable standards without forcing a percentage or deadline. Selecting a goal opens a detail view without changing linked tasks, projects, milestones, dates, progress, IDs, or history.
 
 The server now exposes an ownership- and expected-version-guarded `goal.update` contract for established fields. Optional intention metadata is accepted at the contract boundary but deliberately rejected until the separately approved `0004_phase4_product_model.sql` migration is applied, preventing pre-migration workspaces from selecting or writing unknown columns. No migration, live database write, reset, deployment, or merge was run. Focused semantics tests passed 4/4; TypeScript and production client/PWA/server build passed (PWA release `b8f32f314a9dca6d`).
