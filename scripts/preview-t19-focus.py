@@ -137,6 +137,11 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         PRODUCT["wait_for_target"](page, "home", "focus")
         assert companion.count() == 0, "companion duplicated in full Focus"
         assert_visible(page.locator(".focus-watch-stage .focus-time-dial"), "full Focus watch")
+        assert_visible(page.locator(".focus-follow-up"), "Focus follow-up conductor")
+        assert_visible(page.get_by_role("article", name="Meeting horizon"), "Meeting horizon")
+        assert_visible(page.get_by_role("article", name="Habit duration companion"), "Habit companion")
+        assert_visible(page.get_by_role("article", name="Session trail"), "Session trail")
+        assert "not attributed to habits yet" in page.locator(".focus-follow-up").inner_text()
         watch = page.locator(".focus-watch-stage")
         watch.get_by_role("button", name="Digital", exact=True).click()
         assert "is-digital" in watch.locator(".focus-time-dial").get_attribute("class")

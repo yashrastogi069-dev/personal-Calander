@@ -1,5 +1,9 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-02 Focus orchestration follow-up
+
+The Focus workspace now includes the first safe orchestration layer: Finish → Next Step handoff, source-labelled Meeting Horizon, factual Habit Companion, bounded Session Trail, and read-only Routine Conductor. These are projections of existing records; the fixed Home/phone companion remains clock/control-only. Habit duration attribution, durable next-step fields, custom routine editing/history, and incoming Apple Calendar events are explicitly not claimed. Details and exact local evidence are in `docs/FOCUS_ORCHESTRATION_SPEC.md` and `docs/PHASE4_SLICE_EVIDENCE.md`. No live database write, migration, Preview deployment, or physical-device check occurred.
+
 ## 2026-10-02 Task 19 Focus local checkpoint
 
 T19 adds a persistent, watch-inspired Focus control to the planner shell and a full-width, larger Home version; the full Focus workspace keeps Dial/Digital and Desk View options. The control follows navigation and reload using confirmed backend session timestamps rather than creating a second timer record. Active and paused sessions stay in the workspace snapshot even when their start date is outside the ordinary history window. Stop has confirmation; existing finish outcomes, notes, estimate adjustment, and task IDs are preserved. Server-backed Focus actions state and respect the offline boundary. A task marked `wont_do` cannot launch Focus from its detail, and an unavailable explicit task link no longer silently selects a different task.

@@ -14,6 +14,7 @@ import {
   useFocusPresentation,
   type FocusWatchSession,
 } from "./FocusTimeDial";
+import { FocusFollowUpPanel } from "./FocusFollowUpPanel";
 import {
   Check,
   CircleAlert,
@@ -115,6 +116,11 @@ export function FocusWorkspace({
     activeTask?.estimateMinutes ? String(activeTask.estimateMinutes) : "25"
   );
   const [error, setError] = useState<string | null>(null);
+  const [nextStepHandoff, setNextStepHandoff] = useState<{
+    taskTitle: string;
+    outcome: string;
+    note: string;
+  } | null>(null);
   useEffect(() => {
     if (taskId !== "none" && !tasks.some((task: any) => task.id === taskId))
       setTaskId("none");
@@ -154,6 +160,11 @@ export function FocusWorkspace({
   });
   const finish = trpc.planner.focus.finish.useMutation({
     onSuccess: (_data, values) => {
+      setNextStepHandoff({
+        taskTitle: activeTask?.title ?? "this focus block",
+        outcome: values.outcome,
+        note: note.trim(),
+      });
       setError(null);
       setNote("");
       setAdjustOpen(false);
@@ -609,6 +620,12 @@ export function FocusWorkspace({
             </span>
           </div>
         </aside>
+        <FocusFollowUpPanel
+          snapshot={snapshot}
+          today={today}
+          activeSession={activeSession}
+          handoff={nextStepHandoff}
+        />
       </div>
     </section>
   );
