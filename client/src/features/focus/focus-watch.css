@@ -113,6 +113,15 @@
 .focus-follow-up-card small { display: block; margin-top: 8px; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
 .focus-follow-up-card.is-next-step { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); background: color-mix(in srgb, var(--selection) 66%, var(--surface)); }
 .focus-follow-up-card.is-next-step strong { color: var(--accent); }
+.focus-follow-up-header > button { min-height: 44px; align-self: center; white-space: nowrap; }
+.focus-follow-up-card-content { display: grid; flex: 1; min-width: 0; gap: 8px; }
+.focus-follow-up-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.focus-follow-up-item p { flex: 1 1 140px; margin: 0; }
+.focus-follow-up-item > button, .focus-follow-up-actions > button, .focus-follow-up-session-detail > button { min-height: 44px; }
+.focus-follow-up-card .focus-follow-up-item > button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.focus-follow-up-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.focus-follow-up-session-detail { display: grid; flex: 1 1 100%; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-elevated); }
+.focus-follow-up-session-detail p { flex: 1 1 100%; margin: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 850px) {
   .focus-time-dial:not(.is-compact) { --watch-face: clamp(190px, 33vw, 230px); gap: 18px; }
@@ -135,6 +144,8 @@
   .focus-follow-up { margin: 0 14px 20px; padding: 16px; }
   .focus-follow-up-grid { grid-template-columns: 1fr; }
   .focus-follow-up-card { min-height: 82px; }
+  .focus-follow-up-header { align-items: flex-start; flex-direction: column; }
+  .focus-follow-up-header > .button { width: 100%; }
   .focus-companion { position: fixed; z-index: 48; width: auto; right: max(10px, env(safe-area-inset-right)); bottom: calc(82px + env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); top: auto; margin: 0; padding: 10px 12px; border-radius: 15px; }
   .focus-companion.is-home { width: auto; min-height: 0; margin: 0; padding: 11px 12px; }
   .focus-companion.is-home .focus-companion-main { grid-template-columns: minmax(0, 1fr); gap: 8px; }

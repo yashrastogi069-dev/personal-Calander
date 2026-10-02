@@ -96,19 +96,21 @@ export function buildRoutineConductor(input: {
   meetings: ReturnType<typeof buildMeetingHorizon>;
   habits: ReturnType<typeof buildHabitCompanion>;
 }) {
-  if (input.activeSession?.state === "active") {
+  if (input.activeSession?.state === "active" || input.activeSession?.state === "paused") {
     const task = input.tasks.find(candidate => candidate.id === input.activeSession?.taskId);
-    return { key: "focus", title: task ? `Stay with ${task.title}` : "Stay with this focus block", detail: "Your current session is the next deliberate action." };
+    const paused = input.activeSession.state === "paused";
+    return { key: "focus", targetId: task?.id ?? null, title: task ? `${paused ? "Resume" : "Stay with"} ${task.title}` : `${paused ? "Resume" : "Stay with"} this focus block`, detail: paused ? "Your paused session is ready when you are." : "Your current session is the next deliberate action." };
   }
   if (input.meetings[0]) {
     const meeting = input.meetings[0];
-    return { key: "meeting", title: meeting.phase === "in_progress" ? `You are in ${meeting.title}` : `Prepare for ${meeting.title}`, detail: "The next calendar commitment is the next horizon." };
+    return { key: "meeting", targetId: meeting.id, title: meeting.phase === "in_progress" ? `You are in ${meeting.title}` : `Prepare for ${meeting.title}`, detail: "The next calendar commitment is the next horizon." };
   }
   if (input.habits.due > input.habits.completed + input.habits.skipped) {
-    return { key: "habit", title: "Keep today’s rhythm", detail: `${input.habits.due - input.habits.completed - input.habits.skipped} habit${input.habits.due - input.habits.completed - input.habits.skipped === 1 ? "" : "s"} still needs a deliberate check-in.` };
+    const nextHabit = input.habits.items.find(item => item.state === "unrecorded" || item.state === "missed");
+    return { key: "habit", targetId: nextHabit?.id ?? null, title: "Keep today’s rhythm", detail: `${input.habits.due - input.habits.completed - input.habits.skipped} habit${input.habits.due - input.habits.completed - input.habits.skipped === 1 ? "" : "s"} still needs a deliberate check-in.` };
   }
   const nextTask = input.tasks.find(task => task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
   return nextTask
-    ? { key: "task", title: `Next: ${nextTask.title}`, detail: "Choose one clear piece of work before opening more commitments." }
-    : { key: "clear", title: "Your runway is clear", detail: "Review the day or choose a longer-horizon next step." };
+    ? { key: "task", targetId: nextTask.id, title: `Next: ${nextTask.title}`, detail: "Choose one clear piece of work before opening more commitments." }
+    : { key: "clear", targetId: null, title: "Your runway is clear", detail: "Review the day or choose a longer-horizon next step." };
 }

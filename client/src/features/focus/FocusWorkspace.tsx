@@ -33,6 +33,12 @@ type FocusWorkspaceProps = {
   today: string;
   initialTaskId?: string | null;
   isOnline?: boolean;
+  onOpenTask: (id: string) => void;
+  onOpenHabit: (id: string) => void;
+  onOpenCalendar: () => void;
+  onOpenPlan: () => void;
+  onHabitCheckIn: (habitId: string, localDate: string, state: "completed" | "skipped") => void;
+  onClearHabitCheckIn: (habitId: string, localDate: string) => void;
 };
 
 export const FOCUS_OFFLINE_GUIDANCE =
@@ -85,6 +91,12 @@ export function FocusWorkspace({
   today,
   initialTaskId,
   isOnline: isOnlineOverride,
+  onOpenTask,
+  onOpenHabit,
+  onOpenCalendar,
+  onOpenPlan,
+  onHabitCheckIn,
+  onClearHabitCheckIn,
 }: FocusWorkspaceProps) {
   const browserOnline = useBrowserOnlineStatus();
   const isOnline = isOnlineOverride ?? browserOnline;
@@ -117,6 +129,7 @@ export function FocusWorkspace({
   );
   const [error, setError] = useState<string | null>(null);
   const [nextStepHandoff, setNextStepHandoff] = useState<{
+    taskId: string | null;
     taskTitle: string;
     outcome: string;
     note: string;
@@ -161,6 +174,7 @@ export function FocusWorkspace({
   const finish = trpc.planner.focus.finish.useMutation({
     onSuccess: (_data, values) => {
       setNextStepHandoff({
+        taskId: active?.taskId ?? null,
         taskTitle: activeTask?.title ?? "this focus block",
         outcome: values.outcome,
         note: note.trim(),
@@ -195,6 +209,15 @@ export function FocusWorkspace({
     )
   );
   const blockOfflineAction = () => setError(FOCUS_OFFLINE_GUIDANCE);
+  const resumeSession = () =>
+    runFocusMutation(
+      isOnline,
+      () => {
+        if (!active || isMutating) return;
+        resume.mutate({ ...scope, id: active.id, expectedVersion: active.version });
+      },
+      blockOfflineAction
+    );
   const startSession = () =>
     runFocusMutation(
       isOnline,
@@ -455,20 +478,7 @@ export function FocusWorkspace({
                 <Button
                   type="button"
                   className="min-h-11"
-                  onClick={() =>
-                    runFocusMutation(
-                      isOnline,
-                      () => {
-                        if (isMutating) return;
-                        resume.mutate({
-                          ...scope,
-                          id: active.id,
-                          expectedVersion: active.version,
-                        });
-                      },
-                      blockOfflineAction
-                    )
-                  }
+                  onClick={resumeSession}
                   disabled={!isOnline || isMutating}
                 >
                   <Play size={16} fill="currentColor" /> Resume
@@ -625,6 +635,14 @@ export function FocusWorkspace({
           today={today}
           activeSession={activeSession}
           handoff={nextStepHandoff}
+          isOnline={isOnline}
+          onOpenTask={onOpenTask}
+          onOpenHabit={onOpenHabit}
+          onOpenCalendar={onOpenCalendar}
+          onOpenPlan={onOpenPlan}
+          onResumeFocus={resumeSession}
+          onCheckInHabit={onHabitCheckIn}
+          onClearHabitCheckIn={onClearHabitCheckIn}
         />
       </div>
     </section>

@@ -31,9 +31,34 @@ WRITE_PROCEDURES = ("planner.focus.start", "planner.focus.pause", "planner.focus
 
 def synthetic_fixtures(state: str) -> dict:
     fixtures = LINKED["fixtures"]()
+    fixtures["planner.task.rolloverPreview"] = {"fromLocalDate": "2026-10-02", "candidates": []}
+    fixtures["planner.habit.checkIn"] = None
+    fixtures["planner.habit.clearCheckIn"] = None
+    fixtures["planner.focus.resume"] = None
     snapshot = fixtures["planner.workspace.snapshot"]
     snapshot["tasks"][0]["title"] = "Synthetic long-focus task"
+    snapshot["habits"] = [{
+        "id": "synthetic-habit-1", "workspaceId": AUTH["WORKSPACE"]["id"], "name": "Take a walk",
+        "frequency": "daily", "schedule": {}, "createdAt": "2026-01-01T00:00:00.000Z",
+        "archivedAt": None, "version": 1,
+    }, {
+        "id": "synthetic-habit-2", "workspaceId": AUTH["WORKSPACE"]["id"], "name": "Read a chapter",
+        "frequency": "daily", "schedule": {}, "createdAt": "2026-01-01T00:00:00.000Z",
+        "archivedAt": None, "version": 1,
+    }]
+    snapshot["habitCheckIns"] = [{
+        "id": "synthetic-check-in-1", "workspaceId": AUTH["WORKSPACE"]["id"], "habitId": "synthetic-habit-2",
+        "localDate": "2026-10-02", "state": "completed", "version": 1,
+    }]
+    snapshot["externalEvents"] = [{
+        "id": "synthetic-meeting-1", "workspaceId": AUTH["WORKSPACE"]["id"], "title": "Synthetic planning meeting",
+        "startsAt": "2026-10-02T12:30:00.000Z", "endsAt": "2026-10-02T13:00:00.000Z", "status": "active",
+    }]
     snapshot["focusSessions"] = [{
+        "id": "synthetic-focus-history", "workspaceId": AUTH["WORKSPACE"]["id"], "taskId": snapshot["tasks"][0]["id"],
+        "state": "completed", "startedAt": "2026-10-01T08:00:00.000Z", "endedAt": "2026-10-01T08:25:00.000Z",
+        "activeSeconds": 1500, "targetMinutes": 25, "outcome": "done", "note": "Synthetic note", "version": 1,
+    }, {
         "id": f"synthetic-focus-{state}",
         "workspaceId": AUTH["WORKSPACE"]["id"],
         "taskId": snapshot["tasks"][0]["id"],
@@ -80,7 +105,15 @@ def inspect_layout(page, name: str) -> dict:
 
 
 def assert_visible(locator, name: str) -> None:
-    locator.wait_for(state="visible", timeout=20_000)
+    try:
+        locator.wait_for(state="visible", timeout=20_000)
+    except Exception as error:
+        page = locator.page
+        raise AssertionError(
+            f"{name} was not visible at {page.url}; "
+            f"headings={page.locator('h1,h2,h3').all_text_contents()[:12]}; "
+            f"body={page.locator('body').inner_text()[:1800]}"
+        ) from error
     assert locator.is_visible(), name
 
 
@@ -142,6 +175,41 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         assert_visible(page.get_by_role("article", name="Habit duration companion"), "Habit companion")
         assert_visible(page.get_by_role("article", name="Session trail"), "Session trail")
         assert "not attributed to habits yet" in page.locator(".focus-follow-up").inner_text()
+        follow_up = page.locator(".focus-follow-up")
+        expected_focus_writes = []
+        if state == "paused":
+            with page.expect_response(lambda response: "planner.focus.resume" in response.url, timeout=5_000):
+                follow_up.get_by_role("button", name="Resume focus", exact=True).click()
+            expected_focus_writes.append("planner.focus.resume")
+        else:
+            follow_up.get_by_role("button", name="Return to timer", exact=True).click()
+        assert "Synthetic planning meeting" in follow_up.get_by_role("article", name="Meeting horizon").inner_text()
+        follow_up.get_by_role("article", name="Meeting horizon").get_by_role("button", name="Open calendar").click()
+        PRODUCT["wait_for_target"](page, "plan", "calendar")
+        assert "planner.habit.checkIn" not in requests
+        PRODUCT["click_destination"](page, "Focus")
+        PRODUCT["wait_for_target"](page, "home", "focus")
+        follow_up = page.locator(".focus-follow-up")
+        habit_card = follow_up.get_by_role("article", name="Habit duration companion")
+        assert "Take a walk" in habit_card.inner_text()
+        with page.expect_response(lambda response: "planner.habit.checkIn" in response.url, timeout=5_000):
+            habit_card.get_by_role("button", name="Complete", exact=True).click()
+        assert "planner.habit.checkIn" in requests, requests
+        completed_habit = habit_card.locator(".focus-follow-up-item").filter(has_text="Read a chapter")
+        with page.expect_response(lambda response: "planner.habit.clearCheckIn" in response.url, timeout=5_000):
+            completed_habit.get_by_role("button", name="Undo", exact=True).click()
+        assert "planner.habit.clearCheckIn" in requests, requests
+        trail_card = follow_up.get_by_role("article", name="Session trail")
+        trail_card.get_by_role("button", name="Synthetic long-focus task", exact=False).click()
+        assert "Synthetic note" in trail_card.inner_text()
+        trail_card.get_by_role("button", name="Open task", exact=True).click()
+        PRODUCT["wait_for_target"](page, "tasks", "list")
+        cancel_task_detail = page.get_by_role("button", name="Cancel", exact=True)
+        if cancel_task_detail.is_visible():
+            cancel_task_detail.click()
+            page.get_by_role("dialog").wait_for(state="hidden")
+        PRODUCT["click_destination"](page, "Focus")
+        PRODUCT["wait_for_target"](page, "home", "focus")
         watch = page.locator(".focus-watch-stage")
         watch.get_by_role("button", name="Digital", exact=True).click()
         assert "is-digital" in watch.locator(".focus-time-dial").get_attribute("class")
@@ -154,7 +222,7 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         page.get_by_role("button", name="Stop", exact=True).click()
         assert_visible(page.get_by_role("group", name="Confirm stop focus"), "full Focus stop confirmation")
         page.get_by_role("button", name="Keep focusing").click()
-        assert not any(item in requests for item in WRITE_PROCEDURES), requests
+        assert [item for item in requests if item in WRITE_PROCEDURES] == expected_focus_writes, requests
 
         context.set_offline(True)
         page.evaluate("dispatchEvent(new Event('offline'))")
@@ -162,7 +230,7 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         action = "Pause" if state == "active" else "Resume"
         assert page.get_by_role("button", name=action, exact=True).is_disabled()
         assert page.get_by_role("button", name="Stop", exact=True).is_disabled()
-        assert not any(item in requests for item in WRITE_PROCEDURES), requests
+        assert [item for item in requests if item in WRITE_PROCEDURES] == expected_focus_writes, requests
         metrics["offlineFocus"] = inspect_layout(page, "offline focus")
         context.set_offline(False)
         page.evaluate("dispatchEvent(new Event('online'))")
@@ -179,7 +247,7 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         companion.get_by_text("reconnect to", exact=False).wait_for()
         assert companion.get_by_role("button", name=expected_action).is_disabled()
         assert companion.get_by_role("button", name="Stop Focus").is_disabled()
-        assert not any(item in requests for item in WRITE_PROCEDURES), requests
+        assert [item for item in requests if item in WRITE_PROCEDURES] == expected_focus_writes, requests
         assert not unexpected, unexpected
         runtime_errors[:] = [item for item in runtime_errors if item != "WebSocket closed without opened."]
         assert not runtime_errors, runtime_errors

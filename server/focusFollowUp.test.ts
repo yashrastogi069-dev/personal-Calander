@@ -40,6 +40,29 @@ describe("Focus follow-up projections", () => {
       habits: { due: 0, completed: 0, skipped: 0, items: [], durationTracked: false },
     });
     expect(result.key).toBe("focus");
+    expect(result.targetId).toBe("task-1");
     expect(result.title).toContain("Draft plan");
+  });
+
+  it("keeps a paused focus session as the next action", () => {
+    const result = buildRoutineConductor({
+      activeSession: { taskId: "task-2", state: "paused" },
+      tasks: [{ id: "task-2", title: "Review notes", state: "in_progress" }],
+      meetings: [],
+      habits: { due: 0, completed: 0, skipped: 0, items: [], durationTracked: false },
+    });
+    expect(result.key).toBe("focus");
+    expect(result.targetId).toBe("task-2");
+    expect(result.title).toContain("Resume");
+  });
+
+  it("returns actionable targets for the next meeting, habit, and task", () => {
+    const meetings = buildMeetingHorizon([
+      { id: "meeting-1", title: "Planning", startsAt: "2026-10-02T12:30:00Z", endsAt: "2026-10-02T13:00:00Z" },
+    ], new Date("2026-10-02T12:00:00Z"));
+    const base = { activeSession: null, tasks: [{ id: "task-3", title: "Write brief", state: "queued" }], meetings: [], habits: { due: 0, completed: 0, skipped: 0, items: [], durationTracked: false } };
+    expect(buildRoutineConductor({ ...base, meetings }).targetId).toBe("meeting-1");
+    expect(buildRoutineConductor({ ...base, habits: { ...base.habits, due: 1, items: [{ id: "habit-2", name: "Walk", state: "unrecorded" }] } }).targetId).toBe("habit-2");
+    expect(buildRoutineConductor(base).targetId).toBe("task-3");
   });
 });

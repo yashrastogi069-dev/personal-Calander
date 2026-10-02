@@ -14,6 +14,12 @@ The first follow-up slice is intentionally additive at the UI/domain-projection 
 
 These projections preserve record IDs, workspace ownership, history, and existing offline/conflict rules. They do not create a second timer, infer a meeting, fabricate a habit duration, or write a routine.
 
+## Functional interaction contract
+
+The follow-up cards are actionable, not read-only mockups. The conductor CTA returns to the running timer; for a paused session it invokes the existing online- and version-guarded resume action. Otherwise it opens the chosen meeting, due habit, task, or daily plan. Meeting entries open Calendar. Habit rows use the existing workspace-scoped, version-guarded check-in and clear handlers; actions are disabled offline. Session Trail entries expand to their saved date/note and open the linked task when available. A confirmed Finish renders task/plan handoff actions while preserving the existing finish outcome and note behavior. These actions reuse canonical app routes and records; they do not create a second record or silently mutate focus/session state.
+
+Phone controls must wrap long labels without horizontal overflow and have a 44px minimum target. The compact phone companion remains timer-only; follow-up actions live in the full Focus workspace.
+
 ## Deferred durable capabilities
 
 Two capabilities need a separately gated additive data-model decision:
@@ -29,4 +35,4 @@ The full Focus workspace owns the follow-up cards. The compact phone companion r
 
 ## Verification contract
 
-The pure projections must cover ordering, cancelled/overlapping meetings, empty states, long labels, unlinked sessions, scheduled/unrecorded habits, and active-session priority. Browser evidence must cover 320/390/768/1440px, both themes, keyboard focus, no horizontal overflow, and no writes while inspecting the cards. No Preview, physical iPhone, incoming Apple Calendar, notification delivery, or live schema result may be claimed from synthetic checks.
+The pure projections must cover ordering, cancelled/overlapping meetings, empty states, long labels, unlinked sessions, scheduled/unrecorded habits, active/paused-session priority, and stable target IDs. Browser evidence must cover the rendered actions, synthetic intercepted habit Complete/Undo, canonical Calendar/task navigation, 320/390/768/1440px, both themes, no horizontal overflow, and no live planner writes. No Preview, physical iPhone, incoming Apple Calendar, notification delivery, or live schema result may be claimed from synthetic checks.

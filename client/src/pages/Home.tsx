@@ -8883,7 +8883,19 @@ export default function Home() {
         ) : null}
         {surface === "focus" ? (
           <Suspense fallback={<DestinationLoading label="Focus" />}>
-            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} initialTaskId={focusEntryTaskId} isOnline={focusActionsOnline} />
+            <FocusWorkspace
+              scope={scope}
+              snapshot={snapshot}
+              today={today}
+              initialTaskId={focusEntryTaskId}
+              isOnline={focusActionsOnline}
+              onOpenTask={openTaskRecord}
+              onOpenHabit={openHabitRecord}
+              onOpenCalendar={() => selectSurface("calendar")}
+              onOpenPlan={() => selectSurface("plan")}
+              onHabitCheckIn={recordHabitCheckIn}
+              onClearHabitCheckIn={undoHabitCheckIn}
+            />
           </Suspense>
         ) : null}
         {surface === "connections" ? (
