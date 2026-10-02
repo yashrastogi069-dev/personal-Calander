@@ -28,6 +28,7 @@ export type TaskDetailSheetProps = {
   conflictCount?: number;
   isOnline?: boolean;
   onOpenChange: (open: boolean) => void;
+  onStartFocus?: (task: any) => void;
   onUpdate: (task: any, patch: Record<string, unknown>) => Promise<TaskMutationResult>;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
@@ -95,6 +96,7 @@ export function TaskDetailSheet({
   conflictCount = 0,
   isOnline = true,
   onOpenChange,
+  onStartFocus,
   onUpdate,
   onCreateSubtask,
   onAddDependency,
@@ -107,6 +109,7 @@ export function TaskDetailSheet({
   const [dependencyError, setDependencyError] = useState<string | null>(null);
   const [dependencyPending, setDependencyPending] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [draftChanged, setDraftChanged] = useState(false);
   const sourceKey = task ? taskEditorSourceKey(task) : "none";
 
   useEffect(() => {
@@ -144,6 +147,7 @@ export function TaskDetailSheet({
     setError(null);
     setDependencyError(null);
     setDependencyPending(null);
+    setDraftChanged(false);
   }, [sourceKey]);
 
   if (!task) return null;
@@ -158,8 +162,10 @@ export function TaskDetailSheet({
       candidate.state !== "archived" &&
       !dependencyIds.has(candidate.id),
   );
-  const setField = (field: string, value: unknown) =>
+  const setField = (field: string, value: unknown) => {
+    setDraftChanged(true);
     setDraft(current => ({ ...current, [field]: value }));
+  };
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -259,6 +265,13 @@ export function TaskDetailSheet({
       description="One task record, with every planning field and action kept together."
       footer={
         <div className="task-detail-footer">
+          {onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do" ? (
+            <Button type="button" variant="outline" onClick={() => {
+              if (draftChanged) { setError("Save or cancel your task edits before opening Focus. Your draft is still here."); return; }
+              onOpenChange(false);
+              onStartFocus(task);
+            }} disabled={saving}>Focus on task</Button>
+          ) : null}
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

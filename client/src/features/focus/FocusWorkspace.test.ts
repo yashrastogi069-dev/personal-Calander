@@ -1,5 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
-import { FOCUS_OFFLINE_GUIDANCE, formatElapsedDuration, formatFocusTargetGuidance, runFocusMutation } from "./FocusWorkspace";
+import { FOCUS_OFFLINE_GUIDANCE, formatElapsedDuration, formatFocusTargetGuidance, initialFocusTaskSelection, runFocusMutation } from "./FocusWorkspace";
+
+describe("focus task entry", () => {
+  const eligibleTasks = [{ id: "active-task" }, { id: "next-task" }];
+
+  it("honors an explicitly linked eligible task", () => {
+    expect(initialFocusTaskSelection(eligibleTasks, "next-task")).toBe("next-task");
+  });
+
+  it("does not silently link another task when an explicit task is ineligible or missing", () => {
+    expect(initialFocusTaskSelection(eligibleTasks, "wont-do-task")).toBe("none");
+  });
+
+  it("keeps the ordinary Focus entry's suggested first task", () => {
+    expect(initialFocusTaskSelection(eligibleTasks)).toBe("active-task");
+  });
+});
 
 describe("focus mutation connectivity boundary", () => {
   it("blocks a mutation and explains why while offline", () => {

@@ -1,5 +1,11 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-02 Task 19 Focus local checkpoint
+
+T19 adds a persistent, watch-inspired Focus control to the planner shell and a full-width, larger Home version; the full Focus workspace keeps Dial/Digital and Desk View options. The control follows navigation and reload using confirmed backend session timestamps rather than creating a second timer record. Active and paused sessions stay in the workspace snapshot even when their start date is outside the ordinary history window. Stop has confirmation; existing finish outcomes, notes, estimate adjustment, and task IDs are preserved. Server-backed Focus actions state and respect the offline boundary. A task marked `wont_do` cannot launch Focus from its detail, and an unavailable explicit task link no longer silently selects a different task.
+
+This is local branch work only. The existing signed-in timer was inspected read-only and left running; no live planner record, Supabase schema, migration, or Vercel deployment was changed. The owner requested a push to `dev/personal-calendar-workbench` after final verification, followed by a hard stop. Exact T19 test/build/browser evidence is in `docs/PHASE4_SLICE_EVIDENCE.md`. Independent-stack TLS inventory, backup/restore, migration approval, Preview, and physical-iPhone gates below remain unchanged.
+
 ## 2026-10-01 Task 18 local Habits checkpoint
 
 Task 18 is implemented locally on `dev/personal-calendar-workbench` and awaits owner approval. The liked visual tick trace and month calendar are retained in a single Habits workspace; Home has compact due/flexible habit actions and Insights retains the previously visible task/category charts. A ten-day gap offers Resume/Revise/deliberate Pause without backfill; flexible weekly targets and explicit missed/skip/unrecorded facts remain distinct. Habit settings and check-in corrections are workspace-scoped and version guarded using existing columns. Older archived history can be read in bounded windows. No Supabase migration, live record write, Vercel deployment, or `main` merge occurred for this slice. Exact local test/build/browser evidence is in `docs/PHASE4_SLICE_EVIDENCE.md`. The independent TLS/read-only inventory, backup, migration approval, live Preview, and physical-device gates below are unchanged.

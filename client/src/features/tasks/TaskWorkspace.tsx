@@ -153,6 +153,7 @@ export type TaskWorkspaceProps = {
   onViewStateChange: (state: { query: string; filter: TaskBoardFilter; sort: TaskWorkspaceSort }) => void;
   onSelectedRecordChange: (recordId: string | null) => void;
   onCapture: () => void;
+  onStartFocus?: (task: CanonicalTask) => void;
   onUpdate: (task: any, patch: Record<string, unknown>) => Promise<TaskMutationResult>;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
   onReorder: (task: any, direction: -1 | 1, laneTasks: any[]) => Promise<string | null>;
@@ -182,6 +183,7 @@ export function TaskWorkspace({
   onViewStateChange,
   onSelectedRecordChange,
   onCapture,
+  onStartFocus,
   onUpdate,
   onCreateSubtask,
   onReorder,
@@ -463,6 +465,7 @@ export function TaskWorkspace({
         conflictCount={selectedTask ? conflictCountByTask.get(selectedTask.id) ?? 0 : 0}
         isOnline={isOnline}
         onOpenChange={open => { if (!open) onSelectedRecordChange(null); }}
+        onStartFocus={onStartFocus}
         onUpdate={onUpdate}
         onCreateSubtask={onCreateSubtask}
         onAddDependency={onAddDependency}

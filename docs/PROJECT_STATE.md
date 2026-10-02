@@ -1,6 +1,6 @@
 # Project state
 
-Updated 2026-10-01. Read [the independent stack handoff](INDEPENDENT_STACK_HANDOFF.md) for the most detailed and current migration record. This file is the quick status board.
+Updated 2026-10-02. Read [the independent stack handoff](INDEPENDENT_STACK_HANDOFF.md) for the most detailed and current migration record. This file is the quick status board.
 
 | Area | Current state | Evidence / next gate |
 | --- | --- | --- |
@@ -8,10 +8,10 @@ Updated 2026-10-01. Read [the independent stack handoff](INDEPENDENT_STACK_HANDO
 | Phase 1 PWA | Engineering and deployment recorded historically | Physical iPhone offline/relaunch result remains a separate user check |
 | Phase 2 sync | Task-first offline queue, replay, conflict review and account-scoped cache implemented | Broader offline entity writes are not claimed |
 | Phase 3 integrations | Read-only private calendar feed, push/reminder infrastructure and opt-in surfaces implemented | Installed iPhone delivery/permissions require real device evidence; private files and incoming Apple Calendar remain deferred |
-| Phase 4 | Tasks 1–18 have local slice evidence; Task 18 Habits restores visual tick/calendar tracking while adding return guidance | Latest local gate: 94 Vitest files / 621 passed / 3 skipped, TypeScript and production client/PWA/server build passed (`c07a1a3025193f50`). Screenshot-free synthetic Home/Habits/Insights checks passed at 320/390/768/1440; authenticated Preview and whole-app signoff remain open; see [slice evidence](PHASE4_SLICE_EVIDENCE.md) |
+| Phase 4 | Tasks 1–18 have local slice evidence; Task 19 adds the persistent Focus watch and a larger full-width Home control | T19 TypeScript, 95 test files / 629 passed / 3 skipped, and production client/PWA/server build pass; final browser gate is recorded in [slice evidence](PHASE4_SLICE_EVIDENCE.md). Authenticated Preview and whole-app signoff remain open |
 | Phase 5 | Backlog only | Deeper analytics follow Phase 4; [backlog](PHASE5_ANALYTICS_BACKLOG.md) |
 | Schema | 0004/0005 are additive and locally tested, not live-approved | Fresh strict-TLS read-only inventory, restore-tested backup, exact approval packets and compatible rollout required |
-| Deployment | Task 17 was pushed to the dev branch; Task 18 is a local checkpoint pending owner review | Current Vercel Preview and live schema have not been verified for Task 18; do not treat a branch push as deployment approval until infrastructure gates pass |
+| Deployment | T18/T19 are the current dev-branch checkpoint; verify the remote commit before claiming Preview availability | Current Vercel Preview and live schema have not been verified for these slices; a branch push is not deployment approval until infrastructure gates pass |
 | Agent memory | Local SQLite session/memory CLI is implemented and tested; capture is explicit | Fresh-process integration evidence is in `npm run test:agent-memory`; host transcript auto-capture is unavailable |
 
 Task 16 local evidence: focused tests 4 files / 56 tests passed; TypeScript and production build passed (PWA release `d5e3e702cee7cabe`, 22 shell files); authenticated local browser verified Projects/Outcome/Directions navigation, selected-goal linked work, and an unsubmitted new-Direction form with no runtime errors. Live Supabase schema, Vercel Preview, and physical-device evidence remain open. See [slice evidence](PHASE4_SLICE_EVIDENCE.md).
@@ -20,7 +20,7 @@ Task 16 local evidence: focused tests 4 files / 56 tests passed; TypeScript and 
 
 ## Immediate sequence
 
-1. Stop after the Task 18 checkpoint for owner review. Task 19 persistent Focus, Task 20 customizable Overview, Task 21 Review/Settings consolidation, Task 22 whole-app signoff/performance, and Task 23 notifications remain unstarted.
+1. After the T19 dev-branch checkpoint, hard-stop for owner review. Task 20 customizable Overview, Task 21 Review/Settings consolidation, Task 22 whole-app signoff/performance, and Task 23 notifications remain unstarted.
 2. Resolve the independent stack live database audit and migration approval prerequisites without modifying existing records by assumption.
 3. Verify workbench Preview and then conduct the separately scoped physical iPhone checks. Notifications and reminders remain the final feature area.
 

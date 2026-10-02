@@ -17,6 +17,7 @@ This is the short decision register. [Historical design decisions](DESIGN_DECISI
 | Outcomes and Directions are additive | Goals without new metadata retain their old semantics. No title-based inference or automatic conversion. |
 | Strict recovery is a deliberate choice | The user can resolve, reschedule, reduce, pause, or abandon a specific commitment; history remains inspectable. |
 | Task-first offline writing | The existing queue and conflict review cover supported task actions; other writes must communicate their online requirement. |
+| Focus watch is a view of confirmed session state | Home and the shell companion present the same backend Focus row. Elapsed time derives from confirmed active seconds plus the last confirmed resume time; device-local display style may change without altering recorded time. Offline time is labeled estimated and write actions wait for reconnection. Stop requires confirmation; reservation time never becomes actual focus. |
 | Apple Calendar feed is outgoing and read-only | Incoming events, two-way sync, and Gmail are future integrations and must not be described as working. |
 | Phase 5 owns deep analytics | Phase 4 keeps current Insights and provenance; it does not replace this with fabricated scoring. |
 | New schema requires an exact, separate approval | Local migration tests are insufficient for live writes. Preserve the pre-migration read path until deployment is coordinated. |

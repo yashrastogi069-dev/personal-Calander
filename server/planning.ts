@@ -282,7 +282,16 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     db.select().from(dailyPlans).where(and(eq(dailyPlans.workspaceId, scope.workspaceId), gte(dailyPlans.localDate, range.start), lte(dailyPlans.localDate, range.end))).orderBy(desc(dailyPlans.localDate)),
     db.select().from(dailyPlanItems).where(eq(dailyPlanItems.workspaceId, scope.workspaceId)).orderBy(asc(dailyPlanItems.position)),
     db.select().from(weeklyObjectives).where(and(eq(weeklyObjectives.workspaceId, scope.workspaceId), gte(weeklyObjectives.weekStartLocalDate, range.start), lte(weeklyObjectives.weekStartLocalDate, range.end))).orderBy(desc(weeklyObjectives.weekStartLocalDate), asc(weeklyObjectives.createdAt)),
-    db.select().from(focusSessions).where(and(eq(focusSessions.workspaceId, scope.workspaceId), gte(focusSessions.startedAt, new Date(`${range.start}T00:00:00.000Z`)), lte(focusSessions.startedAt, new Date(`${range.end}T23:59:59.999Z`)))).orderBy(desc(focusSessions.startedAt)),
+    db.select().from(focusSessions).where(and(
+      eq(focusSessions.workspaceId, scope.workspaceId),
+      or(
+        inArray(focusSessions.state, ["active", "paused"]),
+        and(
+          gte(focusSessions.startedAt, new Date(`${range.start}T00:00:00.000Z`)),
+          lte(focusSessions.startedAt, new Date(`${range.end}T23:59:59.999Z`)),
+        ),
+      ),
+    )).orderBy(desc(focusSessions.startedAt)),
     db.select().from(planningTemplates).where(eq(planningTemplates.workspaceId, scope.workspaceId)).orderBy(desc(planningTemplates.updatedAt)),
     db.select().from(scheduleProposals).where(and(eq(scheduleProposals.workspaceId, scope.workspaceId), gte(scheduleProposals.localDate, range.start), lte(scheduleProposals.localDate, range.end))).orderBy(desc(scheduleProposals.createdAt)),
     db.select().from(taskDependencies).where(eq(taskDependencies.workspaceId, scope.workspaceId)),

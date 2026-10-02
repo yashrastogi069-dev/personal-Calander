@@ -99,6 +99,8 @@ import {
   DestinationLoading,
 } from "@/features/shell/DestinationBoundary";
 import { PlannerShell } from "@/features/shell/PlannerShell";
+import { FocusPersistentControl } from "@/features/focus/FocusPersistentControl";
+import type { FocusWatchSession } from "@/features/focus/FocusTimeDial";
 import {
   movePlannerShortcut,
   plannerShortcutKey,
@@ -8344,6 +8346,13 @@ export default function Home() {
     syncSummary.needsReview === 0 &&
     !syncSummary.retry &&
     (typeof navigator === "undefined" || navigator.onLine);
+  const openFocusSession = (snapshot.focusSessions ?? []).find(
+    (session: any) => session.state === "active" || session.state === "paused"
+  ) as FocusWatchSession | undefined;
+  const focusLinkedTask = openFocusSession?.taskId
+    ? (snapshot.tasks ?? []).find((task: any) => task.id === openFocusSession.taskId)
+    : null;
+  const focusActionsOnline = isOnline && !availableSnapshot.isCached && !snapshotQuery.error;
   return (
     <PlannerShell
       location={plannerLocation}
@@ -8360,6 +8369,16 @@ export default function Home() {
       onNavigate={navigatePlanner}
       onPreferencesChange={setPreferences}
       onGlobalAction={runGlobalAction}
+      focusControl={surface !== "focus" && openFocusSession ? (
+        <FocusPersistentControl
+          scope={scope}
+          session={openFocusSession}
+          taskTitle={focusLinkedTask?.title ?? (openFocusSession.taskId ? "Linked task unavailable" : "Unlinked focus")}
+          confirmedOnline={focusActionsOnline}
+          prominent={surface === "today"}
+          onOpenFocus={() => selectSurface("focus")}
+        />
+      ) : null}
       quickCapture={
         <form className="quick-capture" onSubmit={createQuickTask}>
           <Plus size={19} />
@@ -8623,6 +8642,7 @@ export default function Home() {
             onViewStateChange={updateTaskBoardUrl}
             onSelectedRecordChange={updateSelectedRecord}
             onCapture={() => openComposer("task")}
+            onStartFocus={task => { setFocusEntryTaskId(task.id); selectSurface("focus"); }}
             onUpdate={persistTaskPatch}
             onCreateSubtask={createSubtaskSafely}
             onReorder={reorderTaskInLane}
@@ -8863,7 +8883,7 @@ export default function Home() {
         ) : null}
         {surface === "focus" ? (
           <Suspense fallback={<DestinationLoading label="Focus" />}>
-            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} initialTaskId={focusEntryTaskId} isOnline={isOnline} />
+            <FocusWorkspace scope={scope} snapshot={snapshot} today={today} initialTaskId={focusEntryTaskId} isOnline={focusActionsOnline} />
           </Suspense>
         ) : null}
         {surface === "connections" ? (

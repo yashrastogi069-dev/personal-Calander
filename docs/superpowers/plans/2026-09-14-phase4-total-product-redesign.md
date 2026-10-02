@@ -1225,25 +1225,27 @@ git commit -m "feat: orient habits around consistent return"
 - Produces: `confirmedActiveSeconds(session, now)` and a compact active/paused control in the shell.
 - Consumes: existing focus start/pause/resume/finish services and confirmed snapshot state.
 
-- [ ] **Step 1: Write failing clock/session tests**
+- [x] **Step 1: Write clock/session tests**
 
 Assert active seconds advance only from server-confirmed `lastResumedAt`, paused sessions do not advance, negative/system-clock jumps clamp safely, refresh does not duplicate elapsed time, reservations contribute zero actual focus, and unsupported offline actions never claim persistence.
 
 - [ ] **Step 2: Run red tests**
 
+Historical red-run output for the T19 clock assertions was not retained; the final focused/full green runs are recorded in `docs/PHASE4_SLICE_EVIDENCE.md`. This process-evidence gap does not imply a missing clock behavior.
+
 Run: `.\node_modules\.bin\vitest.cmd run server\focusClock.test.ts server\focusMetrics.test.ts server\planner.router.test.ts`
 
 Expected: existing focus metrics/router tests pass; focus clock assertions fail before implementation.
 
-- [ ] **Step 3: Implement the clock and persistent control**
+- [x] **Step 3: Implement the clock and persistent control**
 
 Show task/unlinked label, elapsed time, pause/resume, stop, and return to full Focus. All controls have keyboard/touch equivalents. If offline, show last confirmed state and explain that focus mutation requires reconnection.
 
-- [ ] **Step 4: Keep finish outcomes unchanged**
+- [x] **Step 4: Keep finish outcomes unchanged**
 
 Done, continue, adjust estimate, and stopped remain the only server outcomes. Completing a session does not complete a task unless Done is explicitly chosen.
 
-- [ ] **Step 5: Run focused tests and route-continuity browser flow**
+- [x] **Step 5: Run focused tests and route-continuity browser flow**
 
 Run:
 
@@ -1255,7 +1257,7 @@ python scripts\preview-phase4-product.py --url http://127.0.0.1:14775 --scenario
 
 Expected: PASS; active/paused state remains visible through three destination changes and refresh does not manufacture time.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit to the workbench branch checkpoint**
 
 ```powershell
 git add shared/focusClock.ts server/focusClock.test.ts client/src/features/focus/FocusPersistentControl.tsx client/src/features/focus/FocusWorkspace.tsx client/src/features/shell/PlannerShell.tsx server/focusMetrics.test.ts scripts/preview-phase4-product.py

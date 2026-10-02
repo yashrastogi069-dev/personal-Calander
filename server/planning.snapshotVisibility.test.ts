@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./db", () => ({ getDb: vi.fn() }));
@@ -39,4 +42,33 @@ describe("workspace snapshot outstanding-plan visibility", () => {
     expect(snapshot.dailyPlanItems.map(item => item.id)).toEqual(["older-item"]);
     expect(planReads).toBe(2);
   });
+
+  it("includes older open focus sessions but bounds completed history and isolates workspaces", async () => {
+    const database = new PGlite();
+    try {
+      await database.exec(readFileSync(new URL("../supabase/migrations/0000_loving_madrox.sql", import.meta.url), "utf8"));
+      await database.exec(readFileSync(new URL("../supabase/migrations/0001_independent_ownership.sql", import.meta.url), "utf8"));
+      await database.exec(`
+        INSERT INTO workspaces (id, timezone) VALUES ('snapshot-visibility', 'UTC'), ('other-workspace', 'UTC');
+        INSERT INTO "focusSessions" (id, "workspaceId", state, "startedAt", "lastResumedAt", "activeSeconds") VALUES
+          ('old-active', 'snapshot-visibility', 'active', '2026-08-01 09:00:00', '2026-08-01 09:00:00', 120),
+          ('old-paused', 'snapshot-visibility', 'paused', '2026-08-02 09:00:00', '2026-08-02 09:00:00', 240),
+          ('old-completed', 'snapshot-visibility', 'completed', '2026-08-03 09:00:00', '2026-08-03 09:00:00', 300),
+          ('recent-completed', 'snapshot-visibility', 'completed', '2026-10-02 09:00:00', '2026-10-02 09:00:00', 360),
+          ('foreign-active', 'other-workspace', 'active', '2026-08-01 09:00:00', '2026-08-01 09:00:00', 420);
+      `);
+      mockedGetDb.mockResolvedValue(drizzle(database) as never);
+
+      const snapshot = await getWorkspaceSnapshot(
+        { workspaceId: "snapshot-visibility", timezone: "UTC" },
+        { start: "2026-10-01", end: "2026-10-03" },
+      );
+
+      expect(snapshot.focusSessions.map(session => session.id)).toEqual([
+        "recent-completed", "old-paused", "old-active",
+      ]);
+    } finally {
+      await database.close();
+    }
+  }, 30_000);
 });

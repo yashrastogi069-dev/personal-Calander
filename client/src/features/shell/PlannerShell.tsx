@@ -24,6 +24,7 @@ export type PlannerShellProps = {
   syncStatus?: ReactNode;
   quickCapture?: ReactNode;
   utilityActions?: ReactNode;
+  focusControl?: ReactNode;
   children: ReactNode;
 };
 
@@ -41,6 +42,7 @@ export function PlannerShell({
   syncStatus,
   quickCapture,
   utilityActions,
+  focusControl,
   children,
 }: PlannerShellProps) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -49,7 +51,7 @@ export function PlannerShell({
     <div
       className={`planner-shell phase4-planner-shell${
         preferences.railCollapsed ? " is-rail-collapsed" : ""
-      }${preferences.density === "compact" ? " mobile-density-compact" : ""}`}
+      }${preferences.density === "compact" ? " mobile-density-compact" : ""}${focusControl ? " has-focus-control" : ""}`}
     >
       <PlannerRail
         location={location}
@@ -83,6 +85,7 @@ export function PlannerShell({
             />
           </div>
         </header>
+        {focusControl}
         {children}
       </main>
       <PhoneNavigation

@@ -1,0 +1,150 @@
+.focus-time-dial {
+  --watch-face: clamp(215px, 24vw, 276px);
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 24px;
+  color: var(--ink);
+}
+
+.focus-time-dial-face {
+  position: relative;
+  display: grid;
+  width: var(--watch-face);
+  height: var(--watch-face);
+  flex: 0 0 var(--watch-face);
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 47%, var(--surface-elevated) 0 53%, var(--selection) 100%);
+  box-shadow: inset 0 0 0 7px var(--surface), 0 15px 35px color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.focus-time-dial-face svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.focus-time-dial-track, .focus-time-dial-progress, .focus-time-dial-core { fill: none; }
+.focus-time-dial-track { stroke: var(--border); stroke-width: 3; }
+.focus-time-dial-progress { stroke: var(--accent); stroke-width: 5; stroke-linecap: round; }
+.focus-time-dial-core { stroke: color-mix(in srgb, var(--accent) 33%, var(--border)); stroke-width: 1; }
+.focus-time-dial-marker { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
+.focus-time-dial-tick { fill: none; stroke: color-mix(in srgb, var(--accent) 54%, var(--border)); stroke-width: 1.2; stroke-linecap: round; }
+.focus-time-dial-face-label {
+  position: absolute;
+  top: 34%;
+  color: var(--accent);
+  font: 800 12px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .19em;
+}
+.focus-time-dial-face-time { position: absolute; top: 48%; left: 14%; right: 14%; color: var(--ink); font: 700 clamp(23px, 2.6vw, 34px)/1.12 "IBM Plex Mono", monospace; letter-spacing: -.055em; text-align: center; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.focus-time-dial-readout { display: grid; min-width: 0; gap: 8px; }
+.focus-time-dial-eyebrow { display: inline-flex; align-items: center; gap: 9px; color: var(--ink-muted); font: 750 13px/1.3 "Onest", sans-serif; }
+.focus-time-dial-led { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 13%, transparent); }
+.focus-time-dial.is-paused .focus-time-dial-led { background: var(--warning); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 13%, transparent); }
+.focus-time-dial-time { min-width: 0; color: var(--ink); font: 700 clamp(34px, 4vw, 58px)/1.08 "IBM Plex Mono", monospace; letter-spacing: -.055em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.focus-time-dial-plan { color: var(--ink); font: 780 22px/1.25 "Onest", sans-serif; letter-spacing: -.025em; }
+.focus-time-dial-target { color: var(--ink-muted); font: 650 14px/1.4 "Onest", sans-serif; }
+.focus-time-dial:not(.is-compact):not(.is-digital) .focus-time-dial-time { display: none; }
+.focus-time-dial.is-digital .focus-time-dial-face { display: none; }
+.focus-time-dial.is-digital .focus-time-dial-readout { padding: 16px 0; }
+.focus-time-dial.is-desk { --watch-face: clamp(260px, 30vw, 350px); justify-content: center; }
+.focus-time-dial.is-desk .focus-time-dial-time { font-size: clamp(48px, 7vw, 86px); }
+.focus-time-dial.is-compact { --watch-face: 62px; gap: 12px; }
+.focus-time-dial.is-compact .focus-time-dial-face { box-shadow: inset 0 0 0 2px var(--surface); }
+.focus-time-dial.is-compact .focus-time-dial-face-label { top: 44%; font-size: 7px; letter-spacing: .1em; }
+.focus-time-dial.is-compact .focus-time-dial-face-time { display: none; }
+.focus-time-dial.is-compact .focus-time-dial-readout { gap: 1px; }
+.focus-time-dial.is-compact .focus-time-dial-eyebrow { font-size: 12px; }
+.focus-time-dial.is-compact .focus-time-dial-plan { display: none; }
+.focus-time-dial.is-compact .focus-time-dial-time { font-size: 24px; line-height: 1.2; }
+.focus-time-dial.is-compact .focus-time-dial-target { display: none; }
+
+.focus-watch-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.focus-watch-toolbar p { margin: 0; color: var(--ink-muted); font-size: 14px; }
+.focus-watch-view-options { display: flex; flex-wrap: wrap; gap: 7px; }
+.focus-watch-view-options button { min-height: 44px; padding: 0 14px; color: var(--ink-muted); border: 1px solid var(--border); border-radius: 11px; background: var(--surface-elevated); font-size: 14px; font-weight: 750; }
+.focus-watch-view-options button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--selection); }
+.focus-watch-view-options button:hover { color: var(--ink); }
+.focus-watch-view-options button:focus-visible, .focus-companion button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.focus-active-panel.focus-watch-panel { grid-template-columns: 1fr; overflow: visible; }
+.focus-watch-stage { min-width: 0; padding: 28px; border-bottom: 1px solid var(--border); background: radial-gradient(circle at 23% 50%, color-mix(in srgb, var(--selection) 72%, transparent), transparent 52%); }
+.focus-watch-panel.is-desk .focus-watch-stage { padding: 52px 24px; }
+.focus-watch-panel .focus-active-task { align-content: start; padding: 22px 28px 12px; }
+.focus-watch-panel .focus-active-task h3 { max-width: 35ch; overflow-wrap: anywhere; }
+.focus-watch-panel .focus-active-task .focus-active-mismatch { margin: 0 0 14px; padding: 11px 13px; color: var(--ink); border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--warning) 9%, var(--surface-elevated)); font-size: 14px; line-height: 1.45; }
+.focus-watch-panel .focus-timer-actions { grid-column: 1; padding: 8px 28px 22px; }
+.focus-watch-panel .focus-outcome-panel { grid-column: 1; }
+.focus-watch-panel .focus-timer-actions .button { min-height: 44px; }
+.focus-stop-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--warning) 8%, var(--surface-elevated)); }
+.focus-stop-confirm p { flex: 1 1 220px; margin: 0; color: var(--ink); font-size: 14px; line-height: 1.45; }
+
+.focus-companion { position: sticky; top: 0; z-index: 18; display: grid; width: min(100%, 800px); gap: 8px; margin: 0 0 18px auto; padding: 10px 12px 10px 16px; color: var(--ink); border: 1px solid var(--border); border-radius: 18px; background: var(--surface-elevated); box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 9%, transparent); }
+.focus-companion-main { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; }
+.focus-companion-context { display: flex; min-width: 0; align-items: center; gap: 14px; }
+.focus-companion-task { display: grid; min-width: 0; gap: 4px; }
+.focus-companion-task span { display: none; color: var(--ink-muted); font: 750 11px/1.2 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.focus-companion-task strong { display: block; min-width: 0; max-width: 25ch; overflow: hidden; color: var(--ink); font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.focus-companion.is-home { width: 100%; min-height: 156px; margin-left: 0; padding: 16px 18px; border-color: color-mix(in srgb, var(--accent) 34%, var(--border)); background: linear-gradient(105deg, color-mix(in srgb, var(--selection) 70%, var(--surface-elevated)), var(--surface-elevated) 55%); }
+.focus-companion.is-home .focus-companion-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; }
+.focus-companion.is-home .focus-companion-context { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 24px; }
+.focus-companion.is-home .focus-companion-task { min-height: 60px; align-content: center; padding-left: 24px; border-left: 1px solid var(--border); }
+.focus-companion.is-home .focus-companion-task span { display: block; }
+.focus-companion.is-home .focus-companion-task strong { max-width: 34ch; font-size: 18px; line-height: 1.25; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.focus-companion.is-home .focus-time-dial.is-compact { --watch-face: 116px; gap: 14px; }
+.focus-companion.is-home .focus-time-dial.is-compact .focus-time-dial-face-label { font-size: 9px; }
+.focus-companion.is-home .focus-time-dial.is-compact .focus-time-dial-time { font-size: clamp(36px, 3vw, 46px); line-height: 1.05; }
+.focus-companion.is-home .focus-time-dial.is-compact.is-long-duration .focus-time-dial-time { font-size: clamp(27px, 2.2vw, 33px); }
+.focus-companion.is-home .focus-time-dial.is-compact .focus-time-dial-target { display: block; font-size: 13px; }
+.focus-companion-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.focus-companion-actions button, .focus-companion-extra button { min-width: 44px; min-height: 44px; padding: 0 12px; font-size: 13px; font-weight: 750; }
+.focus-companion-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.focus-companion-extra p { flex: 1 1 100%; margin: 0; color: var(--ink-muted); font-size: 13px; }
+.focus-companion-error { margin: 0; color: var(--destructive); font-size: 14px; }
+.focus-companion-offline { margin: 0; color: var(--warning); font-size: 13px; }
+
+@media (max-width: 850px) {
+  .focus-time-dial:not(.is-compact) { --watch-face: clamp(190px, 33vw, 230px); gap: 18px; }
+  .focus-time-dial.is-desk { --watch-face: 260px; }
+}
+@media (min-width: 681px) and (max-width: 1180px) {
+  .focus-companion.is-home .focus-companion-main { grid-template-columns: minmax(0, 1fr); }
+  .focus-companion.is-home .focus-companion-actions { justify-content: flex-start; }
+}
+@media (max-width: 680px) {
+  .focus-time-dial:not(.is-compact) { flex-direction: column; align-items: center; text-align: center; }
+  .focus-time-dial:not(.is-compact) { --watch-face: min(68vw, 260px); }
+  .focus-time-dial.is-desk { --watch-face: min(74vw, 310px); }
+  .focus-watch-stage { padding: 24px 14px; }
+  .focus-watch-panel.is-desk .focus-watch-stage { padding: 34px 14px; }
+  .focus-watch-panel .focus-active-task { padding: 20px 18px 12px; }
+  .focus-watch-panel .focus-timer-actions { padding: 8px 18px 18px; }
+  .focus-watch-toolbar { align-items: stretch; }
+  .focus-watch-toolbar p { width: 100%; }
+  .focus-companion { position: fixed; z-index: 48; width: auto; right: max(10px, env(safe-area-inset-right)); bottom: calc(82px + env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); top: auto; margin: 0; padding: 10px 12px; border-radius: 15px; }
+  .focus-companion.is-home { width: auto; min-height: 0; margin: 0; padding: 11px 12px; }
+  .focus-companion.is-home .focus-companion-main { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .focus-companion-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .focus-companion-context { display: flex; align-items: center; gap: 9px; }
+  .focus-companion-task strong { max-width: 13ch; font-size: 13px; }
+  .focus-companion.is-home .focus-companion-context { display: flex; gap: 10px; }
+  .focus-companion.is-home .focus-companion-task { min-height: 0; padding-left: 10px; }
+  .focus-companion.is-home .focus-companion-task span { font-size: 10px; }
+  .focus-companion.is-home .focus-companion-task strong { max-width: 13ch; font-size: 13px; -webkit-line-clamp: 1; }
+  .focus-companion-actions { justify-content: stretch; }
+  .focus-companion-actions button { flex: 1 1 0; min-width: 0; padding: 0 7px; }
+  .focus-time-dial.is-compact { --watch-face: 44px; gap: 7px; }
+  .focus-time-dial.is-compact .focus-time-dial-time { font-size: 18px; }
+  .focus-time-dial.is-compact .focus-time-dial-eyebrow { font-size: 11px; }
+  .focus-companion.is-home .focus-time-dial.is-compact { --watch-face: 70px; gap: 8px; }
+  .focus-companion.is-home .focus-time-dial.is-compact .focus-time-dial-time { font-size: 26px; }
+  .focus-companion.is-home .focus-time-dial.is-compact.is-long-duration .focus-time-dial-time { font-size: 19px; }
+  .focus-companion.is-home .focus-time-dial.is-compact .focus-time-dial-target { font-size: 11px; }
+  .phase4-planner-shell.has-focus-control .planner-main { padding-bottom: calc(245px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 350px) {
+  .focus-time-dial.is-compact .focus-time-dial-face { display: none; }
+  .focus-companion.is-home .focus-time-dial.is-compact .focus-time-dial-face { display: grid; }
+  .focus-companion-actions button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .focus-watch-view-options button, .focus-companion button { transition: transform 140ms cubic-bezier(.23,1,.32,1), opacity 140ms cubic-bezier(.23,1,.32,1); }
+  .focus-watch-view-options button:active, .focus-companion button:active { transform: scale(.97); }
+}
