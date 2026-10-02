@@ -507,6 +507,9 @@ export const focusSessions = pgTable(
     id: varchar("id", { length: 64 }).primaryKey(),
     workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
     taskId: varchar("taskId", { length: 64 }),
+    habitId: varchar("habitId", { length: 64 }),
+    nextStepAction: enumText("nextStepAction", ["task", "plan", "none"]),
+    nextStepTaskId: varchar("nextStepTaskId", { length: 64 }),
     state: enumText("state", ["active", "paused", "completed", "abandoned"]).notNull().default("active"),
     startedAt: timestamp("startedAt").notNull(),
     lastResumedAt: timestamp("lastResumedAt").notNull(),
@@ -526,6 +529,25 @@ export const focusSessions = pgTable(
     index("focus_sessions_task_idx").on(table.taskId),
   ]
 ).enableRLS();
+
+/** Explicit active intervals, split at each workspace-local date boundary. */
+export const focusSessionSegments = pgTable(
+  "focusSessionSegments",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    workspaceId: varchar("workspaceId", { length: 64 }).notNull(),
+    focusSessionId: varchar("focusSessionId", { length: 64 }).notNull(),
+    startedAt: timestamp("startedAt").notNull(),
+    endedAt: timestamp("endedAt").notNull(),
+    localDate: varchar("localDate", { length: 10 }).notNull(),
+    timezone: varchar("timezone", { length: 64 }).notNull(),
+    activeSeconds: integer("activeSeconds").notNull(),
+  },
+  table => [
+    index("focus_segments_workspace_session_time_idx").on(table.workspaceId, table.focusSessionId, table.startedAt),
+    index("focus_segments_workspace_date_idx").on(table.workspaceId, table.localDate),
+  ]
+);
 
 /** Review-first reusable personal configurations; applying one is a separate explicit action. */
 export const planningTemplates = pgTable(

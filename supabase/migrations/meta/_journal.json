@@ -43,6 +43,13 @@
       "when": 1790566536275,
       "tag": "0005_carried_commitments",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790942742136,
+      "tag": "0006_focus_session_followups",
+      "breakpoints": true
     }
   ]
 }
