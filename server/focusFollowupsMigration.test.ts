@@ -11,11 +11,12 @@ const journal = JSON.parse(readFileSync(new URL("../supabase/migrations/meta/_jo
 const originalColumns = `id, "workspaceId", "taskId", state, "startedAt", "lastResumedAt", "pausedAt", "endedAt", "targetMinutes", "activeSeconds", note, outcome, "adjustedEstimateMinutes", "createdAt", "updatedAt", version`;
 
 describe("additive Focus follow-up migration", () => {
-  it("contains only three nullable column additions, one table, and two indexes", () => {
+  it("contains only three nullable column additions, one RLS enablement, one table, and two indexes", () => {
     const statements = migration.split(/;\s*(?:--> statement-breakpoint)?/).map(part => part.trim()).filter(Boolean);
-    expect(statements).toHaveLength(6);
+    expect(statements).toHaveLength(7);
     expect(statements.filter(statement => /^ALTER TABLE "focusSessions" ADD COLUMN "(?:habitId|nextStepAction|nextStepTaskId)" (?:varchar\(64\)|text)$/i.test(statement))).toHaveLength(3);
     expect(statements.filter(statement => /^CREATE TABLE "focusSessionSegments" \(/i.test(statement))).toHaveLength(1);
+    expect(statements.filter(statement => statement === 'ALTER TABLE "focusSessionSegments" ENABLE ROW LEVEL SECURITY')).toHaveLength(1);
     expect(statements.filter(statement => /^CREATE INDEX "focus_segments_workspace_(?:session_time|date)_idx" ON "focusSessionSegments"/i.test(statement))).toHaveLength(2);
     expect(migration).not.toMatch(/\b(?:UPDATE|DELETE|DROP|TRUNCATE|RENAME|INSERT|BACKFILL)\b/i);
     expect(migration).not.toMatch(/ALTER TABLE[^;]*ADD COLUMN[^;]*(?:NOT NULL|DEFAULT|REFERENCES)/i);
@@ -26,6 +27,7 @@ describe("additive Focus follow-up migration", () => {
     expect(snapshot.tables["public.focusSessions"].columns).toHaveProperty("nextStepTaskId");
     expect(snapshot.tables["public.focusSessionSegments"].indexes).toHaveProperty("focus_segments_workspace_session_time_idx");
     expect(snapshot.tables["public.focusSessionSegments"].indexes).toHaveProperty("focus_segments_workspace_date_idx");
+    expect(snapshot.tables["public.focusSessionSegments"].isRLSEnabled).toBe(true);
   });
 
   it("preserves active and completed sessions and does not backfill segments", async () => {
@@ -49,6 +51,7 @@ describe("additive Focus follow-up migration", () => {
 
       await database.exec(migration);
 
+      expect((await database.query(`SELECT relrowsecurity FROM pg_class WHERE oid = '"focusSessionSegments"'::regclass`)).rows).toEqual([{ relrowsecurity: true }]);
       expect((await database.query(`SELECT ${originalColumns} FROM "focusSessions" ORDER BY id`)).rows).toEqual(before);
       expect((await database.query(`SELECT id, "habitId", "nextStepAction", "nextStepTaskId" FROM "focusSessions" ORDER BY id`)).rows).toEqual([
         { id: "focus-active-preserved", habitId: null, nextStepAction: null, nextStepTaskId: null },

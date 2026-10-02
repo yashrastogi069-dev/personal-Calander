@@ -9,6 +9,7 @@ CREATE TABLE "focusSessionSegments" (
 	"activeSeconds" integer NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "focusSessionSegments" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "focusSessions" ADD COLUMN "habitId" varchar(64);--> statement-breakpoint
 ALTER TABLE "focusSessions" ADD COLUMN "nextStepAction" text;--> statement-breakpoint
 ALTER TABLE "focusSessions" ADD COLUMN "nextStepTaskId" varchar(64);--> statement-breakpoint

@@ -547,7 +547,7 @@ export const focusSessionSegments = pgTable(
     index("focus_segments_workspace_session_time_idx").on(table.workspaceId, table.focusSessionId, table.startedAt),
     index("focus_segments_workspace_date_idx").on(table.workspaceId, table.localDate),
   ]
-);
+).enableRLS();
 
 /** Review-first reusable personal configurations; applying one is a separate explicit action. */
 export const planningTemplates = pgTable(

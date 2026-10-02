@@ -1299,7 +1299,7 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.focusSessions": {
       "name": "focusSessions",
