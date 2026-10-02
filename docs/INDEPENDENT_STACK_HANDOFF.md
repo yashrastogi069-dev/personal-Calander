@@ -1,5 +1,11 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-02 latest: interactive Focus follow-up is pushed
+
+Commit `4beee31` is on `dev/personal-calendar-workbench`. The follow-up cards now route to real task/calendar/plan/habit surfaces, record Complete/Skip/Undo through existing guarded habit handlers, expand saved Focus-session notes, and resume an existing paused session through its version-checked Focus action. Long Session Trail labels wrap at phone widths; actions meet the 44px touch target. No schema migration or live planner write was made.
+
+Verification: `npm run check` passed; 3 focused test files / 21 tests passed; `npm run build` passed (PWA release `b28597906e9b5c29`, 27 shell files); screenshot-free synthetic browser tests passed 16/16 across active/paused, light/dark, and 320/390/768/1440px. The synthetic browser intercepted every API call, including the expected paused-session resume and Habit check-in/undo. Vercel reports success for the pushed commit; the branch Preview root returned HTTP 200 and the deployed Focus chunk contains the follow-up actions. Preview URL: https://personal-calander-git-dev-pers-117c63-yashnew869-2746s-projects.vercel.app/ . Authenticated planner interaction on that Preview and physical iPhone validation are still for the owner to verify.
+
 ## 2026-10-02 Focus orchestration follow-up
 
 The Focus workspace now includes the first safe orchestration layer: Finish → Next Step handoff, source-labelled Meeting Horizon, factual Habit Companion, bounded Session Trail, and read-only Routine Conductor. These are projections of existing records; the fixed Home/phone companion remains clock/control-only. Habit duration attribution, durable next-step fields, custom routine editing/history, and incoming Apple Calendar events are explicitly not claimed. Details and exact local evidence are in `docs/FOCUS_ORCHESTRATION_SPEC.md` and `docs/PHASE4_SLICE_EVIDENCE.md`. No live database write, migration, Preview deployment, or physical-device check occurred.
