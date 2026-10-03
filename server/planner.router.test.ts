@@ -29,6 +29,20 @@ function createAuthenticatedContext(): TrpcContext {
 }
 
 describe("planner task API", () => {
+  it("accepts explicit Focus habit attribution and rejects invalid handoff combinations at the API", async () => {
+    const start = vi.spyOn(focus, "startFocusSession").mockResolvedValue({ id: "focus-1", habitId: "habit-1", version: 1 } as never);
+    const caller = appRouter.createCaller(createAuthenticatedContext());
+    const scope = { workspaceId: "workspace-api-check", timezone: "UTC" };
+    await expect(caller.planner.focus.start({ ...scope, habitId: "habit-1", targetMinutes: 25 })).resolves.toMatchObject({ habitId: "habit-1" });
+    expect(start).toHaveBeenCalledWith(scope, expect.objectContaining({ habitId: "habit-1" }));
+    start.mockRestore();
+    for (const invalid of [
+      { nextStepAction: "task" as const },
+      { nextStepAction: "none" as const, nextStepTaskId: "task-1" },
+      { nextStepAction: "plan" as const, nextStepTaskId: "task-1" },
+    ]) await expect(caller.planner.focus.setFollowUp({ ...scope, id: "focus-1", expectedVersion: 1, ...invalid })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   it("requires an online recovery decision before invoking the versioned resolver", async () => {
     const resolve = vi.spyOn(planning, "resolveCommitment").mockResolvedValue({ id: "resolution-1", operationId: "decision-1" } as never);
     const caller = appRouter.createCaller(createAuthenticatedContext());

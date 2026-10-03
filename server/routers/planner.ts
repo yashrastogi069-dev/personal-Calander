@@ -82,7 +82,7 @@ import {
 } from "../planning";
 import { approveScheduleProposal, createScheduleProposal, dismissScheduleProposal, undoScheduleProposal } from "../scheduling";
 import { invokeLLM } from "../_core/llm";
-import { finishFocusSession, pauseFocusSession, resumeFocusSession, startFocusSession } from "../focus";
+import { finishFocusSession, pauseFocusSession, resumeFocusSession, setFocusFollowUp, startFocusSession } from "../focus";
 import { getOpenSyncConflicts, processTaskUpdateOperation, resolveSyncConflict } from "../sync";
 import { router } from "../_core/trpc";
 import { workspaceProcedure as protectedProcedure, workspaceScope as scope } from "../workspaceProcedure";
@@ -290,9 +290,14 @@ export const plannerRouter = router({
     }),
   }),
   focus: router({
-    start: protectedProcedure.input(scope.extend({ taskId: z.string().nullable().optional(), targetMinutes: z.number().int().min(5).max(240) })).mutation(async ({ input }) => {
+    start: protectedProcedure.input(scope.extend({ taskId: z.string().nullable().optional(), habitId: z.string().min(1).nullable().optional(), targetMinutes: z.number().int().min(5).max(240) })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...session } = input;
       try { return await startFocusSession({ workspaceId, timezone }, session); } catch (error) { return plannerError(error); }
+    }),
+    setFollowUp: protectedProcedure.input(scope.extend({ id: z.string().min(1), expectedVersion: z.number().int().positive(), nextStepAction: z.enum(["task", "plan", "none"]), nextStepTaskId: z.string().min(1).nullable().optional() })
+      .refine(input => input.nextStepAction === "task" ? Boolean(input.nextStepTaskId) : input.nextStepTaskId == null, { message: "Task handoffs require a task; plan and none handoffs must have no task ID." })).mutation(async ({ input }) => {
+      const { workspaceId, timezone, ...session } = input;
+      try { return await setFocusFollowUp({ workspaceId, timezone }, session); } catch (error) { return plannerError(error); }
     }),
     pause: protectedProcedure.input(scope.extend({ id: z.string(), expectedVersion: z.number().int().positive() })).mutation(async ({ input }) => {
       const { workspaceId, timezone, ...session } = input;

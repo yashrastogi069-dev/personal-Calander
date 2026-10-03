@@ -36,6 +36,7 @@ import {
   workspaces,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { focusSessionColumns, hasFocusFollowupColumns, readFocusHabitAttribution } from "./focus";
 import { establishedGoalColumns, establishedProjectColumns, establishedWorkspaceColumns } from "./phase4SchemaCompatibility";
 import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
@@ -265,6 +266,7 @@ export class PlannerPolicyError extends Error {
 export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: string; end: string }) {
   const db = await requireDb();
   const workspace = await workspaceWithAccountability(db, await ensureWorkspace(scope));
+  const focusHabitAttributionAvailable = await hasFocusFollowupColumns(db);
   const [goalIntentionAvailable, projectRiskAvailable, projectDependenciesAvailable] = await Promise.all([hasGoalIntentionColumns(db), hasProjectRiskColumns(db), hasProjectDependenciesTable(db)]);
   const [categoryRows, goalRows, milestoneRows, projectRows, taskRows, habitRows, checkInRows, savedViewRows, eventRows, dailyRows, occurrenceRows, reviewRows, planRows, planItemRows, objectiveRows, focusRows, templateRows, proposalRows, dependencyRows, integrationRows, availabilityExceptionRows, projectDependencyRows] = await Promise.all([
     db.select().from(categories).where(eq(categories.workspaceId, scope.workspaceId)).orderBy(asc(categories.sortOrder), asc(categories.name)),
@@ -282,7 +284,7 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
     db.select().from(dailyPlans).where(and(eq(dailyPlans.workspaceId, scope.workspaceId), gte(dailyPlans.localDate, range.start), lte(dailyPlans.localDate, range.end))).orderBy(desc(dailyPlans.localDate)),
     db.select().from(dailyPlanItems).where(eq(dailyPlanItems.workspaceId, scope.workspaceId)).orderBy(asc(dailyPlanItems.position)),
     db.select().from(weeklyObjectives).where(and(eq(weeklyObjectives.workspaceId, scope.workspaceId), gte(weeklyObjectives.weekStartLocalDate, range.start), lte(weeklyObjectives.weekStartLocalDate, range.end))).orderBy(desc(weeklyObjectives.weekStartLocalDate), asc(weeklyObjectives.createdAt)),
-    db.select().from(focusSessions).where(and(
+    db.select(focusSessionColumns(focusHabitAttributionAvailable)).from(focusSessions).where(and(
       eq(focusSessions.workspaceId, scope.workspaceId),
       or(
         inArray(focusSessions.state, ["active", "paused"]),
@@ -309,7 +311,8 @@ export async function getWorkspaceSnapshot(scope: PlannerScope, range: { start: 
   const visiblePlans = [...planRows, ...earlierOpenPlans].sort((left, right) => right.localDate.localeCompare(left.localDate) || left.id.localeCompare(right.id));
   const resolutionRows = await hasRecoveryLedger(db) ? await readResolutionRows(db, scope.workspaceId) : [];
   const carryRows = await hasCarryLedger(db) ? await db.select().from(carriedCommitments).where(eq(carriedCommitments.workspaceId, scope.workspaceId)).orderBy(asc(carriedCommitments.targetLocalDate), asc(carriedCommitments.id)) : [];
-  return { workspace, goalIntentionAvailable, projectRiskAvailable, projectDependenciesAvailable, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, projectDependencies: projectDependencyRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, commitmentResolutions: resolutionRows, carriedCommitments: carryRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
+  const focusHabitAttribution = focusHabitAttributionAvailable ? await readFocusHabitAttribution(db, scope, range) : [];
+  return { workspace, focusHabitAttributionAvailable, focusHabitAttribution, goalIntentionAvailable, projectRiskAvailable, projectDependenciesAvailable, categories: categoryRows, goals: goalRows, milestones: milestoneRows, projects: projectRows, projectDependencies: projectDependencyRows, tasks: taskRows, habits: habitRows, habitCheckIns: checkInRows, savedViews: savedViewRows, externalEvents: eventRows, dailyCheckIns: dailyRows, taskOccurrences: occurrenceRows, reviewSessions: reviewRows, dailyPlans: visiblePlans, dailyPlanItems: planItemRows, commitmentResolutions: resolutionRows, carriedCommitments: carryRows, weeklyObjectives: objectiveRows, focusSessions: focusRows, planningTemplates: templateRows, scheduleProposals: proposalRows, taskDependencies: dependencyRows, integrationConnections: integrationRows, planningAvailabilityExceptions: availabilityExceptionRows, icsOverlay: secureIcsOverlayReadiness(process.env) };
 }
 
 export type WorkspaceSearchResult = { id: string; title: string; summary: string | null; state: string; updatedAt: Date; entity: SearchRecordEntity; intentionKind?: "outcome" | "direction" | null };

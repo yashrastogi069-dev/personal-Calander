@@ -19,7 +19,7 @@ describe("focus completion history safety", () => {
       .mockReturnValueOnce(collection([{ dailyPlanId: "old-plan" }]))
       .mockReturnValueOnce(collection([{ id: "old-plan" }]));
     const transaction = vi.fn();
-    mockedGetDb.mockResolvedValue({ select, transaction } as never);
+    mockedGetDb.mockResolvedValue({ select, transaction, execute: vi.fn().mockResolvedValue({ rows: [] }) } as never);
     await expect(finishFocusSession(scope, { id: session.id, expectedVersion: 1, taskExpectedVersion: 2, outcome: "done" })).rejects.toThrow("unresolved daily commitment");
     expect(transaction).not.toHaveBeenCalled();
   });
