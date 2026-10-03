@@ -1,10 +1,10 @@
 # Independent stack: current workbench handoff
 
-## 2026-10-03 checkpoint C1: verified white/blue foundation; stop after push
+## 2026-10-03 checkpoint C1: verified white/blue foundation; pushed and stopped
 
 C1 is locally verified: shared white/blue light and slate-dark themes, compact shell/Quick entry, work-first Today and contextual project presentation. Independent review's archived-project return regression was fixed and tested. Final evidence: 104 test files / 684 passed / 3 skipped; TypeScript and production build passed (PWA `c8b25e03ad3c7b5e`, 27 shell files); 46 fully intercepted browser states at 320/390/768/1440 in light/dark, with no reported runtime errors/unexpected requests and 40 clear document-overflow measurements. Real fonts, physical iPhone, authenticated Preview/provider connections and whole-app accessibility remain unverified; initial-bundle warnings remain deferred. [Checkpoint board and remaining phases](RECONSTRUCTION_CHECKPOINTS.md).
 
-The owner explicitly authorized verified GitHub checkpoints and disabling automatic Vercel deployment for this branch only; `vercel.json` records that guard. No live migration, database reset/write, deployment or main merge was performed. Push C1 to `dev/personal-calendar-workbench`, then stop all agent work and await instruction. This latest hard stop overrides the earlier reconstruction loop request. Live TLS/inventory/backup/approval gates remain unchanged.
+The owner explicitly authorized verified GitHub checkpoints and disabling automatic Vercel deployment for this branch only; `vercel.json` records that guard. C1 is pushed as `f728f16` to `dev/personal-calendar-workbench`; a read-only GitHub ref check confirmed the exact commit. No live migration, database reset/write, deployment or main merge was performed. All implementation work is stopped pending instruction. This latest hard stop overrides the earlier reconstruction loop request. Live TLS/inventory/backup/approval gates remain unchanged.
 
 ## 2026-10-03 latest: owner-approved blue reconstruction started
 

@@ -1,6 +1,6 @@
 # Reconstruction checkpoint board
 
-Updated 2026-10-03. Branch: `dev/personal-calendar-workbench`. Main remains frozen. Current checkpoint: C1 verified locally; owner requested a checkpoint push followed by a hard stop. This is not full-app or live-release completion.
+Updated 2026-10-03. Branch: `dev/personal-calendar-workbench`. Main remains frozen. Current checkpoint: C1 verified locally and pushed as `f728f16`; a read-only GitHub ref check confirmed the exact commit. Work is stopped at the owner's requested checkpoint. This is not full-app or live-release completion.
 
 ## C1: white/blue foundation
 
