@@ -100,20 +100,24 @@
 .focus-companion-error { margin: 0; color: var(--destructive); font-size: 14px; }
 .focus-companion-offline { margin: 0; color: var(--warning); font-size: 13px; }
 .focus-follow-up { grid-column: 1 / -1; display: grid; gap: 14px; margin: 0 28px 28px; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: color-mix(in srgb, var(--surface-elevated) 92%, var(--selection)); }
-.focus-follow-up-header { display: flex; justify-content: space-between; gap: 16px; }
-.focus-follow-up-header h3 { margin: 5px 0 2px; color: var(--ink); font-size: clamp(20px, 2vw, 28px); letter-spacing: -.02em; }
+.focus-follow-up-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+.focus-follow-up-header h3 { margin: 5px 0 2px; color: var(--ink); font-size: clamp(20px, 2vw, 28px); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.focus-follow-up-header > div { min-width: 0; }
 .focus-follow-up-header p { margin: 0; color: var(--ink-muted); line-height: 1.5; }
-.focus-follow-up-eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font: 800 11px/1.2 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+.focus-follow-up-eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font: 700 14px/1.4 "Onest", sans-serif; }
 .focus-follow-up-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .focus-follow-up-card { display: flex; align-items: flex-start; gap: 11px; min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
 .focus-follow-up-card > svg { flex: 0 0 auto; margin-top: 2px; color: var(--accent); }
 .focus-follow-up-card strong { display: block; color: var(--ink); font-size: 14px; }
-.focus-follow-up-card p { margin: 6px 0 0; color: var(--ink-muted); font-size: 13px; line-height: 1.45; }
+.focus-follow-up-card p { margin: 6px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
 .focus-follow-up-card p b { color: var(--ink); font-weight: 800; }
-.focus-follow-up-card small { display: block; margin-top: 8px; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
+.focus-follow-up-card small { display: block; margin-top: 8px; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+.focus-follow-up p, .focus-follow-up small, .focus-follow-up strong { overflow-wrap: anywhere; }
+.focus-follow-up button { height: auto; min-height: 44px; min-width: 44px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; font-size: 14px; }
+.focus-follow-up button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .focus-follow-up-card.is-next-step { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); background: color-mix(in srgb, var(--selection) 66%, var(--surface)); }
 .focus-follow-up-card.is-next-step strong { color: var(--accent); }
-.focus-follow-up-header > button { min-height: 44px; align-self: center; white-space: nowrap; }
+.focus-follow-up-header > button { min-height: 44px; align-self: center; flex-shrink: 0; }
 .focus-follow-up-card-content { display: grid; flex: 1; min-width: 0; gap: 8px; }
 .focus-follow-up-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 .focus-follow-up-item p { flex: 1 1 140px; margin: 0; }
@@ -121,6 +125,16 @@
 .focus-follow-up-card .focus-follow-up-item > button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .focus-follow-up-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .focus-follow-up-session-detail { display: grid; flex: 1 1 100%; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-elevated); }
+.focus-follow-up-session-detail[hidden] { display: none; }
+.focus-follow-up-editor, .focus-habit-attribution { display: grid; min-width: 0; gap: 8px; }
+.focus-follow-up-editor label { color: var(--ink); font-size: 14px; font-weight: 700; }
+.focus-follow-up-editor select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--ink); background: var(--surface-elevated); font: 400 16px/1.5 "Onest", sans-serif; }
+.focus-follow-up-editor select:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.focus-follow-up-editor select:disabled { opacity: .65; }
+.focus-follow-up-error { padding: 12px; border: 1px solid var(--destructive); border-radius: 10px; }
+.focus-follow-up-error p { color: var(--destructive); }
+.focus-habit-attribution { padding-top: 12px; border-top: 1px solid var(--border); }
+.focus-habit-attribution .focus-follow-up-item small { flex: 1 1 100%; }
 .focus-follow-up-session-detail p { flex: 1 1 100%; margin: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 850px) {

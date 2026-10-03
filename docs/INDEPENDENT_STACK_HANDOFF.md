@@ -1,5 +1,13 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-03 latest: T19 durable Focus extension is local-only
+
+The owner requested a hard stop after T19. The workbench branch has local additive migration 0006 (SHA-256 `a9fa764a00e3fed962704a01e207c4a0b71eb167aca0ee676ba408a560b07c94`) and version-checked Focus APIs/UI for explicit habit attribution and saved task/plan/none handoffs. Commits `ff5efec`, `183d679`, and `449962e` contain the migration/backend; the UI and evidence checkpoint are local branch work. The previous interactive watch/orchestration baseline remains the last pushed Preview state. No live schema/data change, new push, Vercel deployment, or `main` merge occurred in this extension.
+
+Fresh local evidence: isolated migration preservation/RLS tests; focused integration 7 files / 82 passed and final UI-focused 2 files / 24 passed; complete Vitest 100 files / 672 passed / 3 skipped; TypeScript and production build passed (PWA release `e5aefaabbfbf684a`, 27 shell files). Screenshot-free, fully intercepted synthetic Chromium passed the established 16/16 Focus matrix and new 8/8 durable matrix at 320/390/768/1440px in light/dark, including offline-disabled save and no actual planner API write. Independent review races in late-save handoff ordering and untouched-draft refresh were fixed with regression tests. The existing initial-bundle/code-splitting warnings remain. Physical iPhone, authenticated Preview, and actual Supabase migration behavior are not established by these local results.
+
+Next live gate remains strict-TLS read-only inventory of the exact target (prior probe failed `SELF_SIGNED_CERT_IN_CHAIN`), restore-tested backup, exact migration approval with before IDs/counts and rollback routing, compatible rollout, then authenticated Preview verification. Do not disable TLS validation, run `db:migrate`/`db:push`, replay baseline SQL, or infer old habit attribution. Incoming Apple Calendar is deferred by owner choice until a supported secure account-authorization route exists; no public share link or app-specific password is authorized. Routine Conductor customization/history remains later scope. Continue only on new owner instruction after this T19 stop.
+
 ## 2026-10-02 latest: interactive Focus follow-up is pushed
 
 Commit `4beee31` is on `dev/personal-calendar-workbench`. The follow-up cards now route to real task/calendar/plan/habit surfaces, record Complete/Skip/Undo through existing guarded habit handlers, expand saved Focus-session notes, and resume an existing paused session through its version-checked Focus action. Long Session Trail labels wrap at phone widths; actions meet the 44px touch target. No schema migration or live planner write was made.

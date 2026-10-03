@@ -37,7 +37,11 @@ type FocusWorkspaceProps = {
   onOpenHabit: (id: string) => void;
   onOpenCalendar: () => void;
   onOpenPlan: () => void;
-  onHabitCheckIn: (habitId: string, localDate: string, state: "completed" | "skipped") => void;
+  onHabitCheckIn: (
+    habitId: string,
+    localDate: string,
+    state: "completed" | "skipped"
+  ) => void;
   onClearHabitCheckIn: (habitId: string, localDate: string) => void;
 };
 
@@ -66,6 +70,17 @@ export function initialFocusTaskSelection(
       ? initialTaskId
       : "none";
   return eligibleTasks[0]?.id ?? "none";
+}
+
+type FinishedSession = { id: string; version: number; endedAt?: string | Date | null; startedAt?: string | Date | null };
+
+export function newestFinishedSession<T extends FinishedSession>(current: T | null | undefined, incoming: T | null | undefined): T | null {
+  if (!current) return incoming ?? null;
+  if (!incoming) return current;
+  if (current.id === incoming.id) return incoming.version >= current.version ? incoming : current;
+  const currentEnd = new Date(current.endedAt ?? current.startedAt ?? 0).getTime();
+  const incomingEnd = new Date(incoming.endedAt ?? incoming.startedAt ?? 0).getTime();
+  return incomingEnd > currentEnd ? incoming : current;
 }
 
 function useBrowserOnlineStatus() {
@@ -101,6 +116,10 @@ export function FocusWorkspace({
   const browserOnline = useBrowserOnlineStatus();
   const isOnline = isOnlineOverride ?? browserOnline;
   const utils = trpc.useUtils();
+  const [recentFinishedSession, setRecentFinishedSession] = useState<
+    (FinishedSession & Record<string, any>) | null
+  >(null);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
   const sessions = snapshot.focusSessions ?? [];
   const tasks = (snapshot.tasks ?? []).filter(
     (task: any) =>
@@ -108,8 +127,15 @@ export function FocusWorkspace({
       task.state !== "archived" &&
       task.outcome !== "wont_do"
   );
+  const focusHabitAttributionAvailable =
+    snapshot.focusHabitAttributionAvailable === true;
+  const habits = (snapshot.habits ?? []).filter(
+    (habit: any) => !habit.archivedAt
+  );
   const active = sessions.find(
-    (session: any) => session.state === "active" || session.state === "paused"
+    (session: any) =>
+      session.id !== recentFinishedSession?.id &&
+      (session.state === "active" || session.state === "paused")
   );
   const activeTask = active?.taskId
     ? (tasks.find((task: any) => task.id === active.taskId) ??
@@ -118,6 +144,7 @@ export function FocusWorkspace({
   const [taskId, setTaskId] = useState(() =>
     initialFocusTaskSelection(tasks, initialTaskId)
   );
+  const [habitId, setHabitId] = useState("none");
   const [targetMinutes, setTargetMinutes] = useState("25");
   const [note, setNote] = useState("");
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -128,12 +155,6 @@ export function FocusWorkspace({
     activeTask?.estimateMinutes ? String(activeTask.estimateMinutes) : "25"
   );
   const [error, setError] = useState<string | null>(null);
-  const [nextStepHandoff, setNextStepHandoff] = useState<{
-    taskId: string | null;
-    taskTitle: string;
-    outcome: string;
-    note: string;
-  } | null>(null);
   useEffect(() => {
     if (taskId !== "none" && !tasks.some((task: any) => task.id === taskId))
       setTaskId("none");
@@ -142,6 +163,13 @@ export function FocusWorkspace({
     if (initialTaskId)
       setTaskId(initialFocusTaskSelection(tasks, initialTaskId));
   }, [initialTaskId]);
+  useEffect(() => {
+    if (
+      habitId !== "none" &&
+      !habits.some((habit: any) => habit.id === habitId)
+    )
+      setHabitId("none");
+  }, [habits, habitId]);
   const refresh = () => {
     utils.planner.workspace.snapshot.invalidate();
     utils.planner.dashboard.invalidate();
@@ -172,20 +200,16 @@ export function FocusWorkspace({
       ),
   });
   const finish = trpc.planner.focus.finish.useMutation({
-    onSuccess: (_data, values) => {
-      setNextStepHandoff({
-        taskId: active?.taskId ?? null,
-        taskTitle: activeTask?.title ?? "this focus block",
-        outcome: values.outcome,
-        note: note.trim(),
-      });
+    onSuccess: data => {
+      setRecentFinishedSession(current => newestFinishedSession(current, data));
+      setFollowUpError(null);
       setError(null);
       setNote("");
       setAdjustOpen(false);
       setStopConfirmOpen(false);
       refresh();
       toast.success(
-        values.outcome === "done"
+        data.outcome === "done"
           ? "Task completed and focus time recorded."
           : "Focus session recorded."
       );
@@ -195,6 +219,70 @@ export function FocusWorkspace({
         mutationError.message || "Focus outcome could not be saved."
       ),
   });
+  const setFollowUp = trpc.planner.focus.setFollowUp.useMutation({
+    onSuccess: data => {
+      setRecentFinishedSession(current => newestFinishedSession(current, data));
+      setFollowUpError(null);
+      refresh();
+      toast.success("Next step saved.");
+    },
+    onError: mutationError => {
+      setFollowUpError(
+        mutationError.message ||
+          "Next step could not be saved. Refresh and retry."
+      );
+      refresh();
+    },
+  });
+  const latestFinishedSession = sessions
+    .filter(
+      (session: any) =>
+        session.state === "completed" || session.state === "abandoned"
+    )
+    .sort(
+      (left: any, right: any) =>
+        new Date(right.endedAt ?? right.startedAt).getTime() -
+        new Date(left.endedAt ?? left.startedAt).getTime()
+    )[0];
+  const refreshedRecent = recentFinishedSession
+    ? (sessions.find(
+        (session: any) =>
+          session.id === recentFinishedSession.id &&
+          (session.state === "completed" || session.state === "abandoned") &&
+          session.version >= recentFinishedSession.version
+      ) ?? recentFinishedSession)
+    : null;
+  const handoffSession = newestFinishedSession(refreshedRecent, latestFinishedSession);
+  const handoff = handoffSession
+    ? {
+        id: handoffSession.id,
+        version: handoffSession.version,
+        taskId: handoffSession.taskId ?? null,
+        taskTitle:
+          (snapshot.tasks ?? []).find(
+            (task: any) => task.id === handoffSession.taskId
+          )?.title ?? "this focus block",
+        outcome: handoffSession.outcome ?? "stopped",
+        note: handoffSession.note ?? "",
+        nextStepAction: handoffSession.nextStepAction ?? null,
+        nextStepTaskId: handoffSession.nextStepTaskId ?? null,
+      }
+    : null;
+  // The mutation response is authoritative while snapshot invalidation is in flight.
+  // Keep the handoff and Session Trail in agreement immediately after saving.
+  const followUpSessions = recentFinishedSession
+    ? [
+        ...sessions.filter((session: any) => session.id !== recentFinishedSession.id),
+        (() => {
+          const refreshed = sessions.find(
+            (session: any) => session.id === recentFinishedSession.id
+          );
+          return refreshed && refreshed.version >= recentFinishedSession.version
+            ? refreshed
+            : recentFinishedSession;
+        })(),
+      ]
+    : sessions;
   const isMutating =
     start.isPending || pause.isPending || resume.isPending || finish.isPending;
   const activeSession = active as FocusWatchSession | undefined;
@@ -209,12 +297,37 @@ export function FocusWorkspace({
     )
   );
   const blockOfflineAction = () => setError(FOCUS_OFFLINE_GUIDANCE);
+  const saveFollowUp = (
+    sessionId: string,
+    expectedVersion: number,
+    action: "task" | "plan" | "none",
+    nextStepTaskId: string | null
+  ) =>
+    runFocusMutation(
+      isOnline,
+      () => {
+        if (setFollowUp.isPending) return;
+        setFollowUpError(null);
+        setFollowUp.mutate({
+          ...scope,
+          id: sessionId,
+          expectedVersion,
+          nextStepAction: action,
+          nextStepTaskId,
+        });
+      },
+      () => setFollowUpError(FOCUS_OFFLINE_GUIDANCE)
+    );
   const resumeSession = () =>
     runFocusMutation(
       isOnline,
       () => {
         if (!active || isMutating) return;
-        resume.mutate({ ...scope, id: active.id, expectedVersion: active.version });
+        resume.mutate({
+          ...scope,
+          id: active.id,
+          expectedVersion: active.version,
+        });
       },
       blockOfflineAction
     );
@@ -233,6 +346,9 @@ export function FocusWorkspace({
           ...scope,
           taskId: taskId === "none" ? null : taskId,
           targetMinutes: target,
+          ...(focusHabitAttributionAvailable
+            ? { habitId: habitId === "none" ? null : habitId }
+            : {}),
         });
       },
       blockOfflineAction
@@ -340,11 +456,39 @@ export function FocusWorkspace({
                 ))}
               </select>
               <p className="field-guidance">
-                {initialTaskId && !tasks.some((task: any) => task.id === initialTaskId)
+                {initialTaskId &&
+                !tasks.some((task: any) => task.id === initialTaskId)
                   ? "That task is no longer available for Focus. Choose another task or start unlinked."
                   : "Task links make actual-versus-estimated focus visible later."}
               </p>
             </div>
+            {focusHabitAttributionAvailable ? (
+              <div className="field">
+                <Label htmlFor="focus-habit">Habit time (optional)</Label>
+                <select
+                  id="focus-habit"
+                  value={habitId}
+                  onChange={event => setHabitId(event.target.value)}
+                  disabled={isMutating}
+                >
+                  <option value="none">Do not attribute to a habit</option>
+                  {habits.map((habit: any) => (
+                    <option key={habit.id} value={habit.id}>
+                      {habit.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="field-guidance">
+                  Only saved active time will count toward the selected habit.
+                  Focus time does not check the habit in.
+                </p>
+              </div>
+            ) : (
+              <p className="field-guidance" role="status">
+                Habit time linking is unavailable until the Focus storage update
+                is installed. You can still start Focus normally.
+              </p>
+            )}
             <div
               className="focus-lengths"
               role="group"
@@ -439,7 +583,11 @@ export function FocusWorkspace({
             </div>
             <div className="focus-active-task">
               {initialTaskId && active.taskId !== initialTaskId ? (
-                <p className="focus-active-mismatch" role="status">Another session is already open. Finish or stop it before focusing on the selected task; nothing has been switched automatically.</p>
+                <p className="focus-active-mismatch" role="status">
+                  Another session is already open. Finish or stop it before
+                  focusing on the selected task; nothing has been switched
+                  automatically.
+                </p>
               ) : null}
               <p>{activeTask ? "Working on" : "Unlinked session"}</p>
               <h3>
@@ -631,11 +779,19 @@ export function FocusWorkspace({
           </div>
         </aside>
         <FocusFollowUpPanel
-          snapshot={snapshot}
+          snapshot={{ ...snapshot, focusSessions: followUpSessions }}
           today={today}
-          activeSession={activeSession}
-          handoff={nextStepHandoff}
+          activeSession={
+            activeSession?.id === recentFinishedSession?.id
+              ? undefined
+              : activeSession
+          }
+          handoff={handoff}
           isOnline={isOnline}
+          isSavingFollowUp={setFollowUp.isPending}
+          followUpError={followUpError}
+          onClearFollowUpError={() => setFollowUpError(null)}
+          onSaveFollowUp={saveFollowUp}
           onOpenTask={onOpenTask}
           onOpenHabit={onOpenHabit}
           onOpenCalendar={onOpenCalendar}

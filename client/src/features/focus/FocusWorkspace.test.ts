@@ -1,5 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { FOCUS_OFFLINE_GUIDANCE, formatElapsedDuration, formatFocusTargetGuidance, initialFocusTaskSelection, runFocusMutation } from "./FocusWorkspace";
+import { FOCUS_OFFLINE_GUIDANCE, formatElapsedDuration, formatFocusTargetGuidance, initialFocusTaskSelection, newestFinishedSession, runFocusMutation } from "./FocusWorkspace";
+
+describe("latest finished handoff", () => {
+  const older = { id: "older", version: 3, endedAt: "2026-10-03T09:00:00Z" };
+  const newer = { id: "newer", version: 1, endedAt: "2026-10-03T10:00:00Z" };
+
+  it("does not let a late save for an older session replace a newer finish", () => {
+    expect(newestFinishedSession(newer, older)).toEqual(newer);
+    expect(newestFinishedSession(older, newer)).toEqual(newer);
+  });
+
+  it("uses the newer version for the same session without replacing it with stale snapshot data", () => {
+    expect(newestFinishedSession({ ...older, version: 4 }, older)?.version).toBe(4);
+    expect(newestFinishedSession(older, { ...older, version: 4 })?.version).toBe(4);
+  });
+});
 
 describe("focus task entry", () => {
   const eligibleTasks = [{ id: "active-task" }, { id: "next-task" }];

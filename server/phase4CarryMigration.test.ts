@@ -14,7 +14,10 @@ const journal = JSON.parse(readFileSync(new URL("../supabase/migrations/meta/_jo
 describe("additive carried-commitment migration", () => {
   it("pins 0005 metadata to 0004 and describes the same new identity and links", () => {
     expect(carrySnapshot.prevId).toBe(priorSnapshot.id);
-    expect(journal.entries.at(-1)).toMatchObject({ idx: 5, tag: "0005_carried_commitments" });
+    const carryEntryIndex = journal.entries.findIndex((entry: { idx: number }) => entry.idx === 5);
+    expect(carryEntryIndex).toBeGreaterThan(0);
+    expect(journal.entries[carryEntryIndex]).toMatchObject({ idx: 5, tag: "0005_carried_commitments" });
+    expect(journal.entries[carryEntryIndex - 1]).toMatchObject({ idx: 4, tag: "0004_phase4_product_model" });
     expect(carrySnapshot.tables["public.carriedCommitments"].columns).toHaveProperty("createdByResolutionId");
     expect(carrySnapshot.tables["public.carriedCommitments"].foreignKeys).toHaveProperty("carried_commitments_resolution_fk");
     expect(carrySnapshot.tables["public.commitmentResolutions"].columns).toHaveProperty("sourceCarryId");

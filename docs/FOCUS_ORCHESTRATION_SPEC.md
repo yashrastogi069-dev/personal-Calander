@@ -2,7 +2,7 @@
 
 This document preserves the four Focus follow-up ideas and the Routine Conductor so they do not disappear between slices.
 
-## Current slice: safe projections on existing records
+## Original slice: safe projections on existing records
 
 The first follow-up slice is intentionally additive at the UI/domain-projection layer:
 
@@ -20,14 +20,16 @@ The follow-up cards are actionable, not read-only mockups. The conductor CTA ret
 
 Phone controls must wrap long labels without horizontal overflow and have a 44px minimum target. The compact phone companion remains timer-only; follow-up actions live in the full Focus workspace.
 
-## Deferred durable capabilities
+## Historical pre-0006 plan (superseded by the local implementation below)
+
+The following paragraphs describe the earlier, projection-only checkpoint and are retained as design history, not current branch status.
 
 Two capabilities need a separately gated additive data-model decision:
 
 1. True Habit Duration Companion needs a nullable `habitId` on Focus sessions or an isolated workspace-scoped association table. Notes, titles, or check-ins must never be used to infer attribution.
 2. Durable Finish → Next Step needs an explicit next-step field or a linked follow-up task identity, with version-guarded writes and conflict behavior. Routine Conductor customization/history likewise needs a persisted routine model.
 
-The current branch does not apply such a migration or claim those features are persisted. The next implementation slice should add compatibility reads and tests first, then an owner-approved migration packet with before-counts, backup/restore evidence, exact SQL hash, and rollback routing.
+At that earlier checkpoint no such migration existed. The local 0006 artifact below supersedes this status; live application still requires before-counts, backup/restore evidence, exact SQL hash approval, and rollback routing.
 
 ## UI contract
 
@@ -36,3 +38,13 @@ The full Focus workspace owns the follow-up cards. The compact phone companion r
 ## Verification contract
 
 The pure projections must cover ordering, cancelled/overlapping meetings, empty states, long labels, unlinked sessions, scheduled/unrecorded habits, active/paused-session priority, and stable target IDs. Browser evidence must cover the rendered actions, synthetic intercepted habit Complete/Undo, canonical Calendar/task navigation, 320/390/768/1440px, both themes, no horizontal overflow, and no live planner writes. No Preview, physical iPhone, incoming Apple Calendar, notification delivery, or live schema result may be claimed from synthetic checks.
+
+## Current local T19 extension (2026-10-03)
+
+The workbench branch has an additive, locally tested `0006_focus_session_followups` migration packet. It adds nullable `habitId`, `nextStepAction`, and `nextStepTaskId` to Focus sessions and a workspace-scoped segment table with RLS enabled and no browser-facing policy. Existing session IDs, history, outcomes, notes, and active seconds are preserved; past habit links or next steps are never inferred or backfilled. The migration has **not** been applied to Supabase.
+
+With the capability available, a person may explicitly link one active habit at Focus start, independently of the task link. Pause/finish atomically save active intervals split across the stored workspace timezone's actual local-date boundaries, including DST changes. Running time and paused gaps do not count as saved habit time. Saved seconds never complete or skip a habit check-in. The full Focus view labels source/date, and the bounded Session Trail exposes the explicit association. Before migration 0006, established Focus operations and snapshots remain usable while these new controls explain their unavailability.
+
+After finish, the person may deliberately save `task`, `plan`, or `none` as a separate version-checked handoff. Task targets must be actionable and in the same workspace. The choice survives navigation/reload; stale-version conflicts retain the draft and show the current saved state. Existing finish outcomes and notes keep their own meaning. The Routine Conductor remains a read-only suggestion; custom routines/history require a later product decision.
+
+Incoming Apple Calendar remains disconnected. The owner chose to wait for a supported secure account-authorization route rather than a public link or app-specific password. Meeting Horizon uses only events already saved in the planner; an empty horizon does not prove the Apple Calendar is free. Live migration/deployment, notification delivery, physical-iPhone checks, and routine customization remain separate gates.

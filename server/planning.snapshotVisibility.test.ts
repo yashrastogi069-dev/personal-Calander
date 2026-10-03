@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./db", () => ({ getDb: vi.fn() }));
@@ -34,13 +36,22 @@ describe("workspace snapshot outstanding-plan visibility", () => {
         return builder;
       },
     }));
-    mockedGetDb.mockResolvedValue({ select, execute: vi.fn().mockResolvedValue({ rows: [{ available: false }] }) } as never);
+    const execute = vi.fn(async (query: SQL) => {
+      // This fixture models the established pre-0006 schema; the column probe must fail like PostgreSQL.
+      if (new PgDialect().sqlToQuery(query).sql.includes('FROM "focusSessions" LIMIT 0')) {
+        throw Object.assign(new Error('column "habitId" does not exist'), { code: "42703" });
+      }
+      return { rows: [{ available: false }] };
+    });
+    mockedGetDb.mockResolvedValue({ select, execute } as never);
 
     const snapshot = await getWorkspaceSnapshot(workspace, { start: "2026-08-25", end: "2026-10-19" });
 
     expect(snapshot.dailyPlans.map(plan => plan.id)).toEqual(["today-plan", "older-plan"]);
     expect(snapshot.dailyPlanItems.map(item => item.id)).toEqual(["older-item"]);
     expect(planReads).toBe(2);
+    expect(snapshot.focusHabitAttributionAvailable).toBe(false);
+    expect(snapshot.focusHabitAttribution).toEqual([]);
   });
 
   it("includes older open focus sessions but bounds completed history and isolates workspaces", async () => {
@@ -67,6 +78,8 @@ describe("workspace snapshot outstanding-plan visibility", () => {
       expect(snapshot.focusSessions.map(session => session.id)).toEqual([
         "recent-completed", "old-paused", "old-active",
       ]);
+      expect(snapshot.focusHabitAttributionAvailable).toBe(false);
+      expect(snapshot.focusHabitAttribution).toEqual([]);
     } finally {
       await database.close();
     }
