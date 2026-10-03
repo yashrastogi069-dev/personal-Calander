@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import "./plan-stages.css";
 
 type PlanWorkspaceProps = {
+  view?: "daily" | "weekly";
   scope: WorkspaceScope;
   today: string;
   snapshot: any;
@@ -201,7 +202,7 @@ function DailyCommitmentRow({
   );
 }
 
-function PlanningSettings({
+export function PlanningSettings({
   workspace,
   scope,
 }: {
@@ -348,7 +349,7 @@ function PlanningSettings({
   );
 }
 
-function AccountabilitySettings({
+export function AccountabilitySettings({
   workspace,
   scope,
   isOnline,
@@ -863,6 +864,7 @@ function ScheduleAssistance({
 }
 
 export function PlanWorkspace({
+  view = "daily",
   scope,
   today,
   snapshot,
@@ -1231,10 +1233,9 @@ export function PlanWorkspace({
       />
       <header className="plan-workspace-header">
         <div>
-          <h2 id="plan-workspace-heading">Make today believable.</h2>
+          <h2 id="plan-workspace-heading">{view === "weekly" ? "Choose the outcomes that deserve this week." : "Make today believable."}</h2>
           <p>
-            Choose a few commitments, check the real room in your day, and close
-            each one deliberately.
+            {view === "weekly" ? "Save weekly objectives, record evidence, and carry unfinished outcomes forward. Daily commitments stay in Daily plan." : "Choose a few commitments, check the real room in your day, and close each one deliberately."}
           </p>
         </div>
         <span>
@@ -1245,6 +1246,7 @@ export function PlanWorkspace({
           })}
         </span>
       </header>
+      <div className="plan-daily-content" hidden={view === "weekly"}>
       <nav className="plan-stage-nav" aria-label="Planning stages">
         {([
           ["recover", "01", "Resolve", recoveryEntries.length ? `${recoveryEntries.length} open` : "Clear"],
@@ -1580,12 +1582,14 @@ export function PlanWorkspace({
           )}
         </section>
       ) : null}
+      </div>
+      {view === "weekly" && localError ? <p className="plan-inline-error" role="alert">{localError}</p> : null}
       <section
         className="weekly-objectives-panel"
-        hidden={activeStage !== "review"}
+        hidden={view !== "weekly" && activeStage !== "review"}
         aria-labelledby="weekly-objectives-heading"
       >
-        <details className="plan-weekly-tools">
+        <details className="plan-weekly-tools" open={view === "weekly" ? true : undefined}>
           <summary><span id="weekly-objectives-heading">Weekly objectives</span><small>{currentObjectives.length} this week · Add or record evidence</small></summary>
           <div className="plan-weekly-content">
             <p>Weekly outcomes have their own evidence and timing. They do not close today’s plan.</p>
@@ -1720,7 +1724,7 @@ export function PlanWorkspace({
           </div>
         </details>
       </section>
-      {activeStage === "review" ? <section className="plan-history-panel" aria-labelledby="plan-history-heading">
+      {view === "weekly" || activeStage === "review" ? <section className="plan-history-panel" aria-labelledby="plan-history-heading">
         <div className="plan-section-heading"><div><span>Continuity</span><h3 id="plan-history-heading">Recent planning history</h3></div></div>
         <p>Past days and weekly outcomes remain visible. Reopening today keeps its existing commitments and reflection.</p>
         {recentPlans.length ? <div className="plan-history-list">{recentPlans.map((plan: any) => <article key={plan.id}><strong>{plan.localDate}</strong><span>{plan.state}</span><p>{plan.intention || "No intention recorded"}</p>{plan.reflection ? <small>Reflection: {plan.reflection}</small> : null}</article>)}</div> : <p>No earlier daily plans are in this snapshot.</p>}

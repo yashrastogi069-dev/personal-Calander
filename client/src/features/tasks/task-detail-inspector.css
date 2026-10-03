@@ -1,0 +1,118 @@
+.task-detail-inspector {
+  gap: 14px;
+  max-width: 68rem;
+  margin: 0 auto;
+  padding-bottom: 4px;
+}
+
+.task-detail-editor-fields { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.task-detail-editor-fields:disabled { opacity: 0.75; }
+
+.task-detail-inspector .task-detail-section {
+  gap: 12px;
+  padding: 18px;
+  border-color: var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.task-detail-inspector .task-detail-section h3 {
+  color: var(--foreground);
+  font-size: 17px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.task-detail-inspector .task-detail-section label {
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.task-detail-inspector .task-detail-section :is(input, select, textarea) {
+  color: var(--foreground);
+  border-color: var(--border);
+  background: var(--card);
+  font-size: 16px;
+}
+
+.task-detail-inspector .task-detail-section :is(input, select, textarea):focus-visible,
+.task-detail-inspector .task-detail-more > summary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.task-detail-inspector .task-detail-grid { gap: 12px; }
+.task-detail-inspector .task-detail-fact { border-radius: 10px; background: var(--muted); }
+.task-detail-inspector .task-detail-ledger div { background: var(--muted); }
+
+.task-detail-more {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.task-detail-more > summary {
+  display: grid;
+  gap: 3px;
+  min-height: 56px;
+  padding: 11px 18px;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.task-detail-more > summary > span { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 750; }
+.task-detail-more > summary svg { color: var(--primary); transition: transform 160ms var(--ease-out); }
+.task-detail-more[open] > summary svg { transform: rotate(180deg); }
+.task-detail-more > summary > small { color: var(--muted-foreground); font-size: 14px; line-height: 1.35; }
+.task-detail-more[open] > summary { border-bottom: 1px solid var(--border); }
+.task-detail-more-content { display: grid; gap: 12px; padding: 12px; }
+.task-detail-more-content > .task-detail-section { border-radius: 10px; }
+
+.task-detail-stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 10%, var(--card));
+}
+
+.task-detail-stale strong { display: block; font-size: 14px; }
+.task-detail-stale p { margin: 3px 0 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.4; }
+.task-detail-stale button { flex: none; min-height: 44px; }
+
+.task-detail-draft-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted-foreground); font-size: 14px; }
+.task-detail-draft-controls button { min-height: 44px; color: var(--destructive); }
+
+.task-detail-footer.task-detail-inspector-footer {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.task-detail-footer-message {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.task-detail-footer-message.is-error { color: var(--destructive); }
+
+@media (max-width: 520px) {
+  .task-detail-inspector .task-detail-section { padding: 14px; }
+  .task-detail-stale { align-items: stretch; flex-direction: column; }
+  .task-detail-stale button { width: 100%; }
+  .task-detail-footer.task-detail-inspector-footer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; }
+  .task-detail-footer-message { grid-column: 1 / -1; }
+  .task-detail-inspector-footer button { width: 100%; }
+  .task-detail-inspector-footer button:first-of-type:nth-last-of-type(3) { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-detail-inspector :is(button, summary) { transition: none; }
+}

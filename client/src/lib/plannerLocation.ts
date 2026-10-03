@@ -27,6 +27,33 @@ export type PlannerLocationUpdate = PlannerLocationTarget & {
 
 export type PlannerHistory = Pick<History, "pushState" | "replaceState">;
 
+function recordFamily(target: PlannerLocationTarget) {
+  if (target.destination === "intentions") return target.view === "projects" ? "project" : "goal";
+  return target.destination;
+}
+
+/** View switches preserve their lens; crossing groups drops only record context. */
+export function mergePlannerLocation(
+  current: PlannerLocation,
+  target: PlannerLocationUpdate
+): PlannerLocation {
+  const action = isPlannerLocationTarget(target)
+    ? target.action ?? actionForPlannerTarget(target)
+    : actionForPlannerTarget(target);
+  return {
+    ...current,
+    ...target,
+    action,
+    selectedRecord: target.selectedRecord !== undefined
+      ? target.selectedRecord
+      : current.destination === target.destination && recordFamily(current) === recordFamily(target) ? current.selectedRecord : null,
+    query: target.query === undefined ? current.query : target.query ?? "",
+    taskQuery: target.taskQuery === undefined ? current.taskQuery : target.taskQuery ?? "",
+    taskFilter: target.taskFilter === undefined ? current.taskFilter : target.taskFilter ?? "all",
+    taskSort: target.taskSort === undefined ? current.taskSort : target.taskSort ?? "manual",
+  };
+}
+
 export type PlannerPopStateTarget = Pick<
   Window,
   "addEventListener" | "removeEventListener"
@@ -45,17 +72,22 @@ function canonicalTargetFrom(url: URL): PlannerLocationTarget | null {
   const actionValue = url.searchParams.get("action");
   if (!destination || !view) return null;
   const action = isGlobalPlannerAction(actionValue) ? actionValue : undefined;
-  const candidate = {
+  let candidate = {
     destination,
     view,
     ...(action ? { action } : {}),
   };
-  if (!isPlannerLocationTarget(candidate)) return null;
+  if (!isPlannerLocationTarget(candidate)) {
+    // Older drillthrough URLs may carry a now-irrelevant global action.
+    // Preserve an otherwise valid durable destination rather than falling Home.
+    candidate = { destination, view };
+    if (!isPlannerLocationTarget(candidate)) return null;
+  }
   const inferredAction = actionForPlannerTarget(candidate);
   return {
     destination: candidate.destination as PlannerDestinationId,
     view: candidate.view as PlannerViewId,
-    ...((action ?? inferredAction) ? { action: action ?? inferredAction } : {}),
+    ...((candidate.action ?? inferredAction) ? { action: candidate.action ?? inferredAction } : {}),
   };
 }
 
@@ -108,7 +140,9 @@ export function writePlannerLocation(
   url.searchParams.delete("surface");
   url.searchParams.set("destination", next.destination);
   url.searchParams.set("view", next.view);
-  const action = next.action ?? actionForPlannerTarget(next);
+  const action = isPlannerLocationTarget(next)
+    ? next.action ?? actionForPlannerTarget(next)
+    : actionForPlannerTarget(next);
   if (action) url.searchParams.set("action", action);
   else url.searchParams.delete("action");
   setOptionalParameter(url.searchParams, "q", next.query);

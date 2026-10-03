@@ -36,6 +36,7 @@ export type PlannerViewId =
   | "search"
   | "account"
   | "appearance"
+  | "planning"
   | "navigation"
   | "sync"
   | "connections"
@@ -47,6 +48,26 @@ export type PlannerLocationTarget = {
   view: PlannerViewId;
   action?: GlobalPlannerAction;
 };
+
+export const plannerSettingsViews = [
+  ["account", "Account"], ["appearance", "Appearance"],
+  ["planning", "Planning"], ["navigation", "Navigation"],
+  ["sync", "Data & sync"], ["connections", "Connections"],
+  ["categories", "Categories & Recycle Bin"], ["device", "Device"],
+] as const;
+
+export function plannerViewLabel(target: PlannerLocationTarget): string {
+  if (target.destination === "settings")
+    return plannerSettingsViews.find(([view]) => view === target.view)?.[1] ?? "Settings";
+  const labels: Partial<Record<PlannerViewId, string>> = {
+    today: "Today", overview: "Overview", daily: "Daily plan", weekly: "Weekly plan",
+    rituals: "Review ritual", history: "History", insights: "Insights", focus: "Focus",
+    search: "Search", inbox: "Inbox", list: "Tasks", board: "Board", saved: "Saved views",
+    archive: "Archive", projects: "Projects", outcomes: "Goals", directions: "Directions",
+    calendar: "Calendar", roadmap: "Roadmap", due: "Habits",
+  };
+  return labels[target.view] ?? "Planner";
+}
 
 /**
  * Compatibility catalog for every destination shipped by the R20 mobile
@@ -138,6 +159,7 @@ const phase4Views = new Map<string, ReadonlySet<string>>(
 const settingsViews = new Set<string>([
   "account",
   "appearance",
+  "planning",
   "navigation",
   "sync",
   "connections",

@@ -240,7 +240,7 @@ describe("Phase 4 device preference migration", () => {
     ).toEqual(allLegacyIds);
     expect(migrated.preferences.order.at(-1)).toMatchObject({
       destination: "settings",
-      view: "categories",
+      view: "device",
     });
     expect(migrated.preferences.primary.map(item => item.legacyId)).toEqual([
       "calendar",
@@ -283,6 +283,13 @@ describe("Phase 4 device preference migration", () => {
       "settings/connections",
       "review/insights",
       "settings/categories",
+      "home/overview",
+      "plan/weekly",
+      "settings/appearance",
+      "settings/planning",
+      "settings/navigation",
+      "settings/sync",
+      "settings/device",
     ]);
     expect(migrated.preferences.overview).toEqual({
       order: ["attention", "schedule"],

@@ -133,6 +133,7 @@ export function resetTaskWorkspaceState() {
 }
 
 export type TaskWorkspaceProps = {
+  taskDraftScopeKey?: string;
   view: TaskWorkspaceView;
   tasks: CanonicalTask[];
   categories: any[];
@@ -163,6 +164,7 @@ export type TaskWorkspaceProps = {
 };
 
 export function TaskWorkspace({
+  taskDraftScopeKey,
   view,
   tasks,
   categories,
@@ -454,6 +456,7 @@ export function TaskWorkspace({
       ) : null}
 
       <TaskDetailSheet
+        draftScopeKey={taskDraftScopeKey}
         task={selectedTask}
         open={Boolean(selectedTask)}
         returnFocusRef={returnFocusRef}

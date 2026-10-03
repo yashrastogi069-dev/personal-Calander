@@ -1,0 +1,8 @@
+.capture-title-only { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 16px; color: var(--ink); border: 1px solid var(--border); border-radius: 12px; background: var(--surface-elevated); }
+.capture-title-only > div { flex: 1 1 220px; }
+.capture-title-only strong { display: block; font-size: 15px; }
+.capture-title-only p { margin: 4px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.45; }
+.capture-title-only label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--ink); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.capture-title-only input { width: 18px; height: 18px; accent-color: var(--accent); }
+.capture-title-only .button { min-height: 44px; }
+@media (max-width: 680px) { .capture-title-only { align-items: stretch; flex-direction: column; gap: 8px; }.capture-title-only > div { flex-basis: auto; }.capture-title-only .button { width: 100%; } }

@@ -1,2 +1,7 @@
+model = "gpt-6.1-sol"
+# Requested client-side budget; does not expand the provider's actual model limit.
+model_context_window = 1000000
+model_auto_compact_token_limit = 500000
+
 [skills]
 include_instructions = false

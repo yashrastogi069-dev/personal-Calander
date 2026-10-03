@@ -1,5 +1,9 @@
 # Current decisions
 
+## 2026-10-03: visible reconstruction replaces foundation-only delivery
+
+Owner rejected C1/C2's limited visible difference and explicitly requested the C2 push followed by building the approved white/blue screenshot composition. Deliver full visible workflows (Today/work/day/habits, Tasks List/details) with actual rendered comparison, not further groundwork presented as redesign. Existing IDs/options/history and infrastructure gates remain. SOL delegation only; Astra requires fresh permission. Reference: `design-system/personal-calander/concepts/2026-10-03-blue-workspace-preview.png`.
+
 This is the short decision register. [Historical design decisions](DESIGN_DECISIONS.md) and the [Phase 4 visual selection](PHASE4_VISUAL_SELECTION.md) contain context. Record a change here when it alters product or engineering direction.
 
 | Decision | Rationale and effect |

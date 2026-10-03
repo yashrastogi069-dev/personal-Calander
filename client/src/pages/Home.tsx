@@ -136,11 +136,15 @@ import type {
 import { phase4DefaultPreferences } from "@shared/phase4Preferences";
 import {
   parsePlannerLocation,
+  mergePlannerLocation,
   plannerLocationWithAction,
   subscribeToPlannerLocation,
   writePlannerLocation,
   type PlannerLocation,
 } from "@/lib/plannerLocation";
+import { plannerViewLabel, plannerSettingsViews } from "@shared/phase4Navigation";
+import { useTheme, type Theme } from "@/contexts/ThemeContext";
+import type { ReactNode } from "react";
 import {
   ArrowDown,
   ArrowDownUp,
@@ -246,6 +250,8 @@ const PlanWorkspace = lazy(() =>
     default: module.PlanWorkspace,
   }))
 );
+const PlanningSettings = lazy(() => import("@/features/planning/PlanWorkspace").then(module => ({ default: module.PlanningSettings })));
+const AccountabilitySettings = lazy(() => import("@/features/planning/PlanWorkspace").then(module => ({ default: module.AccountabilitySettings })));
 
 type Surface = MobilePlannerDestination;
 type ComposerKind = "task" | "goal" | "project" | "habit";
@@ -2089,7 +2095,7 @@ function RecurringWorkControl() {
   );
 }
 
-function ReviewRitual({ sessions }: { sessions: any[] }) {
+function ReviewRitual({ sessions, historyOnly = false }: { sessions: any[]; historyOnly?: boolean }) {
   const scope = useWorkspaceScope();
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [localReview, setLocalReview] = useState<any>(null);
@@ -2162,6 +2168,13 @@ function ReviewRitual({ sessions }: { sessions: any[] }) {
       {reviewError}
     </p>
   ) : null;
+  if (historyOnly) return (
+    <section className="review-history-view" aria-labelledby="review-history-heading">
+      <h2 id="review-history-heading">Saved review history</h2>
+      <p>Completed reviews from saved review history. These reflections are not a new assessment of the current week.</p>
+      {history ?? <p>{historyQuery.isLoading ? "Loading saved reviews…" : "No completed review is available in this snapshot yet."}</p>}
+    </section>
+  );
   if (!review)
     return (
       <div className="review-ritual">
@@ -6498,6 +6511,10 @@ function AICompanion() {
 }
 
 function SettingsSurface({
+  connectionContext,
+  view,
+  scope,
+  isOnline,
   workspace,
   syncSummary,
   isCached,
@@ -6507,6 +6524,10 @@ function SettingsSurface({
   onCustomizePhone,
   onManageCategories,
 }: {
+  connectionContext?: ReactNode;
+  view: PlannerLocationTarget["view"];
+  scope: ReturnType<typeof useWorkspaceScope>;
+  isOnline: boolean;
   workspace: any;
   syncSummary: {
     pending: number;
@@ -6521,6 +6542,7 @@ function SettingsSurface({
   onCustomizePhone: () => void;
   onManageCategories: () => void;
 }) {
+  const { theme, setTheme, switchable } = useTheme();
   const account = useAuthenticatedAccount();
   const { state: pwa, actions: pwaActions } = usePwa();
   const [signingOut, setSigningOut] = useState(false);
@@ -6578,8 +6600,25 @@ function SettingsSurface({
       </header>
 
       <div className="settings-grid">
+        {view === "appearance" ? <section className="settings-card" aria-labelledby="theme-settings-heading">
+          <h3 id="theme-settings-heading">Appearance</h3>
+          <label htmlFor="planner-theme">Color theme</label>
+          <select id="planner-theme" value={theme} disabled={!switchable} onChange={event => setTheme(event.target.value as Theme)}>
+            <option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option>
+          </select>
+          <p>System follows this device’s appearance preference.</p>
+        </section> : null}
+        {view === "planning" ? <fieldset className="settings-planning-controls" disabled={!isOnline}>
+          <legend>Planning preferences</legend>
+          {!isOnline ? <p>Reconnect to save planning preferences. Your existing settings remain unchanged.</p> : null}
+          <Suspense fallback={<DestinationLoading label="Planning preferences" />}>
+            <PlanningSettings workspace={workspace} scope={scope} />
+            <AccountabilitySettings workspace={workspace} scope={scope} isOnline={isOnline} />
+          </Suspense>
+        </fieldset> : null}
         <section
           className="settings-card settings-account-card"
+          hidden={view !== "account"}
           aria-labelledby="account-settings-heading"
         >
           <div className="settings-card-heading">
@@ -6615,6 +6654,7 @@ function SettingsSurface({
         <section
           className="settings-card"
           aria-labelledby="sync-settings-heading"
+          hidden={view !== "sync"}
         >
           <div className="settings-card-heading">
             <span className="settings-card-icon">
@@ -6655,6 +6695,7 @@ function SettingsSurface({
         <section
           className="settings-card"
           aria-labelledby="app-settings-heading"
+          hidden={view !== "device"}
         >
           <div className="settings-card-heading">
             <span className="settings-card-icon">
@@ -6725,6 +6766,7 @@ function SettingsSurface({
         <section
           className="settings-card"
           aria-labelledby="layout-settings-heading"
+          hidden={view !== "navigation" && view !== "categories"}
         >
           <div className="settings-card-heading">
             <span className="settings-card-icon">
@@ -6755,6 +6797,7 @@ function SettingsSurface({
 
         <section
           className="settings-card settings-connections-card"
+          hidden={view !== "connections"}
           aria-labelledby="connection-settings-heading"
         >
           <div className="settings-card-heading">
@@ -6774,10 +6817,12 @@ function SettingsSurface({
             <CalendarSubscriptionControl syncReady={syncReady} />
             <BrowserNotificationControl syncReady={syncReady} />
           </div>
+          {connectionContext}
         </section>
 
         <section
           className="settings-card settings-danger-card"
+          hidden={view !== "account"}
           aria-labelledby="access-settings-heading"
         >
           <div className="settings-card-heading">
@@ -6812,6 +6857,7 @@ function SettingsSurface({
 export default function Home() {
   const scope = useWorkspaceScope();
   const plannerSyncScope = usePlannerSyncScope();
+  const taskDraftScopeKey = JSON.stringify([plannerSyncScope.accountId, plannerSyncScope.workspaceId]);
   const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
   const [today] = useState(() => localDateInTimezone(scope.timezone));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -6835,6 +6881,11 @@ export default function Home() {
         plannerLocation.action === "capture")
   );
   const [composerIntentHydrated, setComposerIntentHydrated] = useState(false);
+  const [captureEntryIntent, setCaptureEntryIntent] = useState<"task" | "neutral">(() => {
+    if (typeof window === "undefined") return "neutral";
+    const parameters = new URLSearchParams(window.location.search);
+    return parameters.get("create") === "task" || parameters.get("compose") === "task" ? "task" : "neutral";
+  });
   const [composerKind, setComposerKind] = useState<ComposerKind>("task");
   const [naturalCaptureThought, setNaturalCaptureThought] = useState("");
   const [focusEntryTaskId, setFocusEntryTaskId] = useState<string | null>(null);
@@ -7109,6 +7160,7 @@ export default function Home() {
     [activeTasks, taskSearch, taskFilter, today]
   );
   const openComposer = (kind: ComposerKind) => {
+    setCaptureEntryIntent("neutral");
     setComposerKind(kind);
     setComposerOpen(true);
   };
@@ -7123,10 +7175,14 @@ export default function Home() {
     if (!pwaEntry.composeTask && url.searchParams.get("create") !== "task")
       return;
     const target = targetForSurface("tasks");
+    const next = mergePlannerLocation(parsePlannerLocation(url), target);
     setPlannerLocation(current =>
-      plannerLocationWithAction({ ...current, ...target }, target.action)
+      mergePlannerLocation(current, target)
     );
+    const canonicalUrl = writePlannerLocation(url, next);
+    window.history.replaceState(null, "", canonicalUrl.href);
     setComposerKind("task");
+    setCaptureEntryIntent("task");
     setComposerOpen(true);
     setComposerIntentHydrated(true);
   }, []);
@@ -7168,10 +7224,9 @@ export default function Home() {
     return subscribeToPlannerLocation(window, setPlannerLocation);
   }, []);
   const navigatePlanner = useCallback((target: PlannerLocationTarget) => {
-    const navigationTarget = { ...target, selectedRecord: null };
-    setPlannerLocation(current =>
-      plannerLocationWithAction({ ...current, ...navigationTarget }, target.action)
-    );
+    const current = parsePlannerLocation(new URL(window.location.href));
+    const navigationTarget = mergePlannerLocation(current, target);
+    setPlannerLocation(navigationTarget);
     if (target.destination === "settings" && target.view === "categories")
       setCategoryDialogOpen(true);
     if (typeof window !== "undefined")
@@ -7259,14 +7314,21 @@ export default function Home() {
       ...plannerLocation,
       destination: "intentions" as const,
       view: "projects" as const,
+      action: undefined,
       selectedRecord: id,
     };
     setPlannerLocation(next);
     if (typeof window !== "undefined")
       writePlannerLocation(new URL(window.location.href), next, window.history);
   };
+  const openGoalRecord = (id: string) => {
+    const goal = snapshot?.goals.find(goal => goal.id === id);
+    const next = mergePlannerLocation(plannerLocation, { destination: "intentions", view: goal?.intentionKind === "direction" ? "directions" : "outcomes", selectedRecord: id });
+    setPlannerLocation(next);
+    writePlannerLocation(new URL(window.location.href), next, window.history);
+  };
   const openHabitRecord = (id: string) => {
-    const next = { ...plannerLocation, destination: "habits" as const, view: "due" as const, selectedRecord: id };
+    const next = mergePlannerLocation(plannerLocation, { destination: "habits", view: "due", selectedRecord: id });
     setPlannerLocation(next);
     if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next, window.history);
   };
@@ -8207,7 +8269,8 @@ export default function Home() {
   };
   const createFromCapture = async (
     kind: ComposerKind,
-    values: Record<string, unknown>
+    values: Record<string, unknown>,
+    requestId?: string
   ) => {
     if (kind === "task")
       return persistTaskCreate({
@@ -8218,7 +8281,7 @@ export default function Home() {
         priority: "medium",
         horizon: "daily",
         sortOrder: 0,
-      });
+      }, requestId);
     if (!isOnline)
       throw new Error(
         `Reconnect to create a ${kind}. The draft has not been saved.`
@@ -8290,10 +8353,7 @@ export default function Home() {
     }
   };
 
-  const surfaceTitle =
-    surface === "today"
-      ? "Today"
-      : (navItems.find(item => item.id === surface)?.label ?? "Planner");
+  const surfaceTitle = plannerViewLabel(plannerLocation);
   if (!snapshot) {
     return (
       <PlannerShell
@@ -8457,9 +8517,31 @@ export default function Home() {
             ) : null}
           </section>
         ) : null}
-        {surface === "today" ? (
+        {plannerLocation.destination === "home" && (plannerLocation.view === "today" || plannerLocation.view === "overview") ? <nav className="workspace-view-switch" aria-label="Home views">
+          {(["today", "overview"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "home", view })}>{view === "today" ? "Today" : "Overview"}</button>)}
+        </nav> : null}
+        {plannerLocation.destination === "plan" ? <nav className="workspace-view-switch" aria-label="Planning views">
+          {(["daily", "weekly", "calendar", "roadmap"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "plan", view })}>{plannerViewLabel({ destination: "plan", view })}</button>)}
+        </nav> : null}
+        {plannerLocation.destination === "review" ? <nav className="workspace-view-switch" aria-label="Review views">
+          {(["rituals", "insights", "history"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "review", view })}>{plannerViewLabel({ destination: "review", view })}</button>)}
+        </nav> : null}
+        {plannerLocation.destination === "settings" ? <nav className="workspace-view-switch" aria-label="Settings groups">
+          {plannerSettingsViews.map(([view, label]) => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "settings", view })}>{label}</button>)}
+        </nav> : null}
+        {surface === "today" && plannerLocation.view === "overview" ? <section className="planner-overview" aria-labelledby="planner-overview-heading">
+          <header><h2 id="planner-overview-heading">Your saved planner at a glance</h2><p>Source: {availableSnapshot.isCached ? "saved device snapshot" : "current planner snapshot"}. Open a record to see its actual commitments and evidence. Missing evidence is not treated as progress.</p></header>
+          <div className="planner-overview-grid">
+            <section><h3>Projects</h3>{snapshot.projects.length ? snapshot.projects.slice(0, 6).map((project: any) => <button key={project.id} type="button" onClick={() => openProjectRecord(project.id)}>{project.title}<span>{project.state?.replaceAll("_", " ") || "No state recorded"}</span></button>) : <p>No project is available in this snapshot.</p>}</section>
+            <section><h3>Goals</h3>{snapshot.goals.length ? snapshot.goals.slice(0, 6).map((goal: any) => <button key={goal.id} type="button" onClick={() => openGoalRecord(goal.id)}>{goal.title}<span>{goal.state?.replaceAll("_", " ") || "No state recorded"}</span></button>) : <p>No goal is available in this snapshot.</p>}</section>
+            <section><h3>Planning continuity</h3><p>{snapshot.weeklyObjectives.length} saved weekly objectives · {snapshot.dailyPlans.length} saved daily plans in this snapshot.</p><button type="button" onClick={() => navigatePlanner({ destination: "plan", view: "weekly" })}>Open weekly objectives</button><button type="button" onClick={() => navigatePlanner({ destination: "review", view: "history" })}>Open saved reviews</button></section>
+            <section><h3>Habits &amp; focus</h3><p>{snapshot.habits.length} habits in this snapshot. Check-ins and Focus sessions are evidence, not inferred completion.</p><button type="button" onClick={() => selectSurface("habits")}>Open habits</button><button type="button" onClick={() => selectSurface("focus")}>Open Focus</button></section>
+          </div>
+        </section> : null}
+        {surface === "today" && plannerLocation.view !== "overview" ? (
           todayProjection && snapshot ? (
             <TodayWorkspace
+              taskDraftScopeKey={taskDraftScopeKey}
               projection={todayProjection}
               tasks={activeTasks}
               habits={snapshot.habits}
@@ -8538,11 +8620,6 @@ export default function Home() {
         ) : null}
         {surface === "plan" ? (
           <Suspense fallback={<DestinationLoading label="Plan" />}>
-            <nav className="plan-view-switch" aria-label="Planning views">
-              <button type="button" aria-current={plannerLocation.view !== "roadmap" ? "page" : undefined} onClick={() => navigatePlanner({ destination: "plan", view: "daily" })}>Daily plan</button>
-              <button type="button" aria-current={plannerLocation.view === "roadmap" ? "page" : undefined} onClick={() => navigatePlanner({ destination: "plan", view: "roadmap" })}>Roadmap</button>
-              <button type="button" onClick={() => navigatePlanner({ destination: "plan", view: "calendar" })}>Calendar</button>
-            </nav>
             {plannerLocation.view === "roadmap" ? (
               <RoadmapWorkspace
                 snapshot={roadmapSnapshot}
@@ -8555,6 +8632,7 @@ export default function Home() {
             ) : (
               <>
                 <PlanWorkspace
+                  view={plannerLocation.view === "weekly" ? "weekly" : "daily"}
                   scope={scope}
                   today={today}
                   snapshot={snapshot}
@@ -8567,10 +8645,10 @@ export default function Home() {
                   onOpenGoals={() => selectSurface("goals")}
                   onOpenCalendar={() => selectSurface("calendar")}
                 />
-                <OwnedToolsDisclosure summary="Planning and recurring work tools">
+                {plannerLocation.view !== "weekly" ? <OwnedToolsDisclosure summary="Planning and recurring work tools">
                   <DailyCompass />
                   <RecurringWorkControl />
-                </OwnedToolsDisclosure>
+                </OwnedToolsDisclosure> : null}
               </>
             )}
           </Suspense>
@@ -8578,6 +8656,7 @@ export default function Home() {
         {surface === "capture" ? (
           <Suspense fallback={<DestinationLoading label="Capture" />}>
             <NaturalLanguageCaptureWorkspace
+              plannerSyncScope={plannerSyncScope}
               scope={scope}
               today={today}
               snapshot={snapshot}
@@ -8601,6 +8680,7 @@ export default function Home() {
         {surface === "tasks" ? (
           <div className="tasks-destination-stack">
           <TaskWorkspace
+            taskDraftScopeKey={taskDraftScopeKey}
             view={
               (["inbox", "list", "board", "saved", "archive"] as string[]).includes(
                 plannerLocation.view
@@ -8898,11 +8978,6 @@ export default function Home() {
             />
           </Suspense>
         ) : null}
-        {surface === "connections" ? (
-          <Suspense fallback={<DestinationLoading label="Connections" />}>
-            <CalendarIntegrationWorkspace snapshot={snapshot} />
-          </Suspense>
-        ) : null}
         {surface === "insights" ? (
           <Suspense fallback={<DestinationLoading label="Insights" />}>
             <PlanningInsightsWorkspace
@@ -8914,7 +8989,7 @@ export default function Home() {
         ) : null}
         {surface === "review" ? (
           <section className="review-surface">
-            <div className="review-intro">
+            {plannerLocation.view !== "history" ? <div className="review-intro">
               <span className="eyebrow">Weekly review</span>
               <h2>Close the loop before you open a new one.</h2>
               <p>
@@ -8928,17 +9003,23 @@ export default function Home() {
               >
                 Return to today
               </Button>
-            </div>
+            </div> : null}
             <div className="review-workbench">
-              <ReviewRitual sessions={snapshot.reviewSessions} />
+              <ReviewRitual sessions={snapshot.reviewSessions} historyOnly={plannerLocation.view === "history"} />
+              {plannerLocation.view !== "history" ? <>
               <OccurrencePanel focusOccurrenceId={linkedOccurrenceId} />
               <PlanningHealthStrip />
               <DecisionSignals />
+              </> : null}
             </div>
           </section>
         ) : null}
-        {surface === "settings" ? (
+        {plannerLocation.destination === "settings" ? (
           <SettingsSurface
+            connectionContext={plannerLocation.view === "connections" ? <Suspense fallback={<DestinationLoading label="Connections" />}><CalendarIntegrationWorkspace snapshot={snapshot} /></Suspense> : undefined}
+            view={plannerLocation.view}
+            scope={scope}
+            isOnline={isOnline}
             workspace={snapshot.workspace}
             syncSummary={syncSummary}
             isCached={availableSnapshot.isCached}
@@ -8951,6 +9032,8 @@ export default function Home() {
         ) : null}
       </DestinationBoundary>
       <CaptureSheet
+        entryIntent={captureEntryIntent}
+        plannerSyncScope={plannerSyncScope}
         open={composerOpen}
         kind={composerKind}
         today={today}
@@ -8958,7 +9041,7 @@ export default function Home() {
         isOnline={isOnline}
         thought={naturalCaptureThought}
         onThoughtChange={setNaturalCaptureThought}
-        onOpenChange={setComposerOpen}
+        onOpenChange={open => { setComposerOpen(open); if (!open) setCaptureEntryIntent("neutral"); }}
         onKindChange={setComposerKind}
         onCreate={createFromCapture}
         onOpenNaturalCapture={thought => {

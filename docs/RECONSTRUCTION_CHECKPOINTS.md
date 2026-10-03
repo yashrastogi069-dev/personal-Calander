@@ -1,6 +1,14 @@
 # Reconstruction checkpoint board
 
-Updated 2026-10-03. Branch: `dev/personal-calendar-workbench`. Main remains frozen. Current checkpoint: C1 verified locally and pushed as `f728f16`; a read-only GitHub ref check confirmed the exact commit. Work is stopped at the owner's requested checkpoint. This is not full-app or live-release completion.
+Updated 2026-10-03. Branch: `dev/personal-calendar-workbench`. Main remains frozen. C1 is pushed as `f728f16` (handoff `e49b7a1`). C2 is locally verified and awaiting the explicitly requested checkpoint push. The owner rejected the limited visible progress and authorized the actual approved-image visual build next. This is not full-app or live-release completion.
+
+## C2: locally verified connected workspace
+
+Distinct Today/Overview, daily/weekly Plan and Review history/Insights; grouped existing Settings; exact navigation/pin behavior; entity-family record safety; task inspector hierarchy; account/workspace-scoped session drafts and deliberate retries. All existing capabilities remain. This is functional continuity, not the screenshot-faithful visual redesign.
+
+Evidence: final `npm run check` and `npm run build` passed; full `npm test` 111 files / 736 passed / 3 skipped. Build `63500b9ea2efb542`, 28 PWA shell files. Final post-review navigation 72/72 with 72 clear document-width measurements, PWA/pins 16/16, phone grid 8/8, lazy Planning Settings 8/8; root inspector 16/16 and capture 17/17. All browser APIs synthetic/intercepted, no screenshots. Prior dev-server interruption was rerun, not counted as an application pass/failure. Independent review's unpin, duplicate Connections, wrong entity ID and capture retry races were corrected and checked. The newly introduced Plan static import regression was removed; existing Search/bundle warnings remain.
+
+Limits: actual fonts, physical iPhone/VoiceOver/PWA and live integrations are unverified. Cross-account late capture feedback and blocked session storage have unit/guard coverage, not rendered browser evidence. Impeccable detector: no primary findings, 26 advisories for legacy colors/contextual font/radius values; not a whole-app design/accessibility pass. User-requested 1M Codex config remains an unverified provider-capacity override.
 
 ## C1: white/blue foundation
 
@@ -41,4 +49,4 @@ These are remaining bounded workstreams, not promises that every connector is av
 
 ## Stop instruction
 
-After the verified C1 GitHub push, stop all agent work and wait for the owner's next instruction. Do not start C2 or provider implementation on the strength of the earlier loop request.
+The C1 hard stop was satisfied. After C2 verification, the owner explicitly requested its push and the actual screenshot-led visual redesign. That supersedes the C2-only stop, not live database/deployment gates. Build complete visible workflows, not another foundation-only checkpoint. Astra still needs fresh explicit permission.

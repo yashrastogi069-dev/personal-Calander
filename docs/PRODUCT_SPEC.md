@@ -1,5 +1,9 @@
 # Product specification
 
+## C2 connected behavior (2026-10-03)
+
+Child routes show distinct existing functionality; one task inspector preserves ID/version/context. Unsaved capture and task drafts are scoped by account/workspace and stored in this tab's session storage (close/reload, not a promise of full app-restart persistence). Explicit discard/success clears only the matching draft. Task retries reuse identity only for the same submitted payload; ambiguous non-task outcomes require checking/acknowledgement, not a false idempotency promise. PWA Task entry does not reinterpret a saved non-task draft. C2 is not the approved-image visual composition or final Overview customization.
+
 This is the short product contract for the current workbench. The [Phase 4 specification](superpowers/specs/2026-09-14-phase4-total-product-redesign.md) defines detailed behavior, and the [capability ledger](PHASE4_CAPABILITY_LEDGER.md) protects existing features.
 
 Current 2026-10-03 visual/experience authority: [blue workspace reconstruction](superpowers/specs/2026-10-03-blue-workspace-reconstruction.md), approved after the owner reopened the A-green palette. Build a blue/porcelain light appearance and slate-dark counterpart with meaningful supporting color. All existing data/behavior invariants remain. [Approved synthetic preview](../design-system/personal-calander/concepts/2026-10-03-blue-workspace-preview.png) is an illustrative composition, not production data or proof of implementation.

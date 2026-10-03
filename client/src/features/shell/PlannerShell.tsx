@@ -49,6 +49,8 @@ export function PlannerShell({
 
   return (
     <div
+      data-destination={location.destination}
+      data-view={location.view}
       className={`planner-shell phase4-planner-shell${
         preferences.railCollapsed ? " is-rail-collapsed" : ""
       }${preferences.density === "compact" ? " mobile-density-compact" : ""}${focusControl ? " has-focus-control" : ""}`}

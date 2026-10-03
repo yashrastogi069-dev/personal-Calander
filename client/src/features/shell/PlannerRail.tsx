@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   phase4Destinations,
+  plannerViewLabel,
   type Phase4DestinationId,
   type PlannerLocationTarget,
 } from "@shared/phase4Navigation";
@@ -75,11 +76,7 @@ export function labelForPlannerTarget(target: PlannerLocationTarget) {
       item.destination === target.destination && item.view === target.view
   );
   if (secondary) return secondary.label;
-  if (target.destination === "settings") return "Settings";
-  return (
-    phase4Destinations.find(item => item.id === target.destination)?.label ??
-    "Planner"
-  );
+  return plannerViewLabel(target);
 }
 
 export function PlannerRail({

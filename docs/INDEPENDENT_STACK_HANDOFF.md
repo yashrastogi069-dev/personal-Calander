@@ -1,5 +1,15 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-03 C2 verified; push authorized, screenshot-led build next
+
+Final C2 local evidence: 111 Vitest files / 736 passed / 3 skipped; TypeScript and production build passed (`63500b9ea2efb542`, 28 PWA shell files). Post-review navigation 72/72 (72 clear document widths), PWA/pins 16/16, grid 8/8, lazy Settings 8/8; root inspector 16/16 and capture 17/17. [Checkpoint details/limits](RECONSTRUCTION_CHECKPOINTS.md). Source is unchanged after final verification; only harness/docs follow-up.
+
+The owner explicitly requested the C2 branch push and then building the real composition shown in the approved white/blue preview. C1/C2 are foundations and continuity, not visual completion. Next visible scope: full Today/work/day/habit composition, spacious Tasks List and coherent details, preserving all options and both themes. SOL only; Astra needs fresh permission. No live writes/migration, deployment or main merge. Branch auto-deployment stays disabled.
+
+## 2026-10-03 C2 authorized: connected workspace in progress
+
+After the C1 stop, the owner explicitly authorized completing C2. Three bounded SOL streams own navigation/Home integration, the canonical task inspector, and account/workspace-scoped capture drafts. [Acceptance plan](superpowers/plans/2026-10-03-c2-connected-workspace.md). C2 is not yet verified or pushed. Preserve the approved white/blue world, all capabilities and real record identities; Asana-style fluid List/Timeline interaction is a C4 requirement, not a new Timeline engine in this checkpoint. No C3, Astra consultation, live database write/migration, deployment or main merge is authorized. Branch-only automatic deployment remains disabled for verified Git checkpoints.
+
 ## 2026-10-03 checkpoint C1: verified white/blue foundation; pushed and stopped
 
 C1 is locally verified: shared white/blue light and slate-dark themes, compact shell/Quick entry, work-first Today and contextual project presentation. Independent review's archived-project return regression was fixed and tested. Final evidence: 104 test files / 684 passed / 3 skipped; TypeScript and production build passed (PWA `c8b25e03ad3c7b5e`, 27 shell files); 46 fully intercepted browser states at 320/390/768/1440 in light/dark, with no reported runtime errors/unexpected requests and 40 clear document-overflow measurements. Real fonts, physical iPhone, authenticated Preview/provider connections and whole-app accessibility remain unverified; initial-bundle warnings remain deferred. [Checkpoint board and remaining phases](RECONSTRUCTION_CHECKPOINTS.md).

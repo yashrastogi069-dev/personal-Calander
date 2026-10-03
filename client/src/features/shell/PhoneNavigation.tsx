@@ -19,6 +19,7 @@ import type {
   Phase4Preferences,
   PlannerPreferenceShortcut,
 } from "@shared/phase4Preferences";
+import { phase4SecondaryShortcutTargets } from "@shared/phase4Preferences";
 import { PlannerSheet } from "./PlannerSheet";
 import {
   labelForPlannerTarget,
@@ -171,8 +172,8 @@ export function PhoneNavigation({
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const primary = useMemo(
     () =>
-      uniqueTargets([...preferences.primary, ...preferences.order]).slice(0, 4),
-    [preferences.order, preferences.primary]
+      uniqueTargets(preferences.primary).slice(0, 4),
+    [preferences.primary]
   );
   const moreTargets = useMemo(() => {
     const primaryKeys = new Set(primary.map(plannerShortcutKey));
@@ -181,6 +182,7 @@ export function PhoneNavigation({
         ...targetForDestination(destination.id),
       })),
       ...shellSecondaryTargets.map(({ label: _label, ...target }) => target),
+      ...phase4SecondaryShortcutTargets,
       { destination: "settings", view: "account" } as const,
     ];
     return uniqueTargets([...preferences.order, ...canonical]).filter(
@@ -208,7 +210,7 @@ export function PhoneNavigation({
               key={plannerShortcutKey(target)}
               type="button"
               className={active ? "is-active" : undefined}
-              aria-current={active ? "page" : undefined}
+              aria-current={isActive(location, target) ? "page" : undefined}
               onClick={() => navigate(target)}
             >
               <Icon aria-hidden="true" size={20} strokeWidth={1.8} />

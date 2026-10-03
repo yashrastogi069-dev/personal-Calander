@@ -233,3 +233,45 @@
     transition: none;
   }
 }
+
+/* Connected views share a compact, wrapping navigation on every surface. */
+.phase4-planner-shell .workspace-view-switch {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-block: 0 18px;
+}
+.phase4-planner-shell .workspace-view-switch button {
+  min-height: 44px; padding: 8px 14px; border: 1px solid var(--border);
+  border-radius: 9px; background: var(--surface-elevated); color: var(--ink-muted);
+  font: inherit; cursor: pointer;
+}
+.phase4-planner-shell .workspace-view-switch button[aria-current="page"] {
+  background: var(--selection); color: var(--accent); border-color: var(--accent);
+}
+.phase4-planner-shell .workspace-view-switch button:focus-visible,
+.phase4-planner-shell .planner-overview button:focus-visible {
+  outline: 2px solid var(--focus-ring); outline-offset: 3px;
+}
+.phase4-planner-shell .planner-overview-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;
+}
+.phase4-planner-shell .planner-overview-grid > section {
+  min-width: 0; padding: 20px; border: 1px solid var(--border);
+  border-radius: 12px; background: var(--surface-elevated);
+}
+.phase4-planner-shell .planner-overview button {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
+  width: 100%; min-height: 44px; padding: 10px 0; border: 0;
+  border-bottom: 1px solid var(--border); text-align: left;
+  color: var(--accent); background: transparent; overflow-wrap: anywhere;
+}
+.phase4-planner-shell .planner-overview button span { color: var(--ink-muted); font-size: 13px; }
+.phase4-planner-shell .planner-overview p { color: var(--ink-muted); }
+.phase4-planner-shell .plan-daily-content:not([hidden]) { display: contents; }
+.phase4-planner-shell .plan-daily-content[hidden],
+.phase4-planner-shell .settings-card[hidden],
+.phase4-planner-shell .weekly-objectives-panel[hidden] { display: none !important; }
+.phase4-planner-shell .settings-planning-controls { min-width: 0; border: 0; padding: 0; }
+.phase4-planner-shell #planner-theme { display: block; min-height: 44px; margin-block: 10px; max-width: 100%; }
+@media (max-width: 680px) {
+  .phase4-planner-shell .planner-overview-grid { grid-template-columns: minmax(0, 1fr); }
+  .phase4-planner-shell .workspace-view-switch button { flex: 1 1 auto; }
+}

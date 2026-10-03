@@ -178,6 +178,7 @@ function minutesLabel(minutes: number) {
 }
 
 export type TodayWorkspaceProps = {
+  taskDraftScopeKey?: string;
   projection: TodayProjection;
   tasks: CanonicalTask[];
   habits: Array<{ id: string; name: string; color?: string | null }>;
@@ -234,6 +235,7 @@ export type TodayWorkspaceProps = {
 };
 
 export function TodayWorkspace({
+  taskDraftScopeKey,
   projection,
   tasks,
   habits,
@@ -759,6 +761,7 @@ export function TodayWorkspace({
       </details>
 
       <TaskDetailSheet
+        draftScopeKey={taskDraftScopeKey}
         task={selectedTask}
         open={Boolean(selectedTask)}
         returnFocusRef={returnFocusRef}

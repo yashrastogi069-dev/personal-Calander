@@ -44,6 +44,14 @@ export const phase4SecondaryShortcutTargets = [
   { destination: "settings", view: "connections" },
   { destination: "review", view: "insights" },
   { destination: "settings", view: "categories" },
+  { destination: "home", view: "overview" },
+  { destination: "plan", view: "weekly" },
+  { destination: "review", view: "history" },
+  { destination: "settings", view: "appearance" },
+  { destination: "settings", view: "planning" },
+  { destination: "settings", view: "navigation" },
+  { destination: "settings", view: "sync" },
+  { destination: "settings", view: "device" },
 ] as const satisfies readonly PlannerPreferenceShortcut[];
 
 const defaultShortcutTargets: PlannerPreferenceShortcut[] = [

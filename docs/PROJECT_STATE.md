@@ -2,6 +2,8 @@
 
 Updated 2026-10-03. Read [the independent stack handoff](INDEPENDENT_STACK_HANDOFF.md) for the most detailed and current migration record. This file is the quick status board.
 
+Current authority: C1 foundation is pushed (`f728f16`, handoff `e49b7a1`). C2 locally verified: 736 passed / 3 skipped, TypeScript/build, responsive navigation/inspector/capture browser checks. Owner authorized its push and the actual approved-image visual build next; prior C2 stop is superseded. [Checkpoint details/limits](RECONSTRUCTION_CHECKPOINTS.md). Live migration/deployment/main merge remain unapproved; branch auto-deployment is disabled. Historical rows below are superseded where they describe earlier local-only T19/C1/C2 state.
+
 | Area | Current state | Evidence / next gate |
 | --- | --- | --- |
 | Branch | `dev/personal-calendar-workbench`; `main` frozen R20 | No merge authorization for the current branch |
