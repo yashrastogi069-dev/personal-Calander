@@ -1,5 +1,21 @@
 # Independent stack: current workbench handoff
 
+## 2026-10-03 checkpoint C1: verified white/blue foundation; stop after push
+
+C1 is locally verified: shared white/blue light and slate-dark themes, compact shell/Quick entry, work-first Today and contextual project presentation. Independent review's archived-project return regression was fixed and tested. Final evidence: 104 test files / 684 passed / 3 skipped; TypeScript and production build passed (PWA `c8b25e03ad3c7b5e`, 27 shell files); 46 fully intercepted browser states at 320/390/768/1440 in light/dark, with no reported runtime errors/unexpected requests and 40 clear document-overflow measurements. Real fonts, physical iPhone, authenticated Preview/provider connections and whole-app accessibility remain unverified; initial-bundle warnings remain deferred. [Checkpoint board and remaining phases](RECONSTRUCTION_CHECKPOINTS.md).
+
+The owner explicitly authorized verified GitHub checkpoints and disabling automatic Vercel deployment for this branch only; `vercel.json` records that guard. No live migration, database reset/write, deployment or main merge was performed. Push C1 to `dev/personal-calendar-workbench`, then stop all agent work and await instruction. This latest hard stop overrides the earlier reconstruction loop request. Live TLS/inventory/backup/approval gates remain unchanged.
+
+## 2026-10-03 latest: owner-approved blue reconstruction started
+
+The owner approved the blue/porcelain desktop/phone concept and requested local implementation with richer meaningful colors, light/slate-dark themes, preserved features and connected views. This supersedes the historical A-green visual direction, not the data/migration/deployment gates. [Current contract](superpowers/specs/2026-10-03-blue-workspace-reconstruction.md) and [implementation sequence](superpowers/plans/2026-10-03-experience-reconstruction.md). Three bounded SOL workstreams own shared theme/shell, Today and selected-project presentation; root coordinates documentation and final verification. No new slice is yet declared verified. Apple/Google calendars, notifications and reminders are included under supported authorization and separate provider/live gates; hosting optimization is deferred. No Astra consultation, live write, migration, push, deployment or main merge is authorized or performed by starting this work.
+
+## 2026-10-03 research follow-up: experience reconstruction proposal
+
+The owner's new request authorizes competitive/current-app research and a feature-preserving redesign proposal after the T19 stop, not live database operations or deployment. Baseline `ae34886` is unchanged. SOL source/research reviews and explicitly approved Astra High read-only research plus eight-view synthetic visual follow-up are complete. All 60 competitor references were reviewed; 81 synthetic app states had no runtime errors or unexpected requests, and 78 measured cases had no document-level horizontal overflow. Fonts were stubbed, no physical iPhone or authenticated competitor workflow was tested, and no actual planner API write occurred. These results are not redesign acceptance.
+
+Read [the audit](research/2026-10-03-experience-reconstruction-audit.md) and [staged proposal](superpowers/plans/2026-10-03-experience-reconstruction.md). Next proposed local work: owner-reviewed Today/project/inspector prototype, preserving A colors, R20 task lanes, Habit trace/calendar and existing capabilities. No new source implementation, push, migration, deployment or main merge occurred in this research follow-up. Live TLS/inventory/backup/approval gates below remain binding.
+
 ## 2026-10-03 latest: T19 durable Focus extension is local-only
 
 The owner requested a hard stop after T19. The workbench branch has local additive migration 0006 (SHA-256 `a9fa764a00e3fed962704a01e207c4a0b71eb167aca0ee676ba408a560b07c94`) and version-checked Focus APIs/UI for explicit habit attribution and saved task/plan/none handoffs. Commits `ff5efec`, `183d679`, and `449962e` contain the migration/backend; the UI and evidence checkpoint are local branch work. The previous interactive watch/orchestration baseline remains the last pushed Preview state. No live schema/data change, new push, Vercel deployment, or `main` merge occurred in this extension.

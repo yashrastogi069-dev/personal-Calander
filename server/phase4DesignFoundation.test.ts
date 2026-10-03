@@ -122,35 +122,35 @@ describe("Phase 4 design foundation", () => {
     ).toEqual([]);
   });
 
-  it("maps the selected A-light and C-dark palettes to state-neutral semantic tokens", () => {
+  it("maps the approved blue-light and slate-dark palettes to state-neutral semantic tokens", () => {
     const css = source(tokenPath);
     const light = declarationsFor(css, "html:root");
     const dark = declarationsFor(css, "html:root.dark");
     const expectedLight = {
-      surface: "#ede9df",
-      "surface-elevated": "#fffdf8",
-      ink: "#18211f",
-      "ink-muted": "#56625e",
-      border: "#cbd2cb",
-      accent: "#286b5e",
-      selection: "#dbeae3",
-      completion: "#246650",
-      warning: "#85501e",
-      destructive: "#a33f3f",
-      "focus-ring": "#1775a4",
+      surface: "#ffffff",
+      "surface-elevated": "#ffffff",
+      ink: "#14233c",
+      "ink-muted": "#53657f",
+      border: "#d5dfec",
+      accent: "#1459de",
+      selection: "#e4efff",
+      completion: "#167258",
+      warning: "#915a0c",
+      destructive: "#b13c38",
+      "focus-ring": "#1459de",
     } as const;
     const expectedDark = {
-      surface: "#0c1317",
-      "surface-elevated": "#17242a",
-      ink: "#f1ebdf",
-      "ink-muted": "#aab5b3",
-      border: "#304149",
-      accent: "#70bab2",
-      selection: "#183b3b",
-      completion: "#83c4a4",
-      warning: "#e1ad6b",
-      destructive: "#ee8b82",
-      "focus-ring": "#8bd4df",
+      surface: "#111b29",
+      "surface-elevated": "#19273a",
+      ink: "#edf3fc",
+      "ink-muted": "#afbed2",
+      border: "#3d506b",
+      accent: "#8ab5ff",
+      selection: "#243e61",
+      completion: "#7bd4ac",
+      warning: "#f2c477",
+      destructive: "#ffa095",
+      "focus-ring": "#9bc3ff",
     } as const;
 
     for (const [name, value] of Object.entries(expectedLight)) {
@@ -184,12 +184,12 @@ describe("Phase 4 design foundation", () => {
       destructive: light["--destructive"],
       ring: light["--ring"],
     }).toEqual({
-      background: "#ede9df",
-      foreground: "#18211f",
-      primary: "#286b5e",
-      border: "#cbd2cb",
-      destructive: "#a33f3f",
-      ring: "#1775a4",
+      background: "#ffffff",
+      foreground: "#14233c",
+      primary: "#1459de",
+      border: "#d5dfec",
+      destructive: "#b13c38",
+      ring: "#1459de",
     });
     expect({
       background: dark["--background"],
@@ -200,13 +200,13 @@ describe("Phase 4 design foundation", () => {
       destructive: dark["--destructive"],
       ring: dark["--ring"],
     }).toEqual({
-      background: "#0c1317",
-      foreground: "#f1ebdf",
-      card: "#17242a",
-      primary: "#70bab2",
-      border: "#304149",
-      destructive: "#ee8b82",
-      ring: "#8bd4df",
+      background: "#111b29",
+      foreground: "#edf3fc",
+      card: "#19273a",
+      primary: "#8ab5ff",
+      border: "#3d506b",
+      destructive: "#ffa095",
+      ring: "#9bc3ff",
     });
   });
 

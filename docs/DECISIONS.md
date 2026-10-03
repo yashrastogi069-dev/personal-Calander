@@ -6,7 +6,7 @@ This is the short decision register. [Historical design decisions](DESIGN_DECISI
 | --- | --- |
 | Workbench branch only; `main` frozen R20 | Keeps the reference and live planner data stable while Phase 4 is developed. A merge requires an explicit instruction. |
 | Preserve all existing capabilities and IDs/history | Presentation can relocate controls; it cannot silently delete records, links, recurrence history, or user options. |
-| Variant A colors | Owner selected A for the product. Dark mode is an accessible adaptation of A. Exact R20 dark Task lane colors remain. |
+| Blue/porcelain reconstruction, 2026-10-03 | Owner reopened A-green colors and approved the blue-led desktop/phone preview. Build light and slate-dark appearances with labelled supporting colors; exact R20 dark Task lanes remain. [Current contract](superpowers/specs/2026-10-03-blue-workspace-reconstruction.md) supersedes the historical A selection. |
 | Comfortable default; compact optional | Readability first, with a deliberate density choice in Settings. |
 | Today and Overview are separate Home views | Today supports action; Overview supports orientation. Task 20 supplies bounded, reorderable, hideable modules and factual habit evidence. |
 | Habits has one visual practice owner | Keep the liked seven-day tick trace and month calendar visible in the canonical Habits workspace, with compact due-only Home actions and deeper corrections/settings behind deliberate navigation. This preserves capability without four duplicate stacked panels. |

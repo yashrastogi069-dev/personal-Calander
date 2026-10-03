@@ -132,11 +132,12 @@ export function PlannerRail({
           const active =
             location.destination === target.destination &&
             location.view === target.view;
+          const activeParent = location.destination === target.destination;
           return (
             <button
               key={item.id}
               type="button"
-              className={active ? "is-active" : undefined}
+              className={active ? "is-active" : activeParent ? "is-active-parent" : undefined}
               aria-current={active ? "page" : undefined}
               aria-label={collapsed ? item.label : undefined}
               title={collapsed ? item.label : undefined}
@@ -183,6 +184,7 @@ export function PlannerRail({
             location.destination === "settings" ? " is-active" : ""
           }`}
           aria-label="Open account settings"
+          aria-current={location.destination === "settings" && location.view === "account" ? "page" : undefined}
           title={collapsed ? "Personal space settings" : undefined}
           onClick={() =>
             onNavigate({ destination: "settings", view: "account" })

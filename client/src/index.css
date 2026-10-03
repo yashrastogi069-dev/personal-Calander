@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./features/shell/phase4-tokens.css";
+@import "./features/shell/blue-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 

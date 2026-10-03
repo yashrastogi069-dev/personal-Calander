@@ -2,6 +2,29 @@
   min-height: 100dvh;
 }
 
+.planner-title { min-width: 0; }
+.planner-title h1 { overflow-wrap: anywhere; }
+.planner-quick-entry { grid-column: 1 / -1; min-width: 0; }
+.planner-quick-entry > summary {
+  width: max-content;
+  max-width: 100%;
+  min-height: 44px;
+  display: list-item;
+  align-content: center;
+  padding: 10px 12px;
+  color: var(--ink-muted);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.planner-quick-entry > summary:hover { color: var(--accent); background: var(--selection); }
+.planner-quick-entry > summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.planner-quick-entry-form { min-width: 0; padding: 4px 0 8px; }
+.planner-status-region { min-width: 0; margin-top: 10px; }
+.planner-status-region .planner-sync-status { margin-top: 0; padding: 9px 12px; border-radius: 10px; }
+.planner-status-region .planner-sync-status span { font-size: 14px; }
+.planner-status-region .planner-sync-status strong { font-size: 14px; }
+
 .phase4-planner-rail[data-scroll-owner="rail"] {
   min-height: 0;
 }

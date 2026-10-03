@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "git": {
+    "deploymentEnabled": {
+      "dev/personal-calendar-workbench": false
+    }
+  },
   "buildCommand": "pnpm run build:client",
   "outputDirectory": "dist/public",
   "functions": {

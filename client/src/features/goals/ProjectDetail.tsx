@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import type { WorkspaceScope } from "@/lib/workspace";
 import { ProjectExecutionWorkspace } from "@/features/projects/ProjectExecutionWorkspace";
 import { RoadmapWorkspace } from "./RoadmapWorkspace";
@@ -62,6 +63,10 @@ function stateText(value: string) {
   return value.replaceAll("_", " ");
 }
 
+export function ArchivedProjectReturn({ onBack }: { onBack: () => void }) {
+  return <button type="button" className="project-detail-back" onClick={onBack}><ArrowLeft size={16} aria-hidden="true" /> All projects</button>;
+}
+
 export function ProjectDetail({ projectId, scope, snapshot, todayLocalDate, isOnline, onBack, onOpenTasks, onOpenTask, onBreakDown, onSelectProject, onOpenGoal, onApplyMove }: ProjectDetailProps) {
   const [tab, setTab] = useState<DetailTab>("overview");
   const project = (snapshot.projects as Project[] | undefined)?.find(item => item.id === projectId);
@@ -80,10 +85,15 @@ export function ProjectDetail({ projectId, scope, snapshot, todayLocalDate, isOn
   return <section className="project-detail" aria-labelledby="project-detail-heading">
     <header className="project-detail-header">
       <div className="project-detail-heading">
-        <button type="button" className="project-detail-back" onClick={onBack}>← All projects</button>
-        <span className="project-detail-eyebrow">Project · {stateText(project.state)}</span>
+        {isArchived ? <ArchivedProjectReturn onBack={onBack} /> : null}
         <h2 id="project-detail-heading">{project.title}</h2>
-        {project.description ? <p>{project.description}</p> : <p>Keep the work, dates, and next step together.</p>}
+        {project.description ? <p>{project.description}</p> : null}
+        <div className="project-detail-summary" aria-label="Project summary">
+          <span>State: {stateText(project.state)}</span>
+          <span>{openTasks.length} active task{openTasks.length === 1 ? "" : "s"}</span>
+          {project.dueLocalDate ? <span>Due {project.dueLocalDate}</span> : null}
+          {project.nextReviewLocalDate ? <span>Review {project.nextReviewLocalDate}</span> : null}
+        </div>
       </div>
       <button type="button" className="project-detail-button is-primary" onClick={() => onBreakDown(project)}>Break down project</button>
     </header>
@@ -120,7 +130,7 @@ export function ProjectDetail({ projectId, scope, snapshot, todayLocalDate, isOn
 
     {tab === "list" ? <section className="project-detail-panel" aria-labelledby="project-detail-list-heading">
       <div className="project-detail-section-heading"><div><h3 id="project-detail-list-heading">Project tasks</h3><p>These are the existing tasks linked to this project.</p></div><button type="button" className="project-detail-button" onClick={onOpenTasks}>Open task workbench</button></div>
-      {tasks.length ? <ul className="project-detail-task-list">{tasks.map(item => <li key={item.id}><div><strong>{item.title}</strong><span>{item.scheduledLocalDate ? `Plan for ${item.scheduledLocalDate}` : "Not scheduled"}{item.dueLocalDate ? ` · Due ${item.dueLocalDate}` : ""}</span></div><span className="project-detail-task-state">{stateText(item.state)}</span></li>)}</ul> : <p className="project-detail-empty">No tasks are linked to this project yet. Use the task workbench to add or link work.</p>}
+      {tasks.length ? <ul className="project-detail-task-list">{tasks.map(item => <li key={item.id}>{onOpenTask ? <button type="button" className="project-detail-task" onClick={() => onOpenTask(item.id)}><span><strong>{item.title}</strong><small>{item.scheduledLocalDate ? `Plan for ${item.scheduledLocalDate}` : "Not scheduled"}{item.dueLocalDate ? ` · Due ${item.dueLocalDate}` : ""}</small></span><span className="project-detail-task-state">{stateText(item.state)}</span></button> : <div className="project-detail-task"><span><strong>{item.title}</strong><small>{item.scheduledLocalDate ? `Plan for ${item.scheduledLocalDate}` : "Not scheduled"}{item.dueLocalDate ? ` · Due ${item.dueLocalDate}` : ""}</small></span><span className="project-detail-task-state">{stateText(item.state)}</span></div>}</li>)}</ul> : <p className="project-detail-empty">No tasks are linked to this project yet. Use the task workbench to add or link work.</p>}
     </section> : null}
 
     {tab === "board" ? isArchived ? <section className="project-detail-panel" aria-labelledby="project-detail-archived-board-heading">

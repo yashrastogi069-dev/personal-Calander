@@ -287,6 +287,19 @@ def main() -> None:
                             timeout=30000,
                         )
                         page.locator(".phase4-planner-shell").wait_for(state="visible", timeout=20000)
+                        if name == "today":
+                            expected_surface = "#ffffff" if theme == "light" else "#111b29"
+                            assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--surface').trim()") == expected_surface
+                            if theme == "light":
+                                quick_entry = page.locator(".planner-quick-entry")
+                                quick_entry.locator("summary").click()
+                                draft = quick_entry.locator("input").first
+                                draft.fill("Synthetic draft - do not save")
+                                quick_entry.locator("summary").click()
+                                quick_entry.locator("summary").click()
+                                assert draft.input_value() == "Synthetic draft - do not save"
+                                draft.fill("")
+                                quick_entry.locator("summary").click()
                         if name == "roadmap":
                             page.locator(".roadmap-workspace").wait_for(state="visible", timeout=30000)
                         path = output / f"{device}-{theme}-{name}.png"
@@ -336,10 +349,10 @@ def main() -> None:
                             page.locator(".project-card").filter(has_text="Kitchen organization").click()
                             page.locator(".project-detail").wait_for(state="visible")
                             assert page.locator("#project-detail-heading").inner_text() == "Kitchen organization"
-                            assert "is-selected" in page.locator(".project-card").filter(has_text="Kitchen organization").get_attribute("class")
+                            assert page.locator(".project-context-switcher select").input_value() == "preview-project-b"
                             assert "record=preview-project-b" in page.url
                             if width <= 680:
-                                assert page.locator(".project-return").is_visible()
+                                assert page.locator(".project-context-all").is_visible()
                                 assert not page.locator(".intentions-list").is_visible()
                             selected_path = output / f"{device}-light-project-selected.png"
                             if not args.no_screenshots:
@@ -354,7 +367,7 @@ def main() -> None:
                             assert page.locator("#execution-project").input_value() == "preview-project-b"
                             page.locator("#execution-project").select_option("preview-project")
                             assert "record=preview-project" in page.url
-                            assert "is-selected" in page.locator(".project-card").filter(has_text="Quarterly reset").get_attribute("class")
+                            assert page.locator(".project-context-switcher select").input_value() == "preview-project"
                             page.get_by_role("button", name="Timeline", exact=True).click()
                             page.locator(".roadmap-workspace.is-project").wait_for(state="visible")
                             assert page.locator(".roadmap-axis-panel").count() == 0
@@ -364,7 +377,7 @@ def main() -> None:
                             page.get_by_role("button", name="Preview exact change").click()
                             assert page.locator(".roadmap-preview").is_visible() or page.get_by_text("No project date change.").is_visible()
                             if width <= 680:
-                                page.locator(".project-return").click()
+                                page.locator(".project-context-all").click()
                                 assert "record=" not in page.url
                                 assert page.locator(".intentions-list").is_visible()
                             else:
@@ -405,6 +418,9 @@ def main() -> None:
                                 page.get_by_role("button", name="Board", exact=True).click()
                                 assert page.locator("#project-detail-archived-board-heading").is_visible()
                                 assert page.locator("#execution-project").count() == 0
+                                page.get_by_role("button", name="All projects", exact=True).click()
+                                assert "record=" not in page.url
+                                assert page.locator(".intentions-list").is_visible()
 
                         if name == "plan":
                             stages = ("recover", "capacity", "commit", "reserve", "review")

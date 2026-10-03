@@ -1,0 +1,44 @@
+/* Shared shell refinements over legacy presentation rules. Tokens live in phase4-tokens.css. */
+
+html ::selection { color: var(--ink); background: var(--selection); }
+html ::-webkit-scrollbar-track { background: var(--surface); }
+html ::-webkit-scrollbar-thumb { background: var(--border); border-color: var(--surface); }
+html ::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+html .phase4-planner-shell { color: var(--ink); background: var(--surface); }
+html .phase4-planner-shell .planner-main { background: var(--surface); }
+html .phase4-planner-shell .planner-main::before { display: none; }
+html .phase4-planner-shell .planner-rail { background: var(--surface-subtle) !important; border-color: var(--border); }
+html .phase4-planner-shell .brand-lockup { color: var(--ink-muted); text-transform: none; }
+html .phase4-planner-shell .brand-lockup b { color: var(--ink); }
+html .phase4-planner-shell .brand-mark { border-color: var(--accent); }
+html .phase4-planner-shell .brand-mark span { background: var(--accent); }
+html .phase4-planner-shell .planner-nav button { color: var(--ink-muted); min-height: 44px; font-size: 14px; }
+html .phase4-planner-shell .planner-nav button:hover { color: var(--ink); background: var(--selection); }
+html .phase4-planner-shell .planner-nav button:is(.is-active,.is-active-parent) { color: var(--accent) !important; background: var(--selection); box-shadow: none; font-weight: 650; }
+html .phase4-planner-shell .planner-nav button.is-active::before { background: var(--accent); }
+html .phase4-planner-shell .workspace-pill { color: var(--ink); border-color: var(--border); }
+html .phase4-planner-shell .workspace-pill strong { color: var(--ink); font-size: 14px; }
+html .phase4-planner-shell .workspace-pill small { color: var(--ink-muted); font-size: 12px; }
+html .phase4-planner-shell .workspace-avatar { color: var(--accent); background: var(--selection); }
+html .phase4-planner-shell .planner-topbar { grid-template-columns: minmax(0,1fr) auto; min-height: 94px; gap: 12px; padding: 18px 0 14px; border-color: var(--border); }
+html .phase4-planner-shell .planner-topbar::after { display: none; }
+html .phase4-planner-shell .planner-topbar h1 { color: var(--ink); font-size: clamp(26px,2.5vw,34px); line-height: 1.15; font-weight: 750; letter-spacing: -.04em; text-shadow: none; }
+html .phase4-planner-shell .top-date { margin: 4px 0 0; color: var(--ink-muted); font: 400 14px/1.5 "Onest",sans-serif; font-weight: 400 !important; letter-spacing: normal; text-transform: none; }
+html .phase4-planner-shell .icon-quiet { color: var(--ink-muted); }
+html .phase4-planner-shell .icon-quiet:hover { color: var(--accent); background: var(--selection); }
+html .phase4-planner-shell .quick-capture { margin: 0; min-height: 48px; color: var(--ink); border-color: var(--border); background: var(--surface-elevated); box-shadow: none; }
+html .phase4-planner-shell .quick-capture:focus-within { border-color: var(--focus-ring); background: var(--surface-elevated); }
+html .phase4-planner-shell .quick-capture input { color: var(--ink); font-size: 16px; }
+html .phase4-planner-shell .quick-capture input::placeholder { color: var(--ink-muted); }
+html .phase4-planner-shell .quick-capture svg { color: var(--accent); }
+html .phase4-planner-shell .quick-capture kbd { color: var(--ink-muted); }
+html .phase4-planner-shell .primary-action { color: var(--primary-foreground); border-color: var(--accent); background: var(--accent); box-shadow: none; }
+html .phase4-planner-shell .primary-action:hover { background: color-mix(in srgb,var(--accent) 88%,var(--ink)); }
+html .phase4-planner-shell .mobile-planner-nav button { color: var(--ink-muted); }
+html .phase4-planner-shell .mobile-planner-nav button.is-active { color: var(--accent); background: var(--selection); }
+
+@media (max-width: 680px) {
+  html .phase4-planner-shell .planner-topbar { min-height: 80px; padding: 14px 0 12px; gap: 8px; }
+  html .phase4-planner-shell .phase4-top-actions { gap: 2px; }
+  html .phase4-planner-shell .top-date { font-size: 14px; }
+}

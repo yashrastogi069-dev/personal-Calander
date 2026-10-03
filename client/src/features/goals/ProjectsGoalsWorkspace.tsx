@@ -28,6 +28,7 @@ export function ProjectsGoalsWorkspace({ goals, projects, milestones = [], tasks
   const outcomes = activeGoals.filter(goal => goal.intentionKind === "outcome" || !goal.intentionKind);
   const directions = activeGoals.filter(goal => goal.intentionKind === "direction");
   const records = tab === "projects" ? projects.filter(project => project.state !== "archived") : tab === "directions" ? directions : outcomes;
+  const selectedProject = tab === "projects" ? projects.find(project => project.id === selectedRecordId) : null;
   const selectedGoal = goals.find(goal => goal.id === selectedRecordId);
   const selectedProjects = selectedGoal ? projects.filter(item => item.goalId === selectedGoal.id) : [];
   const selectedProjectIds = new Set(selectedProjects.map(item => item.id));
@@ -42,9 +43,15 @@ export function ProjectsGoalsWorkspace({ goals, projects, milestones = [], tasks
     finally { setPending(false); }
   };
 
-  return <section className={cn("intentions-workspace", tab === "projects" && selectedRecordId && "is-project-detail")} aria-labelledby="intentions-heading">
-    {tab === "projects" && selectedRecordId ? <button type="button" className="project-return" onClick={onCloseProject}>← All projects</button> : null}
-    <header className="intentions-header"><div><span className="eyebrow">Long-term work</span><h2 id="intentions-heading">{tab === "projects" ? "Move projects forward" : tab === "directions" ? "Keep your direction" : "Make progress visible"}</h2><p>{tab === "projects" ? "Choose a project to see its work, blockers, and progress." : tab === "directions" ? "Keep a lasting standard and return to it at each review." : "Set a result you can recognize, then connect the work that gets you there."}</p></div>{tab === "projects" && onCreateProject ? <button type="button" className="intentions-primary-action" onClick={onCreateProject}><Plus size={16} /> New project</button> : <Compass size={28} aria-hidden="true" />}</header>
+  return <section className={cn("intentions-workspace", selectedProject && "is-project-detail")} aria-label={selectedProject ? "Project navigation" : undefined} aria-labelledby={selectedProject ? undefined : "intentions-heading"}>
+    {selectedProject ? <div className="project-context-bar">
+      <label className="project-context-switcher">Project
+        <select aria-label="Switch project" value={selectedProject.id} onChange={event => { const next = projects.find(project => project.id === event.target.value); if (next) onOpenProject?.(next); }}>
+          {projects.filter(project => project.state !== "archived" || project.id === selectedProject.id).map(project => <option key={project.id} value={project.id}>{project.title}</option>)}
+        </select>
+      </label>
+      <button type="button" className="project-context-all" onClick={onCloseProject}>All projects</button>
+    </div> : <header className="intentions-header"><div><h2 id="intentions-heading">{tab === "projects" ? "Move projects forward" : tab === "directions" ? "Keep your direction" : "Make progress visible"}</h2><p>{tab === "projects" ? "Choose a project to see its work, blockers, and progress." : tab === "directions" ? "Keep a lasting standard and return to it at each review." : "Set a result you can recognize, then connect the work that gets you there."}</p></div>{tab === "projects" && onCreateProject ? <button type="button" className="intentions-primary-action" onClick={onCreateProject}><Plus size={16} /> New project</button> : <Compass size={28} aria-hidden="true" />}</header>}
     <nav className="intentions-tabs" aria-label="Projects and goals views" role="tablist">
       {([['projects', 'Projects'], ['outcomes', 'Outcome goals'], ['directions', 'Directions']] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={tab === value} className={cn(tab === value && "is-active")} onClick={() => { setTab(value); onTabChange?.(value); }}>{label}<small>{value === "projects" ? projects.filter(project => project.state !== "archived").length : value === "directions" ? directions.length : outcomes.length}</small></button>)}
     </nav>
@@ -58,7 +65,7 @@ export function ProjectsGoalsWorkspace({ goals, projects, milestones = [], tasks
       <label>Next review date (optional)<input type="date" value={reviewDate} onChange={event => setReviewDate(event.target.value)} /></label>
       {error ? <p role="alert">{error}</p> : null}<div><button type="button" className="text-button" onClick={() => setCreateKind(null)}>Cancel</button><button type="submit" disabled={pending || !title.trim() || !goalIntentionAvailable}>{pending ? "Saving…" : "Create"}</button></div>
     </form> : null}
-    <div className="intentions-list">
+    {!selectedProject ? <div className="intentions-list">
       {records.length ? records.map(record => {
         if (tab === "projects") {
           const project = record as Project;
@@ -67,7 +74,7 @@ export function ProjectsGoalsWorkspace({ goals, projects, milestones = [], tasks
         const goal = record as Goal;
         return <button type="button" className={cn("intention-card", selectedRecordId === goal.id && "is-selected")} key={goal.id} onClick={() => onSelectGoal?.(goal.id)}><span className="intention-card-icon">{goal.intentionKind === "direction" ? <Compass size={16} /> : <Target size={16} />}</span><span><strong>{goal.title}</strong><small>{intentionPresentation(goal).summary}</small>{intentionPresentation(goal).details.map(detail => <span className="intention-detail-line" key={detail.label}><b>{detail.label}:</b> {detail.value}</span>)}</span><span className="intention-kind">{intentionPresentation(goal).label}</span></button>;
       }) : <p className="intentions-empty">{tab === "projects" ? "No projects yet. Create one to connect tasks and track its next steps." : tab === "directions" ? "No directions yet. Add a lasting standard to review over time." : "No outcome goals yet. Add a result you want to work toward."}</p>}
-    </div>
+    </div> : null}
     {tab !== "projects" && selectedGoal ? <IntentionDetail key={selectedGoal.id} goal={selectedGoal} goalIntentionAvailable={goalIntentionAvailable} projectRiskAvailable={projectRiskAvailable} projectDependenciesAvailable={projectDependenciesAvailable} milestones={milestones.filter(item => item.goalId === selectedGoal.id)} linkedTasks={selectedTasks} linkedProjects={selectedProjects} allProjects={projects} linkedHabits={habits.filter(item => item.goalId === selectedGoal.id)} projectDependencies={projectDependencies} nextAction={selectedTasks.find(item => item.state !== "completed" && item.state !== "archived")} onConvert={async kind => { await onUpdateGoal?.({ id: selectedGoal.id, expectedVersion: selectedGoal.version, patch: { intentionKind: kind } }); const nextTab = kind === "direction" ? "directions" : "outcomes"; setTab(nextTab); onTabChange?.(nextTab, selectedGoal.id); }} onUpdate={onUpdateGoal} onOpenRelated={onOpenRelated} /> : null}
   </section>;
 }

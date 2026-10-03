@@ -70,13 +70,11 @@ export function PlannerShell({
         data-scroll-owner="destination"
         data-selected-record={selectedRecord ?? undefined}
       >
-        {syncStatus}
         <header className="planner-topbar">
-          <div>
-            <p className="top-date">{dateLabel}</p>
+          <div className="planner-title">
             <h1>{title}</h1>
+            <p className="top-date">{dateLabel}</p>
           </div>
-          {quickCapture}
           <div className="top-actions phase4-top-actions">
             {utilityActions}
             <GlobalActions
@@ -84,7 +82,14 @@ export function PlannerShell({
               disabled={globalActionsDisabled}
             />
           </div>
+          {quickCapture ? (
+            <details className="planner-quick-entry">
+              <summary>Quick entry</summary>
+              <div className="planner-quick-entry-form">{quickCapture}</div>
+            </details>
+          ) : null}
         </header>
+        {syncStatus ? <div className="planner-status-region">{syncStatus}</div> : null}
         {focusControl}
         {children}
       </main>

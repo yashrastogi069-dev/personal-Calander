@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T13:22:06.000Z",
+  "title": "Design System: Personal Calendar",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Action blue"
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "White working canvas"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Destination title",
+        "purpose": "Shared shell title."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "sheet",
+        "value": "180ms",
+        "purpose": "Existing sheet transition."
+      },
+      {
+        "name": "sheet-reduced",
+        "value": "0.00001s",
+        "purpose": "Existing reduced-motion alternative."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-shell",
+        "value": "680px"
+      },
+      {
+        "name": "today-stack",
+        "value": "820px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Existing global Capture action styling.",
+      "html": "<button class=\"ds-primary\">Capture</button>",
+      "css": ".ds-primary{font-family:Onest, sans-serif;font-size:14px;min-height:44px;border-radius:12px;padding:0 12px;color:var(--primary-foreground);background:var(--primary);border:1px solid var(--primary);font-weight:750;}.ds-primary:hover{filter:brightness(.95);}.ds-primary:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;}.ds-primary:active{transform:translateY(1px);}"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Existing quiet global action styling.",
+      "html": "<button class=\"ds-secondary\">Search</button>",
+      "css": ".ds-secondary{font-family:Onest, sans-serif;font-size:14px;min-height:44px;border-radius:12px;padding:0 12px;color:var(--ink-muted);background:transparent;border:1px solid transparent;font-weight:750;}.ds-secondary:hover{color:var(--ink);background:var(--selection);border-color:var(--border);}.ds-secondary:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;}.ds-secondary:active{transform:translateY(1px);}"
+    },
+    {
+      "name": "Quick entry field",
+      "kind": "input",
+      "refersTo": "input-quick-entry",
+      "description": "Visual primitive of the retained quick-capture form.",
+      "html": "<label for=\"ds-quick\">Quick entry</label><input id=\"ds-quick\" class=\"ds-input\" placeholder=\"Add a task\" />",
+      "css": ".ds-input{font:400 16px Onest,sans-serif;min-height:48px;width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:10px;color:var(--ink);background:var(--surface-elevated);}.ds-input::placeholder{color:var(--ink-muted);}.ds-input:hover{border-color:var(--ink-muted);}.ds-input:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;}"
+    },
+    {
+      "name": "Active destination",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Exact-location navigation state; parent highlighting remains separately styled.",
+      "html": "<nav aria-label=\"Sample destination\"><button class=\"ds-nav\" aria-current=\"page\">Home</button></nav>",
+      "css": ".ds-nav{font-family:Onest, sans-serif;font-size:14px;min-height:44px;border-radius:12px;padding:0 12px;border:0;color:var(--accent);background:var(--selection);font-weight:650;text-align:left;}.ds-nav:hover{color:var(--ink);}.ds-nav:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;}.ds-nav:active{transform:translateY(1px);}"
+    },
+    {
+      "name": "Capacity disclosure",
+      "kind": "custom",
+      "refersTo": "capacity-disclosure",
+      "description": "Native disclosure keeps capacity details available without a permanent metric stack.",
+      "html": "<details class=\"ds-capacity\"><summary>Today’s capacity</summary><p>Estimate gaps are shown separately from known demand.</p></details>",
+      "css": ".ds-capacity{font:400 14px/1.5 Onest,sans-serif;color:var(--ink);border:1px solid var(--border);border-radius:13px;background:var(--surface-elevated);}.ds-capacity summary{min-height:48px;box-sizing:border-box;padding:12px 16px;cursor:pointer;}.ds-capacity summary:hover{background:var(--selection);}.ds-capacity summary:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;}.ds-capacity p{padding:0 16px 12px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "White planning studio",
+    "overview": "This document captures the implemented local foundation as of 2026-10-03. The owner approved a premium white working background with blue actions, meaningful secondary color, and a separate slate dark theme. The generated desktop/phone preview establishes that direction; it is not evidence that every pictured component is implemented.",
+    "keyCharacteristics": [
+      "White work surfaces and restrained neutral framing.",
+      "Blue action and selection cues; named states retain their own colors.",
+      "Readable task context, preserved canonical records, and native disclosure behavior."
+    ],
+    "rules": [
+      {
+        "name": "The White Canvas Rule",
+        "body": "Keep light working backgrounds white; reserve blue tint for selection and bounded action context.",
+        "section": "colors"
+      },
+      {
+        "name": "The Labeled State Rule",
+        "body": "Color accompanies text, icons, or status semantics; it never replaces them.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do preserve the white canvas and exact scoped R20 dark lanes.",
+      "Do use existing semantic aliases instead of adding private light-only palettes."
+    ],
+    "donts": [
+      "Don't treat available accent tokens as completed color assignment across every surface."
+    ]
+  }
+}

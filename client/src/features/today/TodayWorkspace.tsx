@@ -15,6 +15,7 @@ import {
   ArrowRight,
   CalendarCheck2,
   Check,
+  ChevronDown,
   Clock3,
   ListChecks,
   Play,
@@ -174,30 +175,6 @@ function minutesLabel(minutes: number) {
   const hours = Math.floor(safe / 60);
   const remainder = safe % 60;
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
-}
-
-function localDateLabel(localDate: string) {
-  const [year, month, day] = localDate.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, 12));
-  return {
-    weekday: new Intl.DateTimeFormat("en-US", {
-      weekday: "long",
-      timeZone: "UTC",
-    }).format(date),
-    day: new Intl.DateTimeFormat("en-US", {
-      day: "2-digit",
-      timeZone: "UTC",
-    }).format(date),
-    month: new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" })
-      .format(date)
-      .toUpperCase(),
-    full: new Intl.DateTimeFormat("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(date),
-  };
 }
 
 export type TodayWorkspaceProps = {
@@ -378,7 +355,6 @@ export function TodayWorkspace({
     setFocusTaskId(firstExecutableId);
   }, [firstExecutableId, focusTaskId, taskById, linkedResolutionByTaskId]);
 
-  const date = localDateLabel(projection.localDate);
   const projectTitles = useMemo(
     () => new Map(projects.map(project => [project.id, project.title])),
     [projects]
@@ -514,44 +490,11 @@ export function TodayWorkspace({
   };
 
   return (
-    <main className="today-workspace" aria-labelledby="today-workspace-heading">
-      <header className="today-workspace-intro">
-        <div>
-          <span className="today-kicker">Home / Today</span>
-          <h1 id="today-workspace-heading">Your day, in order.</h1>
-          <p>
-            {date.full}. See fixed time, chosen work, and decisions still open.
-          </p>
-        </div>
-        <div className="today-workspace-action">
-          {headerAction ? (
-            <Button
-              type="button"
-              className="today-primary-action"
-              onClick={runHeaderAction}
-            >
-              {headerAction.id === "resolve_recovery" ? (
-                <AlertTriangle aria-hidden="true" size={18} />
-              ) : headerAction.id === "plan_today" ? (
-                <ListChecks aria-hidden="true" size={18} />
-              ) : (
-                <Play aria-hidden="true" size={18} />
-              )}
-              {headerAction.label}
-            </Button>
-          ) : null}
-        </div>
-        <div className="today-date-stamp" aria-label={date.full}>
-          <span>{date.weekday.slice(0, 3).toUpperCase()}</span>
-          <strong>{date.day}</strong>
-          <small>{date.month}</small>
-        </div>
-      </header>
-
+    <section className="today-workspace" aria-label="Today's work">
       {headerAction ? (
         <section
           className="today-next-step-mobile"
-          data-today-section="next-step-mobile"
+          data-today-section="next-step"
           aria-label="Your next step"
         >
           <div>
@@ -583,52 +526,6 @@ export function TodayWorkspace({
           </Button>
         </section>
       ) : null}
-
-      <section
-        className="today-summary"
-        data-today-section="summary"
-        aria-label="Today commitment and capacity summary"
-      >
-        <div>
-          <span>Commitments</span>
-          <strong>{commitmentCount} chosen</strong>
-          <small>
-            {recoveryCount
-              ? `${recoveryCount} earlier ${recoveryCount === 1 ? "item" : "items"} for review`
-              : "No unresolved earlier plan"}
-          </small>
-        </div>
-        <div>
-          <span>Scheduled demand</span>
-          <strong>{minutesLabel(projection.capacity.busyMinutes)}</strong>
-          <small>Merged timed work and busy context</small>
-        </div>
-        <div>
-          <span>Flexible estimates</span>
-          <strong>{minutesLabel(flexibleEstimateMinutes)}</strong>
-          <small>{projection.flexible.length} planned without a time</small>
-        </div>
-        <div>
-          <span>Unavailable</span>
-          <strong>
-            {isUnavailableToday ? "All day" : minutesLabel(unavailableMinutes)}
-          </strong>
-          <small>
-            {isUnavailableToday
-              ? "Availability exception"
-              : "Break allowance; calendar busy is above"}
-          </small>
-        </div>
-        <div>
-          <span>Estimate gaps</span>
-          <strong>{projection.capacity.unestimatedTaskCount}</strong>
-          <small>
-            {projection.capacity.isCompleteEstimate
-              ? "Known demand is fully estimated"
-              : "Not counted as zero"}
-          </small>
-        </div>
-      </section>
 
       {captureStatus}
 
@@ -662,22 +559,6 @@ export function TodayWorkspace({
       ) : null}
 
       <div className="today-execution-grid">
-        <TodayTimeline
-          rows={projection.timeline}
-          tasks={tasks}
-          timezone={timezone}
-          projectTitles={projectTitles}
-          goalTitles={goalTitles}
-          categoryNames={categoryNames}
-          pendingTaskIds={pendingTaskIds}
-          linkedResolutionByTaskId={linkedResolutionByTaskId}
-          linkedPlanContextByTaskId={linkedPlanContextByTaskId}
-          onOpenLinkedResolution={openLinkedResolution}
-          onToggleTask={toggleTask}
-          onArchiveTask={onArchiveTask}
-          onStartFocus={startFocus}
-          onOpenTask={openTask}
-        />
         <TodayFlexibleWork
           rows={projection.flexible}
           tasks={tasks}
@@ -695,7 +576,79 @@ export function TodayWorkspace({
           onStartFocus={startFocus}
           onOpenTask={openTask}
         />
+        <TodayTimeline
+          rows={projection.timeline}
+          tasks={tasks}
+          timezone={timezone}
+          projectTitles={projectTitles}
+          goalTitles={goalTitles}
+          categoryNames={categoryNames}
+          pendingTaskIds={pendingTaskIds}
+          linkedResolutionByTaskId={linkedResolutionByTaskId}
+          linkedPlanContextByTaskId={linkedPlanContextByTaskId}
+          onOpenLinkedResolution={openLinkedResolution}
+          onToggleTask={toggleTask}
+          onArchiveTask={onArchiveTask}
+          onStartFocus={startFocus}
+          onOpenTask={openTask}
+        />
       </div>
+
+      <details
+        className="today-summary"
+        data-today-section="summary"
+        aria-label="Today commitment and capacity details"
+      >
+        <summary>
+          <span className="today-summary-heading">
+            Today's capacity
+            <ChevronDown aria-hidden="true" size={18} />
+          </span>
+          <strong>{commitmentCount} chosen · {minutesLabel(projection.capacity.busyMinutes)} timed</strong>
+          <small>{projection.capacity.unestimatedTaskCount ? `${projection.capacity.unestimatedTaskCount} without estimates` : "All known demand estimated"}</small>
+        </summary>
+        <div className="today-summary-metrics">
+          <div>
+            <span>Commitments</span>
+            <strong>{commitmentCount} chosen</strong>
+            <small>
+              {recoveryCount
+                ? `${recoveryCount} earlier ${recoveryCount === 1 ? "item" : "items"} for review`
+                : "No unresolved earlier plan"}
+            </small>
+          </div>
+          <div>
+            <span>Scheduled demand</span>
+            <strong>{minutesLabel(projection.capacity.busyMinutes)}</strong>
+            <small>Merged timed work and busy context</small>
+          </div>
+          <div>
+            <span>Flexible estimates</span>
+            <strong>{minutesLabel(flexibleEstimateMinutes)}</strong>
+            <small>{projection.flexible.length} planned without a time</small>
+          </div>
+          <div>
+            <span>Unavailable</span>
+            <strong>
+              {isUnavailableToday ? "All day" : minutesLabel(unavailableMinutes)}
+            </strong>
+            <small>
+              {isUnavailableToday
+                ? "Availability exception"
+                : "Break allowance; calendar busy is above"}
+            </small>
+          </div>
+          <div>
+            <span>Estimate gaps</span>
+            <strong>{projection.capacity.unestimatedTaskCount}</strong>
+            <small>
+              {projection.capacity.isCompleteEstimate
+                ? "Known demand is fully estimated"
+                : "Not counted as zero"}
+            </small>
+          </div>
+        </div>
+      </details>
 
       <TodayHabits
         rows={projection.habits}
@@ -826,6 +779,6 @@ export function TodayWorkspace({
         onAddDependency={onAddDependency}
         onRemoveDependency={onRemoveDependency}
       />
-    </main>
+    </section>
   );
 }

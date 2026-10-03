@@ -1,16 +1,24 @@
-/* Phase 4 foundation: Variant A by day, resolved Variant C at night. */
+/* Owner-approved blue/porcelain light and slate dark semantic foundation. */
 html:root {
-  --surface: #ede9df;
-  --surface-elevated: #fffdf8;
-  --ink: #18211f;
-  --ink-muted: #56625e;
-  --border: #cbd2cb;
-  --accent: #286b5e;
-  --selection: #dbeae3;
-  --completion: #246650;
-  --warning: #85501e;
-  --destructive: #a33f3f;
-  --focus-ring: #1775a4;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --ink: #14233c;
+  --ink-muted: #53657f;
+  --border: #d5dfec;
+  --accent: #1459de;
+  --selection: #e4efff;
+  --completion: #167258;
+  --warning: #915a0c;
+  --destructive: #b13c38;
+  --focus-ring: #1459de;
+  --surface-subtle: #f5f7fb;
+  --ink-subtle: #586b85;
+  --completion-soft: #e2f3eb;
+  --warning-soft: #fff2d6;
+  --context-coral: #b44533;
+  --context-coral-soft: #fff0e9;
+  --context-violet: #6b4bab;
+  --context-violet-soft: #f0ebfa;
 
   --font-size-body: 16px;
   --font-size-secondary: 14px;
@@ -37,19 +45,27 @@ html:root {
 }
 
 html:root.dark {
-  --surface: #0c1317;
-  --surface-elevated: #17242a;
-  --ink: #f1ebdf;
-  --ink-muted: #aab5b3;
-  --border: #304149;
-  --accent: #70bab2;
-  --selection: #183b3b;
-  --completion: #83c4a4;
-  --warning: #e1ad6b;
-  --destructive: #ee8b82;
-  --focus-ring: #8bd4df;
-  --primary-foreground: #0c1317;
+  --surface: #111b29;
+  --surface-elevated: #19273a;
+  --ink: #edf3fc;
+  --ink-muted: #afbed2;
+  --border: #3d506b;
+  --accent: #8ab5ff;
+  --selection: #243e61;
+  --completion: #7bd4ac;
+  --warning: #f2c477;
+  --destructive: #ffa095;
+  --focus-ring: #9bc3ff;
+  --surface-subtle: #203149;
+  --ink-subtle: #9caec7;
+  --completion-soft: #1c3a34;
+  --warning-soft: #443726;
+  --context-coral: #ffab97;
+  --context-coral-soft: #44302f;
+  --context-violet: #c4acff;
+  --context-violet-soft: #342e4d;
+  --primary-foreground: #111b29;
   --secondary-foreground: var(--ink);
-  --accent-foreground: #0c1317;
-  --destructive-foreground: #0c1317;
+  --accent-foreground: #111b29;
+  --destructive-foreground: #111b29;
 }

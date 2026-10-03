@@ -1,5 +1,7 @@
 # Product
 
+Current 2026-10-03 authority: this is an authenticated, account-scoped personal planner undergoing the owner-approved white/blue and slate-dark reconstruction. Earlier guest/first-release wording below is historical, not current implementation or permission. Use `docs/PRODUCT_SPEC.md`, `docs/INDEPENDENT_STACK_HANDOFF.md`, `docs/superpowers/specs/2026-10-03-blue-workspace-reconstruction.md`, and `DESIGN.md` for current product, gates and built visual truth. C1 is a partial local foundation; Overview, connected planning refinement and provider integrations remain open.
+
 <!-- impeccable:product-schema 1 -->
 
 ## Platform

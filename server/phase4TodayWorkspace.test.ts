@@ -184,30 +184,32 @@ function renderToday(overrides: Partial<Parameters<typeof TodayWorkspace>[0]> = 
 }
 
 describe("Phase 4 Today workspace", () => {
-  it("keeps Today summary metrics in two columns at narrow phone widths", () => {
+  it("keeps capacity available without putting five metrics ahead of work", () => {
+    const html = renderToday();
     const css = readFileSync(
       new URL("../client/src/features/today/today-workspace.css", import.meta.url),
       "utf8"
     );
-    const narrowPhoneRules = css.match(
-      /@media \(max-width: 360px\)\s*\{([\s\S]*?)\n\}/
-    )?.[1];
-
-    expect(narrowPhoneRules).toBeDefined();
-    expect(narrowPhoneRules).toMatch(/\.today-summary\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-    expect(narrowPhoneRules).toMatch(/\.today-summary\s*>\s*div:nth-child\(-n\s*\+\s*2\)\s*\{[^}]*border-top:\s*0/);
-    expect(narrowPhoneRules).toMatch(/\.today-summary\s*>\s*div:nth-child\(2n\)[\s\S]*?border-right:\s*0/);
-    expect(narrowPhoneRules).toMatch(/\.today-summary\s*>\s*div:last-child\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
-    expect(css).toMatch(/\.today-summary small\s*\{[^}]*font-size:\s*14px/);
+    expect(html).toContain('<details class="today-summary"');
+    expect(html).not.toContain('<details class="today-summary" open');
+    expect(html).toContain("Today&#x27;s capacity");
+    expect(html).toContain('class="today-summary-heading"');
+    expect(html).toContain("2 without estimates");
+    expect(html).toContain("Scheduled demand");
+    expect(html).toContain("Not counted as zero");
+    expect(css).toMatch(/\.today-summary-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(5,/);
+    expect(css).toMatch(/\.today-summary\[open\] \.today-summary-heading svg\s*\{[^}]*transform:\s*rotate\(180deg\)/);
+    expect(css).toMatch(/@media \(max-width: 680px\)[\s\S]*?\.today-summary-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
   });
 
   it("renders the daily briefing in the canonical product order", () => {
     const html = renderToday();
     const sections = [
-      "summary",
+      "next-step",
       "recovery",
-      "timeline",
       "flexible",
+      "timeline",
+      "summary",
       "habits",
       "suggestions",
       "completed",

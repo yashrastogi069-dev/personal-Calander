@@ -2,6 +2,8 @@
 
 This is the short product contract for the current workbench. The [Phase 4 specification](superpowers/specs/2026-09-14-phase4-total-product-redesign.md) defines detailed behavior, and the [capability ledger](PHASE4_CAPABILITY_LEDGER.md) protects existing features.
 
+Current 2026-10-03 visual/experience authority: [blue workspace reconstruction](superpowers/specs/2026-10-03-blue-workspace-reconstruction.md), approved after the owner reopened the A-green palette. Build a blue/porcelain light appearance and slate-dark counterpart with meaningful supporting color. All existing data/behavior invariants remain. [Approved synthetic preview](../design-system/personal-calander/concepts/2026-10-03-blue-workspace-preview.png) is an illustrative composition, not production data or proof of implementation.
+
 ## Promise and users
 
 Help a person remember what matters, make a realistic plan, act today, recover after interruptions, and connect daily action with longer term intentions. The workspace serves mixed personal and professional life: meetings, messages, reading, meals, shopping, habits, and projects. Power features remain available without crowding the everyday path.
