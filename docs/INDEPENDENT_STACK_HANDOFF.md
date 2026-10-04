@@ -1,6 +1,18 @@
 # Independent stack: current workbench handoff
 
-## 2026-10-03 C2 verified; push authorized, screenshot-led build next
+## 2026-10-04 premium v2 first checkpoint (current)
+
+Latest owner instruction: do not check Vercel; they will verify the Preview. Keep automatic deployment enabled and verify only the Git push locally/remotely.
+
+Implemented: actual shell/Tasks/Today composition, desktop Tasks/Habits bento (phone Work above Habits), explicit-record 28-day heatmap, large half-canvas full Focus studio with Next steps/context, midnight date refresh preserving deliberate planning-date selection. All established actions, IDs/history, offline gates and Focus outcomes retained; no live planner mutations or schema operations. Three bounded SOL owners/reviewer; no Astra call this checkpoint.
+
+Final local evidence: 114 Vitest files / 748 passed / 3 skipped; TypeScript and client/server/PWA build passed (`3039e33e839775f0`, 28 shell files); Focus27/27 focused and16/16 runtime. Home/Tasks48/48 (including mounted next-day refresh), empty16/16, inspector8/8, capture17/17, actual Onest/shell4/4. [Details/delivery/limits](PHASE4_SLICE_EVIDENCE.md). Earlier runs preceded final Desk sizing and estimate-label clarity fixes; frozen-source full rerun passes.
+
+Owner-authorized delivery: create/push only `dev/personal-calendar-premium-v2`, enable its automatic Vercel Preview; leave workbench remote at `85b4014` and auto-deployment disabled. This branch-specific exception does not clear strict TLS/live inventory, backup/restore or schema approval gates, authorize migration/reset, promote main/production, or prove authenticated Preview health. Stop after checkpoint. Timeline/weekly Plan concepts are approved directions, not rebuilt engines. [Plan/images](superpowers/plans/2026-10-04-premium-v2-checkpoint.md). Earlier sections below are historical and superseded on scope/authority.
+
+## 2026-10-03 C2 pushed; visible build in progress
+
+C2 is pushed and remote-confirmed as `85b4014`. The owner approved one bounded Astra Medium consultation; it finished read-only and stopped. Three SOL workstreams are now implementing actual Today/Tasks/shell composition against the approved image as the minimum standard. [Current plan/acceptance](superpowers/plans/2026-10-03-visible-workspace-reconstruction.md). The paragraph below records C2's final evidence, not verification of this new visible build.
 
 Final C2 local evidence: 111 Vitest files / 736 passed / 3 skipped; TypeScript and production build passed (`63500b9ea2efb542`, 28 PWA shell files). Post-review navigation 72/72 (72 clear document widths), PWA/pins 16/16, grid 8/8, lazy Settings 8/8; root inspector 16/16 and capture 17/17. [Checkpoint details/limits](RECONSTRUCTION_CHECKPOINTS.md). Source is unchanged after final verification; only harness/docs follow-up.
 

@@ -1,5 +1,11 @@
 # Testing Strategy
 
+## Premium v2 checkpoint gates (2026-10-04)
+
+Run `npm test -- --reporter=dot`, `npm run check`, `npm run build:client` and `git diff --check`. Against a stable loopback dev server, use `scripts/preview-visible-workspace.py` (populated and `--empty --states idle`), `preview-c2-inspector.py`, `preview-c2-capture.py`, `preview-shell-fonts.py` and `preview-t19-focus.py`. All planner/auth APIs are synthetic/intercepted, service workers blocked, no real record writes. Only the font-specific harness permits public font downloads. Outputs/captures must stay outside the repo. Report results and exact limits in [slice evidence](PHASE4_SLICE_EVIDENCE.md).
+
+Required assertions include desktop Tasks/Habits adjacency, narrow Work-first order, date-bounded explicit heatmap facts, mounted workspace midnight refresh, complete task inspector/draft/retry behavior, long/paused/offline Focus, display modes and Stop confirmation distinct from task completion. Tests are not physical iPhone/VoiceOver/live notification/provider/database evidence. Owner explicitly wants to verify Vercel themselves; do not query or claim a deployed Preview from Git push alone.
+
 ## Current verification contract (2026-10-01)
 
 Run `pnpm check`, targeted Vitest for the changed rules, and `pnpm build` for local client/PWA/server changes. Vercel packaging uses `pnpm build:client`; validate that artifact for deployment changes. Full `pnpm test` and the scenario browser scripts are release gates when the scope warrants them. Record the exact command, pass count, build release, viewport, and limitations in [Phase 4 slice evidence](PHASE4_SLICE_EVIDENCE.md).

@@ -190,3 +190,102 @@
   .focus-watch-view-options button, .focus-companion button { transition: transform 140ms cubic-bezier(.23,1,.32,1), opacity 140ms cubic-bezier(.23,1,.32,1); }
   .focus-watch-view-options button:active, .focus-companion button:active { transform: scale(.97); }
 }
+
+/* The full Focus view is a studio: one instrument beside saved context. */
+.focus-workspace { width: min(100%, 1300px); gap: 18px; }
+.focus-workspace .focus-workspace-header { align-items: start; padding: 4px 0 12px; border-bottom: 0 !important; }
+.focus-workspace .focus-workspace-header h2 { font-size: clamp(34px, 3.4vw, 48px); letter-spacing: -.055em; }
+.focus-workspace .focus-workspace-header p { margin-top: 4px; font-size: 15px; }
+.focus-workspace .focus-layout { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: clamp(18px, 2.2vw, 32px); align-items: start; }
+.focus-workspace .focus-layout > * { min-width: 0; }
+.focus-workspace .focus-context-column { display: grid; min-width: 0; gap: 16px; }
+.focus-workspace .focus-context-heading { padding: 2px 2px 0; }
+.focus-workspace .focus-context-heading span { color: var(--accent); font: 750 12px/1.2 "Onest", sans-serif; letter-spacing: .07em; text-transform: uppercase; }
+.focus-workspace .focus-context-heading h3 { margin: 6px 0 0; color: var(--ink); font: 760 clamp(20px, 2vw, 26px)/1.2 "Onest", sans-serif; letter-spacing: -.035em; }
+.focus-workspace .focus-context-heading p { margin: 4px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.45; }
+
+.focus-workspace .focus-active-panel.focus-watch-panel { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; border: 0 !important; background: transparent !important; }
+.focus-workspace .focus-watch-stage { display: grid; justify-items: center; min-width: 0; gap: 14px; padding: 8px 10px 14px; border: 0; background: none; }
+.focus-workspace .focus-time-dial:not(.is-compact) { --watch-face: clamp(340px, 38vw, 450px); position: relative; display: grid; justify-items: center; width: 100%; gap: 10px; text-align: center; }
+.focus-workspace .focus-time-dial.is-desk { --watch-face: clamp(390px, 42vw, 500px); grid-template-columns: minmax(0, 1fr); justify-content: stretch; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-face { width: min(100%, var(--watch-face)); height: auto; aspect-ratio: 1; flex: none; border: 0; background: radial-gradient(circle at center, var(--surface-elevated) 0 58%, transparent 59%); box-shadow: none; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-track { stroke: color-mix(in srgb, var(--accent) 11%, var(--surface-elevated)); stroke-width: 4; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-progress { stroke-width: 4; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-core { stroke: transparent; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-tick { stroke: color-mix(in srgb, var(--accent) 45%, var(--border)); stroke-width: .55; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-marker { stroke-width: 1.4; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-face-label { top: 30%; color: var(--ink-muted); font: 600 clamp(12px, 1.2vw, 15px)/1.2 "Onest", sans-serif; letter-spacing: 0; text-transform: lowercase; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-face-label::first-letter { text-transform: uppercase; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-face-time { top: 41%; left: 8%; right: 8%; font: 670 clamp(38px, 5.2vw, 68px)/1 "Onest", sans-serif; letter-spacing: -.06em; }
+.focus-workspace .focus-time-dial:not(.is-compact).is-long-duration .focus-time-dial-face-time { top: 43%; font-size: clamp(23px, 3vw, 40px); line-height: 1.12; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-readout { display: grid; justify-items: center; gap: 5px; max-width: 100%; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-eyebrow { color: var(--accent); font-size: 14px; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-plan { font-size: 14px; font-weight: 600; }
+.focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-target { min-height: 20px; font-size: 13px; overflow-wrap: anywhere; }
+.focus-workspace .focus-time-dial.is-digital .focus-time-dial-readout { min-height: 180px; align-content: center; padding: 24px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface-elevated); }
+.focus-workspace .focus-time-dial.is-digital .focus-time-dial-time { display: block; font: 670 clamp(42px, 6vw, 76px)/1.1 "Onest", sans-serif; letter-spacing: -.055em; }
+.focus-workspace .focus-time-dial.is-digital.is-long-duration .focus-time-dial-time { font-size: clamp(28px, 4vw, 48px); }
+.focus-workspace .focus-watch-toolbar { justify-content: center; width: 100%; }
+.focus-workspace .focus-watch-view-options { justify-content: center; padding: 4px; border-radius: 999px; background: var(--selection); }
+.focus-workspace .focus-watch-view-options button { min-height: 44px; border-color: transparent; border-radius: 999px; background: transparent; }
+.focus-workspace .focus-watch-view-options button[aria-pressed="true"] { border-color: var(--border); background: var(--surface-elevated); box-shadow: 0 2px 7px color-mix(in srgb, var(--ink) 8%, transparent); }
+.focus-workspace .focus-watch-panel .focus-active-task { justify-items: center; padding: 4px 16px 16px; text-align: center; }
+.focus-workspace .focus-watch-panel .focus-active-task p { font: 700 13px/1.3 "Onest", sans-serif; letter-spacing: 0; text-transform: none; }
+.focus-workspace .focus-watch-panel .focus-active-task h3 { max-width: 28ch; margin-top: 6px; font-size: clamp(24px, 2.6vw, 32px) !important; line-height: 1.16; }
+.focus-workspace .focus-watch-panel .focus-active-task span { margin-top: 7px; font-size: 14px; }
+.focus-workspace .focus-watch-panel .focus-timer-actions { justify-content: center; flex-wrap: wrap; padding: 0 12px 20px; }
+.focus-workspace .focus-watch-panel .focus-timer-actions .button { min-width: min(42%, 190px); min-height: 48px; border-radius: 999px; }
+.focus-workspace .focus-watch-panel .focus-outcome-panel { margin-top: 2px; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-elevated); }
+.focus-workspace .focus-watch-panel .focus-outcome-panel .field-guidance { margin: 0 0 4px; font-size: 14px; line-height: 1.5; }
+.focus-workspace .focus-watch-panel .focus-outcome-panel input { min-height: 44px; }
+.focus-workspace .focus-watch-panel .focus-outcome-actions { gap: 8px; }
+.focus-workspace .focus-watch-panel .focus-outcome-actions button { min-height: 44px; }
+.focus-workspace .focus-watch-panel .focus-outcome-actions button:not(.button) { padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; }
+.focus-workspace .focus-stop-confirm { margin: 0 12px 16px; }
+
+.focus-workspace .focus-follow-up { display: grid; gap: 14px; margin: 0; padding: 0; border: 0; background: transparent; }
+.focus-workspace .focus-follow-up-header, .focus-workspace .focus-follow-up-card { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-elevated); box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 4%, transparent); }
+.focus-workspace .focus-follow-up-header { display: grid; gap: 14px; }
+.focus-workspace .focus-follow-up-header h3 { font-size: 19px; }
+.focus-workspace .focus-follow-up-eyebrow { font-size: 14px; }
+.focus-workspace .focus-follow-up-header > button { justify-self: start; }
+.focus-workspace .focus-follow-up-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.focus-workspace .focus-follow-up-card { min-height: 0; }
+.focus-workspace .focus-follow-up-card.is-next-step { border-color: color-mix(in srgb, var(--accent) 24%, var(--border)); background: color-mix(in srgb, var(--selection) 28%, var(--surface-elevated)); }
+.focus-workspace .focus-follow-up-card strong { font-size: 16px; }
+.focus-workspace .focus-follow-up-card p, .focus-workspace .focus-follow-up-card small { font-size: 14px; }
+.focus-workspace .focus-evidence-panel { gap: 12px; padding: 20px; border-radius: 18px; }
+.focus-workspace .focus-evidence-panel dl { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.focus-workspace .focus-evidence-panel dl div { display: grid; justify-content: start; gap: 6px; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 10px; }
+.focus-workspace .focus-evidence-panel dd { overflow-wrap: anywhere; }
+.focus-workspace .focus-start-panel { gap: 18px; padding: clamp(20px, 3vw, 34px); border-radius: 20px; }
+.focus-workspace .focus-start-panel select { min-height: 44px; font-size: 15px; }
+.focus-workspace .focus-lengths button, .focus-workspace .focus-lengths input { min-height: 44px; }
+.focus-workspace .focus-start-panel .primary-action { min-height: 48px; border-radius: 999px; }
+.focus-workspace :is(button, select, input):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+
+@media (max-width: 1050px) {
+  .focus-workspace .focus-layout { grid-template-columns: minmax(0, 1fr); }
+  .focus-workspace .focus-context-column { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .focus-workspace .focus-context-heading, .focus-workspace .focus-follow-up { grid-column: 1 / -1; }
+  .focus-workspace .focus-evidence-panel { grid-column: 1 / -1; }
+  .focus-workspace .focus-time-dial:not(.is-compact) { --watch-face: clamp(340px, 48vw, 460px); }
+}
+@media (max-width: 680px) {
+  .focus-workspace .focus-context-column { grid-template-columns: minmax(0, 1fr); }
+  .focus-workspace .focus-context-heading { grid-column: 1; }
+  .focus-workspace .focus-follow-up, .focus-workspace .focus-evidence-panel { grid-column: 1; }
+  .focus-workspace .focus-time-dial:not(.is-compact), .focus-workspace .focus-time-dial.is-desk { --watch-face: min(78vw, 340px); }
+  .focus-workspace .focus-watch-stage { padding: 4px 0 12px; }
+  .focus-workspace .focus-time-dial:not(.is-compact) .focus-time-dial-face-time { font-size: clamp(38px, 11vw, 54px); }
+  .focus-workspace .focus-time-dial:not(.is-compact).is-long-duration .focus-time-dial-face-time { font-size: clamp(23px, 7vw, 34px); }
+  .focus-workspace .focus-watch-panel .focus-timer-actions .button { flex: 1 1 130px; }
+  .focus-workspace .focus-follow-up-header, .focus-workspace .focus-follow-up-card { padding: 17px; }
+  .focus-workspace .focus-evidence-panel dl { grid-template-columns: minmax(0, 1fr); }
+  .focus-workspace .focus-evidence-panel dl div { display: flex; justify-content: space-between; }
+}
+@media (max-width: 350px) {
+  .focus-workspace .focus-watch-view-options { width: 100%; }
+  .focus-workspace .focus-watch-view-options button { flex: 1; min-width: 0; padding-inline: 7px; }
+  .focus-workspace .focus-watch-panel .focus-timer-actions .button { flex-basis: 100%; }
+}

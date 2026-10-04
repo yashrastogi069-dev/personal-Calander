@@ -1,5 +1,9 @@
 # Technical debt register
 
+## 2026-10-04 current checkpoint update
+
+Owner-authorized automatic Preview is enabled only for the new premium branch; existing TLS/live-schema/backup/provider/device gates below remain unresolved. Do not silently apply schema or relax TLS to fix a Preview. Current local UI slice is not whole-app completion; use the [checkpoint board](RECONSTRUCTION_CHECKPOINTS.md) over historical sequencing below. Final build retains the Search static/dynamic import warning and 1,104.07 kB main JS chunk (316.66 kB gzip); hosting/performance work deferred.
+
 Updated 2026-10-03. This is an actionable register from current source review. It does not replace the Phase 4 plan or authorize live database changes. Close an item only with code and the matching verification evidence; update this register when priority or status changes.
 
 | Priority | Item | Evidence and impact | Next action |

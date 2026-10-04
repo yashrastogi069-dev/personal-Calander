@@ -9,6 +9,7 @@ import { GlobalActions } from "./GlobalActions";
 import { PhoneNavigation } from "./PhoneNavigation";
 import { PlannerRail } from "./PlannerRail";
 import "./planner-shell.css";
+import "./approved-workspace.css";
 
 export type PlannerShellProps = {
   location: PlannerLocationTarget;
@@ -25,6 +26,7 @@ export type PlannerShellProps = {
   quickCapture?: ReactNode;
   utilityActions?: ReactNode;
   focusControl?: ReactNode;
+  viewNavigation?: ReactNode;
   children: ReactNode;
 };
 
@@ -43,6 +45,7 @@ export function PlannerShell({
   quickCapture,
   utilityActions,
   focusControl,
+  viewNavigation,
   children,
 }: PlannerShellProps) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -78,19 +81,14 @@ export function PlannerShell({
             <p className="top-date">{dateLabel}</p>
           </div>
           <div className="top-actions phase4-top-actions">
-            {utilityActions}
             <GlobalActions
               onAction={onGlobalAction}
               disabled={globalActionsDisabled}
+              secondaryControls={<>{utilityActions}{quickCapture ? <details className="planner-quick-entry"><summary>Quick entry</summary><div className="planner-quick-entry-form">{quickCapture}</div></details> : null}</>}
             />
           </div>
-          {quickCapture ? (
-            <details className="planner-quick-entry">
-              <summary>Quick entry</summary>
-              <div className="planner-quick-entry-form">{quickCapture}</div>
-            </details>
-          ) : null}
         </header>
+        {viewNavigation ? <div className="planner-view-navigation" data-shell-region="view-navigation">{viewNavigation}</div> : null}
         {syncStatus ? <div className="planner-status-region">{syncStatus}</div> : null}
         {focusControl}
         {children}

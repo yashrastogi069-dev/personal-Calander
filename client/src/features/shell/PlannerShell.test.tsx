@@ -32,4 +32,11 @@ describe("shared planner shell", () => {
     expect(markup).toContain('data-scroll-owner="rail"');
     expect(markup).toContain('data-scroll-owner="destination"');
   });
+  it("places Home views directly below the header and before the watch", () => {
+    const markup = renderToStaticMarkup(<PlannerShell location={{ destination: "home", view: "today" }} preferences={phase4DefaultPreferences} timezone="UTC" title="Today" dateLabel="Thursday, October 8" onNavigate={vi.fn()} onPreferencesChange={vi.fn()} onGlobalAction={vi.fn()} viewNavigation={<nav aria-label="Home views">Today / Overview</nav>} focusControl={<section data-home-watch="active">One real session</section>}><section>Your work</section></PlannerShell>);
+    expect(markup.indexOf('class="planner-topbar"')).toBeLessThan(markup.indexOf('data-shell-region="view-navigation"'));
+    expect(markup.indexOf('data-shell-region="view-navigation"')).toBeLessThan(markup.indexOf('data-home-watch="active"'));
+    expect(markup.match(/data-home-watch="active"/g)).toHaveLength(1);
+    expect(markup).toContain("More planner controls");
+  });
 });

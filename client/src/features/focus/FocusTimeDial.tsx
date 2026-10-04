@@ -1,6 +1,7 @@
 import { confirmedActiveSeconds, formatElapsedDuration, formatFocusTargetGuidance } from "@shared/focusClock";
 import { useEffect, useState } from "react";
 import "./focus-watch.css";
+import { TimerReset } from "lucide-react";
 
 export type FocusWatchSession = {
   id: string;
@@ -69,7 +70,7 @@ export function FocusTimeDial({
   session: FocusWatchSession;
   title: string;
   presentation: FocusPresentation;
-  size?: "compact" | "full" | "desk";
+  size?: "compact" | "full" | "desk" | "home";
   confirmedOnline: boolean;
 }) {
   const elapsedSeconds = useFocusElapsedSeconds(session);
@@ -84,7 +85,7 @@ export function FocusTimeDial({
   const circumference = 2 * Math.PI * 46;
 
   return (
-    <div className={`focus-time-dial is-${size} is-${presentation} ${timeText.length > 8 ? "is-long-duration" : ""} ${session.state === "paused" ? "is-paused" : "is-active"}`} role="group" aria-label={summary}>
+    <div data-watch-layout={size} className={`focus-time-dial is-${size} is-${presentation} ${timeText.length > 8 ? "is-long-duration" : ""} ${session.state === "paused" ? "is-paused" : "is-active"}`} role="group" aria-label={summary}>
       <div className="focus-time-dial-face" aria-hidden="true">
         <svg viewBox="0 0 120 120" focusable="false">
           <circle className="focus-time-dial-track" cx="60" cy="60" r="46" />
@@ -102,11 +103,13 @@ export function FocusTimeDial({
         </svg>
         <span className="focus-time-dial-face-label">FOCUS</span>
         <span className="focus-time-dial-face-time">{timeText}</span>
+        {size === "home" ? <TimerReset className="focus-home-watch-icon" aria-hidden="true" size={30} /> : null}
       </div>
       <div className="focus-time-dial-readout">
         <span className="focus-time-dial-eyebrow"><span className="focus-time-dial-led" aria-hidden="true" />{stateText}</span>
         <span className="focus-time-dial-plan">{session.targetMinutes} min target</span>
-        <strong className="focus-time-dial-time" aria-hidden="true">{timeText}</strong>
+        <strong className="focus-time-dial-time" data-watch-part="elapsed" aria-hidden="true">{timeText}</strong>
+        {size === "home" ? <strong className="focus-home-watch-task">{title}</strong> : null}
         <span className="focus-time-dial-target">{targetText}</span>
       </div>
     </div>

@@ -41,6 +41,7 @@ import {
   useWorkspaceScope,
 } from "@/contexts/WorkspaceContext";
 import { useOfflinePlannerSnapshot } from "@/hooks/useOfflinePlannerSnapshot";
+import { followWorkspaceToday, useWorkspaceToday } from "@/hooks/useWorkspaceToday";
 import {
   getBrowserPlannerSyncStore,
   type PlannerConflict,
@@ -6859,8 +6860,14 @@ export default function Home() {
   const plannerSyncScope = usePlannerSyncScope();
   const taskDraftScopeKey = JSON.stringify([plannerSyncScope.accountId, plannerSyncScope.workspaceId]);
   const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
-  const [today] = useState(() => localDateInTimezone(scope.timezone));
+  const today = useWorkspaceToday(scope.timezone);
   const [selectedDate, setSelectedDate] = useState(today);
+  const previousToday = useRef(today);
+  useEffect(() => {
+    const previous = previousToday.current;
+    setSelectedDate(selected => followWorkspaceToday(selected, previous, today));
+    previousToday.current = today;
+  }, [today]);
   const [plannerLocation, setPlannerLocation] = useState<PlannerLocation>(() =>
     typeof window === "undefined"
       ? defaultPlannerLocation()
@@ -8424,7 +8431,6 @@ export default function Home() {
         weekday: "long",
         month: "long",
         day: "numeric",
-        year: "numeric",
       })}
       onNavigate={navigatePlanner}
       onPreferencesChange={setPreferences}
@@ -8439,6 +8445,9 @@ export default function Home() {
           onOpenFocus={() => selectSurface("focus")}
         />
       ) : null}
+      viewNavigation={plannerLocation.destination === "home" && (plannerLocation.view === "today" || plannerLocation.view === "overview") ? <nav className="workspace-view-switch home-view-switch" aria-label="Home views">
+        {(["today", "overview"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "home", view })}>{view === "today" ? "Today" : "Overview"}</button>)}
+      </nav> : undefined}
       quickCapture={
         <form className="quick-capture" onSubmit={createQuickTask}>
           <Plus size={19} />
@@ -8472,7 +8481,7 @@ export default function Home() {
         syncSummary.syncing ||
         syncSummary.retry ? (
           <section
-            className="planner-sync-status"
+            className={`planner-sync-status ${syncSummary.needsReview || syncSummary.retry || !isOnline ? "is-actionable" : "is-informational"}`}
             role="status"
             aria-live="polite"
           >
@@ -8517,9 +8526,6 @@ export default function Home() {
             ) : null}
           </section>
         ) : null}
-        {plannerLocation.destination === "home" && (plannerLocation.view === "today" || plannerLocation.view === "overview") ? <nav className="workspace-view-switch" aria-label="Home views">
-          {(["today", "overview"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "home", view })}>{view === "today" ? "Today" : "Overview"}</button>)}
-        </nav> : null}
         {plannerLocation.destination === "plan" ? <nav className="workspace-view-switch" aria-label="Planning views">
           {(["daily", "weekly", "calendar", "roadmap"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "plan", view })}>{plannerViewLabel({ destination: "plan", view })}</button>)}
         </nav> : null}
@@ -8541,6 +8547,10 @@ export default function Home() {
         {surface === "today" && plannerLocation.view !== "overview" ? (
           todayProjection && snapshot ? (
             <TodayWorkspace
+              habitCheckIns={snapshot.habitCheckIns}
+              milestones={snapshot.milestones}
+              onOpenProject={openProjectRecord}
+              onOpenCalendar={() => selectSurface("calendar")}
               taskDraftScopeKey={taskDraftScopeKey}
               projection={todayProjection}
               tasks={activeTasks}

@@ -1,6 +1,16 @@
 # Reconstruction checkpoint board
 
-Updated 2026-10-03. Branch: `dev/personal-calendar-workbench`. Main remains frozen. C1 is pushed as `f728f16` (handoff `e49b7a1`). C2 is locally verified and awaiting the explicitly requested checkpoint push. The owner rejected the limited visible progress and authorized the actual approved-image visual build next. This is not full-app or live-release completion.
+## 2026-10-04 premium v2 first checkpoint (current)
+
+Current branch after verification: `dev/personal-calendar-premium-v2`, owner-requested auto Preview enabled. Leave old workbench remote at `85b4014`, main frozen. Selected screenshots are the minimum visual benchmark; prefer coherent modern icons and useful flow over decoration. Preserve every capability. Stop here for owner review.
+
+Implemented: visible white/blue and slate-dark shell, Task List/grouped complete inspector, Today Tasks/Habits desktop bento, day context/milestone/remaining decisions, factual 28-day heatmap plus individual trace/actions, half-canvas full Focus watch with Next steps/context. Workspace today refreshes overnight without resetting deliberate planning dates.
+
+Evidence: final full suite748 passed /3 skipped, TypeScript and client/server/PWA build passed; Home/Tasks48/48, empty16/16, inspector8/8, capture17/17, actual Onest/shell4/4, Focus16/16 with intercepted planner APIs. Vercel verification intentionally owner-owned. [Delivery/limits](PHASE4_SLICE_EVIDENCE.md).
+
+Remaining: complete Tasks/Board/dated planning and weekly Plan (C3); project/goal Timeline/Roadmap and linked views (C4); remaining Habit history/return refinements (C5); configurable Overview/Review/Settings (C6); supported Calendar/provider connections and real reminders (C7); whole-app accessibility/error/offline/performance, physical-device and approved live infrastructure release gates (C8). This checkpoint advances C3/C5 presentation, not every phase. [Selected Timeline/Week concepts and plan](superpowers/plans/2026-10-04-premium-v2-checkpoint.md). Earlier dated sections below are historical.
+
+Updated 2026-10-03. Branch: `dev/personal-calendar-workbench`. Main remains frozen. C1 is pushed as `f728f16` (handoff `e49b7a1`); C2 is pushed and remote-confirmed as `85b4014`. Actual screenshot-led Today/Tasks/shell reconstruction is in progress under [the visible build plan](superpowers/plans/2026-10-03-visible-workspace-reconstruction.md). The screenshot is the minimum standard, with calm useful improvements expected beyond it. One owner-approved Astra Medium consultation finished; SOL implements. This is not full-app or live-release completion.
 
 ## C2: locally verified connected workspace
 

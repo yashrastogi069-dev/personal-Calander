@@ -2,10 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("reconstruction checkpoint boundaries", () => {
-  it("disables automatic deployment only for the gated workbench branch", () => {
+  it("keeps workbench gated and enables the owner-approved premium Preview branch", () => {
     const configuration = JSON.parse(readFileSync("vercel.json", "utf8"));
     expect(configuration.git.deploymentEnabled).toEqual({
       "dev/personal-calendar-workbench": false,
+      "dev/personal-calendar-premium-v2": true,
     });
     expect(configuration.functions["api/trpc/[...path].mjs"].includeFiles)
       .toBe("dist/server/planner-app.mjs");

@@ -1,6 +1,8 @@
 # Personal Calendar
 
-Personal Calendar is a personal planning workspace for tasks, habits, plans, projects, goals, reviews, calendar reservations, and recovery after an interrupted day. The current workbench branch is developing Phase 4 of the product redesign while retaining existing planner records and capabilities.
+Personal Calendar is a personal planning workspace for tasks, habits, plans, projects, goals, reviews, calendar reservations, and recovery after an interrupted day. The current premium reconstruction uses `dev/personal-calendar-premium-v2`; the original workbench and main remain reference branches. Preserve existing planner records and capabilities.
+
+The 2026-10-04 checkpoint adds the visible Today/Tasks/shell reconstruction, desktop Tasks/Habits bento, factual habit heatmap and large Focus studio. See [checkpoint scope and approved visual references](docs/superpowers/plans/2026-10-04-premium-v2-checkpoint.md), [remaining phases](docs/RECONSTRUCTION_CHECKPOINTS.md) and [verification/delivery evidence](docs/PHASE4_SLICE_EVIDENCE.md). Automatic Vercel Preview is enabled for this new branch by owner request; a Git push alone is not evidence the Preview or live database works.
 
 ## Start here
 

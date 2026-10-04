@@ -1,9 +1,10 @@
 # Repository working rules
 
-- Work on `dev/personal-calendar-workbench` for the current independent-stack migration.
+- Current premium reconstruction checkpoint moves to `dev/personal-calendar-premium-v2` after local verification (owner instruction 2026-10-04). Leave `dev/personal-calendar-workbench` unchanged remotely; retain it as the independent-stack reference.
 - Never merge this branch into `main` unless the user explicitly instructs it. `main` is the frozen R20 reference.
 - Existing planner data is real. Preserve record IDs, workspace IDs, and history. Do not reset databases or replay the baseline over populated tables.
 - Complete infrastructure decoupling and validate it before Vercel deployment. The owner explicitly authorized local UI/UX redesign to begin before deployment on 2026-10-01; this does not authorize Vercel deployment, live database writes, or schema migration before their separate gates.
+- Narrow 2026-10-04 exception: owner explicitly enabled automatic Vercel Preview deployment for the new premium branch. This is not production/main promotion, database migration authority, or evidence that infrastructure/live-schema gates passed. Verify Preview separately from Git push; do not change live data to force it to pass.
 - Use `docs/INDEPENDENT_STACK_HANDOFF.md` for current migration status. Earlier checkpoint documents contain historical claims, not current live verification.
 
 ## Multi-Agent Delegation Policy

@@ -6,7 +6,7 @@ import {
 } from "@shared/canonicalTask";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { ArrowRight, Check, MoreHorizontal } from "lucide-react";
-import { useRef, useState, type PointerEvent } from "react";
+import { useId, useRef, useState, type PointerEvent } from "react";
 
 export type CanonicalTaskRowProps = {
   task: CanonicalTask;
@@ -21,6 +21,8 @@ export type CanonicalTaskRowProps = {
   onArchive?: (task: CanonicalTask) => void | Promise<unknown>;
   onPrimaryAction?: (task: CanonicalTask, actionId: string, trigger: HTMLElement) => void | Promise<unknown>;
   onOpenDetail: (task: CanonicalTask, trigger: HTMLElement) => void;
+  workspaceMenu?: boolean;
+  onStartFocus?: (task: CanonicalTask) => void;
 };
 
 export function fallbackTaskPrimaryAction(actionId: string): "toggle" | "detail" {
@@ -40,9 +42,13 @@ export function CanonicalTaskRow({
   onArchive,
   onPrimaryAction,
   onOpenDetail,
+  workspaceMenu = false,
+  onStartFocus,
 }: CanonicalTaskRowProps) {
   const presentation = canonicalTaskPresentation(task, context);
   const [archiveRevealed, setArchiveRevealed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
   const pointerStart = useRef<{ x: number; y: number; pointerType: string } | null>(null);
 
   const startPointer = (event: PointerEvent<HTMLElement>) => {
@@ -75,6 +81,7 @@ export function CanonicalTaskRow({
     if (fallbackTaskPrimaryAction(presentation.primaryAction.id) === "toggle") void onToggle(task);
     else onOpenDetail(task, trigger);
   };
+  const canFocus = Boolean(onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
 
   return (
     <article
@@ -108,14 +115,15 @@ export function CanonicalTaskRow({
         <Check aria-hidden="true" size={15} strokeWidth={3} />
       </button>}
       <div className="canonical-task-copy">
-        <strong>{presentation.title}</strong>
+        {workspaceMenu ? <button type="button" className="canonical-task-title" aria-label={detailActionLabel ?? `Open details for ${presentation.title}`} onClick={event => onOpenDetail(task, event.currentTarget)}>{presentation.title}</button> : <strong>{presentation.title}</strong>}
         <div className="canonical-task-keyline">
           {presentation.keyTime ? <span>{presentation.keyTime.label}</span> : <span>Inbox · no date yet</span>}
           {parentTitle ? <span>Subtask of {parentTitle}</span> : null}
           {childCount ? <span>{childCount} {childCount === 1 ? "subtask" : "subtasks"}</span> : null}
           {presentation.metadata.map(metadata => (
-            <span key={`${metadata.kind}-${metadata.label}`}>{metadata.label}</span>
+            <span key={`${metadata.kind}-${metadata.label}`} className={cn("canonical-task-meta", `is-${metadata.kind}`)}>{metadata.kind === "project" || metadata.kind === "goal" || metadata.kind === "category" ? <i aria-hidden="true" /> : null}{metadata.label}</span>
           ))}
+          {task.estimateMinutes ? <span className="canonical-task-estimate">{task.estimateMinutes} min</span> : null}
           {task.state === "blocked" ? <span>Blocked</span> : null}
           {pending ? <span className="is-pending">Saved on this device</span> : null}
         </div>
@@ -131,11 +139,18 @@ export function CanonicalTaskRow({
       {!completionGuard ? <button
         type="button"
         className="canonical-task-detail-action"
-        aria-label={detailActionLabel ?? `Open details for ${presentation.title}`}
-        onClick={event => onOpenDetail(task, event.currentTarget)}
+        aria-label={workspaceMenu ? `More actions for ${presentation.title}` : detailActionLabel ?? `Open details for ${presentation.title}`}
+        aria-expanded={workspaceMenu ? menuOpen : undefined}
+        aria-controls={workspaceMenu ? menuId : undefined}
+        onClick={event => workspaceMenu ? setMenuOpen(current => !current) : onOpenDetail(task, event.currentTarget)}
       >
         <MoreHorizontal aria-hidden="true" size={20} />
       </button> : null}
+      {workspaceMenu && menuOpen ? <div id={menuId} className="canonical-task-menu" role="group" aria-label={`Actions for ${presentation.title}`} onKeyDown={event => { if (event.key === "Escape") { setMenuOpen(false); event.stopPropagation(); } }}>
+        <button type="button" onClick={event => { setMenuOpen(false); onOpenDetail(task, event.currentTarget); }}>Open details</button>
+        {canFocus ? <button type="button" onClick={() => { setMenuOpen(false); onStartFocus?.(task); }}>Start focus</button> : null}
+        {onArchive && task.state !== "archived" ? <button type="button" onClick={() => { setMenuOpen(false); void onArchive(task); }}>Archive</button> : null}
+      </div> : null}
     </article>
   );
 }

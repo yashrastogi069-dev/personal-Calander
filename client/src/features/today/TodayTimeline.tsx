@@ -20,6 +20,8 @@ export type TodayTimelineProps = {
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onStartFocus: (task: CanonicalTask) => void;
   onOpenTask: (task: CanonicalTask, trigger: HTMLElement) => void;
+  onOpenCalendar?: () => void;
+  onPlanToday?: () => void;
 };
 
 function timeLabel(value: Date | string, timezone: string) {
@@ -47,6 +49,8 @@ export function TodayTimeline({
   onArchiveTask,
   onStartFocus,
   onOpenTask,
+  onOpenCalendar,
+  onPlanToday,
 }: TodayTimelineProps) {
   const taskById = new Map(tasks.map(task => [task.id, task]));
   const externalCount = rows.filter(row => row.kind === "appointment").length;
@@ -55,10 +59,9 @@ export function TodayTimeline({
     <section className="today-timeline" data-today-section="timeline" aria-labelledby="today-timeline-heading">
       <header className="today-section-heading">
         <div>
-          <span>Chronology</span>
-          <h2 id="today-timeline-heading">Fixed time first</h2>
+          <h2 id="today-timeline-heading">Your day</h2>
         </div>
-        <small>{rows.length ? `${rows.length} timed ${rows.length === 1 ? "item" : "items"}` : "Open day"}</small>
+        {onOpenCalendar || onPlanToday ? <button type="button" onClick={onOpenCalendar ?? onPlanToday}>{onOpenCalendar ? "View calendar" : "Plan day"}</button> : null}
       </header>
 
       <div className="today-timeline-list">

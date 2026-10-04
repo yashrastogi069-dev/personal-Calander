@@ -11,6 +11,7 @@ import {
 } from "../client/src/features/today/TodayWorkspace";
 import type { CanonicalTask } from "../shared/canonicalTask";
 import type { TodayProjection } from "../shared/todayProjection";
+import { nextTodayMilestone, todayHabitTrace } from "../client/src/features/today/todayContext";
 
 const localDate = "2026-09-21";
 
@@ -164,8 +165,8 @@ function renderToday(overrides: Partial<Parameters<typeof TodayWorkspace>[0]> = 
       projection,
       tasks: [reserved, flexible, waiting, completed],
       habits: [{ id: "habit-walk", name: "Evening walk", color: "#2f8b6c" }],
-      projects: [{ id: "project-book", title: "Write the book" }],
-      goals: [],
+      projects: [{ id: "project-book", title: "Write the book", goalId: "goal-book" }],
+      goals: [{ id: "goal-book", title: "Publish the book" }],
       categories: [],
       dependencies: [],
       timezone: "UTC",
@@ -184,7 +185,7 @@ function renderToday(overrides: Partial<Parameters<typeof TodayWorkspace>[0]> = 
 }
 
 describe("Phase 4 Today workspace", () => {
-  it("keeps capacity available without putting five metrics ahead of work", () => {
+  it("shows a compact factual capacity strip before work while retaining all five details", () => {
     const html = renderToday();
     const css = readFileSync(
       new URL("../client/src/features/today/today-workspace.css", import.meta.url),
@@ -192,7 +193,9 @@ describe("Phase 4 Today workspace", () => {
     );
     expect(html).toContain('<details class="today-summary"');
     expect(html).not.toContain('<details class="today-summary" open');
-    expect(html).toContain("Today&#x27;s capacity");
+    expect(html).toContain("2 chosen");
+    expect(html).toContain("1h 55m known");
+    expect(html).toContain("Plan day");
     expect(html).toContain('class="today-summary-heading"');
     expect(html).toContain("2 without estimates");
     expect(html).toContain("Scheduled demand");
@@ -202,17 +205,16 @@ describe("Phase 4 Today workspace", () => {
     expect(css).toMatch(/@media \(max-width: 680px\)[\s\S]*?\.today-summary-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
   });
 
-  it("renders the daily briefing in the canonical product order", () => {
+  it("keeps work, habits, chronology, decisions, and completion evidence in one connected composition", () => {
     const html = renderToday();
     const sections = [
-      "next-step",
+      "summary",
       "recovery",
       "flexible",
-      "timeline",
-      "summary",
       "habits",
-      "suggestions",
       "completed",
+      "timeline",
+      "suggestions",
     ];
 
     for (const [index, section] of sections.entries()) {
@@ -225,6 +227,7 @@ describe("Phase 4 Today workspace", () => {
     }
     expect(html).toContain("<details class=\"today-completed-evidence\"");
     expect(html).not.toContain("<details class=\"today-completed-evidence\" open");
+    expect(html).not.toContain('data-today-section="next-step"');
   });
 
   it("presents a reserved task once and labels external calendar context as read-only", () => {
@@ -244,6 +247,44 @@ describe("Phase 4 Today workspace", () => {
     expect(html).toContain("No incoming calendar appointments");
     expect(html).toContain("Apple Calendar subscription is outgoing only");
     expect(html).not.toContain("Dentist appointment");
+  });
+
+  it("renders recorded seven-day habit states without converting blank days into misses", () => {
+    const trace = todayHabitTrace("habit-walk", localDate, [
+      { habitId: "habit-walk", localDate: "2026-09-16", state: "completed" },
+      { habitId: "habit-walk", localDate: "2026-09-18", state: "missed" },
+      { habitId: "habit-walk", localDate: "2026-09-20", state: "skipped" },
+    ], "due");
+    expect(trace).toHaveLength(7);
+    expect(trace.map(day => day.state)).toEqual(["unrecorded", "completed", "unrecorded", "missed", "unrecorded", "skipped", "unrecorded"]);
+    const html = renderToday({ habitCheckIns: [
+      { habitId: "habit-walk", localDate: "2026-09-16", state: "completed" },
+      { habitId: "habit-walk", localDate: "2026-09-18", state: "missed" },
+    ] });
+    expect(html).toContain("Recorded practice for Evening walk, last seven days");
+    expect(html).toContain('class="today-habit-trace-day is-missed"');
+    expect(html).toContain("Skip today");
+  });
+
+  it("keeps the task inspector reachable from compact work rows", () => {
+    const html = renderToday();
+    expect(html).toContain(`Open details for ${flexible.title}`);
+    const source = readFileSync(new URL("../client/src/features/today/TodayWorkspace.tsx", import.meta.url), "utf8");
+    expect(source).toContain("onStartFocus={startFocus}");
+  });
+
+  it("uses only explicit task-goal/project-goal links for upcoming milestone context", () => {
+    const candidates = [
+      { id: "linked", goalId: "goal-book", title: "Finish chapter", dueLocalDate: "2026-09-28", state: "active" },
+      { id: "unrelated", goalId: "goal-other", title: "Unrelated", dueLocalDate: "2026-09-22", state: "active" },
+      { id: "past", goalId: "goal-book", title: "Past", dueLocalDate: "2026-09-20", state: "active" },
+    ];
+    expect(nextTodayMilestone({ localDate, visibleTaskIds: [flexible.id], tasks: [flexible], projects: [{ id: "project-book", goalId: "goal-book" }], milestones: candidates })?.id).toBe("linked");
+    expect(nextTodayMilestone({ localDate, visibleTaskIds: [], tasks: [flexible], projects: [{ id: "project-book", goalId: "goal-book" }], milestones: candidates })).toBeNull();
+    const html = renderToday({ milestones: candidates, onOpenProject: vi.fn() });
+    expect(html).toContain("Finish chapter");
+    expect(html).toContain("Open Write the book");
+    expect(html).not.toContain("Unrelated");
   });
 
   it("chooses exactly one contextual header action in recovery, planning, then focus priority", () => {

@@ -31,3 +31,10 @@ This is the short decision register. [Historical design decisions](DESIGN_DECISI
 | Local cross-page UX redesign may proceed before deployment | Owner explicitly changed the sequence on 2026-10-01 after two independent read-only UX audits. This authorizes local branch work only; infrastructure validation remains mandatory before Vercel deployment, and migration/live-database gates remain unchanged. |
 
 Open questions and active gates live in [project state](PROJECT_STATE.md) and [the handoff](INDEPENDENT_STACK_HANDOFF.md), not in inferred completion labels here.
+## 2026-10-04: premium v2 checkpoint and visual benchmark
+
+Owner selected the Focus studio big watch (roughly half the desktop Focus workspace), factual habit heatmap, useful Next steps, and desktop Tasks/Habits bento. Phone keeps Work above Habits. Selected concept images are the minimum composition/typography/color benchmark, not screenshots of implemented functionality; improve readability and action flow without copying illustrative data. Keep modern coherent iconography rather than decorative provider logos implying a working integration. Preserve all established features and exact saved IDs/history.
+
+Selected Timeline reference: `design-system/personal-calander/concepts/2026-10-03-beyond-timeline-concept.png`. Weekly Plan reference: `2026-10-04-week-studio-concept.png` in the same folder. Both remain later checkpoint scope. Larger Focus and Today recorded-practice bento are this checkpoint, not a complete reconstruction of every page.
+
+Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, then stop for owner review. Owner explicitly requested automatic Vercel deployment enabled for this new branch; leave the old dev branch remotely untouched and deployment-disabled. A Git-connected Vercel project may create its Preview on push; confirm actual status/URL before claiming availability. No live schema changes, main merge, or production promotion. Source: [checkpoint plan](superpowers/plans/2026-10-04-premium-v2-checkpoint.md).

@@ -99,11 +99,7 @@ export function PlannerRail({
           <span className="brand-mark" aria-hidden="true">
             <span />
           </span>
-          <span>
-            Personal
-            <br />
-            <b>Calendar</b>
-          </span>
+          <span>Personal Calendar</span>
         </div>
         <button
           type="button"

@@ -18,6 +18,7 @@ export type InboxTriageProps = {
   onArchive: (task: CanonicalTask) => void | Promise<unknown>;
   onOpenDetail: (task: CanonicalTask, trigger: HTMLElement) => void;
   onCapture: () => void;
+  onStartFocus?: (task: CanonicalTask) => void;
   queryActive?: boolean;
   onResetQuery?: () => void;
 };
@@ -36,6 +37,7 @@ export function InboxTriage({
   onArchive,
   onOpenDetail,
   onCapture,
+  onStartFocus,
   queryActive = false,
   onResetQuery,
 }: InboxTriageProps) {
@@ -76,6 +78,8 @@ export function InboxTriage({
               childCount={childCounts.get(task.id)}
               pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
               contextualActionLabel="Plan today"
+              workspaceMenu
+              onStartFocus={onStartFocus}
               onToggle={onToggle}
               onArchive={onArchive}
               onPrimaryAction={taskToPlan => onPlanToday(taskToPlan)}

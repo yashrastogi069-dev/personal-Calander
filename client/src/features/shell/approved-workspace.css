@@ -1,0 +1,96 @@
+/* Approved white workspace reconstruction. Semantic colors remain token-owned. */
+html .phase4-planner-shell.phase4-planner-shell { --workspace-inset: 28px; grid-template-columns: 216px minmax(0, 1fr); }
+html .phase4-planner-shell.is-rail-collapsed { grid-template-columns: 76px minmax(0, 1fr); }
+html .phase4-planner-shell.phase4-planner-shell .planner-main { padding: 0 var(--workspace-inset) 28px; background: var(--surface); }
+html .phase4-planner-shell.phase4-planner-shell .planner-topbar { display: grid; grid-template-columns: minmax(0,1fr) auto; min-height: 76px; gap: 20px; padding: 9px 0; margin: 0; border: 0; }
+html .phase4-planner-shell.phase4-planner-shell .planner-title h1 { margin: 0; font: 700 30px/36px "Onest", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -.035em; }
+html .phase4-planner-shell.phase4-planner-shell .top-date { margin: 0; font: 400 15px/22px "Onest", ui-sans-serif, system-ui, sans-serif !important; color: var(--ink-muted); }
+html .phase4-planner-shell.phase4-planner-shell .phase4-top-actions { gap: 0; }
+html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions { gap: 12px; }
+html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions > button { min-height: 40px; height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; padding: 0 16px; }
+html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions > .is-search { width: 240px; justify-content: flex-start; border: 1px solid var(--border); background: var(--surface-elevated); }
+html .phase4-planner-shell.phase4-planner-shell .planner-view-navigation { margin: 0 calc(-1 * var(--workspace-inset)) 16px; padding-inline: var(--workspace-inset); border-bottom: 1px solid var(--border); }
+html .phase4-planner-shell.phase4-planner-shell .home-view-switch { margin: 0; gap: 20px; flex-wrap: nowrap; }
+html .phase4-planner-shell.phase4-planner-shell .home-view-switch button { flex: 0 0 auto; min-height: 44px; padding: 10px 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--ink-muted); font-size: 14px; }
+html .phase4-planner-shell.phase4-planner-shell .home-view-switch button[aria-current="page"] { border-bottom-color: var(--accent); background: transparent; color: var(--ink); font-weight: 650; }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools { position: relative; }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools > summary { display: grid; place-items: center; width: 40px; height: 40px; cursor: pointer; list-style: none; border-radius: 8px; color: var(--ink-muted); }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools > summary::-webkit-details-marker { display: none; }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools > summary > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools[open] > summary { background: var(--selection); color: var(--accent); }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools-content { position: absolute; right: 0; top: calc(100% + 8px); z-index: 55; width: 320px; max-width: calc(100vw - 32px); padding: 12px; display: grid; gap: 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-elevated); box-shadow: 0 8px 24px color-mix(in srgb,var(--ink) 10%,transparent); }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools:not([open]) > .planner-header-tools-content { display: none; }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools-content > button { justify-content: flex-start; min-height: 44px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools-content button span { position: static; width: auto; height: auto; overflow: visible; clip: auto; clip-path: none; }
+html .phase4-planner-shell.phase4-planner-shell .planner-header-tools :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-quick-entry > summary { width: auto; min-height: 44px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-sync-status.is-informational { margin: 0 0 12px; min-height: 32px; padding: 6px 10px; box-shadow: none; border: 0; background: var(--surface-subtle); }
+html .phase4-planner-shell.phase4-planner-shell .planner-sync-status.is-informational strong { font-size: 13px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-sync-status.is-informational span { font-size: 12px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-sync-status.is-actionable { margin: 0 0 16px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-rail { padding: 24px 12px 16px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-rail-heading { margin-bottom: 20px; gap: 4px; }
+html .phase4-planner-shell.phase4-planner-shell .brand-lockup { font-size: 14px; letter-spacing: -.015em; line-height: 1.4; }
+html .phase4-planner-shell.phase4-planner-shell .brand-lockup { gap: 8px; color: var(--ink); font-size: 15px; font-weight: 650; white-space: nowrap; }
+html .phase4-planner-shell.phase4-planner-shell .brand-mark { flex: 0 0 24px; width: 24px; height: 24px; border-radius: 6px; }
+html .phase4-planner-shell.phase4-planner-shell .rail-collapse-button { flex: 0 0 28px; width: 28px; min-width: 28px; height: 32px; padding: 0; }
+html .phase4-planner-shell.phase4-planner-shell .planner-nav { gap: 6px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-nav button { min-height: 44px; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-nav-secondary { gap: 0; margin-top: 16px; }
+html .phase4-planner-shell.phase4-planner-shell .planner-nav-secondary button { font-size: 13px; min-height: 40px; }
+html .phase4-planner-shell.phase4-planner-shell .workspace-pill { box-shadow: none; }
+
+/* Only the Home companion is reconstructed; the full Focus workspace stays intact. */
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home { position: relative; top: auto; width: 100%; min-height: 160px; margin: 0 0 16px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-elevated); box-shadow: none; }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-context { display: block; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home { --watch-face: 108px; flex-direction: row; align-items: center; text-align: left; gap: 24px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-face { border: 0; background: transparent; box-shadow: none; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-track { stroke: var(--selection); stroke-width: 10; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-progress { stroke-width: 10; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home :is(.focus-time-dial-core,.focus-time-dial-tick,.focus-time-dial-marker,.focus-time-dial-face-label,.focus-time-dial-face-time,.focus-time-dial-plan) { display: none; }
+html .phase4-planner-shell.phase4-planner-shell .focus-home-watch-icon { position: absolute; width: 30px; height: 30px; color: var(--accent); transform: none; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-readout { gap: 3px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-eyebrow { font-size: 13px; line-height: 18px; font-weight: 400; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-led { display: none; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-time { display: block; font: 650 48px/52px "Onest", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
+html .phase4-planner-shell.phase4-planner-shell .focus-home-watch-task { display: block; color: var(--ink); font-size: 22px; line-height: 28px; font-weight: 600; overflow-wrap: anywhere; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-target { font-size: 12px; line-height: 16px; font-weight: 400; }
+html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home.is-long-duration .focus-time-dial-time { font-size: 36px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions { display: grid; grid-template-columns: repeat(2,minmax(108px,1fr)); gap: 8px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions button { min-height: 44px; border-radius: 8px; font-size: 14px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions .focus-companion-open,
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions button[aria-expanded] { position: absolute; top: 4px; right: 4px; width: 44px; min-height: 44px; height: 44px; padding: 0 8px; background: transparent; border: 0; font-size: 12px; color: var(--ink-muted); }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-offline { margin: 0; color: var(--warning); font-size: 13px; }
+html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-error { margin: 0; color: var(--destructive); }
+
+@media (min-width:681px) and (max-width:1080px) {
+  html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions > .is-search { width: 144px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-main { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:680px) {
+  html .phase4-planner-shell.phase4-planner-shell { --workspace-inset: 16px; display: block; }
+  html .phase4-planner-shell.phase4-planner-shell .planner-main { padding: 0 var(--workspace-inset) calc(92px + env(safe-area-inset-bottom)) !important; }
+  html .phase4-planner-shell.has-focus-control:not([data-view="today"]):not([data-view="overview"]) .planner-main { padding-bottom: calc(245px + env(safe-area-inset-bottom)) !important; }
+  html .phase4-planner-shell.has-focus-control:has(.focus-companion:not(.is-home).is-expanded) .planner-main { padding-bottom: calc(460px + env(safe-area-inset-bottom)) !important; }
+  html .phase4-planner-shell.phase4-planner-shell .planner-topbar { min-height: 80px; gap: 8px; padding: 12px 0 8px; }
+  html .phase4-planner-shell.phase4-planner-shell .planner-title h1 { font-size: 28px !important; line-height: 34px !important; }
+  html .phase4-planner-shell.phase4-planner-shell .top-date { font-size: 14px !important; line-height: 20px !important; }
+  html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions { gap: 2px; }
+  html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions > button,
+  html .phase4-planner-shell.phase4-planner-shell .planner-header-tools > summary { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }
+  html .phase4-planner-shell.phase4-planner-shell .phase4-global-actions > .is-search { border: 0; width: 44px; min-width: 44px; background: transparent; }
+  html .phase4-planner-shell.phase4-planner-shell .planner-view-navigation { margin-bottom: 12px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home { right: auto; bottom: auto; left: auto; min-height: 176px; margin-bottom: 12px; padding: 12px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-main { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home { --watch-face: 88px; gap: 16px; flex-direction: row; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-time { font-size: 40px; line-height: 44px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home.is-long-duration .focus-time-dial-time { font-size: 29px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-home-watch-task { font-size: 15px; line-height: 20px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-eyebrow { font-size: 12px; line-height: 16px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-target { display: none; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-companion-actions button { min-height: 44px; height: 44px; }
+  html .phase4-planner-shell.phase4-planner-shell .focus-time-dial.is-home .focus-time-dial-readout { padding-right: 20px; }
+}

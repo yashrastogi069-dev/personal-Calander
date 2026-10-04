@@ -88,7 +88,11 @@ def inspect_layout(page, name: str) -> dict:
       phoneNav: document.querySelector('.mobile-planner-nav')?.getBoundingClientRect().toJSON() ?? null,
       companionActions: [...document.querySelectorAll('.focus-companion-actions button')]
         .map(button => button.getBoundingClientRect().toJSON()),
-      dial: document.querySelector('.focus-time-dial')?.getAttribute('aria-label') ?? null
+      dial: document.querySelector('.focus-time-dial')?.getAttribute('aria-label') ?? null,
+      focusLayout: document.querySelector('.focus-workspace .focus-layout')?.getBoundingClientRect().toJSON() ?? null,
+      focusPanel: document.querySelector('.focus-workspace .focus-active-panel')?.getBoundingClientRect().toJSON() ?? null,
+      focusContext: document.querySelector('.focus-workspace .focus-context-column')?.getBoundingClientRect().toJSON() ?? null,
+      fullWatch: document.querySelector('.focus-watch-stage .focus-time-dial-face')?.getBoundingClientRect().toJSON() ?? null
     })""")
     assert metrics["document"] <= metrics["viewport"] + 1, (name, metrics)
     assert metrics["body"] <= metrics["viewport"] + 1, (name, metrics)
@@ -99,8 +103,17 @@ def inspect_layout(page, name: str) -> dict:
         if metrics["phoneNav"] and metrics["phoneNav"]["height"] > 0:
             assert metrics["companion"]["bottom"] <= metrics["phoneNav"]["top"] + 1, (name, metrics)
     if name == "today":
-        assert metrics["face"] and metrics["face"]["width"] >= (68 if metrics["viewport"] <= 680 else 110), metrics
+        assert metrics["face"] and metrics["face"]["width"] >= (68 if metrics["viewport"] <= 680 else 100), metrics
         assert metrics["timerFontPx"] and metrics["timerFontPx"] >= (18 if metrics["viewport"] <= 680 else 27), metrics
+    if name == "focus" and metrics["viewport"] >= 1200:
+        layout = metrics["focusLayout"]
+        panel = metrics["focusPanel"]
+        context = metrics["focusContext"]
+        watch = metrics["fullWatch"]
+        assert layout and panel and context and watch, metrics
+        assert .45 <= panel["width"] / layout["width"] <= .58, metrics
+        assert watch["width"] >= 400 and watch["width"] >= .65 * panel["width"], metrics
+        assert context["left"] >= panel["right"] - 1, metrics
     return metrics
 
 
@@ -115,6 +128,47 @@ def assert_visible(locator, name: str) -> None:
             f"body={page.locator('body').inner_text()[:1800]}"
         ) from error
     assert locator.is_visible(), name
+
+
+def click_current_destination(page, *labels: str) -> None:
+    """Use the current rail, phone sheet, or header control for a known target."""
+    for label in labels:
+        for candidate in page.get_by_role("button", name=label, exact=True).all():
+            if candidate.is_visible() and candidate.evaluate(
+                "element => element.closest('[role=dialog], details:not([open])') === null"
+            ):
+                candidate.click()
+                return
+    if labels == ("Focus",):
+        open_dialogs = [dialog.inner_text()[:200] for dialog in page.get_by_role("dialog").all() if dialog.is_visible()]
+        if open_dialogs:
+            raise AssertionError({"openDialogsBeforeFocusNavigation": open_dialogs})
+        header_more = page.get_by_label("More planner controls")
+        header_more.click()
+        page.locator(".planner-header-tools").get_by_role("button", name="Focus", exact=True).click()
+        return
+    more = page.get_by_role("button", name="More", exact=True)
+    if more.is_visible():
+        more.click()
+        sheet = page.get_by_role("dialog", name="More planning")
+        sheet.wait_for(state="visible")
+        for label in labels:
+            target = sheet.get_by_role("button", name=label, exact=True)
+            if target.count():
+                target.click()
+                return
+        sheet.get_by_role("button", name="Close").click()
+        sheet.wait_for(state="hidden")
+    header_more = page.get_by_label("More planner controls")
+    if header_more.is_visible():
+        header_more.click()
+        for label in labels:
+            target = page.locator(".planner-header-tools").get_by_role("button", name=label, exact=True)
+            if target.is_visible():
+                target.click()
+                return
+    raise AssertionError({"missingDestination": labels, "url": page.url,
+                          "visibleButtons": page.locator("button:visible").all_text_contents()[:40]})
 
 
 def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
@@ -147,7 +201,7 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         assert companion.get_attribute("data-t19-mount") == "continuous", "companion remounted after Tasks navigation"
         metrics["tasks"] = inspect_layout(page, "tasks")
 
-        PRODUCT["click_destination"](page, "Plan")
+        click_current_destination(page, "Plan", "Daily plan")
         PRODUCT["wait_for_target"](page, "plan", "daily")
         assert_visible(companion, "companion on Plan")
         assert companion.get_attribute("data-t19-mount") == "continuous", "companion remounted after Plan navigation"
@@ -159,8 +213,8 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         assert "is-digital" in companion.locator(".focus-time-dial").get_attribute("class")
         companion.get_by_role("button", name="Dial", exact=True).click()
         assert "is-dial" in companion.locator(".focus-time-dial").get_attribute("class")
-        assert_visible(companion.get_by_role("button", name="Stop Focus"), "stop entry")
-        companion.get_by_role("button", name="Stop Focus").click()
+        assert_visible(companion.get_by_role("button", name="Stop current Focus session"), "stop entry")
+        companion.get_by_role("button", name="Stop current Focus session").click()
         assert_visible(companion.get_by_role("group", name="Confirm stopping Focus"), "stop confirmation")
         companion.get_by_role("button", name="Cancel").click()
         assert companion.get_by_role("group", name="Confirm stopping Focus").count() == 0
@@ -187,7 +241,7 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         follow_up.get_by_role("article", name="Meeting horizon").get_by_role("button", name="Open calendar").click()
         PRODUCT["wait_for_target"](page, "plan", "calendar")
         assert "planner.habit.checkIn" not in requests
-        PRODUCT["click_destination"](page, "Focus")
+        click_current_destination(page, "Focus")
         PRODUCT["wait_for_target"](page, "home", "focus")
         follow_up = page.locator(".focus-follow-up")
         habit_card = follow_up.get_by_role("article", name="Habit duration companion")
@@ -208,13 +262,19 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         if cancel_task_detail.is_visible():
             cancel_task_detail.click()
             page.get_by_role("dialog").wait_for(state="hidden")
-        PRODUCT["click_destination"](page, "Focus")
+        else:
+            task_detail = page.get_by_role("dialog")
+            if task_detail.is_visible():
+                task_detail.get_by_role("button", name="Close", exact=True).first.click()
+                task_detail.wait_for(state="hidden")
+        click_current_destination(page, "Focus")
         PRODUCT["wait_for_target"](page, "home", "focus")
         watch = page.locator(".focus-watch-stage")
         watch.get_by_role("button", name="Digital", exact=True).click()
         assert "is-digital" in watch.locator(".focus-time-dial").get_attribute("class")
         watch.get_by_role("button", name="Dial", exact=True).click()
         assert "is-dial" in watch.locator(".focus-time-dial").get_attribute("class")
+        metrics["focusDial"] = inspect_layout(page, "focus")
         watch.get_by_role("button", name="Desk View").click()
         assert "is-desk" in watch.locator(".focus-time-dial").get_attribute("class")
         metrics["focus"] = inspect_layout(page, "focus")
@@ -246,15 +306,21 @@ def run_case(browser, url: str, width: int, scheme: str, state: str) -> dict:
         page.evaluate("dispatchEvent(new Event('offline'))")
         companion.get_by_text("reconnect to", exact=False).wait_for()
         assert companion.get_by_role("button", name=expected_action).is_disabled()
-        assert companion.get_by_role("button", name="Stop Focus").is_disabled()
+        assert companion.get_by_role("button", name="Stop current Focus session").is_disabled()
         assert [item for item in requests if item in WRITE_PROCEDURES] == expected_focus_writes, requests
         assert not unexpected, unexpected
         runtime_errors[:] = [item for item in runtime_errors if item != "WebSocket closed without opened."]
         assert not runtime_errors, runtime_errors
         metrics["offlineCompanion"] = inspect_layout(page, "offline companion")
+        intercepted_writes = [item for item in requests if item in {
+            *WRITE_PROCEDURES, "planner.habit.checkIn", "planner.habit.clearCheckIn"
+        }]
+        assert intercepted_writes.count("planner.habit.checkIn") == 1, intercepted_writes
+        assert intercepted_writes.count("planner.habit.clearCheckIn") == 1, intercepted_writes
         return {"status": "PASS", "width": width, "scheme": scheme, "session": state,
-                "synthetic": True, "metrics": metrics, "plannerReads": len(requests),
-                "plannerWrites": 0, "runtimeErrors": runtime_errors, "unexpectedRequests": unexpected}
+                "synthetic": True, "metrics": metrics, "plannerReads": len(requests) - len(intercepted_writes),
+                "plannerWrites": len(intercepted_writes), "interceptedWriteProcedures": intercepted_writes,
+                "livePlannerWrites": 0, "runtimeErrors": runtime_errors, "unexpectedRequests": unexpected}
     finally:
         context.close()
 

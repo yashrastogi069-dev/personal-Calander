@@ -464,41 +464,41 @@ export function TaskDetailSheet({
         <fieldset className="task-detail-editor-fields" disabled={saving}>
 
         <section className="task-detail-section" aria-labelledby="task-detail-core">
-          <h3 id="task-detail-core">Commitment</h3>
+          <h3 id="task-detail-core">Task</h3>
           <label>Task title<Input value={draft.title ?? ""} onChange={event => setField("title", event.target.value)} /></label>
           <label>Description<textarea value={draft.description ?? ""} onChange={event => setField("description", event.target.value)} maxLength={10000} /></label>
           <div className="task-detail-grid">
-            <label>Lifecycle<select value={draft.state ?? "not_started"} onChange={event => setField("state", event.target.value)}>{["not_started", "in_progress", "blocked", "completed", "archived"].map(value => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
-            <label>Priority<select value={draft.priority ?? "medium"} onChange={event => setField("priority", event.target.value)}>{["none", "low", "medium", "high", "critical"].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-            <label>Horizon<select value={draft.horizon ?? "weekly"} onChange={event => setField("horizon", event.target.value)}>{["daily", "weekly", "monthly", "quarterly", "yearly", "someday"].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-            <label>Scheduling mode<select value={draft.scheduleMode ?? "manual"} onChange={event => setField("scheduleMode", event.target.value)}><option value="manual">Manual</option><option value="flexible">Flexible</option><option value="pinned">Pinned</option></select></label>
+            <label>Status<select value={draft.state ?? "not_started"} onChange={event => setField("state", event.target.value)}>{["not_started", "in_progress", "blocked", "completed", "archived"].map(value => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
+            <label>Project<select value={draft.projectId ?? "none"} onChange={event => setField("projectId", event.target.value)}><option value="none">No project</option>{draft.projectId !== "none" && !projectOptions.some(item => item.id === draft.projectId) ? <option value={draft.projectId}>Linked project unavailable</option> : null}{projectOptions.map(item => <option key={item.id} value={item.id}>{item.title}{item.state === "archived" ? " (archived)" : ""}</option>)}</select></label>
           </div>
         </section>
 
         <section className="task-detail-section" aria-labelledby="task-detail-time">
-          <h3 id="task-detail-time">Dates and time</h3>
+          <h3 id="task-detail-time">Plan</h3>
           <div className="task-detail-grid">
             <label>{taskSchedulingLanguage.deadline.label}<Input type="date" value={draft.dueLocalDate ?? ""} onChange={event => setField("dueLocalDate", event.target.value)} /></label>
             <label>{taskSchedulingLanguage.planFor.label}<Input type="date" value={draft.scheduledLocalDate ?? ""} onChange={event => setField("scheduledLocalDate", event.target.value)} /></label>
-            <label>Reserved start<Input type="datetime-local" value={draft.plannedStartAt ?? ""} onChange={event => setField("plannedStartAt", event.target.value)} /></label>
-            <label>Reserved end<Input type="datetime-local" value={draft.plannedEndAt ?? ""} onChange={event => setField("plannedEndAt", event.target.value)} /></label>
             <label>{taskSchedulingLanguage.focusTime.label}<Input type="number" min="0" max="1440" value={draft.estimateMinutes ?? ""} onChange={event => setField("estimateMinutes", event.target.value)} /></label>
-            <div className="task-detail-fact"><span>Order</span><strong>{task.sortOrder ?? 0}</strong></div>
           </div>
         </section>
 
-        <section className="task-detail-section" aria-labelledby="task-detail-links">
-          <h3 id="task-detail-links">Connected work</h3>
-          <div className="task-detail-grid">
-            <label>Project<select value={draft.projectId ?? "none"} onChange={event => setField("projectId", event.target.value)}><option value="none">No project</option>{draft.projectId !== "none" && !projectOptions.some(item => item.id === draft.projectId) ? <option value={draft.projectId}>Linked project unavailable</option> : null}{projectOptions.map(item => <option key={item.id} value={item.id}>{item.title}{item.state === "archived" ? " (archived)" : ""}</option>)}</select></label>
-            <label>Goal<select value={draft.goalId ?? "none"} onChange={event => setField("goalId", event.target.value)}><option value="none">No goal</option>{draft.goalId !== "none" && !goalOptions.some(item => item.id === draft.goalId) ? <option value={draft.goalId}>Linked goal unavailable</option> : null}{goalOptions.map(item => <option key={item.id} value={item.id}>{item.title}{item.state === "archived" ? " (archived)" : ""}</option>)}</select></label>
-            <label>Category<select value={draft.categoryId ?? "none"} onChange={event => setField("categoryId", event.target.value)}><option value="none">No category</option>{draft.categoryId !== "none" && !categories.some(item => item.id === draft.categoryId) ? <option value={draft.categoryId}>Linked category unavailable</option> : null}{categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          </div>
+        <section className="task-detail-section" aria-labelledby="task-detail-subtasks">
+          <h3 id="task-detail-subtasks">Subtasks <span className="task-detail-section-count">{childTasks.length}</span></h3>
+          {childTasks.length ? <ul>{childTasks.map(child => <li key={child.id}>{child.title}<span>{child.state.replaceAll("_", " ")}</span></li>)}</ul> : <p>No subtasks yet.</p>}
+          <Label htmlFor={`task-subtask-${task.id}`}>New subtask</Label>
+          <div className="task-detail-inline-create"><Input id={`task-subtask-${task.id}`} value={subtaskTitle} onChange={event => updateEditor(task, current => ({ ...current, subtaskTitle: event.target.value }))} placeholder="Add a concrete subtask" /><Button type="button" variant="outline" onClick={() => void addSubtask()} disabled={saving || !subtaskTitle.trim()}>Add subtask</Button></div>
         </section>
 
         <details className="task-detail-more">
-          <summary><span>More task options <ChevronDown aria-hidden="true" size={18} /></span><small>{taskInspectorRecurrenceSummary(draft)} · {childTasks.length} subtask{childTasks.length === 1 ? "" : "s"} · {dependencySummary}</small></summary>
+          <summary><span>Schedule <ChevronDown aria-hidden="true" size={18} /></span><small>{draft.plannedStartAt && draft.plannedEndAt ? "Reserved time set" : "No reserved time"} · {taskInspectorRecurrenceSummary(draft)}</small></summary>
           <div className="task-detail-more-content">
+        <section className="task-detail-section" aria-labelledby="task-detail-reservation">
+          <h3 id="task-detail-reservation">Reserved time</h3>
+          <div className="task-detail-grid">
+            <label>Reserved start<Input type="datetime-local" value={draft.plannedStartAt ?? ""} onChange={event => setField("plannedStartAt", event.target.value)} /></label>
+            <label>Reserved end<Input type="datetime-local" value={draft.plannedEndAt ?? ""} onChange={event => setField("plannedEndAt", event.target.value)} /></label>
+          </div>
+        </section>
         <section className="task-detail-section" aria-labelledby="task-detail-repeat">
           <h3 id="task-detail-repeat">Recurrence</h3>
           <div className="task-detail-grid">
@@ -510,11 +510,18 @@ export function TaskDetailSheet({
           <p>Occurrence decisions remain in occurrence history; editing this form does not rewrite past occurrences.</p>
         </section>
 
-        <section className="task-detail-section" aria-labelledby="task-detail-subtasks">
-          <h3 id="task-detail-subtasks">Subtasks</h3>
-          {childTasks.length ? <ul>{childTasks.map(child => <li key={child.id}>{child.title}<span>{child.state.replaceAll("_", " ")}</span></li>)}</ul> : <p>No subtasks yet.</p>}
-          <Label htmlFor={`task-subtask-${task.id}`}>New subtask</Label>
-          <div className="task-detail-inline-create"><Input id={`task-subtask-${task.id}`} value={subtaskTitle} onChange={event => updateEditor(task, current => ({ ...current, subtaskTitle: event.target.value }))} placeholder="Add a concrete subtask" /><Button type="button" variant="outline" onClick={() => void addSubtask()} disabled={saving || !subtaskTitle.trim()}>Add subtask</Button></div>
+          </div>
+        </details>
+
+        <details className="task-detail-more">
+          <summary><span>Relationships <ChevronDown aria-hidden="true" size={18} /></span><small>{draft.goalId && draft.goalId !== "none" ? "Goal linked" : "No goal"} · {draft.categoryId && draft.categoryId !== "none" ? "Category linked" : "No category"} · {dependencySummary}</small></summary>
+          <div className="task-detail-more-content">
+        <section className="task-detail-section" aria-labelledby="task-detail-links">
+          <h3 id="task-detail-links">Linked work</h3>
+          <div className="task-detail-grid">
+            <label>Goal<select value={draft.goalId ?? "none"} onChange={event => setField("goalId", event.target.value)}><option value="none">No goal</option>{draft.goalId !== "none" && !goalOptions.some(item => item.id === draft.goalId) ? <option value={draft.goalId}>Linked goal unavailable</option> : null}{goalOptions.map(item => <option key={item.id} value={item.id}>{item.title}{item.state === "archived" ? " (archived)" : ""}</option>)}</select></label>
+            <label>Category<select value={draft.categoryId ?? "none"} onChange={event => setField("categoryId", event.target.value)}><option value="none">No category</option>{draft.categoryId !== "none" && !categories.some(item => item.id === draft.categoryId) ? <option value={draft.categoryId}>Linked category unavailable</option> : null}{categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          </div>
         </section>
 
         <section className="task-detail-section" aria-labelledby="task-detail-dependencies">
@@ -523,6 +530,21 @@ export function TaskDetailSheet({
           {onAddDependency ? <><Label htmlFor={`task-dependency-${task.id}`}>Task this work depends on</Label><div className="task-detail-inline-create"><select id={`task-dependency-${task.id}`} value={dependencyTaskId} onChange={event => updateEditor(task, current => ({ ...current, dependencyTaskId: event.target.value, dependencyError: null }))}><option value="none">Choose a task</option>{dependencyCandidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}</select><Button type="button" variant="outline" disabled={!isOnline || dependencyTaskId === "none" || dependencyPending !== null} onClick={() => void addDependency()}>{dependencyPending === "add" ? "Adding…" : "Add dependency"}</Button></div></> : null}
           {!isOnline ? <p>Reconnect to change dependencies. Your task draft remains here.</p> : null}
           {dependencyError ? <p className="form-error" role="alert">{dependencyError} Your selection is still available; review it and retry.</p> : null}
+        </section>
+          </div>
+        </details>
+
+        <details className="task-detail-more">
+          <summary><span>More properties <ChevronDown aria-hidden="true" size={18} /></span><small>{draft.priority ?? "medium"} priority · {draft.horizon ?? "weekly"} horizon · {draft.scheduleMode ?? "manual"} schedule</small></summary>
+          <div className="task-detail-more-content">
+        <section className="task-detail-section" aria-labelledby="task-detail-properties">
+          <h3 id="task-detail-properties">Planning properties</h3>
+          <div className="task-detail-grid">
+            <label>Priority<select value={draft.priority ?? "medium"} onChange={event => setField("priority", event.target.value)}>{["none", "low", "medium", "high", "critical"].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+            <label>Horizon<select value={draft.horizon ?? "weekly"} onChange={event => setField("horizon", event.target.value)}>{["daily", "weekly", "monthly", "quarterly", "yearly", "someday"].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+            <label>Scheduling mode<select value={draft.scheduleMode ?? "manual"} onChange={event => setField("scheduleMode", event.target.value)}><option value="manual">Manual</option><option value="flexible">Flexible</option><option value="pinned">Pinned</option></select></label>
+            <div className="task-detail-fact"><span>Order</span><strong>{task.sortOrder ?? 0}</strong></div>
+          </div>
         </section>
         <section className="task-detail-section" aria-labelledby="task-detail-record">
           <h3 id="task-detail-record">Record facts</h3>

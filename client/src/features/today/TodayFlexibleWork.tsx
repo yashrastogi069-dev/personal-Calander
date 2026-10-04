@@ -52,8 +52,7 @@ export function TodayFlexibleWork({
     <section className="today-flexible" data-today-section="flexible" aria-labelledby="today-flexible-heading">
       <header className="today-section-heading">
         <div>
-          <span>Flexible work</span>
-          <h2 id="today-flexible-heading">Choose what fits</h2>
+          <h2 id="today-flexible-heading">Your work</h2>
         </div>
         <small>{rows.length} {rows.length === 1 ? "item" : "items"}</small>
       </header>
@@ -87,7 +86,7 @@ export function TodayFlexibleWork({
             : `Open ${task.title} in ${linkedResolution === "plan" ? "Plan" : "Review"}`;
           return (
             <div className="today-flexible-row" key={row.recordId} data-today-task-source={row.source}>
-              <span className="today-source-label">{sourceLabel[row.source]}{linkedResolution ? ` · ${resolutionCopy}` : null}</span>
+              {row.source !== "planned_no_time" || linkedResolution ? <span className="today-source-label">{sourceLabel[row.source]}{linkedResolution ? ` · ${resolutionCopy}` : null}</span> : null}
               <CanonicalTaskRow
                 task={task}
                 context={{

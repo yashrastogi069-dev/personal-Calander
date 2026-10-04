@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { FOCUS_OFFLINE_GUIDANCE, formatElapsedDuration, formatFocusTargetGuidance, initialFocusTaskSelection, newestFinishedSession, runFocusMutation } from "./FocusWorkspace";
+import { FOCUS_OFFLINE_GUIDANCE, focusEstimateSignalLabel, formatElapsedDuration, formatFocusTargetGuidance, initialFocusTaskSelection, newestFinishedSession, runFocusMutation } from "./FocusWorkspace";
+
+describe("focus estimate signal", () => {
+  it("describes actual time relative to the estimate", () => {
+    expect(focusEstimateSignalLabel("underestimated")).toBe("Actual over estimate");
+    expect(focusEstimateSignalLabel("overestimated")).toBe("Actual under estimate");
+    expect(focusEstimateSignalLabel("on_target")).toBe("On target");
+    expect(focusEstimateSignalLabel("not_enough_data")).toBe("Need data");
+  });
+});
 
 describe("latest finished handoff", () => {
   const older = { id: "older", version: 3, endedAt: "2026-10-03T09:00:00Z" };

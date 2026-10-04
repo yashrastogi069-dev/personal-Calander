@@ -3,7 +3,8 @@
   "framework": null,
   "git": {
     "deploymentEnabled": {
-      "dev/personal-calendar-workbench": false
+      "dev/personal-calendar-workbench": false,
+      "dev/personal-calendar-premium-v2": true
     }
   },
   "buildCommand": "pnpm run build:client",

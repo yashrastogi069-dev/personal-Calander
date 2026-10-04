@@ -11,7 +11,7 @@ import {
   type TaskBoardLaneId,
 } from "@shared/taskBoard";
 import type { TaskBoardFilter } from "@shared/taskBoardUrl";
-import { ArchiveRestore, GripVertical, Inbox, List, Search } from "lucide-react";
+import { ArchiveRestore, GripVertical, Inbox, List, Search, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CanonicalTaskRow } from "./CanonicalTaskRow";
@@ -312,6 +312,10 @@ export function TaskWorkspace({
       parentTitle={task.parentTaskId ? taskTitles.get(task.parentTaskId) : null}
       childCount={childCounts.get(task.id)}
       pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
+      workspaceMenu
+      onStartFocus={onStartFocus}
+      contextualActionLabel={onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do" ? "Focus" : undefined}
+      onPrimaryAction={onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do" ? () => onStartFocus(task) : undefined}
       onToggle={toggle}
       onArchive={archive}
       onOpenDetail={openDetail}
@@ -319,22 +323,18 @@ export function TaskWorkspace({
   );
 
   return (
-    <section className="task-workspace" aria-labelledby="task-workspace-heading">
+    <section className="task-workspace" aria-label="Task workspace">
       <header className="task-workspace-heading">
-        <div>
-          <span className="eyebrow">One record across every view</span>
-          <h2 id="task-workspace-heading">Tasks</h2>
-          <p>Inbox, List, Board, saved views, Search, Today, and archive all open the same task identity.</p>
-        </div>
-        <Button type="button" onClick={onCapture}>Capture</Button>
+        <p className="task-workspace-count">{filtered.length} {view === "archive" ? "archived" : view === "inbox" ? "in Inbox" : "in this view"}</p>
       </header>
 
       <nav className="task-workspace-tabs" aria-label="Task views">
-        {(["inbox", "list", "board", "saved", "archive"] as TaskWorkspaceView[]).map(item => (
+        {(["inbox", "list", "board", "saved"] as TaskWorkspaceView[]).map(item => (
           <button key={item} type="button" aria-current={view === item ? "page" : undefined} className={cn(view === item && "is-active")} onClick={() => onViewChange(item)}>
             {item === "inbox" ? "Inbox" : item.charAt(0).toUpperCase() + item.slice(1)}
           </button>
         ))}
+        <button type="button" className={cn("task-archive-switch", view === "archive" && "is-active")} aria-current={view === "archive" ? "page" : undefined} onClick={() => onViewChange("archive")}><ArchiveRestore aria-hidden="true" size={16} /> Archive</button>
       </nav>
 
       {view !== "saved" ? (
@@ -343,10 +343,15 @@ export function TaskWorkspace({
           {view !== "archive" && view !== "inbox" ? (
             <><div className="filter-group" aria-label="Task filters">
               {(["all", "open", "today", "deadline_risk"] as TaskBoardFilter[]).map(item => <button key={item} type="button" className={cn(filter === item && "is-active")} onClick={() => onViewStateChange({ query, filter: item, sort })}>{item === "deadline_risk" ? "Deadline risk" : item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
-            </div><label className="task-sort">Order<select value={sort} onChange={event => onViewStateChange({ query, filter, sort: event.target.value as TaskWorkspaceSort })}><option value="manual">Manual</option><option value="priority">Priority</option><option value="due">Due date</option><option value="scheduled">Planned date</option><option value="created">Newest</option></select></label></>
+            </div><label className="task-filter-mobile">Filter<select value={filter} onChange={event => onViewStateChange({ query, filter: event.target.value as TaskBoardFilter, sort })} aria-label="Filter tasks"><option value="all">All</option><option value="open">Open</option><option value="today">Today</option><option value="deadline_risk">Deadline risk</option></select></label><label className="task-sort">Order<select value={sort} onChange={event => onViewStateChange({ query, filter, sort: event.target.value as TaskWorkspaceSort })}><option value="manual">Manual</option><option value="priority">Priority</option><option value="due">Due date</option><option value="scheduled">Planned date</option><option value="created">Newest</option></select></label></>
           ) : null}
         </div>
       ) : null}
+
+      {(query.trim() || (view === "list" || view === "board") && filter !== "all") ? <div className="task-active-filters" aria-label="Active task filters">
+        {query.trim() ? <button type="button" onClick={() => onViewStateChange({ query: "", filter, sort })}>Search: {query.trim()} <X aria-hidden="true" size={14} /><span className="sr-only">Remove search filter</span></button> : null}
+        {(view === "list" || view === "board") && filter !== "all" ? <button type="button" onClick={() => onViewStateChange({ query, filter: "all", sort })}>{filter === "deadline_risk" ? "Deadline risk" : filter === "today" ? "Today" : "Open"} <X aria-hidden="true" size={14} /><span className="sr-only">Remove task filter</span></button> : null}
+      </div> : null}
 
       {undo ? <div className="task-undo" role="status"><span>{undo.label}</span><button type="button" onClick={() => void undoLast()}>Undo</button><button type="button" aria-label="Dismiss undo" onClick={() => setUndo(null)}>×</button></div> : null}
 
@@ -365,6 +370,7 @@ export function TaskWorkspace({
           onArchive={archive}
           onOpenDetail={openDetail}
           onCapture={onCapture}
+          onStartFocus={onStartFocus}
           queryActive={Boolean(query.trim())}
           onResetQuery={() => onViewStateChange({ query: "", filter, sort })}
         />

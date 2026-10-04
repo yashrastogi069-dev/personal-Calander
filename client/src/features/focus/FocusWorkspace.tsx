@@ -22,7 +22,6 @@ import {
   Pause,
   Play,
   Square,
-  TimerReset,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -70,6 +69,17 @@ export function initialFocusTaskSelection(
       ? initialTaskId
       : "none";
   return eligibleTasks[0]?.id ?? "none";
+}
+
+export function focusEstimateSignalLabel(
+  direction: ReturnType<typeof focusEstimateAccuracy>["direction"]
+) {
+  switch (direction) {
+    case "not_enough_data": return "Need data";
+    case "on_target": return "On target";
+    case "underestimated": return "Actual over estimate";
+    case "overestimated": return "Actual under estimate";
+  }
 }
 
 type FinishedSession = { id: string; version: number; endedAt?: string | Date | null; startedAt?: string | Date | null };
@@ -391,13 +401,9 @@ export function FocusWorkspace({
     >
       <header className="focus-workspace-header">
         <div>
-          <h2 id="focus-workspace-heading">Protect one block of attention.</h2>
-          <p>
-            Focus time is factual: pausing stops the clock, and finishing asks
-            what changed instead of guessing.
-          </p>
+          <h2 id="focus-workspace-heading">Focus</h2>
+          <p>A calm space to make meaningful progress.</p>
         </div>
-        <TimerReset size={30} aria-hidden="true" />
       </header>
       {!isOnline ? (
         <p className="focus-offline-guidance" role="status" aria-live="polite">
@@ -417,7 +423,7 @@ export function FocusWorkspace({
           </button>
         </div>
       ) : null}
-      <div className="focus-layout">
+      <div className={cn("focus-layout", active && "is-session-active")}>
         {!active ? (
           <section className="focus-start-panel">
             <div className="focus-title-row">
@@ -541,8 +547,16 @@ export function FocusWorkspace({
             )}
           >
             <div className="focus-watch-stage">
+              {activeSession ? (
+                <FocusTimeDial
+                  session={activeSession}
+                  title={activeTask?.title ?? "Unlinked focus session"}
+                  presentation={presentation}
+                  size={deskView ? "desk" : "full"}
+                  confirmedOnline={isOnline}
+                />
+              ) : null}
               <div className="focus-watch-toolbar">
-                <p>Focus stays with you as you move through the planner.</p>
                 <div
                   className="focus-watch-view-options"
                   role="group"
@@ -571,15 +585,6 @@ export function FocusWorkspace({
                   </button>
                 </div>
               </div>
-              {activeSession ? (
-                <FocusTimeDial
-                  session={activeSession}
-                  title={activeTask?.title ?? "Unlinked focus session"}
-                  presentation={presentation}
-                  size={deskView ? "desk" : "full"}
-                  confirmedOnline={isOnline}
-                />
-              ) : null}
             </div>
             <div className="focus-active-task">
               {initialTaskId && active.taskId !== initialTaskId ? (
@@ -738,7 +743,35 @@ export function FocusWorkspace({
             </div>
           </section>
         )}
-        <aside className="focus-evidence-panel">
+        <div className="focus-context-column">
+          <div className="focus-context-heading">
+            <span>Next steps</span>
+            <h3>Keep the work moving</h3>
+            <p>Context for this block, drawn from your saved work.</p>
+          </div>
+          <FocusFollowUpPanel
+            snapshot={{ ...snapshot, focusSessions: followUpSessions }}
+            today={today}
+            activeSession={
+              activeSession?.id === recentFinishedSession?.id
+                ? undefined
+                : activeSession
+            }
+            handoff={handoff}
+            isOnline={isOnline}
+            isSavingFollowUp={setFollowUp.isPending}
+            followUpError={followUpError}
+            onClearFollowUpError={() => setFollowUpError(null)}
+            onSaveFollowUp={saveFollowUp}
+            onOpenTask={onOpenTask}
+            onOpenHabit={onOpenHabit}
+            onOpenCalendar={onOpenCalendar}
+            onOpenPlan={onOpenPlan}
+            onResumeFocus={resumeSession}
+            onCheckInHabit={onHabitCheckIn}
+            onClearHabitCheckIn={onClearHabitCheckIn}
+          />
+          <aside className="focus-evidence-panel">
           <div>
             <span>Focus evidence</span>
             <h3>Measured, not assumed</h3>
@@ -754,15 +787,7 @@ export function FocusWorkspace({
             </div>
             <div>
               <dt>Estimate signal</dt>
-              <dd>
-                {accuracy.direction === "not_enough_data"
-                  ? "Need data"
-                  : accuracy.direction === "on_target"
-                    ? "On target"
-                    : accuracy.direction === "underestimated"
-                      ? "Under by avg."
-                      : "Over by avg."}
-              </dd>
+              <dd>{focusEstimateSignalLabel(accuracy.direction)}</dd>
             </div>
           </dl>
           <p>
@@ -777,29 +802,8 @@ export function FocusWorkspace({
               time at the desk.
             </span>
           </div>
-        </aside>
-        <FocusFollowUpPanel
-          snapshot={{ ...snapshot, focusSessions: followUpSessions }}
-          today={today}
-          activeSession={
-            activeSession?.id === recentFinishedSession?.id
-              ? undefined
-              : activeSession
-          }
-          handoff={handoff}
-          isOnline={isOnline}
-          isSavingFollowUp={setFollowUp.isPending}
-          followUpError={followUpError}
-          onClearFollowUpError={() => setFollowUpError(null)}
-          onSaveFollowUp={saveFollowUp}
-          onOpenTask={onOpenTask}
-          onOpenHabit={onOpenHabit}
-          onOpenCalendar={onOpenCalendar}
-          onOpenPlan={onOpenPlan}
-          onResumeFocus={resumeSession}
-          onCheckInHabit={onHabitCheckIn}
-          onClearHabitCheckIn={onClearHabitCheckIn}
-        />
+          </aside>
+        </div>
       </div>
     </section>
   );

@@ -11,14 +11,11 @@ import type {
   TodayTaskOccurrence,
 } from "@shared/todayProjection";
 import {
-  AlertTriangle,
   ArrowRight,
   CalendarCheck2,
   Check,
   ChevronDown,
-  Clock3,
-  ListChecks,
-  Play,
+  CalendarDays,
   Sparkles,
   WifiOff,
 } from "lucide-react";
@@ -26,6 +23,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TodayFlexibleWork } from "./TodayFlexibleWork";
 import { TodayHabits } from "./TodayHabits";
 import { TodayTimeline } from "./TodayTimeline";
+import { nextTodayMilestone, type TodayHabitCheckInFact, type TodayMilestoneFact } from "./todayContext";
 import {
   RecoveryIndicator,
   type AccountabilityLevel,
@@ -182,7 +180,9 @@ export type TodayWorkspaceProps = {
   projection: TodayProjection;
   tasks: CanonicalTask[];
   habits: Array<{ id: string; name: string; color?: string | null }>;
-  projects: Array<{ id: string; title: string }>;
+  habitCheckIns?: TodayHabitCheckInFact[];
+  milestones?: TodayMilestoneFact[];
+  projects: Array<{ id: string; title: string; goalId?: string | null }>;
   goals: Array<{ id: string; title: string }>;
   categories: Array<{ id: string; name: string }>;
   dependencies?: any[];
@@ -209,6 +209,8 @@ export type TodayWorkspaceProps = {
   onResolveRecovery: () => void;
   onOpenHabits: () => void;
   onOpenHabit?: (habitId: string) => void;
+  onOpenProject?: (projectId: string) => void;
+  onOpenCalendar?: () => void;
   onToggleTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onUpdateTask: (
@@ -239,6 +241,8 @@ export function TodayWorkspace({
   projection,
   tasks,
   habits,
+  habitCheckIns = [],
+  milestones = [],
   projects,
   goals,
   categories,
@@ -266,6 +270,8 @@ export function TodayWorkspace({
   onResolveRecovery,
   onOpenHabits,
   onOpenHabit,
+  onOpenProject,
+  onOpenCalendar,
   onToggleTask,
   onArchiveTask,
   onUpdateTask,
@@ -394,6 +400,15 @@ export function TodayWorkspace({
   }, 0);
   const unavailableMinutes = projection.capacity.breakMinutes;
   const suggestions = todaySuggestions({ projection, tasks, habits, projects });
+  const nextMilestone = nextTodayMilestone({
+    localDate: projection.localDate,
+    visibleTaskIds: [...projection.flexible, ...projection.timeline.filter(row => row.kind === "task")].map(row => row.recordId),
+    tasks,
+    projects,
+    milestones,
+  });
+  const milestoneGoal = nextMilestone?.goalId ? goals.find(goal => goal.id === nextMilestone.goalId) : null;
+  const milestoneProject = nextMilestone?.goalId ? projects.find(project => project.goalId === nextMilestone.goalId) : null;
 
   const openLinkedResolution = (task: CanonicalTask) => {
     const route = linkedResolutionByTaskId.get(task.id);
@@ -484,50 +499,25 @@ export function TodayWorkspace({
   const resolveRecovery = () => {
     onResolveRecovery();
   };
-  const runHeaderAction = () => {
-    if (!headerAction) return;
-    if (headerAction.id === "resolve_recovery") return resolveRecovery();
-    if (headerAction.id === "plan_today") return onPlanToday();
-    if (focusTask) startFocus(focusTask);
-  };
-
   return (
     <section className="today-workspace" aria-label="Today's work">
-      {headerAction ? (
-        <section
-          className="today-next-step-mobile"
-          data-today-section="next-step"
-          aria-label="Your next step"
-        >
-          <div>
-            <span>Next step</span>
-            <strong>
-              {headerAction.id === "resolve_recovery"
-                ? "Review earlier work"
-                : headerAction.id === "plan_today"
-                  ? "Choose what matters today"
-                  : focusTask?.title ?? "Continue your day"}
-            </strong>
-            {headerAction.id === "start_focus" ? (
-              <small>Start a focus session when you’re ready.</small>
-            ) : null}
+      <div className="today-capacity-strip" data-today-section="summary">
+        <details className="today-summary" aria-label="Today commitment and capacity details">
+          <summary>
+            <span className="today-summary-heading">{commitmentCount} commitments · {minutesLabel(projection.capacity.knownDemandMinutes)} known <ChevronDown aria-hidden="true" size={17} /></span>
+            <small>{projection.capacity.unestimatedTaskCount ? `${projection.capacity.unestimatedTaskCount} without estimates` : "All known demand estimated"}</small>
+          </summary>
+          <div className="today-summary-metrics">
+            <div><span>Commitments</span><strong>{commitmentCount} chosen</strong><small>{recoveryCount ? `${recoveryCount} earlier ${recoveryCount === 1 ? "item" : "items"} for review` : "No unresolved earlier plan"}</small></div>
+            <div><span>Scheduled demand</span><strong>{minutesLabel(projection.capacity.busyMinutes)}</strong><small>Merged timed work and busy context</small></div>
+            <div><span>Flexible estimates</span><strong>{minutesLabel(flexibleEstimateMinutes)}</strong><small>{projection.flexible.length} planned without a time</small></div>
+            <div><span>Unavailable</span><strong>{isUnavailableToday ? "All day" : minutesLabel(unavailableMinutes)}</strong><small>{isUnavailableToday ? "Availability exception" : "Break allowance; calendar busy is above"}</small></div>
+            <div><span>Estimate gaps</span><strong>{projection.capacity.unestimatedTaskCount}</strong><small>{projection.capacity.isCompleteEstimate ? "Known demand is fully estimated" : "Not counted as zero"}</small></div>
           </div>
-          <Button
-            type="button"
-            className="today-primary-action"
-            onClick={runHeaderAction}
-          >
-            {headerAction.id === "resolve_recovery" ? (
-              <AlertTriangle aria-hidden="true" size={18} />
-            ) : headerAction.id === "plan_today" ? (
-              <ListChecks aria-hidden="true" size={18} />
-            ) : (
-              <Play aria-hidden="true" size={18} />
-            )}
-            {headerAction.label}
-          </Button>
-        </section>
-      ) : null}
+        </details>
+        {headerAction?.id === "start_focus" && focusTask ? <button className="today-context-action" type="button" onClick={() => startFocus(focusTask)}>Focus {focusTask.title}</button> : null}
+        <Button type="button" className="today-plan-action" onClick={onPlanToday}><CalendarDays aria-hidden="true" size={17} />Plan day</Button>
+      </div>
 
       {captureStatus}
 
@@ -561,204 +551,60 @@ export function TodayWorkspace({
       ) : null}
 
       <div className="today-execution-grid">
-        <TodayFlexibleWork
-          rows={projection.flexible}
-          tasks={tasks}
-          localDate={projection.localDate}
-          timezone={timezone}
-          projectTitles={projectTitles}
-          goalTitles={goalTitles}
-          categoryNames={categoryNames}
-          pendingTaskIds={pendingTaskIds}
-          linkedResolutionByTaskId={linkedResolutionByTaskId}
-          linkedPlanContextByTaskId={linkedPlanContextByTaskId}
-          onOpenLinkedResolution={openLinkedResolution}
-          onToggleTask={toggleTask}
-          onArchiveTask={onArchiveTask}
-          onStartFocus={startFocus}
-          onOpenTask={openTask}
-        />
-        <TodayTimeline
-          rows={projection.timeline}
-          tasks={tasks}
-          timezone={timezone}
-          projectTitles={projectTitles}
-          goalTitles={goalTitles}
-          categoryNames={categoryNames}
-          pendingTaskIds={pendingTaskIds}
-          linkedResolutionByTaskId={linkedResolutionByTaskId}
-          linkedPlanContextByTaskId={linkedPlanContextByTaskId}
-          onOpenLinkedResolution={openLinkedResolution}
-          onToggleTask={toggleTask}
-          onArchiveTask={onArchiveTask}
-          onStartFocus={startFocus}
-          onOpenTask={openTask}
-        />
+        <div className="today-work-column" data-today-section="work">
+          <TodayFlexibleWork
+            rows={projection.flexible} tasks={tasks} localDate={projection.localDate} timezone={timezone}
+            projectTitles={projectTitles} goalTitles={goalTitles} categoryNames={categoryNames}
+            pendingTaskIds={pendingTaskIds} linkedResolutionByTaskId={linkedResolutionByTaskId}
+            linkedPlanContextByTaskId={linkedPlanContextByTaskId} onOpenLinkedResolution={openLinkedResolution}
+            onToggleTask={toggleTask} onArchiveTask={onArchiveTask} onStartFocus={startFocus} onOpenTask={openTask}
+          />
+        </div>
+        <div className="today-habit-column">
+          <TodayHabits
+            rows={projection.habits} habits={habits} checkIns={habitCheckIns} localDate={projection.localDate} timezone={timezone}
+            isOnline={isOnline} pending={habitPending} error={habitError} onCheckIn={onHabitCheckIn}
+            onClearCheckIn={onClearHabitCheckIn} onRetry={onRetryHabit} onOpenHabits={onOpenHabits}
+            onOpenHabit={onOpenHabit} onUnsupportedOffline={setUnsupportedMessage}
+          />
+        </div>
+        <div className="today-day-column" data-today-section="day">
+          <details className="today-completed-evidence" data-today-section="completed">
+            <summary><span><Sparkles aria-hidden="true" size={17} /> Completed today</span><span>{projection.completionEvidence.length} evidence {projection.completionEvidence.length === 1 ? "record" : "records"}</span></summary>
+            <div className="today-completed-list">
+              {projection.completionEvidence.length ? projection.completionEvidence.map(evidence => (
+                <article key={`${evidence.kind}:${evidence.evidenceId}`}>
+                  <CalendarCheck2 aria-hidden="true" size={17} />
+                  <div><strong>{evidence.title}</strong><small>{evidence.kind === "habit" ? "Habit check-in" : evidence.kind === "task_occurrence" ? "Recurring task occurrence" : "Task completion"}</small></div>
+                  <time>{evidence.completedAt ? new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", minute: "2-digit" }).format(new Date(evidence.completedAt)) : "Time not recorded"}</time>
+                </article>
+              )) : <p>No completion evidence has been recorded today.</p>}
+            </div>
+          </details>
+          <TodayTimeline
+            rows={projection.timeline} tasks={tasks} timezone={timezone} projectTitles={projectTitles}
+            goalTitles={goalTitles} categoryNames={categoryNames} pendingTaskIds={pendingTaskIds}
+            linkedResolutionByTaskId={linkedResolutionByTaskId} linkedPlanContextByTaskId={linkedPlanContextByTaskId}
+            onOpenLinkedResolution={openLinkedResolution} onToggleTask={toggleTask} onArchiveTask={onArchiveTask}
+            onStartFocus={startFocus} onOpenTask={openTask} onOpenCalendar={onOpenCalendar} onPlanToday={onPlanToday}
+          />
+          {nextMilestone ? <section className="today-milestone" aria-label="Upcoming milestone">
+            <span>Upcoming milestone · {milestoneGoal?.title ?? "Linked goal"}</span>
+            <strong>{nextMilestone.title}</strong>
+            <small>Due <time dateTime={nextMilestone.dueLocalDate!}>{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${nextMilestone.dueLocalDate}T12:00:00Z`))}</time></small>
+            {milestoneProject && onOpenProject ? <button type="button" onClick={() => onOpenProject(milestoneProject.id)}>Open {milestoneProject.title} <ArrowRight aria-hidden="true" size={16} /></button> : null}
+          </section> : null}
+          <section className="today-suggestions" data-today-section="suggestions" aria-labelledby="today-suggestions-heading">
+            <header className="today-section-heading"><div><h2 id="today-suggestions-heading">Remaining decisions</h2></div><small>{suggestions.length} sourced</small></header>
+            {suggestions.length ? <div className="today-suggestion-list">{suggestions.map(suggestion => (
+              <article key={suggestion.id} data-suggestion-source={suggestion.source}>
+                <span>{suggestion.source}</span><div><strong>{suggestion.title}</strong><small>{suggestion.detail}</small></div>
+                <button type="button" onClick={event => { if (suggestion.kind === "habit") onOpenHabits(); else { const task = taskById.get(suggestion.recordId); if (task) openTask(task, event.currentTarget); } }}>{suggestion.actionLabel} <ArrowRight aria-hidden="true" size={16} /></button>
+              </article>
+            ))}</div> : <p className="today-suggestions-empty"><Check aria-hidden="true" size={18} /> Nothing else is asking for a planning decision.</p>}
+          </section>
+        </div>
       </div>
-
-      <details
-        className="today-summary"
-        data-today-section="summary"
-        aria-label="Today commitment and capacity details"
-      >
-        <summary>
-          <span className="today-summary-heading">
-            Today's capacity
-            <ChevronDown aria-hidden="true" size={18} />
-          </span>
-          <strong>{commitmentCount} chosen · {minutesLabel(projection.capacity.busyMinutes)} timed</strong>
-          <small>{projection.capacity.unestimatedTaskCount ? `${projection.capacity.unestimatedTaskCount} without estimates` : "All known demand estimated"}</small>
-        </summary>
-        <div className="today-summary-metrics">
-          <div>
-            <span>Commitments</span>
-            <strong>{commitmentCount} chosen</strong>
-            <small>
-              {recoveryCount
-                ? `${recoveryCount} earlier ${recoveryCount === 1 ? "item" : "items"} for review`
-                : "No unresolved earlier plan"}
-            </small>
-          </div>
-          <div>
-            <span>Scheduled demand</span>
-            <strong>{minutesLabel(projection.capacity.busyMinutes)}</strong>
-            <small>Merged timed work and busy context</small>
-          </div>
-          <div>
-            <span>Flexible estimates</span>
-            <strong>{minutesLabel(flexibleEstimateMinutes)}</strong>
-            <small>{projection.flexible.length} planned without a time</small>
-          </div>
-          <div>
-            <span>Unavailable</span>
-            <strong>
-              {isUnavailableToday ? "All day" : minutesLabel(unavailableMinutes)}
-            </strong>
-            <small>
-              {isUnavailableToday
-                ? "Availability exception"
-                : "Break allowance; calendar busy is above"}
-            </small>
-          </div>
-          <div>
-            <span>Estimate gaps</span>
-            <strong>{projection.capacity.unestimatedTaskCount}</strong>
-            <small>
-              {projection.capacity.isCompleteEstimate
-                ? "Known demand is fully estimated"
-                : "Not counted as zero"}
-            </small>
-          </div>
-        </div>
-      </details>
-
-      <TodayHabits
-        rows={projection.habits}
-        habits={habits}
-        localDate={projection.localDate}
-        isOnline={isOnline}
-        pending={habitPending}
-        error={habitError}
-        onCheckIn={onHabitCheckIn}
-        onClearCheckIn={onClearHabitCheckIn}
-        onRetry={onRetryHabit}
-        onOpenHabits={onOpenHabits}
-        onOpenHabit={onOpenHabit}
-        onUnsupportedOffline={setUnsupportedMessage}
-      />
-
-      <section
-        className="today-suggestions"
-        data-today-section="suggestions"
-        aria-labelledby="today-suggestions-heading"
-      >
-        <header className="today-section-heading">
-          <div>
-            <span>Context, not a score</span>
-            <h2 id="today-suggestions-heading">Useful next decisions</h2>
-          </div>
-          <small>{suggestions.length} sourced</small>
-        </header>
-        {suggestions.length ? (
-          <div className="today-suggestion-list">
-            {suggestions.map(suggestion => (
-              <article
-                key={suggestion.id}
-                data-suggestion-source={suggestion.source}
-              >
-                <span>{suggestion.source}</span>
-                <div>
-                  <strong>{suggestion.title}</strong>
-                  <small>{suggestion.detail}</small>
-                </div>
-                <button
-                  type="button"
-                  onClick={event => {
-                    if (suggestion.kind === "habit") onOpenHabits();
-                    else {
-                      const task = taskById.get(suggestion.recordId);
-                      if (task) openTask(task, event.currentTarget);
-                    }
-                  }}
-                >
-                  {suggestion.actionLabel}{" "}
-                  <ArrowRight aria-hidden="true" size={16} />
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="today-suggestions-empty">
-            <Check aria-hidden="true" size={18} /> Nothing else is asking for a
-            planning decision.
-          </p>
-        )}
-      </section>
-
-      <details
-        className="today-completed-evidence"
-        data-today-section="completed"
-      >
-        <summary>
-          <span>
-            <Sparkles aria-hidden="true" size={17} /> Completed today
-          </span>
-          <span>
-            {projection.completionEvidence.length} evidence{" "}
-            {projection.completionEvidence.length === 1 ? "record" : "records"}
-          </span>
-        </summary>
-        <div className="today-completed-list">
-          {projection.completionEvidence.length ? (
-            projection.completionEvidence.map(evidence => (
-              <article key={`${evidence.kind}:${evidence.evidenceId}`}>
-                <CalendarCheck2 aria-hidden="true" size={17} />
-                <div>
-                  <strong>{evidence.title}</strong>
-                  <small>
-                    {evidence.kind === "habit"
-                      ? "Habit check-in"
-                      : evidence.kind === "task_occurrence"
-                        ? "Recurring task occurrence"
-                        : "Task completion"}
-                  </small>
-                </div>
-                <time>
-                  {evidence.completedAt
-                    ? new Intl.DateTimeFormat("en-US", {
-                        timeZone: timezone,
-                        hour: "numeric",
-                        minute: "2-digit",
-                      }).format(new Date(evidence.completedAt))
-                    : "Time not recorded"}
-                </time>
-              </article>
-            ))
-          ) : (
-            <p>No completion evidence has been recorded today.</p>
-          )}
-        </div>
-      </details>
 
       <TaskDetailSheet
         draftScopeKey={taskDraftScopeKey}
@@ -781,6 +627,7 @@ export function TodayWorkspace({
         onCreateSubtask={onCreateSubtask}
         onAddDependency={onAddDependency}
         onRemoveDependency={onRemoveDependency}
+        onStartFocus={startFocus}
       />
     </section>
   );

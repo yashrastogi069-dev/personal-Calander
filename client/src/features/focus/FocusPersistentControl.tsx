@@ -68,11 +68,11 @@ export function FocusPersistentControl({
   };
 
   return (
-    <section className={`focus-companion ${expanded ? "is-expanded" : ""} ${prominent ? "is-home" : ""}`} aria-label="Current Focus session">
+    <section data-home-watch={prominent ? "active" : undefined} className={`focus-companion ${expanded ? "is-expanded" : ""} ${prominent ? "is-home" : ""}`} aria-label="Current Focus session">
       <div className="focus-companion-main">
         <div className="focus-companion-context">
-          <FocusTimeDial session={session} title={taskTitle} presentation={presentation} size="compact" confirmedOnline={confirmedOnline} />
-          <div className="focus-companion-task"><span>Now focusing on</span><strong title={taskTitle}>{taskTitle}</strong></div>
+          <FocusTimeDial session={session} title={taskTitle} presentation={presentation} size={prominent ? "home" : "compact"} confirmedOnline={confirmedOnline} />
+          {!prominent ? <div className="focus-companion-task"><span>Now focusing on</span><strong title={taskTitle}>{taskTitle}</strong></div> : null}
         </div>
         <div className="focus-companion-actions">
           {session.state === "active" ? (
@@ -80,8 +80,8 @@ export function FocusPersistentControl({
           ) : (
             <Button type="button" variant="outline" onClick={() => onlineAction(() => resume.mutate({ ...scope, id: session.id, expectedVersion: session.version }))} disabled={!confirmedOnline || pending} aria-label="Resume current Focus session"><Play size={15} />{resume.isPending ? "Resuming…" : "Resume"}</Button>
           )}
-          <Button type="button" onClick={onOpenFocus} aria-label="Open full Focus view"><TimerReset size={15} />Focus</Button>
-          <Button type="button" variant="ghost" onClick={() => { setExpanded(true); setConfirmStop(true); }} disabled={!confirmedOnline || pending} aria-label="Stop current Focus session"><Square size={15} />Stop</Button>
+          <Button type="button" onClick={() => { setExpanded(true); setConfirmStop(true); }} disabled={!confirmedOnline || pending} aria-label="Stop current Focus session"><Square size={15} />Stop</Button>
+          {!prominent ? <Button type="button" variant="ghost" className="focus-companion-open" onClick={onOpenFocus} aria-label="Open full Focus view"><TimerReset size={15} />Focus</Button> : null}
           <Button type="button" variant="ghost" onClick={toggleExpanded} aria-expanded={expanded} aria-label={expanded ? "Collapse Focus companion" : "Expand Focus companion"}>{expanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</Button>
         </div>
       </div>
@@ -90,6 +90,7 @@ export function FocusPersistentControl({
       {expanded ? (
         <div className="focus-companion-extra">
           <p>One session follows you. Your task stays open if you stop.</p>
+          {prominent ? <Button type="button" variant="ghost" onClick={onOpenFocus} aria-label="Open full Focus view"><TimerReset size={15} />Open Focus and large display options</Button> : null}
           <div className="focus-watch-view-options" role="group" aria-label="Watch display style">
             <button type="button" aria-pressed={presentation === "dial"} onClick={() => choosePresentation("dial")}>Dial</button>
             <button type="button" aria-pressed={presentation === "digital"} onClick={() => choosePresentation("digital")}>Digital</button>
@@ -100,9 +101,7 @@ export function FocusPersistentControl({
               <Button type="button" variant="ghost" onClick={() => setConfirmStop(false)}>Cancel</Button>
               <Button type="button" onClick={() => onlineAction(() => stop.mutate({ ...scope, id: session.id, expectedVersion: session.version, outcome: "stopped", note: null, adjustedEstimateMinutes: null }))} disabled={!confirmedOnline || pending}>{stop.isPending ? "Stopping…" : "Stop session"}</Button>
             </div>
-          ) : (
-            <Button type="button" variant="ghost" onClick={() => setConfirmStop(true)} disabled={!confirmedOnline || pending}><Square size={15} /> Stop Focus</Button>
-          )}
+          ) : null}
         </div>
       ) : null}
     </section>
