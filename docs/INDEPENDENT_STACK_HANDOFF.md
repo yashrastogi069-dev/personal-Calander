@@ -4,6 +4,8 @@
 
 Latest owner instruction: do not check Vercel; they will verify the Preview. Keep automatic deployment enabled and verify only the Git push locally/remotely.
 
+Delivered: source checkpoint `09a52f0` pushed and exact remote-confirmed on `dev/personal-calendar-premium-v2`; documentation-only receipt follow-up leaves verified source unchanged. Old dev/main tips unchanged. Hard stop: wait for owner instruction; do not continue Timeline/Plan or any other slice. [Git receipt and full evidence](PHASE4_SLICE_EVIDENCE.md).
+
 Implemented: actual shell/Tasks/Today composition, desktop Tasks/Habits bento (phone Work above Habits), explicit-record 28-day heatmap, large half-canvas full Focus studio with Next steps/context, midnight date refresh preserving deliberate planning-date selection. All established actions, IDs/history, offline gates and Focus outcomes retained; no live planner mutations or schema operations. Three bounded SOL owners/reviewer; no Astra call this checkpoint.
 
 Final local evidence: 114 Vitest files / 748 passed / 3 skipped; TypeScript and client/server/PWA build passed (`3039e33e839775f0`, 28 shell files); Focus27/27 focused and16/16 runtime. Home/Tasks48/48 (including mounted next-day refresh), empty16/16, inspector8/8, capture17/17, actual Onest/shell4/4. [Details/delivery/limits](PHASE4_SLICE_EVIDENCE.md). Earlier runs preceded final Desk sizing and estimate-label clarity fixes; frozen-source full rerun passes.

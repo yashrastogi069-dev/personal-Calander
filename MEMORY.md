@@ -2,6 +2,8 @@
 
 Updated 2026-10-04. This is a short navigation aid, not a deployment record. For live migration status, read [the handoff](docs/INDEPENDENT_STACK_HANDOFF.md).
 
+- Delivery: source `09a52f0` pushed/remote-confirmed on premium v2; docs-only receipt follow-up. Hard stop; wait for owner approval before any next slice. Vercel checks explicitly left to owner. Source: [Git/evidence receipt](docs/PHASE4_SLICE_EVIDENCE.md).
+
 - 2026-10-04 premium checkpoint: visible shell/Tasks/Today redesign, desktop Tasks/Habits bento, factual heatmap, half-canvas full Focus studio and midnight refresh implemented. Final full suite 748 passed / 3 skipped, TypeScript/client+server/PWA build passed; Focus matrix16/16 passed. [Final verification/delivery](docs/PHASE4_SLICE_EVIDENCE.md). New `dev/personal-calendar-premium-v2`, automatic Preview enabled, then hard stop. Vercel verification owner-owned and not executed. Old dev remote/main unchanged; no database writes. [Plan/selected images](docs/superpowers/plans/2026-10-04-premium-v2-checkpoint.md). No Astra this checkpoint; ask permission before later calls.
 
 This file is curated project memory, not a transcript. Repo-local agent sessions now persist in the ignored SQLite store via `node scripts/agent-memory.mjs`; use `docs/AGENT_MEMORY.md` for commands and recovery. Capture is explicit because the host does not expose its transcript. The planner still has only one-shot `planner.ai.draft`; the `AIChatBox` in `ComponentShowcase` remains an in-memory demo.

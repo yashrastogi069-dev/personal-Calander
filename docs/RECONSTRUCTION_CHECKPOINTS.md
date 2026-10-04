@@ -2,6 +2,8 @@
 
 ## 2026-10-04 premium v2 first checkpoint (current)
 
+Source checkpoint `09a52f0` pushed/remote-confirmed; docs-only receipt follow-up on the same new branch. Hard stop for owner review. No Vercel check per owner instruction.
+
 Current branch after verification: `dev/personal-calendar-premium-v2`, owner-requested auto Preview enabled. Leave old workbench remote at `85b4014`, main frozen. Selected screenshots are the minimum visual benchmark; prefer coherent modern icons and useful flow over decoration. Preserve every capability. Stop here for owner review.
 
 Implemented: visible white/blue and slate-dark shell, Task List/grouped complete inspector, Today Tasks/Habits desktop bento, day context/milestone/remaining decisions, factual 28-day heatmap plus individual trace/actions, half-canvas full Focus watch with Next steps/context. Workspace today refreshes overnight without resetting deliberate planning dates.
