@@ -201,6 +201,8 @@ Status: local and in progress. This entry records only results that were actuall
   - Before the delight pass: 121 files, 845 passed, 3 skipped. An earlier run had 2 load-related errors that didn't recur.
   - After the delight pass: 858 passed, 1 failed, 3 skipped. The failure is `server/phase4Shell.test.ts`: its regex required the icon straight after the active item's opening tag, but the new decorative `pc-rail-indicator` span now comes first. There is still exactly one `aria-current`. The regex now allows the optional indicator, and the file passes 17/17. Final full re-run: 122 files, 859 passed, 3 skipped, 0 failed (290s).
 - **Final harness re-run** (after the delight pass and the test fix): shell 20/20, plan 36/36, gallery 8/8, phase4 2/2.
+  - C2 full matrix (4 widths × 2 themes): 222 passed, 2 failed, 0 page errors. Both failures were timeouts in one combination each while the same cases passed elsewhere: the phone "More" click at 390 dark (8s) and a `networkidle` reload on a project record at 768 dark (30s).
+  - A targeted re-run of 390 and 768 in dark passed 56/56 with 0 page errors, so they are classed as load flakes.
 - **Build:** `npm run build` passed after the review fixes and again after the delight pass (PWA release generated).
 - **Browser harnesses** (Vite 127.0.0.1:3100, synthetic intercepted fixtures):
   - `preview-c2-connected.py`, light, before the delight pass: 106 passed, 6 failed. The Dashboard flow passed: project, back, reload, then weekly objectives. The failures were two pre-D2 phone-pin checks written before the D1 pill (Capture plus three pins). Both were updated; `--only-unpin` now passes 16/16 across 4 widths × 2 themes.

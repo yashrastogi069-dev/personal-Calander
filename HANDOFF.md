@@ -40,7 +40,8 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 - **Final verification (after the delight pass and the test fix)** (details in the evidence doc):
   - Typecheck is clean; the build passes.
   - Full suite: 122 files, 859 passed, 3 skipped, 0 failed.
-  - Harnesses on http://127.0.0.1:3100: shell 20/20, plan 36/36, gallery 8/8, phase4 2/2. The C2 re-run result is in RUN_STATE.md.
+  - Harnesses on http://127.0.0.1:3100: shell 20/20, plan 36/36, gallery 8/8, phase4 2/2. C2 222/224: 2 load timeouts, and their targeted re-run passed 56/56.
+  - Pushed as `d3b25da` to `dev/personal-calendar-premium-v2`.
   - Agent-memory checkpoint recorded.
 
 ## Next
