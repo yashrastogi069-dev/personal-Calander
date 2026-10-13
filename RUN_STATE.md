@@ -44,6 +44,11 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
   - The dashboard Up-next card has an empty middle.
   - The Week rhythm card has spare height.
 - Not pushed: `4804e95` and this checkpoint commit.
+- **2026-10-13 owner APPROVED v2.1 and the plan.** This supersedes the "waiting on D0 approval" note below. Owner direction: keep adding features and make the app progressively more modern and futuristic, with more animation and motion. Reduced motion must still be honoured.
+- **Next session starts D0:**
+  - Write `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md` from the v2.1 boards. Fable is pre-approved for the D0 spec; still tell the owner when it is used.
+  - Record the decisions in DECISIONS.md.
+  - Implement tokens v2 (palette, radius, elevation, motion) in the app.
 
 ## Open owner questions
 
