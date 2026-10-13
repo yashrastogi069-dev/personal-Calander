@@ -109,7 +109,11 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
   - the `dashboardModel` memo, which stamps pending completions
   - the `<DashboardView>` actions
 - **Harnesses:** `scripts/preview-premium-{shell,plan,gallery}.py`, `preview-c2-connected.py`, `preview-phase4-product.py`. Captures go to %TEMP%, never into the repo.
-- **Local look with synthetic data:** `python scripts/open-local-preview.py`.
+- **Local look with synthetic data:** `python scripts/open-local-preview.py` (tiny dataset, fixed clock).
+- **Rich demo (use this for owner checks and visual reviews):** `python scripts/open-demo-preview.py`.
+  - Data: 53 tasks, 6 habits, focus sessions and events on the real clock, Pacific/Auckland.
+  - It runs an in-memory backend in `scripts/demo-fixtures.py`, so clicks work.
+  - For the verification tour, add `--headless --matrix --shots DIR`.
 
 ## Subagent routing (owner instruction, updated 2026-10-13)
 - **haiku:** mechanical edits and greps.

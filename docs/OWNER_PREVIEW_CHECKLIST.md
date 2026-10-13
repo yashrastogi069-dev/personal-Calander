@@ -7,7 +7,13 @@ The owner runs these checks; agents do not run Vercel checks (gated). Report bac
 - `https://personal-calander.vercel.app` and the installed home-screen app are **production**, built from `main`, so they still run the old code. The redesign is only on the branch Preview below; its bundle was confirmed to contain the D2 Dashboard code.
 - The dev database behind the Preview is empty (one user, zero tasks), so the Dashboard had nothing to count or animate.
 - Inner surfaces (Focus, Tasks, Habits, Plan inner panels, Review, Settings) still have the old look because D3 onwards hasn't been built. A redesign map is being drafted (Fable, 2026-10-13).
-- Fix: use the rich demo preview (`python scripts/open-demo-preview.py`, being built 2026-10-13). It has lots of fake data on the real clock and never touches live data.
+- Fix: use the rich demo preview. It is ready, verified 2026-10-13 with no errors and no unexpected calls.
+  1. In the worktree, run `npx vite --port 3100 --strictPort --host 127.0.0.1` (skip this if it's already running).
+  2. Run `python scripts/open-demo-preview.py`. For the phone look in dark mode, add `--theme dark --width 390 --height 844`.
+  - **What's in it:** 53 tasks (one running right now), 6 habits with 30 days of history, about 24 focus sessions, calendar events, goals, projects and reviews. It uses the real clock in Auckland time.
+  - **Clicks:** they work (tick habits, start/pause/finish focus, complete tasks). Data resets each launch. AI drafting is off in the demo.
+  - **Safety:** every request is answered inside the browser, so nothing reaches a live database.
+- Also fixed: headers showed tomorrow's date in NZ (`b580222`).
 
 ## Where to look
 

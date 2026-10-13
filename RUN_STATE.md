@@ -21,6 +21,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D0 | Tokens v2, motion, primitives, legacy-green ratchet | Done 2026-10-13: 800 tests, build, Plan harness 36/36, gallery harness 8/8; pushed |
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2, C2 222/224 (2 timeouts; their re-run 56/56); pushed `d3b25da` |
+| D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | In progress 2026-10-13 |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
 | D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
 | D4 | "Why it matters" reasons from existing facts | Not started |
@@ -64,6 +65,19 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - Owner decisions to record in DECISIONS.md with D0: Roadmap in Plan + Goals & Projects + compact Home strip; Today drops weekly overview and links to the week; Insights becomes Analytics under Reflect; grey backdrop on Dashboard only.
 
 ## Checkpoint log
+
+- 2026-10-13, D2.5 Focus in progress:
+  - Fable spec done, and the owner chose all four recommended answers (DECISIONS.md).
+  - Stopped sessions now count (`33d96df`, local; push after D2.5 verification).
+  - The habit local start date fix was pushed (`b440ddf`, full suite 860/3 skipped).
+  - **Fable 5.1 is building the D2.5 UI.** Files: focus/, DashboardView, components/premium, tokens, Home focus wiring.
+  - **Opus is still building the demo preview** in scripts/.
+  - Next:
+    1. Verify Fable's claims.
+    2. Opus logic review.
+    3. Full suite + build + harnesses.
+    4. Commit, push, give the owner the demo command.
+    5. Then D3.
 
 - 2026-10-13 owner report: "things are not wired, still old code, no real data, Focus clock looks BAD; redesign inner surfaces like the Coterie Time tracker (`BEST Shots/WhatsApp Image 2026-10-12 at 4.37.07 PM (6).jpeg`)".
   - Diagnosis: the Preview has D2. The owner saw production and/or empty dev data. Inner surfaces are still old by plan.
