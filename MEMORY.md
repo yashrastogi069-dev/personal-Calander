@@ -1,5 +1,7 @@
 # Working memory
 
+- 2026-10-13 (owner): Claude sessions use subagents with model routing (haiku mechanical, sonnet UI/visual review, opus architecture/review, Fable key design moments with owner told). Rules and the local preview command live in [CLAUDE.md](CLAUDE.md). Premium redesign status: [HANDOFF.md](HANDOFF.md).
+
 Updated 2026-10-04. This is a short navigation aid, not a deployment record. For live migration status, read [the handoff](docs/INDEPENDENT_STACK_HANDOFF.md).
 
 - Delivery: source `09a52f0` pushed/remote-confirmed on premium v2; docs-only receipt follow-up. Hard stop; wait for owner approval before any next slice. Vercel checks explicitly left to owner. Source: [Git/evidence receipt](docs/PHASE4_SLICE_EVIDENCE.md).
