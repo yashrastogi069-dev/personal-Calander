@@ -196,7 +196,7 @@ function focusWeekFor(input: DashboardInput, taskById: Map<string, DashboardTask
   const byTone = new Map<string, { tone: ToneOrNeutral; label: string; minutes: number }>();
   let actualSeconds = 0;
   for (const session of input.focusSessions) {
-    if (session.state === "abandoned") continue;
+    // Stopped sessions (state "abandoned") still count: the stop prompt promises their time is saved (owner, 2026-10-13).
     const started = localParts(session.startedAt, input.timezone);
     if (!started || started.localDate < input.week.weekStart || started.localDate > weekEnd) continue;
     const seconds = confirmedActiveSeconds(
@@ -279,7 +279,7 @@ function upNextFor(input: DashboardInput, schedule: DashboardSchedule, taskById:
   const timedOpen = schedule.items.filter(item => item.kind === "task" && !item.done && new Date(item.endsAt).getTime() > nowMs);
   const focusToday = new Map<string, number>();
   for (const session of input.focusSessions) {
-    if (!session.taskId || session.state === "abandoned") continue;
+    if (!session.taskId) continue;
     if (localParts(session.startedAt, input.timezone)?.localDate !== input.localDate) continue;
     const seconds = confirmedActiveSeconds(session, input.now);
     focusToday.set(session.taskId, (focusToday.get(session.taskId) ?? 0) + seconds / 60);

@@ -206,7 +206,7 @@ describe("dashboard model", () => {
     expect(habitStreak(habit, [...checkIns, { habitId: "h1", localDate: TODAY, state: "completed" }], TODAY, "2026-09-16")).toBe(3);
   });
 
-  it("sums this week's focus by category and plans from estimated week cards", () => {
+  it("sums this week's focus by category, including stopped sessions, and plans from estimated week cards", () => {
     const model = projectDashboard(input({
       categories: [{ id: "w", name: "Work", color: "#2f6fe4" }, { id: "l", name: "Learning", color: "#c27612" }],
       tasks: [task("a", { categoryId: "w", estimateMinutes: 120 }), task("b", { categoryId: "l", estimateMinutes: 60 }), task("c")],
@@ -226,9 +226,9 @@ describe("dashboard model", () => {
         ] },
       ]),
     }));
-    expect(model.focusWeek.actualMinutes).toBe(90);
+    expect(model.focusWeek.actualMinutes).toBe(100);
     expect(model.focusWeek.plannedMinutes).toBe(180);
-    expect(model.focusWeek.byTone).toEqual([{ tone: "work", label: "Work", minutes: 60 }, { tone: "learning", label: "Learning", minutes: 30 }]);
+    expect(model.focusWeek.byTone).toEqual([{ tone: "work", label: "Work", minutes: 70 }, { tone: "learning", label: "Learning", minutes: 30 }]);
   });
 
   it("builds week rhythm from plan cards with done from task state or saved evidence", () => {

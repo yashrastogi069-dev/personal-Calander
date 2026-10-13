@@ -26,7 +26,7 @@ Date: 2026-10-13. Status: locally implemented; evidence lives in `docs/PHASE4_SL
 | Intention | today's daily plan (`dailyPlans.intention`, not archived) | trimmed; empty means no subtitle |
 | Today's commitments | unique task rows in the Today timeline plus the flexible list, and today's completion evidence | done counts completion evidence, including occurrences and optimistic completions without `completedAt`. "Due today" and "overdue" count open tasks by `dueLocalDate`; won't-do tasks are excluded. |
 | Habit consistency | `habitPeriodConsistency` over 28 days, plus a 14-day strip | an open today is pending, not missed; times-per-week habits are left out of the percentage |
-| Focus this week | focus sessions started inside the plan week, measured with `confirmedActiveSeconds` | abandoned sessions are ignored; "planned" is the sum of estimates on the week's planned cards, or null if there are none |
+| Focus this week | focus sessions started inside the plan week, measured with `confirmedActiveSeconds` | stopped sessions (state abandoned) count, per owner 2026-10-13; "planned" is the sum of estimates on the week's planned cards, or null if there are none |
 | Up next | the first open timed task not yet ended; otherwise the first open flexible task ("anytime") | `now` while it is running, otherwise `next` with the minutes until it starts |
 | Day schedule | timed rows from the Today timeline: tasks and appointments | window = the workday (default 09–17), widened to fit the items; the now-line shows only inside the window; planned and free time come from Today capacity |
 | Week | `projectPlanWeek` days | committed excludes archived and won't-do; done = completed, a done commitment or a completed occurrence |

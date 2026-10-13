@@ -103,3 +103,13 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
   - App icon badge for tasks left today (Badging API, iOS 16.4+).
   - Lock-screen push. This unlocks G2: turn on the existing daily-plan and weekly-review reminders (the scheduler rollout is the owner's dashboard steps), then add Next-up, evening shutdown and habit nudges.
 - Not chosen: the Siri & Shortcuts pack, a native Capacitor wrapper.
+
+## 2026-10-13: Focus redesign (D2.5) and model routing
+
+- **Routing:** the owner said "use FABLE 5.1 not opus for designs". Fable 5.1 does all UI/UX design and the visual build, with the design skills loaded. Opus does logic and review.
+- **Spec:** Fable wrote [Focus and inner surfaces](superpowers/specs/2026-10-13-premium-redesign-focus-and-inner-surfaces.md). Its references are the Coterie Time tracker and the Fernly Time Tracker (`BEST Shots/`).
+- **Stopped focus sessions** (state `abandoned`) now count in Dashboard focus totals, because the stop prompt promises their time is saved.
+- **At the target**, the timer keeps counting with an overtime lap and a quiet "Target reached" moment. It does not open the Finish panel automatically, and there is no sound.
+- **The Dashboard focus card** is dark while a session is live and white when idle.
+- **Order:** D2.5 Focus is built now, before D3. It also creates the shared pieces later slices reuse: dial, sheet, choice tiles, page header, empty state and review chip.
+- **Preview diagnosis:** production (`personal-calander.vercel.app`, `main`) still runs the old code, and the dev database is empty. A rich in-browser demo preview is being added for owner checks.
