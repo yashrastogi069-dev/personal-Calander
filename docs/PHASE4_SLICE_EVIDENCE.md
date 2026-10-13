@@ -170,3 +170,16 @@ Independent SOL review caught missing heatmap period/timezone/aggregate summary;
 - Browser (Vite 127.0.0.1:3100, APIs intercepted): Plan harness `preview-premium-plan.py` 36/36. Gallery harness 8/8 (1440/390 × light/dark × motion/reduced): no overflow or page errors, click and ArrowLeft keyboard selection, `pc-rise` off under reduced motion, tabs 44px on touch at 390.
 - Screenshots were reviewed against the v2.1 chips and tabs. The 390px segmented-tab overflow from the preview is fixed.
 - Not run: Vercel Preview, live data, physical iPhone. No schema or data change.
+
+## 2026-10-13: premium redesign D1 (shell and navigation)
+
+- After the review fixes:
+  - `npm test`: 119 files, 808 passed, 3 skipped.
+  - `npm run check` passed.
+  - `npm run build` passed.
+- Before the review fixes, `scripts/preview-premium-shell.py` passed 16/16 (1440/390 × light/dark × 4 pages: overflow, tabs, rail groups, phone capture, ⌘K jump, tab switch).
+- NOT re-run after the fixes: the shell harness, the Plan harness (36/36 at D0), the gallery harness (8/8 at D0) and `preview-phase4-product.py` (updated for Analytics and More). The Vite dev server was stopped by the host for low memory.
+- Reviews:
+  - Sonnet visual review against the v2.1 boards. Applied: phone padding, phone tabs, search nowrap, rail heading and collapse layout. Deferred: inline header (D2), dark contrast and the legacy green input (D6).
+  - Opus code review: 10 findings, all applied except the aria-controls note.
+- No Preview, live database or device checks were run.

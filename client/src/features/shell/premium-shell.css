@@ -27,6 +27,10 @@ html body .pc-shell .pc-brand-mark {
   box-shadow: 0 4px 12px rgb(20 89 222 / .3);
 }
 html body .pc-shell .pc-brand-mark svg { display: block; }
+html body .pc-shell .pc-rail .planner-rail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+html body .pc-shell .pc-rail .brand-lockup { min-width: 0; }
+html body .pc-shell .pc-rail .brand-lockup > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .pc-shell .pc-rail .rail-collapse-button { flex: none; }
 
 html body .pc-shell .pc-rail-search {
   display: flex;
@@ -45,6 +49,7 @@ html body .pc-shell .pc-rail-search {
 }
 html body .pc-shell .pc-rail-search:hover,
 html body .pc-shell .pc-rail-search.is-active { border-color: var(--accent); color: var(--ink); }
+html body .pc-shell .pc-rail-search > span { flex: 1; min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 html body .pc-shell .pc-rail-search kbd {
   margin-left: auto;
   padding: 2px 6px;
@@ -54,7 +59,7 @@ html body .pc-shell .pc-rail-search kbd {
   font: 600 12px/16px var(--pc-font);
 }
 
-html body .pc-shell .pc-rail-nav { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+html body .pc-shell .pc-rail-nav { display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 html body .pc-shell .pc-rail-group { display: flex; flex-direction: column; gap: 2px; }
 html body .pc-shell .pc-rail-heading {
   padding: 0 12px 4px;
@@ -184,5 +189,10 @@ html body .pc-shell .pc-home-tabs { display: flex; align-items: center; gap: 12p
   }
   html body .pc-shell .pc-phone-capture:active { transform: scale(.94); }
   html body .pc-shell .pc-phone-nav button:focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 2px; }
+  /* Keep content clear of the floating pill (56px capture + 12px padding + 12px offset + breathing room). */
+  html body .pc-shell [data-scroll-owner="destination"] { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
   html body .pc-shell .pc-home-tabs { margin-bottom: 12px; }
+  html body .pc-shell .pc-home-tabs > .pc-seg { width: 100%; }
+  html body .pc-shell .pc-home-tabs .pc-seg-tab { flex: 1 1 0; min-width: 0; }
+  html body .pc-shell .pc-home-tabs .pc-seg-badge { display: none; }
 }

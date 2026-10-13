@@ -29,18 +29,19 @@ export function matchPaletteTasks(tasks: readonly PaletteTask[], term: string, l
   return open.filter(task => task.title.toLowerCase().includes(needle)).slice(0, limit);
 }
 
-/** Global ⌘K / Ctrl+K listener. Works from inputs too, like most palettes. */
-export function useCommandPaletteShortcut(onOpen: () => void) {
+/** Global ⌘K / Ctrl+K listener. Works from inputs too, like most palettes, but never over another dialog, during IME composition or while disabled (e.g. data still loading). */
+export function useCommandPaletteShortcut(onOpen: () => void, enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     const listener = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        onOpen();
-      }
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "k") return;
+      if (event.isComposing || document.querySelector("[role=dialog]")) return;
+      event.preventDefault();
+      onOpen();
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [onOpen]);
+  }, [onOpen, enabled]);
 }
 
 export function CommandPalette({

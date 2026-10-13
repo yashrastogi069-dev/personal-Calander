@@ -13,7 +13,7 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 | C3 | Plan Studio weekly board + date continuity | Done locally, `8a242e6`; build + 754 tests + harness 36/36 |
 | A | Owner approval of redesign sequence (D0-D6, G1-G3) | Approved 2026-10-13 (also @dnd-kit, pill radius, Fable for D0 spec) |
 | D0 | Tokens v2, motion, primitives, legacy-green ratchet | Done 2026-10-13: 800 tests, build, Plan harness 36/36, gallery harness 8/8; pushed |
-| D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Not started |
+| D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done locally; browser harness re-run pending |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Not started |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
 | D4 | "Why it matters" reasons from existing facts | Not started |
@@ -63,3 +63,8 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 - D1 shell code committed as WIP. Shell tests 24/24, shell harness 16/16. Full suite 806 pass / 2 fail (server/phase4Shell.test.ts, expected label updates).
 - Sonnet visual review done (findings in HANDOFF.md). The opus code review is done (10 findings in HANDOFF.md step 3, including an `npm run check` TS2802 failure).
 - Next: follow HANDOFF.md "D1: remaining to-do" steps 1–6, then D2.
+
+## 2026-10-13 checkpoint — D1 done locally
+- All 10 opus findings fixed (aria-controls noted) plus the sonnet CSS fixes. 808 tests pass, check and build pass.
+- Pending: re-run `preview-premium-shell.py`, `preview-premium-plan.py`, `preview-premium-gallery.py` and `preview-phase4-product.py` once Vite is back (`npx vite --port 3100 --strictPort --host 127.0.0.1`).
+- Next: D2 Dashboard.

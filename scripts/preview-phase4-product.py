@@ -116,6 +116,8 @@ def click_destination(page, label: str) -> None:
     sheet = page.get_by_role("dialog", name="More planning")
     if sheet.is_visible():
         sheet.wait_for(state="hidden")
+    # D1 rail keeps Goals, Connections and Categories inside a collapsed "More" disclosure.
+    page.evaluate("document.querySelectorAll('details.pc-rail-more:not([open])').forEach(d => { d.open = true })")
     for candidate in page.get_by_role("button", name=label, exact=True).all():
         if candidate.is_visible() and candidate.evaluate(
             "element => element.closest('[role=dialog]') === null"
@@ -319,7 +321,7 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         for label, destination, view in (
             ("Goals", "intentions", "outcomes"),
             ("Connections", "settings", "connections"),
-            ("Insights", "review", "insights"),
+            ("Analytics", "review", "insights"),
         ):
             click_destination(page, label)
             wait_for_target(page, destination, view)

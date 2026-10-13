@@ -8384,15 +8384,20 @@ export default function Home() {
   const { switchable: themeSwitchable, toggleTheme } = useTheme();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
-  useCommandPaletteShortcut(openCommandPalette);
+  useCommandPaletteShortcut(openCommandPalette, Boolean(snapshot));
   const navBadges = useMemo(
     () =>
       snapshot
         ? navBadgeCounts({
             today,
             tasks: snapshot.tasks,
+            // Unique open tasks: carried commitments can repeat a row and are not filtered for completion.
             todayTaskCount: todayProjection
-              ? todayProjection.timeline.filter(row => row.kind === "task").length + todayProjection.flexible.length
+              ? (() => {
+                  const open = new Set(snapshot.tasks.filter(task => task.state !== "completed" && task.state !== "archived").map(task => task.id));
+                  const ids = [...todayProjection.timeline, ...todayProjection.flexible].flatMap(row => (row.kind === "task" && open.has(row.recordId) ? [row.recordId] : []));
+                  return new Set(ids).size;
+                })()
               : null,
             dueHabitCount: todayProjection ? todayProjection.habits.filter(habit => habit.state === "due").length : null,
           })
@@ -8400,13 +8405,17 @@ export default function Home() {
     [snapshot, today, todayProjection]
   );
   const openPaletteTask = (taskId: string) => {
+    searchReturnTargetRef.current = null;
+    searchRecordFocusRef.current = null;
     const next = searchOpenLocation({ entity: "task", id: taskId }, { query: workspaceSearchQuery, taskQuery: taskSearch, taskFilter, taskSort });
     setPlannerLocation(current => ({ ...current, ...next } as PlannerLocation));
     if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next as PlannerLocation, window.history);
   };
   const searchFromPalette = (query: string) => {
-    updateWorkspaceSearchQuery(query);
-    navigatePlanner({ destination: "home", view: "search", action: "search" });
+    // One pushed entry carrying the query; never rewrite the page the user is leaving.
+    const next: PlannerLocation = { ...mergePlannerLocation(parsePlannerLocation(new URL(window.location.href)), { destination: "home", view: "search", action: "search" }), query };
+    setPlannerLocation(next);
+    writePlannerLocation(new URL(window.location.href), next, window.history);
   };
   const activeHomeTab = homeTabForLocation(plannerLocation);
 
@@ -8498,6 +8507,7 @@ export default function Home() {
         <div className="pc-home-tabs">
           <SegmentedTabs<HomeTabId>
             label="Home views"
+            activationMode="manual"
             value={activeHomeTab}
             onValueChange={value => {
               const tab = homeTabs.find(candidate => candidate.value === value);

@@ -112,7 +112,7 @@ describe("Phase 4 stable planner shell", () => {
         destination: "settings",
         view: "connections",
       },
-      { label: "Insights", destination: "review", view: "insights" },
+      { label: "Analytics", destination: "review", view: "insights" },
       {
         label: "Categories & Recycle Bin",
         destination: "settings",
@@ -169,7 +169,7 @@ describe("Phase 4 stable planner shell", () => {
     ]);
   });
 
-  it("renders six grouped desktop destinations in an independent scroll owner", () => {
+  it("renders the grouped premium rail in an independent scroll owner", () => {
     const html = renderToStaticMarkup(
       createElement(PlannerRail, {
         location: today,
@@ -181,12 +181,8 @@ describe("Phase 4 stable planner shell", () => {
     );
 
     expect(html).toContain('data-scroll-owner="rail"');
-    expect(html).toContain("Home");
-    expect(html).toContain("Tasks");
-    expect(html).toContain("Plan");
-    expect(html).toContain("Projects &amp; Goals");
-    expect(html).toContain("Habits");
-    expect(html).toContain("Review");
+    for (const group of ["Home", "Plan", "Grow", "Reflect"]) expect(html).toContain(`aria-label="${group}"`);
+    for (const label of ["Dashboard", "Today", "Inbox", "Tasks", "Plan", "Calendar", "Roadmap", "Goals &amp; Projects", "Habits", "Focus", "Review", "Analytics"]) expect(html).toContain(`<span>${label}</span>`);
     expect(html).toContain("Personal space");
   });
 

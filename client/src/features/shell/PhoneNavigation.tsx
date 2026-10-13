@@ -179,8 +179,9 @@ export function PhoneNavigation({
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const primary = useMemo(
     () =>
-      uniqueTargets(preferences.primary).slice(0, 4),
-    [preferences.primary]
+      // With the centre Capture button the bar holds three shortcuts (v2.1: 2 | + | 2); the fourth moves to More.
+      uniqueTargets(preferences.primary).slice(0, onCapture ? 3 : 4),
+    [preferences.primary, onCapture]
   );
   const moreTargets = useMemo(() => {
     const primaryKeys = new Set(primary.map(plannerShortcutKey));
@@ -208,30 +209,32 @@ export function PhoneNavigation({
   return (
     <>
       <nav aria-label="Phone planning destinations" className={`mobile-planner-nav${onCapture ? " pc-phone-nav" : ""}`}>
-        {primary.map((target, index) => {
-          const Icon = iconFor(target);
-          const label = labelForShortcut(target);
-          const active = activePrimaryKey === plannerShortcutKey(target);
-          const button = (
-            <button
-              key={plannerShortcutKey(target)}
-              type="button"
-              className={active ? "is-active" : undefined}
-              aria-current={isActive(location, target) ? "page" : undefined}
-              onClick={() => navigate(target)}
-            >
-              <Icon aria-hidden="true" size={20} strokeWidth={1.8} />
-              <span>{label}</span>
-            </button>
-          );
-          if (!onCapture || index !== Math.ceil(primary.length / 2) - 1) return button;
-          return [
-            button,
-            <button key="capture" type="button" className="pc-phone-capture" aria-label="Capture a task" onClick={onCapture}>
-              <Plus aria-hidden="true" size={24} strokeWidth={2.2} />
-            </button>,
-          ];
-        })}
+        {(() => {
+          const items = primary.map(target => {
+            const Icon = iconFor(target);
+            const active = activePrimaryKey === plannerShortcutKey(target);
+            return (
+              <button
+                key={plannerShortcutKey(target)}
+                type="button"
+                className={active ? "is-active" : undefined}
+                aria-current={isActive(location, target) ? "page" : undefined}
+                onClick={() => navigate(target)}
+              >
+                <Icon aria-hidden="true" size={20} strokeWidth={1.8} />
+                <span>{labelForShortcut(target)}</span>
+              </button>
+            );
+          });
+          // Centre Capture across the primaries plus More, in one flat keyed list so preference changes never remount buttons.
+          if (onCapture)
+            items.splice(Math.floor((primary.length + 1) / 2), 0,
+              <button key="capture" type="button" className="pc-phone-capture" aria-label="Capture a task" onClick={onCapture}>
+                <Plus aria-hidden="true" size={24} strokeWidth={2.2} />
+              </button>
+            );
+          return items;
+        })()}
         <button
           ref={moreButtonRef}
           type="button"

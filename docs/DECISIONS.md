@@ -53,3 +53,14 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - Legacy green CSS is quarantined by a ratchet test, not deleted, and is removed screen by screen as D1–D6 rebuild each one.
 - Owner, 2026-10-13: write a handoff and push to `dev/personal-calendar-premium-v2` after every checkpoint, then continue without stopping.
 - Spec: [D0 design](superpowers/specs/2026-10-13-premium-redesign-d0-design.md).
+
+## 2026-10-13: premium redesign D1 shell
+
+- The grey page backdrop is confirmed Dashboard-only (`data-backdrop="page"` on home/overview).
+- Insights is labelled Analytics everywhere (rail, palette, `shellSecondaryTargets`, aliases). URLs keep `view=insights`.
+- Rail groups: Home (Dashboard, Today, Inbox), Plan, Grow, Reflect, plus More (Goals, Connections, Categories & Recycle Bin).
+- Palette prefixes: `>` actions, `#` tasks. ⌘K never opens over another dialog.
+- Home tabs use manual activation because selecting one navigates.
+- Phone with Capture shows three preferred shortcuts (2 | + | 2, v2.1). The fourth moves to More. This is an assumption made without owner input, and stored preferences are untouched.
+- The default landing stays home/today until D2.
+- Spec: [D1 shell](superpowers/specs/2026-10-13-premium-redesign-d1-shell.md).

@@ -30,7 +30,6 @@ import {
   type PremiumNavItem,
 } from "./premiumNavigation";
 import {
-  phase4Destinations,
   plannerViewLabel,
   type Phase4DestinationId,
   type PlannerLocationTarget,
@@ -112,7 +111,7 @@ function RailItem({
       type="button"
       className={exact ? "is-active" : parent ? "is-active-parent" : undefined}
       aria-current={exact ? "page" : undefined}
-      aria-label={collapsed ? (badge ? `${item.label}, ${badge}` : item.label) : undefined}
+      aria-label={badge ? `${item.label}, ${badge}` : item.label}
       title={collapsed ? item.label : undefined}
       onClick={() => onNavigate(item.target)}
     >
@@ -174,7 +173,7 @@ export function PlannerRail({
       <button
         type="button"
         className={`pc-rail-search${searchActive ? " is-active" : ""}`}
-        aria-label={collapsed ? "Search or jump (Control or Command K)" : undefined}
+        aria-label="Search or jump (Control or Command K)"
         aria-keyshortcuts="Control+K Meta+K"
         title={collapsed ? "Search or jump" : undefined}
         onClick={() => (onOpenCommand ? onOpenCommand() : onNavigate({ destination: "home", view: "search", action: "search" }))}
@@ -202,7 +201,7 @@ export function PlannerRail({
           </div>
         ))}
         <details className="pc-rail-more" open={premiumRailMoreItems.some(item => item.id === exactId) || undefined}>
-          <summary aria-label={collapsed ? "More destinations" : undefined}>
+          <summary aria-label="More destinations">
             <CircleDot aria-hidden="true" size={17} strokeWidth={1.75} />
             <span>More</span>
           </summary>

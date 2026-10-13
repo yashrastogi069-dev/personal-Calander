@@ -11,16 +11,19 @@ export function SegmentedTabs<T extends string>({
   onValueChange,
   label,
   className,
+  activationMode = "automatic",
 }: {
   items: ReadonlyArray<SegmentedItem<T>>;
   value: T;
   onValueChange: (value: T) => void;
   label: string;
   className?: string;
+  /** Use "manual" when selecting a tab navigates, so arrow keys only move focus. */
+  activationMode?: "automatic" | "manual";
 }) {
   const indicatorId = useId();
   return (
-    <TabsPrimitive.Root value={value} onValueChange={next => onValueChange(next as T)} activationMode="automatic">
+    <TabsPrimitive.Root value={value} onValueChange={next => onValueChange(next as T)} activationMode={activationMode}>
       <TabsPrimitive.List aria-label={label} className={cn("pc-seg", className)}>
         {items.map(item => {
           const active = item.value === value;
