@@ -1,6 +1,30 @@
-# HANDOFF: premium redesign (updated 2026-10-13, D2 Dashboard plus delight pass, local)
+# HANDOFF: premium redesign (updated 2026-10-13, D2.5 Focus in progress, D3 logic in progress)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
+
+## Start here (read this first; it is enough to resume)
+- **Goal:** keep going until D3.5 is done and pushed, then the owner checks (owner, 2026-10-13). The session runs as a self-paced `/loop`.
+- **Done and pushed:**
+  - D0, D1, D2.
+  - Habit local start date `b440ddf`.
+- **Committed, NOT pushed yet** (push after the D2.5 full suite):
+  - `33d96df`: stopped focus time counts, plus the Fable Focus spec.
+  - `b580222`: NZ header date fix.
+  - `773ee0f`: rich demo preview.
+  - `91bb8d2`: D2.5 WIP.
+- **D2.5 Focus (in progress, Fable 5.1 building):**
+  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-focus-and-inner-surfaces.md`.
+  - Remaining: Finish flow, dark live Dashboard card, 4 Dashboard fixes, `Sheet variant="side"`, two stale focus tests.
+  - Then: opus logic review, full verification, checkpoint.
+- **D3 Tasks:**
+  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-d3-tasks.md`, by Fable 5.1.
+  - Opus is building the pure logic in `shared/task*.ts` and `client/src/features/tasks/*Model.ts`.
+  - After D2.5 verification: install `@dnd-kit/core`, `@dnd-kit/sortable` and `@dnd-kit/utilities` (approved). Then Fable builds the UI (§14 Fable column), opus builds `useTaskDnd` and the container wiring.
+  - Sub-checkpoints: D3a, D3b, D3c.
+- **D3.5 iPhone nav & gestures:** not started. Fable designs and builds; scope is in DECISIONS (2026-10-13 iPhone section).
+- **Owner questions pending:** confirm the three D3 assumptions (DECISIONS, end).
+- **Look at the app:** `python scripts/open-demo-preview.py` (Vite on :3100).
+- **Checkpoint rule:** after every checkpoint, update ALL MDs (this block first), commit, push, continue. See CLAUDE.md "Checkpoints".
 
 ## Owner rules (standing, read every session)
 1. **Checkpoints:** after every checkpoint, update HANDOFF.md and RUN_STATE.md (plus MEMORY.md and docs as needed), commit, push, then keep going.

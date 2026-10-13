@@ -35,6 +35,15 @@ Every screen in D3–D6 (and any later UI work) must look modern and futuristic 
 
 ## Checkpoints
 - After every checkpoint: update `HANDOFF.md` + `RUN_STATE.md`, commit, `git push origin HEAD:dev/personal-calendar-premium-v2`, then keep going. Never push to main, never force-push.
+- Owner, 2026-10-13: after EVERY checkpoint (each slice D2.5, D3, D3.5 and any sub-checkpoint), update ALL the MDs. The goal is that a future session saves tokens by reading HANDOFF.md first, and only what it points to.
+  - **HANDOFF.md:** keep a short "Start here" block at the top: status, exact next step, unpushed commits, open owner questions, where to look.
+  - **RUN_STATE.md:** step table plus checkpoint log.
+  - **docs/DECISIONS.md:** new decisions and assumptions.
+  - **docs/PHASE4_SLICE_EVIDENCE.md:** verification numbers.
+  - **The slice spec:** status and known limits.
+  - **docs/OWNER_PREVIEW_CHECKLIST.md:** what the owner should look at.
+  - **CLAUDE.md:** only when rules change.
+  - **Memory:** `MEMORY.md` plus files.
 
 ## Local preview
 - Dev server: `npx vite --port 3100 --strictPort --host 127.0.0.1` (the worktree has no `.env`, so plain Vite shows "Sign-in is not configured").

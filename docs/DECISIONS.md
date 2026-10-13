@@ -113,3 +113,12 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - **The Dashboard focus card** is dark while a session is live and white when idle.
 - **Order:** D2.5 Focus is built now, before D3. It also creates the shared pieces later slices reuse: dial, sheet, choice tiles, page header, empty state and review chip.
 - **Preview diagnosis:** production (`personal-calander.vercel.app`, `main`) still runs the old code, and the dev database is empty. A rich in-browser demo preview is being added for owner checks.
+
+## 2026-10-13: D3 Tasks spec (Fable 5.1) — working assumptions, owner to confirm after D3.5
+
+- Spec: [D3 Tasks](superpowers/specs/2026-10-13-premium-redesign-d3-tasks.md), written by Fable 5.1 (`claude-fable-5-1`).
+- The owner is away until D3.5 and asked for continuous work, so Fable's recommended answers are applied as assumptions:
+  - The Board's default lens is Status: To do / In progress / Blocked / Done. The When lens is one toggle away.
+  - Inbox "Someday" takes a task out of the Inbox and its badge. It then lives under No date with a Someday pill.
+  - Desktop task detail opens in a right-side panel (`Sheet variant="side"`).
+- Build order inside D3: D3a (contract, recurring-date fix, List, row, header, detail), D3b (Board, dnd, dock, When lens), D3c (Inbox triage, Views, Select mode, remove the triage stub).

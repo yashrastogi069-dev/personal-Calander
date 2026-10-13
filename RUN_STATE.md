@@ -66,6 +66,13 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 
 ## Checkpoint log
 
+- 2026-10-13 (after the usage-limit reset):
+  - The owner said: keep working in a loop until D3.5 is done, and they'll check after D3.5.
+  - **D2.5:** Fable's interrupted build was WIP-committed as `91bb8d2` (local). Typecheck fails because two focus tests still use the old props. The Fable build agent was resumed to finish: the Finish flow, the Dashboard dark card, the 4 Dashboard fixes, tests and verification.
+  - **D3:** a second Fable agent is writing `docs/superpowers/specs/2026-10-13-premium-redesign-d3-tasks.md`. Install `@dnd-kit` only after D2.5 verification, to avoid lockfile churn mid-build.
+  - **Unpushed:** `33d96df`, `b580222`, `773ee0f`, `91bb8d2`. Push after D2.5 passes the full suite.
+  - **Model ID:** the usage-limit error for the Fable build agent named `claude-opus-5-5`. Both agents were asked to report their model ID.
+
 - 2026-10-13, D2.5 Focus in progress:
   - Fable spec done, and the owner chose all four recommended answers (DECISIONS.md).
   - Stopped sessions now count (`33d96df`, local; push after D2.5 verification).
