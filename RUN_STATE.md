@@ -22,10 +22,12 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2, C2 222/224 (2 timeouts; their re-run 56/56); pushed `d3b25da` |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
+| D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
 | D4 | "Why it matters" reasons from existing facts | Not started |
 | D5 | Light Analytics | Not started |
 | D6 | Polish, empty/first-run states | Not started |
-| G1-G3 | Stakes fields, hard reminders, two-way Google sync | Gated |
+| D7 | Glance & reminders: Calendar feed alerts/categories, app icon badge, lock-screen push (unlocks G2) | Not started (owner 2026-10-13) |
+| G1-G3 | Stakes fields, hard reminders, two-way Google sync | Gated (G2 planned inside D7) |
 
 ## Handoff (2026-10-13, context checkpoint; owner asked to stop at ~25% context)
 

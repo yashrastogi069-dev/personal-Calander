@@ -78,3 +78,28 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - Deferred: the UTC fallback for the habit start date in `shared/habitSchedule.ts` (affects Today and Habits too). The phone "Home" target stays Today until the owner chooses the phone shortcut defaults.
 - Owner, 2026-10-13: use opus for UI/UX (with the design skills loaded) and for logic. The owner also asked for more icons, animation and motion; an opus delight pass follows the D2 logic.
 - Spec: [D2 Dashboard](superpowers/specs/2026-10-13-premium-redesign-d2-dashboard.md).
+
+## 2026-10-13: iPhone navigation, gestures and glance features (owner interview)
+
+- Phone bottom bar becomes Home / Today / + / Calendar / More (v2.1). Home opens the Dashboard. Tasks, Daily plan, Inbox, Habits, Focus, Review and Analytics live in More. Only the code default changes (`shared/phase4Preferences.ts`); a saved custom shortcut list is never overwritten.
+- Style: floating glass bar that shrinks to a compact pill on scroll down and expands on scroll up. The left sidebar stays for iPad and laptop only. A phone left drawer was rejected (hidden navigation, poor thumb reach).
+- The centre "+" is context-aware: Calendar → New event, Habits → New habit, elsewhere → New task, with a short spring icon morph.
+- Gestures (all approved):
+  - swipe task rows (right to complete, left to reschedule, buttons kept)
+  - swipe between days on Today and Calendar
+  - long-press "+" and tabs for quick actions
+  - pinch on Calendar for day ↔ week ↔ month
+  - tap the active tab to scroll to the top
+- New dependency approved: `@use-gesture/react` (pinch, swipe velocity).
+- Tab switches on phone use a directional slide (~240ms ease-out). Reduced motion makes them instant.
+- Extras approved:
+  - outline → filled tab icons with a spring pop and bouncing live badges
+  - More becomes a launcher grid of tinted icon tiles with live badges and drag-down dismiss
+  - pull to refresh with a ring that fills as you pull
+- Fable is approved to design the phone navigation, gesture and motion system before opus builds it. Tell the owner when it runs.
+- Order: the new slice "D3.5 iPhone nav & gestures" runs after D3 (Tasks board drag), then D4–D6.
+- Widgets: real iPhone widgets need WidgetKit (native only), so the free PWA-only path was chosen. It is a new slice, D7 "Glance & reminders", after D6:
+  - Calendar feed upgrade: VALARM alerts, category tags, focus blocks, and a setup guide. On the iPhone, "Remove Alerts" must be off for the subscription.
+  - App icon badge for tasks left today (Badging API, iOS 16.4+).
+  - Lock-screen push. This unlocks G2: turn on the existing daily-plan and weekly-review reminders (the scheduler rollout is the owner's dashboard steps), then add Next-up, evening shutdown and habit nudges.
+- Not chosen: the Siri & Shortcuts pack, a native Capacitor wrapper.

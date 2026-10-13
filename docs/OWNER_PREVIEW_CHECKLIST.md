@@ -29,6 +29,6 @@ The owner runs these checks; agents do not run Vercel checks (gated). Report bac
 | 11 | iPhone Reduce Motion | Settings → Accessibility → Motion → Reduce Motion on, reload | Everything appears instantly, no drift, pulse or burst |
 | 12 | Phone "Home" | Tap Home on the phone | Known: it still opens Today, not the Dashboard (waiting on the shortcut decision) |
 
-## Pending owner decision
+## Decided since
 
-Phone bottom bar: keep Today / Tasks / Daily plan, or move to v2.1 Home / Today / + / Calendar / More, plus the wider phone navigation concept (see HANDOFF "Open owner questions").
+Phone bottom bar moves to Home / Today / + / Calendar / More in slice D3.5 (see DECISIONS.md, 2026-10-13). Until then the bar shown in the Preview is the old one.

@@ -53,27 +53,35 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
    - labelled lucide icons
    - reduced-motion fallbacks
 2. Update or retire the stale `preview-task15.py` and `preview-linked-planner.py`.
-3. Then D4 (why it matters), D5 (light Analytics) and D6 (polish and first-run states), each with its own checkpoint, handoff and push.
+3. D3.5 iPhone nav & gestures:
+   - Fable designs the system first; tell the owner when it runs.
+   - Then opus builds it with the design skills loaded.
+   - Add `@use-gesture/react`.
+   - Scope is in the owner decisions above.
+4. Then D4 (why it matters), D5 (light Analytics) and D6 (polish and first-run states), each with its own checkpoint, handoff and push.
+5. D7 Glance & reminders (Calendar feed alerts, app badge, lock-screen push / G2).
+6. Fix anything the owner reports from `docs/OWNER_PREVIEW_CHECKLIST.md` as soon as it arrives.
 
 ## Owner checks in progress (2026-10-13)
 - The owner checks the Vercel Preview and the animations themselves, using `docs/OWNER_PREVIEW_CHECKLIST.md`.
   - Preview for `1acc7ec` (Vercel: success): https://personal-calander-6wkxtwevp-yashnew869-2746s-projects.vercel.app
   - Agents still do not run Vercel checks. Wait for the owner's report and fix whatever they find before D3 polish.
 
+## Owner decisions from the 2026-10-13 interview (full list in DECISIONS.md)
+- **Phone bar:** Home / Today / + / Calendar / More, as a floating glass bar that shrinks on scroll. Change the code default in `shared/phase4Preferences.ts` (`phase4DefaultPreferences.primary`); it only applies when no custom list is saved. Home must open the Dashboard on phone. The left sidebar stays for iPad and laptop only; there is no phone drawer.
+- **"+" button:** context-aware (event on Calendar, habit on Habits, task elsewhere).
+- **Gestures:** swipe task rows, swipe between days, long-press quick actions, pinch Calendar zoom, tap the active tab to scroll to the top. `@use-gesture/react` is approved.
+- **Motion and extras:** directional slide on tab switch, outline→filled icons with spring pop and bouncing badges, More as a launcher grid, and pull to refresh with a filling ring.
+- **Who designs it:** Fable designs the phone nav, gesture and motion system before opus builds it. Tell the owner when Fable runs.
+- **New slices:**
+  - **D3.5 "iPhone nav & gestures"**, after D3.
+  - **D7 "Glance & reminders"**, after D6: Calendar feed alerts and categories, app icon badge, lock-screen push. D7 unlocks G2, and the scheduler rollout needs the owner's dashboard steps.
+  - Real widgets need native WidgetKit, which was not chosen.
+- iPhone Safari has no Vibration API, so there are no web haptics.
+
 ## Open owner questions
-- **Phone primary shortcut defaults:** they are still Today, Tasks and Daily plan; v2.1 shows Home, Today and Calendar. Defaults live in `shared/phase4Preferences.ts` (`phase4DefaultPreferences.primary`) and only apply when an account has no saved shortcut list, so a saved custom list is never overwritten. On phone, the "Home" target still opens Today.
-- **Phone navigation concept (owner asked for designer thinking, 2026-10-13).** Options put to the owner:
-  - (a) A v2.1 floating glass bar (Home / Today / + / Calendar / More) that shrinks on scroll and shows a context-aware "+".
-  - (b) The same bar plus iPhone gestures:
-    - swipe a task row to complete or reschedule
-    - swipe days in Today/Calendar
-    - long-press tabs and "+" for quick actions
-    - tap the active tab to scroll to the top
-    - swipe up on the bar for More
-  - (c) A left drawer on phone. Not recommended: the hamburger hides navigation and the top-left is out of thumb reach on large iPhones. Keep the left sidebar for iPad and desktop.
-  - iPhone Safari has no Vibration API, so web haptics are not available.
-  - Record the answers in DECISIONS.md and here.
 - **Fable composition review of the Dashboard:** optional, and needs the owner's OK.
+- **Owner preview report:** pending (see "Owner checks in progress").
 
 ## Known risks and limits
 - **Habit start date:** `shared/habitSchedule.ts` uses the UTC date of `createdAt`. East of UTC, a new daily habit can show one false "missed" day. This is pre-existing and shared with Today and Habits, so it's deferred.
