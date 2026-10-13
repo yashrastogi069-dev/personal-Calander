@@ -61,5 +61,5 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 
 ## 2026-10-13 checkpoint — D1 WIP (usage limit)
 - D1 shell code committed as WIP. Shell tests 24/24, shell harness 16/16. Full suite 806 pass / 2 fail (server/phase4Shell.test.ts, expected label updates).
-- Sonnet visual review done (findings in HANDOFF.md). The opus code review was lost mid-run and needs re-running.
+- Sonnet visual review done (findings in HANDOFF.md). The opus code review is done (10 findings in HANDOFF.md step 3, including an `npm run check` TS2802 failure).
 - Next: follow HANDOFF.md "D1: remaining to-do" steps 1–6, then D2.

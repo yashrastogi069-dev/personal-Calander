@@ -32,7 +32,18 @@ Gated (do not touch): G1 stakes, G2 hard reminders, G3 Google two-way sync, Verc
    - Dark tasks-list search input has a legacy green surface (~#0d1a12). Bind it to tokens.
    - Dark-mode active rail item and active tab contrast is low.
    - Font may render as the system fallback in the harness. Check that Onest loads.
-3. The opus independent code review of the D1 diff was STILL RUNNING when usage ran out, and its result was lost. RE-RUN it: opus, read-only, covering hook order in Home.tsx, the ⌘K listener vs other dialogs, palette navigation/history, aria-current/tablist semantics, phone layout with 1–4 primaries, badge counts vs `inboxTasks()`, and grep tests/scripts for the "Insights" label.
+3. The opus code review FINISHED (do not re-run). Hook order in Home.tsx is OK. Fix these, most severe first:
+   a. phase4Shell.test.ts, the 2 failures in step 1. Also `scripts/preview-phase4-product.py:322` clicks "Insights", and its `click_destination` loop needs Goals, Connections and Categories visible, but they now sit inside a closed `<details>`. Update that harness.
+   b. `npm run check` FAILS: PlannerShell.test.tsx:35 `[...nav.matchAll()]` gives TS2802. Use `Array.from(nav.matchAll(...))`.
+   c. Home SegmentedTabs uses `activationMode="automatic"`, so arrow keys navigate and push history (arrowing to Calendar leaves Home). The triggers' aria-controls point at missing panels, and Calendar is duplicated with "Planning views". Fix: `activationMode="manual"`, or render as nav buttons with aria-current.
+   d. ⌘K listener (CommandPalette.tsx:34-40) has no guards. Skip when `e.isComposing` is set, when another `[role=dialog]` is open, or while the snapshot is still loading (the palette pops up later). Follow `plannerShortcutCommand`.
+   e. `searchFromPalette` (Home ~8406) uses replaceState to put `q` on the current entry before pushing. Do one merged location `{home, search, action:"search", query}` and push once.
+   f. `openPaletteTask` (~8400): first set `searchReturnTargetRef` and `searchRecordFocusRef` to null (otherwise close returns to Search, and Board users get switched to List).
+   g. At 681–1060px the rail buttons have no accessible names (the spans are hidden, and aria-label is only set when the collapsed preference is on). Always set aria-label, including the badge text.
+   h. Today "N left" overcounts: flexible includes carried_commitment duplicates (todayProjection.ts:320-323). Count unique open-task recordIds.
+   i. Phone Capture is off-centre (inserted at ceil(n/2)-1, with More appended). Centre by total slots and update the test order. Preference changes remount the buttons.
+   j. Low: the rail Focus item should call `setFocusEntryTaskId(null)`. Remove the unused `phase4Destinations` import in PlannerRail.tsx.
+   Confirmed OK: the inbox badge matches `inboxTasks()`; no URL or preference schema change; aria-current is unique.
 4. Run `npm test`, `npm run check`, `npm run build`, `python scripts/preview-premium-plan.py` (expect 36/36), `scripts/preview-premium-gallery.py` (8/8) and `scripts/preview-premium-shell.py` (16/16).
 5. Write `docs/superpowers/specs/2026-10-13-premium-redesign-d1-shell.md`; premiumNavigation.ts already references it. Then add D1 entries to `docs/DECISIONS.md`:
    - Dashboard-only backdrop
@@ -54,7 +65,7 @@ Then D3 Tasks drag (@dnd-kit approved), D4 "why it matters", D5 Analytics, D6 po
 ## Subagent routing (owner instruction)
 - haiku: mechanical edits and greps.
 - sonnet: ordinary UI work and screenshot/visual review. D1 used sonnet to compare `%TEMP%\premium-shell\shell-*.png` against `v2-preview\v2.1\*.png`.
-- opus: architecture, risky changes, independent code review (D1 review needs re-running, see above).
+- opus: architecture, risky changes, independent code review (D1 review done; findings in step 3).
 - fable: key design moments only. Always tell the owner when it runs. Used once for the D0 spec review.
 Give each subagent: an objective, scope, file paths, expected output (≤450 words, prioritised), and an explicit read-only or may-edit statement.
 
