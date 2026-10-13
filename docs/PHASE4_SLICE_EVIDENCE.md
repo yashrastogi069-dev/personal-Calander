@@ -161,3 +161,12 @@ Independent SOL review caught missing heatmap period/timezone/aggregate summary;
 - Browser: `scripts/preview-premium-plan.py` against Vite on 127.0.0.1:3100, all APIs intercepted, synthetic fixtures, clock fixed 2026-09-20 UTC: 36/36 (board/source dedup/touch targets, weekend select + Calendar handoff + Back + reload with no Plan writes, offline Save disabled with draft retained, versioned intention upsert, empty and blocked-storage contexts at 320/1440). Workspace `ensure` bootstrap is now recorded separately from Plan writes.
 - Defect found and fixed: blocked site data made `PwaProvider` throw on first render (blank app). Storage calls now fail soft.
 - Not run: Vercel Preview, authenticated live data, physical iPhone, real provider calendars.
+
+## 2026-10-13: premium redesign D0 (tokens, motion, primitives)
+
+- Added `client/src/design/tokens-v2.css`, `primitives.css`, `categoryTone.ts`, `timeFormat.ts`, the components `client/src/components/premium/{Pills,SegmentedTabs}.tsx`, the dev-only `/premium-gallery` route and `scripts/preview-premium-gallery.py`. `MotionConfig reducedMotion="user"` is applied at the app root.
+- Tests: `npm test` 118 files / 800 passed / 3 skipped (754 before plus 46 new: tone mapping, time chips, chip markup, tablist a11y, palette contrast in both themes, legacy-green ratchet).
+- `npm run check` passed. `npm run build` passed (PWA `a1b224fcac56b0dc`, 28 shell files). The gallery is absent from `dist/public`.
+- Browser (Vite 127.0.0.1:3100, APIs intercepted): Plan harness `preview-premium-plan.py` 36/36. Gallery harness 8/8 (1440/390 × light/dark × motion/reduced): no overflow or page errors, click and ArrowLeft keyboard selection, `pc-rise` off under reduced motion, tabs 44px on touch at 390.
+- Screenshots were reviewed against the v2.1 chips and tabs. The 390px segmented-tab overflow from the preview is fixed.
+- Not run: Vercel Preview, live data, physical iPhone. No schema or data change.

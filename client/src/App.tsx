@@ -10,10 +10,13 @@ import { Analytics } from "@vercel/analytics/react";
 import { sanitizeAnalyticsEvent } from "./lib/deploymentAnalytics";
 import PwaStatus from "./components/PwaStatus";
 import { lazy, Suspense } from "react";
+import { MotionConfig } from "framer-motion";
 
 import CalendarExecution from "./pages/CalendarExecution";
 
 const Phase4Prototypes = lazy(() => import("./pages/Phase4Prototypes"));
+// Dev-only visual check of the premium primitives; not linked and not built into production routes.
+const PremiumGallery = import.meta.env.DEV ? lazy(() => import("./pages/PremiumGallery")) : null;
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -24,6 +27,13 @@ function Router() {
           <Phase4Prototypes />
         </Suspense>
       </Route>
+      {PremiumGallery && (
+        <Route path={"/premium-gallery"}>
+          <Suspense fallback={<div role="status" aria-live="polite">Loading gallery…</div>}>
+            <PremiumGallery />
+          </Suspense>
+        </Route>
+      )}
       <Route path={"/calendar"}><CalendarExecution /></Route>
       <Route path={"/"} component={Home} />
       <Route path={"/404"} component={NotFound} />
@@ -42,12 +52,14 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="system" switchable>
+        <MotionConfig reducedMotion="user">
         <TooltipProvider>
           <Toaster />
           <PwaStatus />
           <AuthenticatedPlanner><Router /></AuthenticatedPlanner>
           <Analytics beforeSend={sanitizeAnalyticsEvent} />
         </TooltipProvider>
+        </MotionConfig>
       </ThemeProvider>
     </ErrorBoundary>
   );

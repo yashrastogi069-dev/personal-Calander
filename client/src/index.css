@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "./features/shell/phase4-tokens.css";
 @import "./features/shell/blue-theme.css";
+@import "./design/tokens-v2.css";
+@import "./design/primitives.css";
+
+/* LEGACY (quarantined): the hard-coded green rules below predate the blue theme and are overridden by it.
+   Do not add new green literals here; client/src/design/legacyGreen.test.ts ratchets the count down.
+   New premium styling lives in client/src/design/. Spec: docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -31,6 +37,19 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-pc-page: var(--pc-page);
+  --color-pc-card: var(--pc-card);
+  --color-pc-card-2: var(--pc-card-2);
+  --color-pc-line: var(--pc-line);
+  --color-pc-track: var(--pc-track);
+  --color-pc-faint: var(--pc-faint);
+  --radius-pc-chip: var(--pc-r-chip);
+  --radius-pc-control: var(--pc-r-control);
+  --radius-pc-panel: var(--pc-r-panel);
+  --radius-pc-feature: var(--pc-r-feature);
+  --shadow-pc-e1: var(--pc-e1);
+  --shadow-pc-e2: var(--pc-e2);
+  --shadow-pc-e3: var(--pc-e3);
 }
 
 :root, .dark {

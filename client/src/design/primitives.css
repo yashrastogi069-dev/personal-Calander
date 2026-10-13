@@ -1,0 +1,108 @@
+/* Premium primitives (D0). Spec: docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md */
+
+html .pc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 3px 9px;
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card-2);
+  color: var(--ink-muted);
+  font: 650 12px/16px var(--pc-font);
+  white-space: nowrap;
+}
+html .pc-pill-tinted { background: var(--pc-k-soft); color: var(--pc-k-ink); }
+html .pc-dot { width: 8px; height: 8px; flex: none; border-radius: var(--pc-r-pill); background: var(--pc-k, var(--pc-faint)); }
+
+html .pc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--pc-r-pill);
+  font: 700 12px/16px var(--pc-font);
+  white-space: nowrap;
+}
+html .pc-status::before { content: ""; width: 6px; height: 6px; border-radius: var(--pc-r-pill); background: currentColor; }
+html .pc-status-on { background: var(--pc-ok-soft); color: var(--pc-ok); }
+html .pc-status-risk { background: var(--pc-risk-soft); color: var(--pc-risk); }
+html .pc-status-off { background: var(--pc-off-soft); color: var(--pc-off); }
+
+html .pc-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--pc-r-chip);
+  background: var(--pc-card-2);
+  color: var(--ink-muted);
+  font: 650 12px/16px var(--pc-font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+html .pc-time b { color: var(--ink); font-weight: 700; }
+html .pc-time-over-estimate { background: var(--pc-risk-soft); color: var(--pc-risk); }
+html .pc-time-over-estimate b { color: inherit; }
+
+html .pc-seg {
+  display: flex;
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card-2);
+}
+html .pc-seg-tab {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--pc-r-pill);
+  background: transparent;
+  color: var(--ink-muted);
+  font: 600 14px/1 var(--pc-font);
+  cursor: pointer;
+  transition: color var(--pc-dur-fast) var(--pc-ease);
+}
+html .pc-seg-tab:hover { color: var(--ink); }
+html .pc-seg-tab[data-state="active"] { color: var(--ink); }
+html .pc-seg-indicator {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  box-shadow: var(--pc-e1);
+}
+html.dark .pc-seg-indicator { background: var(--selection); }
+html .pc-seg-label { position: relative; z-index: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html .pc-seg-badge {
+  position: relative;
+  z-index: 1;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: var(--pc-r-pill);
+  background: var(--selection);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  html .pc-seg-tab { min-height: 44px; }
+}
+
+@media (max-width: 400px) {
+  html .pc-seg { width: 100%; }
+  html .pc-seg-tab { flex: 1 1 0; padding: 0 8px; font-size: 13px; }
+}

@@ -42,3 +42,14 @@ Owner selected the Focus studio big watch (roughly half the desktop Focus worksp
 Selected Timeline reference: `design-system/personal-calander/concepts/2026-10-03-beyond-timeline-concept.png`. Weekly Plan reference: `2026-10-04-week-studio-concept.png` in the same folder. Both remain later checkpoint scope. Larger Focus and Today recorded-practice bento are this checkpoint, not a complete reconstruction of every page.
 
 Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, then stop for owner review. Owner explicitly requested automatic Vercel deployment enabled for this new branch; leave the old dev branch remotely untouched and deployment-disabled. A Git-connected Vercel project may create its Preview on push; confirm actual status/URL before claiming availability. No live schema changes, main merge, or production promotion. Source: [checkpoint plan](superpowers/plans/2026-10-04-premium-v2-checkpoint.md).
+
+## 2026-10-13: premium redesign programme and D0 foundation
+
+- Build order D0 tokens/motion → D1 shell/nav → D2 Dashboard → D3 Tasks drag (@dnd-kit approved) → D4 "why it matters" → D5 Analytics → D6 polish. G1 stakes, G2 hard reminders and G3 Google two-way sync stay gated.
+- v2.1 preview (private canvas `92uiB3ukGHrDcPqp9Q1SUo` v4) is the approved target look.
+- Home tabs are Dashboard | Today | Calendar. Phone bottom nav is Home / Today / + / Calendar / More.
+- Roadmap lives in Plan and in Goals & Projects, plus a compact strip on Home. Today drops the weekly overview and links to the week. Insights becomes Analytics under Reflect. The grey backdrop is Dashboard-only (D1 confirms per layout).
+- Category palette: five CVD-validated slots. Stored category colours remain user data and are snapped to the nearest slot on screen. A colour never stands alone.
+- Legacy green CSS is quarantined by a ratchet test, not deleted, and is removed screen by screen as D1–D6 rebuild each one.
+- Owner, 2026-10-13: write a handoff and push to `dev/personal-calendar-premium-v2` after every checkpoint, then continue without stopping.
+- Spec: [D0 design](superpowers/specs/2026-10-13-premium-redesign-d0-design.md).

@@ -1,0 +1,143 @@
+/* Premium redesign v2 tokens (D0). Spec: docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md
+   New names only (--pc-*), so legacy shadcn/green variables in index.css cannot override them. */
+html:root {
+  --pc-page: #f3f6fb;
+  /* Aliases so cards cannot drift from the validated base surfaces. */
+  --pc-card: var(--surface-elevated);
+  --pc-card-2: var(--surface-subtle);
+  --pc-side: var(--surface);
+  --pc-done: var(--completion);
+  --pc-overdue: var(--destructive);
+  --pc-night-accent: #9fc0ff;
+  --pc-line: #e6ecf4;
+  --pc-faint: #7d8ca3;
+  --pc-accent-strong: #0f47b4;
+  --pc-track: #e9eef5;
+  --pc-planned: #7d8ca3;
+  --pc-busy: #eef2f8;
+  --pc-weekend: #f7f9fc;
+  --pc-night: #14233c;
+  --pc-night-border: transparent;
+  --pc-on-night-muted: #c9d4e4;
+  --pc-hero-1: #1f63ea;
+  --pc-hero-2: #0f47b4;
+
+  --pc-e1: 0 1px 2px rgb(20 35 60 / .04), 0 4px 12px rgb(20 35 60 / .05);
+  --pc-e2: 0 2px 4px rgb(20 35 60 / .06), 0 10px 24px rgb(20 35 60 / .08);
+  --pc-e3: 0 8px 16px rgb(20 35 60 / .08), 0 24px 48px rgb(20 35 60 / .14);
+
+  --pc-r-chip: 8px;
+  --pc-r-control: 12px;
+  --pc-r-panel: 16px;
+  --pc-r-feature: 24px;
+  --pc-r-pill: 999px;
+
+  /* Typography: Onest. 12px is the floor for any text. */
+  --pc-font: "Onest", ui-sans-serif, system-ui, sans-serif;
+  --pc-text-caption: 12px; --pc-lh-caption: 16px;
+  --pc-text-label: 13px; --pc-lh-label: 18px;
+  --pc-text-body-sm: 14px; --pc-lh-body-sm: 20px;
+  --pc-text-body: 16px; --pc-lh-body: 24px;
+  --pc-text-h2: 18px; --pc-lh-h2: 26px;
+  --pc-text-h1: 28px; --pc-lh-h1: 34px;
+  --pc-text-display: 48px; --pc-lh-display: 52px;
+  --pc-w-regular: 400; --pc-w-medium: 550; --pc-w-semibold: 650; --pc-w-bold: 700; --pc-w-display: 750;
+  --pc-tracking-tight: -.015em; --pc-tracking-display: -.035em;
+
+  /* Spacing (4px grid). */
+  --pc-s-1: 4px; --pc-s-2: 8px; --pc-s-3: 12px; --pc-s-4: 16px; --pc-s-5: 20px; --pc-s-6: 24px; --pc-s-8: 32px;
+
+  /* Layers. */
+  --pc-z-raised: 10; --pc-z-sticky: 20; --pc-z-nav: 40; --pc-z-overlay: 60; --pc-z-toast: 80;
+
+  /* Focus: 2px ring, 2px offset. */
+  --pc-focus-width: 2px; --pc-focus-offset: 2px;
+
+  --pc-cat-work: #2f6fe4; --pc-cat-work-soft: #eaf1ff; --pc-cat-work-ink: #1747a6;
+  --pc-cat-health: #0f9d8a; --pc-cat-health-soft: #e2f5f1; --pc-cat-health-ink: #0b6457;
+  --pc-cat-learning: #c27612; --pc-cat-learning-soft: #fff2dc; --pc-cat-learning-ink: #8a520b;
+  --pc-cat-personal: #7a5af0; --pc-cat-personal-soft: #f1ecff; --pc-cat-personal-ink: #5136b8;
+  --pc-cat-social: #e0567a; --pc-cat-social-soft: #ffebf0; --pc-cat-social-ink: #a3304f;
+  --pc-cat-neutral: #7d8ca3; --pc-cat-neutral-soft: #f5f7fb; --pc-cat-neutral-ink: #53657f;
+
+  --pc-ok: #167258; --pc-ok-soft: #e3f4ec;
+  --pc-risk: #8a560b; --pc-risk-soft: #fff3dc;
+  --pc-off: #a3353a; --pc-off-soft: #ffecec;
+
+  --pc-ease: cubic-bezier(.23, 1, .32, 1);
+  --pc-ease-data: cubic-bezier(.16, 1, .3, 1);
+  --pc-dur-press: 80ms;
+  --pc-dur-fast: 140ms;
+  --pc-dur-base: 240ms;
+  --pc-dur-exit: 160ms;
+  --pc-dur-data: 600ms;
+  --pc-stagger: 40ms;
+}
+
+html:root.dark {
+  --pc-page: #0d1522;
+  --pc-night-accent: #9fc0ff;
+  --pc-line: #22344b;
+  --pc-faint: #8194ad;
+  --pc-accent-strong: #6b9cf6;
+  --pc-track: #243852;
+  --pc-planned: #7a8ca6;
+  --pc-busy: #1b2b40;
+  --pc-weekend: #132033;
+  --pc-night: #0a111c;
+  --pc-night-border: #2b3d57;
+  --pc-on-night-muted: #afbed2;
+  --pc-hero-1: #2557c4;
+  --pc-hero-2: #1a3f97;
+
+  --pc-e1: 0 0 0 1px rgb(255 255 255 / .03);
+  --pc-e2: 0 0 0 1px rgb(255 255 255 / .06), 0 12px 28px rgb(0 0 0 / .35);
+  --pc-e3: 0 0 0 1px rgb(255 255 255 / .08), 0 16px 40px rgb(0 0 0 / .5);
+
+  --pc-cat-work: #5b8ef0; --pc-cat-work-soft: #1d3354; --pc-cat-work-ink: #b3cdff;
+  --pc-cat-health: #26a089; --pc-cat-health-soft: #133a36; --pc-cat-health-ink: #86e3cf;
+  --pc-cat-learning: #c4852f; --pc-cat-learning-soft: #3b2f1f; --pc-cat-learning-ink: #f2c477;
+  --pc-cat-personal: #9479ee; --pc-cat-personal-soft: #2c2850; --pc-cat-personal-ink: #cdbcff;
+  --pc-cat-social: #dc5f80; --pc-cat-social-soft: #43283a; --pc-cat-social-ink: #ffb0c4;
+  --pc-cat-neutral: #8194ad; --pc-cat-neutral-soft: #203149; --pc-cat-neutral-ink: #afbed2;
+
+  --pc-ok: #7bd4ac; --pc-ok-soft: #163a2e;
+  --pc-risk: #f2c477; --pc-risk-soft: #3d3222;
+  --pc-off: #ffaaa8; --pc-off-soft: #432b30;
+}
+
+.pc-tone-work { --pc-k: var(--pc-cat-work); --pc-k-soft: var(--pc-cat-work-soft); --pc-k-ink: var(--pc-cat-work-ink); }
+.pc-tone-health { --pc-k: var(--pc-cat-health); --pc-k-soft: var(--pc-cat-health-soft); --pc-k-ink: var(--pc-cat-health-ink); }
+.pc-tone-learning { --pc-k: var(--pc-cat-learning); --pc-k-soft: var(--pc-cat-learning-soft); --pc-k-ink: var(--pc-cat-learning-ink); }
+.pc-tone-personal { --pc-k: var(--pc-cat-personal); --pc-k-soft: var(--pc-cat-personal-soft); --pc-k-ink: var(--pc-cat-personal-ink); }
+.pc-tone-social { --pc-k: var(--pc-cat-social); --pc-k-soft: var(--pc-cat-social-soft); --pc-k-ink: var(--pc-cat-social-ink); }
+.pc-tone-neutral { --pc-k: var(--pc-cat-neutral); --pc-k-soft: var(--pc-cat-neutral-soft); --pc-k-ink: var(--pc-cat-neutral-ink); }
+
+/* Focus ring for every premium control. */
+html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
+.pc-num { font-variant-numeric: tabular-nums; }
+
+/* Motion utilities. Pulse is reserved for the calendar now-line (calm rule). Stagger index comes from style="--pc-i: n" (capped at 8 items). */
+.pc-rise { animation: pc-rise var(--pc-dur-base) var(--pc-ease) both; animation-delay: calc(min(var(--pc-i, 0), 8) * var(--pc-stagger)); }
+.pc-pop { animation: pc-pop 320ms var(--pc-ease) both; animation-delay: calc(min(var(--pc-i, 0), 8) * 30ms); }
+.pc-grow-x { transform-origin: left; animation: pc-grow-x var(--pc-dur-data) var(--pc-ease-data) both; animation-delay: calc(200ms + min(var(--pc-i, 0), 8) * 60ms); }
+.pc-grow-y { transform-origin: bottom; animation: pc-grow-y var(--pc-dur-data) var(--pc-ease-data) both; animation-delay: calc(200ms + min(var(--pc-i, 0), 8) * var(--pc-stagger)); }
+.pc-pulse { animation: pc-pulse 2.4s cubic-bezier(.4, 0, .6, 1) infinite; }
+
+@keyframes pc-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pc-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes pc-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes pc-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes pc-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pc-off) 35%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html:root {
+    --pc-dur-press: 0ms;
+    --pc-dur-base: 0ms;
+    --pc-dur-exit: 0ms;
+    --pc-dur-data: 0ms;
+    --pc-stagger: 0ms;
+  }
+  :is(.pc-rise, .pc-pop, .pc-grow-x, .pc-grow-y, .pc-pulse) { animation: none !important; }
+  [class*="pc-"] { transition-property: color, background-color, border-color, opacity !important; }
+}

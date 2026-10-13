@@ -1,5 +1,7 @@
 # Project state
 
+2026-10-13 premium redesign: D0 (tokens v2, motion, primitives, legacy-green ratchet) is locally verified with 800 tests passing, build OK, Plan harness 36/36 and gallery harness 8/8. Next is D1 (shell/nav). Live status is in `RUN_STATE.md` and `HANDOFF.md` on `work/premium-redesign`.
+
 Updated 2026-10-04. Read [the independent stack handoff](INDEPENDENT_STACK_HANDOFF.md) for the most detailed and current migration record. This file is the quick status board.
 
 Current premium v2 checkpoint supersedes historical authority/status below: visible shell/Tasks/Today reconstruction, desktop Tasks/Habits bento, recorded-practice heatmap and full Focus studio are locally implemented. Final suite 114 files / 748 passed / 3 skipped; TypeScript and client/server/PWA build passed (`3039e33e839775f0`); Focus runtime16/16. New `dev/personal-calendar-premium-v2`, automatic Preview enabled, hard stop after delivery. Vercel verification owner-owned and not executed. Old dev remote remains at C2 `85b4014`; main frozen. No live schema/database writes or production/provider/device pass. [Current scope/remaining phases](RECONSTRUCTION_CHECKPOINTS.md), [evidence/delivery](PHASE4_SLICE_EVIDENCE.md).

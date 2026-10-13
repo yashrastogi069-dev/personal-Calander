@@ -1,6 +1,6 @@
 # Run state: premium BEST Shots redesign
 
-Owner goal (2026-10-13): finish Plan Studio, then redesign Dashboard and every screen to match and exceed `BEST Shots/` with rich-but-calm motion, keeping the white/blue identity and real data only. Work in a self-paced loop, keep the owner posted, ask before each Fable use, new dependency or gate.
+Owner goal (2026-10-13): finish Plan Studio, then redesign Dashboard and every screen to match and exceed `BEST Shots/` with rich-but-calm motion, keeping the white/blue identity and real data only. Work continuously: after every checkpoint, write HANDOFF.md + this file, commit, push to `dev/personal-calendar-premium-v2`, then continue to the next step (owner 2026-10-13). Ask before a new dependency, a gate, or Fable outside pre-approved moments; always tell the owner when Fable runs.
 
 Branch: `work/premium-redesign` (worktree `.claude/worktrees/premium-redesign`), pushed to `dev/personal-calendar-premium-v2` after verification. Never main. No Vercel checks, live writes or migrations.
 
@@ -12,7 +12,7 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 |---|---|---|
 | C3 | Plan Studio weekly board + date continuity | Done locally, `8a242e6`; build + 754 tests + harness 36/36 |
 | A | Owner approval of redesign sequence (D0-D6, G1-G3) | Approved 2026-10-13 (also @dnd-kit, pill radius, Fable for D0 spec) |
-| D0 | Fable D0 spec running, then tokens v2 (radius pill, elevation, hero/dark cards, hatch), motion tokens, primitives, quarantine legacy green CSS | Not started |
+| D0 | Tokens v2, motion, primitives, legacy-green ratchet | Done 2026-10-13: 800 tests, build, Plan harness 36/36, gallery harness 8/8; pushed |
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Not started |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Not started |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
@@ -54,3 +54,7 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 
 - 2026-10-13: Fable D0 spec drafted. Visual preview (sample data) published as private Design canvas https://claude.ai/artifact/92uiB3ukGHrDcPqp9Q1SUo (v3) with PNGs in `v2-preview/` (untracked, not committed). Waiting on owner approval of D0 look before writing the spec doc and implementing.
 - Owner decisions to record in DECISIONS.md with D0: Roadmap in Plan + Goals & Projects + compact Home strip; Today drops weekly overview and links to the week; Insights becomes Analytics under Reflect; grey backdrop on Dashboard only.
+
+## Checkpoint log
+
+- 2026-10-13 D0 done. Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md` (Fable-reviewed, owner told). Code in `client/src/design/` and `client/src/components/premium/`. Evidence in `docs/PHASE4_SLICE_EVIDENCE.md`. Next: D1.

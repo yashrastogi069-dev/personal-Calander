@@ -1,111 +1,70 @@
-# Handoff: premium redesign (2026-10-13)
+# Handoff: premium redesign (2026-10-13, after D0)
 
 Read this first in a fresh session, then `RUN_STATE.md`, `AGENTS.md`, `docs/INDEPENDENT_STACK_HANDOFF.md`. Do not bulk-read all docs.
 
 ## Goal
 
-Redesign the Personal Calander app (dashboard + every screen) to match and exceed `BEST Shots/` and the competitor screenshots in `Screenshots of competition/` (Morgen, Sunsama, Asana, Monday).
+Redesign Personal Calander (dashboard + every screen) to match and exceed `BEST Shots/` and the competitor shots (Morgen, Sunsama, Asana, Monday). Keep the white/blue identity and real data only. Owner direction: keep adding features and keep making it more modern and animated; motion is rich but calm and honours reduced motion. Steps D0–D6.
 
-- Keep the white/blue identity and real data only.
-- Owner direction: keep adding features and keep making it more modern, futuristic and animated. Motion should be rich but calm, and must honour reduced motion.
-- Work in steps D0–D6. Update the docs after each step.
-- Model routing:
-  - haiku: mechanical work
-  - sonnet: ordinary UI and visual review
-  - opus: architecture and risky work
-  - fable: key design moments, only with the owner's OK. It is already approved for the D0 spec; still tell the owner when it is used.
+**Working rule (owner, 2026-10-13):** after every checkpoint, update this file and `RUN_STATE.md`, commit, push to `dev/personal-calendar-premium-v2` (`git push origin HEAD:dev/personal-calendar-premium-v2`; never main, never force), post a short note, then **continue to the next step without stopping**. Always tell the owner when Fable runs.
+
+Model routing: haiku for mechanical work, sonnet for ordinary UI and visual review, opus for architecture and risky work, fable for key design moments (tell the owner).
 
 ## Done so far
 
-- **C3 Plan Studio** (weekly board, date continuity) is committed as `8a242e6` and its evidence as `780f094`; both are pushed to `dev/personal-calendar-premium-v2`.
-  - Code: `client/src/lib/planBoard.ts` (`restorePlanDate`), `client/src/pages/Home.tsx`, the PlanWeekBoard component, `plan-week.css`, and safe storage in `PwaContext`.
-  - Verified: build passes, 754 tests pass, preview harness 36/36.
-- **Redesign programme approved** (`4804e95`):
-  - Order: D0 tokens/motion → D1 shell/nav → D2 Dashboard → D3 Tasks drag → D4 "why it matters" → D5 Analytics → D6 polish.
-  - G1 stakes, G2 hard reminders and G3 Google two-way sync stay gated.
-  - Also approved: @dnd-kit, the pill radius, and Fable for the D0 spec.
-- **v2.1 visual preview** approved by the owner on 2026-10-13. It is the D0 target look.
-  - Private Design canvas: https://claude.ai/artifact/92uiB3ukGHrDcPqp9Q1SUo (version 4, 13 boards).
-  - PNGs: `C:\Users\win 10\Desktop\personal-Calander\v2-preview\v2.1\` (untracked, never commit).
-  - Generator: `tmp/v2gen/gen.py` writes `tmp/dash-canvas/project/*.dc.html` plus `canvas.json`. `tmp/v2gen/shoot.py` renders the PNGs. `tmp/` is gitignored. Run with:
-    - `python tmp/v2gen/gen.py tmp/dash-canvas <standalone-dir>`
-    - `python tmp/v2gen/shoot.py <standalone-dir> <png-dir>`
-  - Republish with Artifact: `url` set to the canvas link, `root: "tmp/dash-canvas"`, `file_path` set to the absolute path of `tmp/dash-canvas/project/canvas.json`, and `files` mapping each `project/X.dc.html` to itself.
-- **Run log and checkpoints:** `RUN_STATE.md`, commits `8c1591e` and `932b094`. These are not pushed.
+- C3 Plan Studio (`8a242e6`, `780f094`).
+- Redesign programme and v2.1 look approved (canvas https://claude.ai/artifact/92uiB3ukGHrDcPqp9Q1SUo v4; PNGs `..\..\..\v2-preview\v2.1\`, untracked; generator `tmp/v2gen/`).
+- **D0 done (2026-10-13).**
+  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md`. Fable reviewed it, and the end of the spec lists what was adopted and what was deferred.
+  - Tokens: `client/src/design/tokens-v2.css`, all `--pc-*`: page/card/line/track/hero/night, elevation e1–e3, radius, category and status palette, typography, spacing, z, focus, motion, plus `.pc-rise/.pc-pop/.pc-grow-x/.pc-grow-y/.pc-pulse` and the reduced-motion rule.
+  - Primitives: `client/src/design/primitives.css` plus `client/src/components/premium/Pills.tsx` (Pill, StatusPill, TimeChip, CategoryChip) and `SegmentedTabs.tsx` (Radix tabs with a framer `layoutId` indicator).
+  - Logic: `categoryTone.ts` (snaps the stored colour by hue; `resolveCategoryTones` deduplicates slots) and `timeFormat.ts`.
+  - Wiring: `<MotionConfig reducedMotion="user">` in `App.tsx`. Tailwind `--color-pc-*`, `--radius-pc-*`, `--shadow-pc-*` in `index.css` `@theme`.
+  - Quarantine: `client/src/design/legacyGreen.test.ts` sets per-file baselines; lower them when a screen drops green.
+  - Dev-only `/premium-gallery` route (`pages/PremiumGallery.tsx`) plus `scripts/preview-premium-gallery.py`.
+  - Docs: DESIGN.md (v2 palette/radius/motion), DECISIONS.md, PROJECT_STATE.md, PHASE4_SLICE_EVIDENCE.md.
 
 ## Current state
 
-- Branch `work/premium-redesign` in worktree `.claude/worktrees/premium-redesign`.
-  - Local commits `4804e95`, `8c1591e`, `932b094` (and this handoff, if committed) are ahead of `dev/personal-calendar-premium-v2`.
-- **D0 has not started.** No app code has changed since C3.
-- The Vite dev server may still be running on port 3100 from the old session. Restart it if needed: `npx vite --port 3100 --strictPort --host 127.0.0.1`.
+- Branch `work/premium-redesign` in worktree `.claude/worktrees/premium-redesign`, pushed to `dev/personal-calendar-premium-v2` at the D0 commit.
+- The Vite dev server may be running on 3100 from this worktree. Otherwise: `npx vite --port 3100 --strictPort --host 127.0.0.1`.
+- No screen uses the primitives yet. D1 is the first consumer.
 
 ## Decisions and why
 
-- **Home tabs: Dashboard | Today | Calendar.** The owner asked for a calendar next to Dashboard and Today. Phone bottom nav is Home / Today / + / Calendar / More.
-- **Category palette.** Checked with the dataviz `validate_palette.js`, so colour-blind users can tell the categories apart.
-
-  | Category | Light (on #ffffff) | Dark (on #19273a) |
-  |---|---|---|
-  | Work | #2f6fe4 | #5b8ef0 |
-  | Health | #0f9d8a | #26a089 |
-  | Learning | #c27612 | #c4852f |
-  | Personal | #7a5af0 | #9479ee |
-  | Social | #e0567a | #dc5f80 |
-
-  Always pair a colour with a label or dot, because tritan separation is low.
-- **Base tokens:**
-  - Accent #1459de, ink #14233c, Onest font.
-  - Radius: chip 8, control 12, panel 16, feature 24, pill 999.
-  - Elevation e1–e3.
-  - Easing `cubic-bezier(.23,1,.32,1)`; data easing `(.16,1,.3,1)`; UI motion ≤300ms.
-- **Components taken from competitors:**
-  - Status pills (On track / At risk / Off track)
-  - Planned/actual time chips
-  - Focus bar stacked by category
-  - Google events as hatched "busy" blocks
-  - Pulsing now-line
-  - Today: task list beside a timeline, with an after-shutdown zone
-  - Calendar week: rail with mini month, unscheduled Overdue / Due today / Due this week, and calendar toggles; all-day multi-day bars
-  - Calendar month: spanning bars
-- **Earlier owner decisions:**
-  - Roadmap lives in Plan and in Goals & Projects, plus a compact strip on Home.
-  - Today drops the weekly overview and links to the week instead.
-  - Insights becomes Analytics under Reflect.
-  - The grey backdrop is used on Dashboard only.
-  - These are not yet recorded in `docs/DECISIONS.md`. Do that in D0.
+- All of them are in `docs/DECISIONS.md` (2026-10-13 section) and the D0 spec. Key points:
+  - Category colours are snapped to 5 validated slots and always shown with a label.
+  - Card tokens alias the existing surfaces (dark card `#19273a` keeps the validated contrast).
+  - 12px is the text floor.
+  - Tabs are 44px on coarse pointers.
+  - Green CSS is ratcheted, not deleted.
 
 ## Open problems
 
-- **Preview issues:**
-  - The phone segmented tabs overflow slightly at 390px.
-  - The dashboard Up-next card has an empty middle.
-  - The Week rhythm card has spare height.
-- **Missing docs:** the D0 spec doc does not exist yet. DECISIONS.md, PRODUCT_SPEC.md and PHASE4_SLICE_EVIDENCE.md have not been updated for the redesign decisions.
-- **Data gaps:** the "Actual time", category, and "why it matters" fields need real data sources. Check what the existing schema has. **No schema migration** without its gate. If a field has no real source, hide that UI.
+- Deferred from Fable:
+  - D2: entrance animation only on first mount; hover lift only on `hover:hover`; pulse on the now-line only.
+  - D1: backdrop per layout.
+  - D6: extra palette slots and a swatch-only category editor.
+- Preview issues still to fix in D2: the dashboard Up-next card has an empty middle, and the Week rhythm card has spare height.
+- Data: planned time = `tasks.estimateMinutes`; actual time = focus sessions (needs a projection in D2); "why it matters" (D4) must come from existing goal/project links. No schema migration.
 
 ## Next steps (in order)
 
-1. Run `node scripts/agent-memory.mjs session list` and search for redesign context. Read `RUN_STATE.md`.
-2. Write `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md`: tokens, palette, components and motion from the v2.1 boards. Use Fable for the spec review (pre-approved) and tell the owner.
-3. Record the decisions above in `docs/DECISIONS.md`. Update `docs/PROJECT_STATE.md` and `RUN_STATE.md`.
-4. Implement D0 in the client:
-   - CSS tokens v2 (light and dark) plus the category tokens
-   - Motion tokens and reduced-motion handling
-   - Primitives: pill, status pill, time chip, category chip, segmented tabs
-   - Quarantine the legacy green CSS
-5. Verify (see below). Commit. Push to `dev/personal-calendar-premium-v2` only (never main, never force-push). Do not check Vercel.
-6. Continue with D1 (shell, sidebar, tabs, ⌘K, phone nav), then D2 (Dashboard home), and so on. Write a checkpoint plus a handoff after each step.
+1. `node scripts/agent-memory.mjs session list`; read `RUN_STATE.md`.
+2. **D1 shell/nav**:
+   - Read `client/src/features/shell/planner-shell.css`, `approved-workspace.css` and the shell part of `client/src/pages/Home.tsx` (find `planner-rail`, `planner-nav`, `mobile-planner-nav`).
+   - Build the grouped sidebar with badges (Plan / Do / Reflect groups as in the v2.1 boards).
+   - Add the Home view tabs Dashboard | Today | Calendar using `SegmentedTabs`.
+   - Add ⌘K prefixes if a command palette exists.
+   - Phone bottom nav: Home / Today / + / Calendar / More.
+   - Decide the backdrop per layout.
+   - Remove green rules from the rebuilt shell and lower the baselines.
+   - Fable is optional for the D1 IA review; tell the owner if used.
+3. Verify, write the checkpoint (this file + RUN_STATE), commit, push, continue to D2 (Dashboard home).
 
 ## How to verify
 
-- `npm run build` passes and `npm test` passes; C3 had 754 tests pass and the count should not drop. Run the preview harness (36/36 at C3).
-- Take light and dark screenshots of the changed screens at 1440px and 390px with the local dev server. Compare them against `v2-preview/v2.1/*.png`.
-- Check reduced motion (emulate `prefers-reduced-motion`). Check contrast (body text ≥4.5:1).
-- Re-run `validate_palette.js` if any category colour changes.
-- Do not claim a Preview, migration or iPhone pass without direct evidence. Never write to the live database.
-
-## Session rules for continuation
-
-- At about 30% context, or at the end of any step or checkpoint: update `RUN_STATE.md` and this file, commit, tell the owner, then stop.
-- During a long continuous task, rely on auto-compact, then write the handoff and stop at the next checkpoint.
+- `npm run check`, `npm test` (≥800 passed), `npm run build`.
+- `python scripts/preview-premium-plan.py` (36/36) and `python scripts/preview-premium-gallery.py` (8/8) against Vite on 3100.
+- Screenshots of changed screens at 1440 and 390, light and dark, compared with `v2-preview/v2.1/*.png`. Also check reduced motion and contrast.
+- Never claim Preview, migration or iPhone passes without direct evidence. Never write to live data.
