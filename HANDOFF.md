@@ -24,7 +24,7 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
 - **D3.5 iPhone nav & gestures:** not started. Fable designs and builds; scope is in DECISIONS (2026-10-13 iPhone section).
 - **D3.5.2 browser verification (owner, after D3.5 + MD updates):**
   - Tools available now: Playwright + CDP, playwright-cli, agent-browser, agent-reach.
-  - Not available: browser-use, Chrome DevTools MCP and Claude in Chrome. The owner will send links or approve installs.
+  - Not available yet: browser-use, Chrome DevTools MCP and Claude in Chrome. The owner APPROVED (2026-10-13) installing all three at the start of D3.5.2. Use whichever tool is most effective per check.
   - The owner helps verify the animations.
 - **Owner questions pending:** confirm the three D3 assumptions (DECISIONS, end).
 - **Look at the app:** `python scripts/open-demo-preview.py` (Vite on :3100).
