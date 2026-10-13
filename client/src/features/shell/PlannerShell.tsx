@@ -8,8 +8,10 @@ import type { Phase4Preferences } from "@shared/phase4Preferences";
 import { GlobalActions } from "./GlobalActions";
 import { PhoneNavigation } from "./PhoneNavigation";
 import { PlannerRail } from "./PlannerRail";
+import type { NavBadgeCounts } from "./premiumNavigation";
 import "./planner-shell.css";
 import "./approved-workspace.css";
+import "./premium-shell.css";
 
 export type PlannerShellProps = {
   location: PlannerLocationTarget;
@@ -27,6 +29,10 @@ export type PlannerShellProps = {
   utilityActions?: ReactNode;
   focusControl?: ReactNode;
   viewNavigation?: ReactNode;
+  /** Live counts for rail badges (D1). */
+  badges?: NavBadgeCounts;
+  /** Opens the ⌘K command palette. */
+  onOpenCommand?: () => void;
   children: ReactNode;
 };
 
@@ -46,6 +52,8 @@ export function PlannerShell({
   utilityActions,
   focusControl,
   viewNavigation,
+  badges,
+  onOpenCommand,
   children,
 }: PlannerShellProps) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -54,7 +62,9 @@ export function PlannerShell({
     <div
       data-destination={location.destination}
       data-view={location.view}
-      className={`planner-shell phase4-planner-shell${
+      // The grey page backdrop is Dashboard-only (owner decision 2026-10-13, D1).
+      data-backdrop={location.destination === "home" && location.view === "overview" ? "page" : undefined}
+      className={`planner-shell phase4-planner-shell pc-shell${
         preferences.railCollapsed ? " is-rail-collapsed" : ""
       }${preferences.density === "compact" ? " mobile-density-compact" : ""}${focusControl ? " has-focus-control" : ""}`}
     >
@@ -62,7 +72,9 @@ export function PlannerShell({
         location={location}
         collapsed={preferences.railCollapsed}
         timezone={timezone}
+        badges={badges}
         onNavigate={onNavigate}
+        onOpenCommand={onOpenCommand}
         onToggleCollapsed={() =>
           onPreferencesChange({
             ...preferences,
@@ -99,6 +111,7 @@ export function PlannerShell({
         moreOpen={moreOpen}
         onMoreOpenChange={setMoreOpen}
         onNavigate={onNavigate}
+        onCapture={globalActionsDisabled ? undefined : () => onGlobalAction("capture")}
       />
     </div>
   );

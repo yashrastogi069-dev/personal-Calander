@@ -1,20 +1,34 @@
 import {
   BarChart3,
   CalendarDays,
+  CalendarRange,
   CircleDot,
   Flag,
   Grid2X2,
   Inbox,
+  LayoutDashboard,
   Link2,
   ListChecks,
+  Milestone,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   Settings2,
   Sparkles,
+  Sun,
   Target,
+  Timer,
   TimerReset,
   type LucideIcon,
 } from "lucide-react";
+import {
+  activeNavState,
+  badgeText,
+  premiumNavGroups,
+  premiumRailMoreItems,
+  type NavBadgeCounts,
+  type PremiumNavItem,
+} from "./premiumNavigation";
 import {
   phase4Destinations,
   plannerViewLabel,
@@ -27,34 +41,13 @@ export const shellSecondaryTargets = [
   { label: "Roadmap", destination: "plan", view: "roadmap" },
   { label: "Goals", destination: "intentions", view: "outcomes" },
   { label: "Connections", destination: "settings", view: "connections" },
-  { label: "Insights", destination: "review", view: "insights" },
+  { label: "Analytics", destination: "review", view: "insights" },
   {
     label: "Categories & Recycle Bin",
     destination: "settings",
     view: "categories",
   },
 ] as const satisfies readonly ({ label: string } & PlannerLocationTarget)[];
-
-const secondaryIcons: Record<
-  (typeof shellSecondaryTargets)[number]["label"],
-  LucideIcon
-> = {
-  Calendar: CalendarDays,
-  Roadmap: CalendarDays,
-  Goals: Target,
-  Connections: Link2,
-  Insights: BarChart3,
-  "Categories & Recycle Bin": CircleDot,
-};
-
-const icons: Record<Phase4DestinationId, LucideIcon> = {
-  home: Grid2X2,
-  tasks: Inbox,
-  plan: ListChecks,
-  intentions: Flag,
-  habits: TimerReset,
-  review: Sparkles,
-};
 
 const defaultView: Record<Phase4DestinationId, PlannerLocationTarget["view"]> = {
   home: "today",
@@ -79,25 +72,85 @@ export function labelForPlannerTarget(target: PlannerLocationTarget) {
   return plannerViewLabel(target);
 }
 
+export const premiumNavIcons: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  today: Sun,
+  inbox: Inbox,
+  tasks: ListChecks,
+  plan: CalendarRange,
+  calendar: CalendarDays,
+  roadmap: Milestone,
+  projects: Flag,
+  habits: TimerReset,
+  focus: Timer,
+  review: Sparkles,
+  analytics: BarChart3,
+  goals: Target,
+  connections: Link2,
+  categories: CircleDot,
+};
+
+function RailItem({
+  item,
+  exact,
+  parent,
+  collapsed,
+  badges,
+  onNavigate,
+}: {
+  item: PremiumNavItem;
+  exact: boolean;
+  parent: boolean;
+  collapsed: boolean;
+  badges?: NavBadgeCounts;
+  onNavigate: (target: PlannerLocationTarget) => void;
+}) {
+  const Icon = premiumNavIcons[item.id] ?? Grid2X2;
+  const badge = item.badge ? badgeText(item.badge, badges?.[item.badge]) : null;
+  return (
+    <button
+      type="button"
+      className={exact ? "is-active" : parent ? "is-active-parent" : undefined}
+      aria-current={exact ? "page" : undefined}
+      aria-label={collapsed ? (badge ? `${item.label}, ${badge}` : item.label) : undefined}
+      title={collapsed ? item.label : undefined}
+      onClick={() => onNavigate(item.target)}
+    >
+      <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
+      <span>{item.label}</span>
+      {badge ? (
+        <span className={`pc-rail-badge${item.badge === "overdue" ? " is-alert" : ""}`}>{badge}</span>
+      ) : null}
+    </button>
+  );
+}
+
 export function PlannerRail({
   location,
   collapsed,
   timezone,
+  badges,
   onNavigate,
   onToggleCollapsed,
+  onOpenCommand,
 }: {
   location: PlannerLocationTarget;
   collapsed: boolean;
   timezone: string;
+  badges?: NavBadgeCounts;
   onNavigate: (target: PlannerLocationTarget) => void;
   onToggleCollapsed: () => void;
+  /** Opens the ⌘K command palette; falls back to the Search page when absent. */
+  onOpenCommand?: () => void;
 }) {
+  const { exactId, parentId } = activeNavState(location);
+  const searchActive = location.destination === "home" && location.view === "search";
   return (
-    <aside className="planner-rail phase4-planner-rail" data-scroll-owner="rail">
+    <aside className="planner-rail phase4-planner-rail pc-rail" data-scroll-owner="rail">
       <div className="planner-rail-heading">
         <div className="brand-lockup" aria-label="Personal Calendar">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
+          <span className="brand-mark pc-brand-mark" aria-hidden="true">
+            <CalendarDays size={16} strokeWidth={2.2} />
           </span>
           <span>Personal Calendar</span>
         </div>
@@ -118,56 +171,54 @@ export function PlannerRail({
         </button>
       </div>
 
-      <nav aria-label="Planning destinations" className="planner-nav">
-        {phase4Destinations.map(item => {
-          const Icon = icons[item.id];
-          const target = targetForDestination(item.id);
-          const active =
-            location.destination === target.destination &&
-            location.view === target.view;
-          const activeParent = location.destination === target.destination;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={active ? "is-active" : activeParent ? "is-active-parent" : undefined}
-              aria-current={active ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              title={collapsed ? item.label : undefined}
-              onClick={() => onNavigate(target)}
-            >
-              <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-        <div
-          className="planner-nav-secondary"
-          role="group"
-          aria-label="Planning view shortcuts"
-        >
-          <span className="planner-nav-section-label">Views</span>
-          {shellSecondaryTargets.map(item => {
-            const Icon = secondaryIcons[item.label];
-            const active =
-              location.destination === item.destination &&
-              location.view === item.view;
-            return (
-              <button
-                key={`${item.destination}/${item.view}`}
-                type="button"
-                className={active ? "is-active" : undefined}
-                aria-current={active ? "page" : undefined}
-                aria-label={collapsed ? item.label : undefined}
-                title={collapsed ? item.label : undefined}
-                onClick={() => onNavigate(item)}
-              >
-                <Icon aria-hidden="true" size={17} strokeWidth={1.75} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      <button
+        type="button"
+        className={`pc-rail-search${searchActive ? " is-active" : ""}`}
+        aria-label={collapsed ? "Search or jump (Control or Command K)" : undefined}
+        aria-keyshortcuts="Control+K Meta+K"
+        title={collapsed ? "Search or jump" : undefined}
+        onClick={() => (onOpenCommand ? onOpenCommand() : onNavigate({ destination: "home", view: "search", action: "search" }))}
+      >
+        <Search aria-hidden="true" size={17} strokeWidth={1.8} />
+        <span>Search or jump</span>
+        <kbd aria-hidden="true">⌘K</kbd>
+      </button>
+
+      <nav aria-label="Planning destinations" className="planner-nav pc-rail-nav">
+        {premiumNavGroups.map(group => (
+          <div key={group.id} className="pc-rail-group" role="group" aria-label={group.label ?? "Home"}>
+            {group.label ? <span className="planner-nav-section-label pc-rail-heading">{group.label}</span> : null}
+            {group.items.map(item => (
+              <RailItem
+                key={item.id}
+                item={item}
+                exact={exactId === item.id}
+                parent={parentId === item.id}
+                collapsed={collapsed}
+                badges={badges}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        ))}
+        <details className="pc-rail-more" open={premiumRailMoreItems.some(item => item.id === exactId) || undefined}>
+          <summary aria-label={collapsed ? "More destinations" : undefined}>
+            <CircleDot aria-hidden="true" size={17} strokeWidth={1.75} />
+            <span>More</span>
+          </summary>
+          <div className="pc-rail-group" role="group" aria-label="More destinations">
+            {premiumRailMoreItems.map(item => (
+              <RailItem
+                key={item.id}
+                item={item}
+                exact={exactId === item.id}
+                parent={false}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </details>
       </nav>
 
       <div className="rail-footer">

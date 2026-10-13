@@ -58,3 +58,8 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 ## Checkpoint log
 
 - 2026-10-13 D0 done. Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md` (Fable-reviewed, owner told). Code in `client/src/design/` and `client/src/components/premium/`. Evidence in `docs/PHASE4_SLICE_EVIDENCE.md`. Next: D1.
+
+## 2026-10-13 checkpoint — D1 WIP (usage limit)
+- D1 shell code committed as WIP. Shell tests 24/24, shell harness 16/16. Full suite 806 pass / 2 fail (server/phase4Shell.test.ts, expected label updates).
+- Sonnet visual review done (findings in HANDOFF.md). The opus code review was lost mid-run and needs re-running.
+- Next: follow HANDOFF.md "D1: remaining to-do" steps 1–6, then D2.

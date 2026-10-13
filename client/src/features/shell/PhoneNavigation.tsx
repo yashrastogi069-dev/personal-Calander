@@ -4,6 +4,7 @@ import {
   Inbox,
   ListChecks,
   MoreHorizontal,
+  Plus,
   Settings2,
   Sparkles,
   TimerReset,
@@ -23,9 +24,11 @@ import { phase4SecondaryShortcutTargets } from "@shared/phase4Preferences";
 import { PlannerSheet } from "./PlannerSheet";
 import {
   labelForPlannerTarget,
+  premiumNavIcons,
   shellSecondaryTargets,
   targetForDestination,
 } from "./PlannerRail";
+import { activeNavState } from "./premiumNavigation";
 
 const icons: Record<Phase4DestinationId | "settings", LucideIcon> = {
   home: Grid2X2,
@@ -146,7 +149,8 @@ export function groupPhoneMoreTargets(
 }
 
 function iconFor(target: PlannerLocationTarget) {
-  return icons[target.destination];
+  const { exactId } = activeNavState(target);
+  return (exactId && premiumNavIcons[exactId]) || icons[target.destination];
 }
 
 function labelForShortcut(target: PlannerPreferenceShortcut) {
@@ -162,12 +166,15 @@ export function PhoneNavigation({
   moreOpen,
   onMoreOpenChange,
   onNavigate,
+  onCapture,
 }: {
   location: PlannerLocationTarget;
   preferences: Phase4Preferences;
   moreOpen: boolean;
   onMoreOpenChange: (open: boolean) => void;
   onNavigate: (target: PlannerLocationTarget) => void;
+  /** Centre Capture button (v2.1 floating pill). Omitted, the bar keeps its original layout. */
+  onCapture?: () => void;
 }) {
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const primary = useMemo(
@@ -200,12 +207,12 @@ export function PhoneNavigation({
 
   return (
     <>
-      <nav aria-label="Phone planning destinations" className="mobile-planner-nav">
-        {primary.map(target => {
+      <nav aria-label="Phone planning destinations" className={`mobile-planner-nav${onCapture ? " pc-phone-nav" : ""}`}>
+        {primary.map((target, index) => {
           const Icon = iconFor(target);
           const label = labelForShortcut(target);
           const active = activePrimaryKey === plannerShortcutKey(target);
-          return (
+          const button = (
             <button
               key={plannerShortcutKey(target)}
               type="button"
@@ -217,6 +224,13 @@ export function PhoneNavigation({
               <span>{label}</span>
             </button>
           );
+          if (!onCapture || index !== Math.ceil(primary.length / 2) - 1) return button;
+          return [
+            button,
+            <button key="capture" type="button" className="pc-phone-capture" aria-label="Capture a task" onClick={onCapture}>
+              <Plus aria-hidden="true" size={24} strokeWidth={2.2} />
+            </button>,
+          ];
         })}
         <button
           ref={moreButtonRef}

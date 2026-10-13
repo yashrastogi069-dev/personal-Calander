@@ -61,7 +61,7 @@ export function plannerViewLabel(target: PlannerLocationTarget): string {
     return plannerSettingsViews.find(([view]) => view === target.view)?.[1] ?? "Settings";
   const labels: Partial<Record<PlannerViewId, string>> = {
     today: "Today", overview: "Overview", daily: "Daily plan", weekly: "Weekly plan",
-    rituals: "Review ritual", history: "History", insights: "Insights", focus: "Focus",
+    rituals: "Review ritual", history: "History", insights: "Analytics", focus: "Focus",
     search: "Search", inbox: "Inbox", list: "Tasks", board: "Board", saved: "Saved views",
     archive: "Archive", projects: "Projects", outcomes: "Goals", directions: "Directions",
     calendar: "Calendar", roadmap: "Roadmap", due: "Habits",
@@ -126,7 +126,7 @@ export const legacyPlannerAliases = [
   },
   {
     id: "insights",
-    label: "Insights",
+    label: "Analytics",
     destination: "review",
     view: "insights",
   },

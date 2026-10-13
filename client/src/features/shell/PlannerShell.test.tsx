@@ -5,11 +5,35 @@ import { PlannerRail } from "./PlannerRail";
 import { PlannerShell } from "./PlannerShell";
 
 describe("shared planner shell", () => {
-  it("highlights a child view's parent while announcing only the exact location", () => {
-    const markup = renderToStaticMarkup(<PlannerRail location={{ destination: "plan", view: "calendar" }} collapsed={false} timezone="UTC" onNavigate={vi.fn()} onToggleCollapsed={vi.fn()} />);
-    expect(markup).toMatch(/class="is-active-parent"[^>]*>[\s\S]*?<span>Plan<\/span>/);
-    expect(markup.match(/aria-current="page"/g)).toHaveLength(1);
-    expect(markup).toMatch(/aria-current="page"[^>]*>[\s\S]*?<span>Calendar<\/span>/);
+  it("announces only the exact rail item and highlights a parent for views without their own item", () => {
+    const calendar = renderToStaticMarkup(<PlannerRail location={{ destination: "plan", view: "calendar" }} collapsed={false} timezone="UTC" onNavigate={vi.fn()} onToggleCollapsed={vi.fn()} />);
+    expect(calendar.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(calendar).toMatch(/aria-current="page"[^>]*>[\s\S]*?<span>Calendar<\/span>/);
+    expect(calendar).not.toContain("is-active-parent");
+    const weekly = renderToStaticMarkup(<PlannerRail location={{ destination: "plan", view: "weekly" }} collapsed={false} timezone="UTC" onNavigate={vi.fn()} onToggleCollapsed={vi.fn()} />);
+    expect(weekly).toMatch(/class="is-active-parent"[^>]*>[\s\S]*?<span>Plan<\/span>/);
+    expect(weekly).not.toContain('aria-current="page"');
+  });
+
+  it("groups the rail into Plan, Grow and Reflect with live badges and a search entry", () => {
+    const markup = renderToStaticMarkup(<PlannerRail location={{ destination: "home", view: "overview" }} collapsed={false} timezone="UTC" badges={{ inbox: 4, overdue: 1, todayLeft: 2, habitsDue: 0 }} onNavigate={vi.fn()} onToggleCollapsed={vi.fn()} onOpenCommand={vi.fn()} />);
+    for (const label of ["Plan", "Grow", "Reflect"]) expect(markup).toContain(`aria-label="${label}"`);
+    for (const label of ["Dashboard", "Today", "Inbox", "Tasks", "Calendar", "Roadmap", "Goals &amp; Projects", "Habits", "Focus", "Review", "Analytics", "Connections", "Categories &amp; Recycle Bin"]) expect(markup).toContain(`<span>${label}</span>`);
+    expect(markup).toContain(">2 left<");
+    expect(markup).toContain(">4<");
+    expect(markup).toContain('pc-rail-badge is-alert">1 overdue<');
+    expect(markup).not.toContain("0 due");
+    expect(markup).toContain('aria-keyshortcuts="Control+K Meta+K"');
+    expect(markup).toMatch(/aria-current="page"[^>]*>[\s\S]*?<span>Dashboard<\/span>/);
+  });
+
+  it("adds a centre Capture button to the phone bar and marks the Dashboard backdrop", () => {
+    const markup = renderToStaticMarkup(<PlannerShell location={{ destination: "home", view: "overview" }} preferences={phase4DefaultPreferences} timezone="UTC" title="Dashboard" dateLabel="Tuesday, October 13" onNavigate={vi.fn()} onPreferencesChange={vi.fn()} onGlobalAction={vi.fn()}><section>Work</section></PlannerShell>);
+    expect(markup).toContain('data-backdrop="page"');
+    expect(markup).toContain('class="pc-phone-capture" aria-label="Capture a task"');
+    const nav = markup.slice(markup.indexOf('aria-label="Phone planning destinations"'));
+    const order = [...nav.matchAll(/<span>([^<]+)<\/span>|aria-label="Capture a task"/g)].slice(0, 6).map(match => match[1] ?? "+");
+    expect(order).toEqual(["Today", "Tasks", "+", "Daily plan", "Projects", "More"]);
   });
 
   it("announces account settings only when that exact view is selected", () => {

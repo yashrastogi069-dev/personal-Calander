@@ -1,70 +1,65 @@
-# Handoff: premium redesign (2026-10-13, after D0)
+# HANDOFF — premium redesign (updated 2026-10-13, mid-D1, usage limit hit)
 
-Read this first in a fresh session, then `RUN_STATE.md`, `AGENTS.md`, `docs/INDEPENDENT_STACK_HANDOFF.md`. Do not bulk-read all docs.
+Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2` (never main, never force).
+Owner rules: write a handoff and push after EVERY checkpoint, then keep going. Use subagents with routing (below). Tell the owner whenever Fable runs.
+Gated (do not touch): G1 stakes, G2 hard reminders, G3 Google two-way sync, Vercel checks, live DB writes, schema migration.
 
-## Goal
+## Status
+- D0 tokens, motion and primitives: DONE (commit b0312c8). See `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md`.
+- D1 shell/nav: CODE WRITTEN, committed as a WIP checkpoint. NOT complete. Remaining work is below.
+- D2–D6: not started.
 
-Redesign Personal Calander (dashboard + every screen) to match and exceed `BEST Shots/` and the competitor shots (Morgen, Sunsama, Asana, Monday). Keep the white/blue identity and real data only. Owner direction: keep adding features and keep making it more modern and animated; motion is rich but calm and honours reduced motion. Steps D0–D6.
+## D1: what exists (all under client/src/features/shell unless noted)
+- `premiumNavigation.ts`: grouped nav model (main: Dashboard/Today/Inbox; Plan: Tasks/Plan/Calendar/Roadmap; Grow: Goals & Projects/Habits/Focus; Reflect: Review/Analytics; More: Goals/Connections/Categories & Recycle Bin). Also `activeNavState`, `homeTabs`, `navBadgeCounts`, `badgeText`.
+- `PlannerRail.tsx`: grouped rail, badges, "Search or jump ⌘K" button. `CommandPalette.tsx`: cmdk palette, Ctrl/⌘K, `>` actions, `#` tasks.
+- `PhoneNavigation.tsx`: centre Capture button (`.pc-phone-capture`). `PlannerShell.tsx`: `pc-shell` class, `data-backdrop="page"` on home/overview only.
+- `premium-shell.css`: all D1 styling.
+- `client/src/pages/Home.tsx`: palette wiring, navBadges, Home SegmentedTabs (Dashboard | Today | Calendar).
+- `shared/phase4Navigation.ts`: Insights is now labelled "Analytics".
+- Tests: `PlannerShell.test.tsx` and `premiumNavigation.test.ts` (24/24 pass). Harness: `python scripts/preview-premium-shell.py`, 16/16 pass. Needs Vite on 127.0.0.1:3100: `npx vite --port 3100 --strictPort --host 127.0.0.1`.
 
-**Working rule (owner, 2026-10-13):** after every checkpoint, update this file and `RUN_STATE.md`, commit, push to `dev/personal-calendar-premium-v2` (`git push origin HEAD:dev/personal-calendar-premium-v2`; never main, never force), post a short note, then **continue to the next step without stopping**. Always tell the owner when Fable runs.
+## D1: remaining to-do (in order)
+1. FIX 2 failing tests in `server/phase4Shell.test.ts` (full suite: 806 pass, 2 fail):
+   - "keeps every legacy child view and Categories utility reachable" deep-equals the `shellSecondaryTargets` labels. The Insights→Analytics rename changed them; update the expected label.
+   - "renders six grouped desktop destinations…" expects the text `Projects &amp; Goals`. The rail now says `Goals &amp; Projects` and uses new groups. Update the assertions to the new grouped rail (intended semantic change). Do not weaken coverage of reachability.
+2. Apply the visual review fixes from sonnet (high priority first):
+   - Phone: content needs bottom padding (pill height + safe-area + 16px) so the pill doesn't cover it.
+   - Phone pill labels clip. Consider the v2.1 Phone.png set: Home | Today | (+) | Calendar | More (the owner's preferences currently drive the primaries; decide whether to change the defaults).
+   - 390px Home tabs truncate ("Dashbo…"). Make `.pc-home-tabs` full width with equal segments, and hide or shrink the Today badge on phone.
+   - 1440: "Search or jump" wraps. Add nowrap and ellipsis on the span (the rail measured ~215px wide; check the legacy grid width overriding 248px).
+   - Desktop header: v2.1 Main.png puts the Home tabs inline in the title row before Capture. Ours sits on its own row. Do this in D2 with the Dashboard header.
+   - Rail collapse button is half-clipped at x≈210. Heading spacing is tight: margin-top ~20px.
+   - Dark tasks-list search input has a legacy green surface (~#0d1a12). Bind it to tokens.
+   - Dark-mode active rail item and active tab contrast is low.
+   - Font may render as the system fallback in the harness. Check that Onest loads.
+3. The opus independent code review of the D1 diff was STILL RUNNING when usage ran out, and its result was lost. RE-RUN it: opus, read-only, covering hook order in Home.tsx, the ⌘K listener vs other dialogs, palette navigation/history, aria-current/tablist semantics, phone layout with 1–4 primaries, badge counts vs `inboxTasks()`, and grep tests/scripts for the "Insights" label.
+4. Run `npm test`, `npm run check`, `npm run build`, `python scripts/preview-premium-plan.py` (expect 36/36), `scripts/preview-premium-gallery.py` (8/8) and `scripts/preview-premium-shell.py` (16/16).
+5. Write `docs/superpowers/specs/2026-10-13-premium-redesign-d1-shell.md`; premiumNavigation.ts already references it. Then add D1 entries to `docs/DECISIONS.md`:
+   - Dashboard-only backdrop
+   - Insights → Analytics
+   - rail groups
+   - palette prefixes `>` and `#`
+   - default landing stays home/today until D2
+   Also update `docs/PHASE4_SLICE_EVIDENCE.md`, `docs/PROJECT_STATE.md` and RUN_STATE.md (mark D1 done), and this file.
+6. Commit with "feat(design): premium redesign D1 shell…", push, and append an agent-memory event (`node scripts/agent-memory.mjs`, session 03532cfd-2fbd-4d3b-b503-ca234a6f349c).
 
-Model routing: haiku for mechanical work, sonnet for ordinary UI and visual review, opus for architecture and risky work, fable for key design moments (tell the owner).
+## Next: D2 Dashboard (home/overview)
+- Real Dashboard. Make it the default landing.
+- Planned vs actual time from focus sessions.
+- Header with the tabs inline.
+- Motion: first-mount-only entrance, hover lift only for hover:hover, pulse only on the now-line, ring/count-up ≤600ms.
+- Fix the v2.1 notes: Up-next card's empty middle and the Week rhythm card's spare height.
+Then D3 Tasks drag (@dnd-kit approved), D4 "why it matters", D5 Analytics, D6 polish (extra palette slots, swatch-only category editor, lower the legacy-green baselines in `client/src/design/legacyGreen.test.ts`).
 
-## Done so far
+## Subagent routing (owner instruction)
+- haiku: mechanical edits and greps.
+- sonnet: ordinary UI work and screenshot/visual review. D1 used sonnet to compare `%TEMP%\premium-shell\shell-*.png` against `v2-preview\v2.1\*.png`.
+- opus: architecture, risky changes, independent code review (D1 review needs re-running, see above).
+- fable: key design moments only. Always tell the owner when it runs. Used once for the D0 spec review.
+Give each subagent: an objective, scope, file paths, expected output (≤450 words, prioritised), and an explicit read-only or may-edit statement.
 
-- C3 Plan Studio (`8a242e6`, `780f094`).
-- Redesign programme and v2.1 look approved (canvas https://claude.ai/artifact/92uiB3ukGHrDcPqp9Q1SUo v4; PNGs `..\..\..\v2-preview\v2.1\`, untracked; generator `tmp/v2gen/`).
-- **D0 done (2026-10-13).**
-  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md`. Fable reviewed it, and the end of the spec lists what was adopted and what was deferred.
-  - Tokens: `client/src/design/tokens-v2.css`, all `--pc-*`: page/card/line/track/hero/night, elevation e1–e3, radius, category and status palette, typography, spacing, z, focus, motion, plus `.pc-rise/.pc-pop/.pc-grow-x/.pc-grow-y/.pc-pulse` and the reduced-motion rule.
-  - Primitives: `client/src/design/primitives.css` plus `client/src/components/premium/Pills.tsx` (Pill, StatusPill, TimeChip, CategoryChip) and `SegmentedTabs.tsx` (Radix tabs with a framer `layoutId` indicator).
-  - Logic: `categoryTone.ts` (snaps the stored colour by hue; `resolveCategoryTones` deduplicates slots) and `timeFormat.ts`.
-  - Wiring: `<MotionConfig reducedMotion="user">` in `App.tsx`. Tailwind `--color-pc-*`, `--radius-pc-*`, `--shadow-pc-*` in `index.css` `@theme`.
-  - Quarantine: `client/src/design/legacyGreen.test.ts` sets per-file baselines; lower them when a screen drops green.
-  - Dev-only `/premium-gallery` route (`pages/PremiumGallery.tsx`) plus `scripts/preview-premium-gallery.py`.
-  - Docs: DESIGN.md (v2 palette/radius/motion), DECISIONS.md, PROJECT_STATE.md, PHASE4_SLICE_EVIDENCE.md.
-
-## Current state
-
-- Branch `work/premium-redesign` in worktree `.claude/worktrees/premium-redesign`, pushed to `dev/personal-calendar-premium-v2` at the D0 commit.
-- The Vite dev server may be running on 3100 from this worktree. Otherwise: `npx vite --port 3100 --strictPort --host 127.0.0.1`.
-- No screen uses the primitives yet. D1 is the first consumer.
-
-## Decisions and why
-
-- All of them are in `docs/DECISIONS.md` (2026-10-13 section) and the D0 spec. Key points:
-  - Category colours are snapped to 5 validated slots and always shown with a label.
-  - Card tokens alias the existing surfaces (dark card `#19273a` keeps the validated contrast).
-  - 12px is the text floor.
-  - Tabs are 44px on coarse pointers.
-  - Green CSS is ratcheted, not deleted.
-
-## Open problems
-
-- Deferred from Fable:
-  - D2: entrance animation only on first mount; hover lift only on `hover:hover`; pulse on the now-line only.
-  - D1: backdrop per layout.
-  - D6: extra palette slots and a swatch-only category editor.
-- Preview issues still to fix in D2: the dashboard Up-next card has an empty middle, and the Week rhythm card has spare height.
-- Data: planned time = `tasks.estimateMinutes`; actual time = focus sessions (needs a projection in D2); "why it matters" (D4) must come from existing goal/project links. No schema migration.
-
-## Next steps (in order)
-
-1. `node scripts/agent-memory.mjs session list`; read `RUN_STATE.md`.
-2. **D1 shell/nav**:
-   - Read `client/src/features/shell/planner-shell.css`, `approved-workspace.css` and the shell part of `client/src/pages/Home.tsx` (find `planner-rail`, `planner-nav`, `mobile-planner-nav`).
-   - Build the grouped sidebar with badges (Plan / Do / Reflect groups as in the v2.1 boards).
-   - Add the Home view tabs Dashboard | Today | Calendar using `SegmentedTabs`.
-   - Add ⌘K prefixes if a command palette exists.
-   - Phone bottom nav: Home / Today / + / Calendar / More.
-   - Decide the backdrop per layout.
-   - Remove green rules from the rebuilt shell and lower the baselines.
-   - Fable is optional for the D1 IA review; tell the owner if used.
-3. Verify, write the checkpoint (this file + RUN_STATE), commit, push, continue to D2 (Dashboard home).
-
-## How to verify
-
-- `npm run check`, `npm test` (≥800 passed), `npm run build`.
-- `python scripts/preview-premium-plan.py` (36/36) and `python scripts/preview-premium-gallery.py` (8/8) against Vite on 3100.
-- Screenshots of changed screens at 1440 and 390, light and dark, compared with `v2-preview/v2.1/*.png`. Also check reduced motion and contrast.
-- Never claim Preview, migration or iPhone passes without direct evidence. Never write to live data.
+## Gotchas
+- Never commit `v2-preview/` PNGs. `tmp/` is gitignored and holds the debug scripts pal.py, kbd.py and greens.py. Keep screenshots in %TEMP%.
+- Never use bare `git stash`. The worktree guard rejects `$CLAUDE_JOB_DIR` paths and long chained heredocs, so split commands.
+- cmdk item `value`s must be static strings (including the query in them made everything match).
+- The `useTheme` used in Home.tsx's main component is its own call (line ~6547 belongs to another component).

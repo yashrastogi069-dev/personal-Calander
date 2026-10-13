@@ -109,6 +109,9 @@ import {
   togglePlannerPrimaryShortcut,
 } from "@/features/shell/PhoneNavigation";
 import { labelForPlannerTarget } from "@/features/shell/PlannerRail";
+import { CommandPalette, useCommandPaletteShortcut } from "@/features/shell/CommandPalette";
+import { homeTabForLocation, homeTabs, navBadgeCounts, type HomeTabId } from "@/features/shell/premiumNavigation";
+import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
 import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
 import {
   TaskWorkspace,
@@ -271,7 +274,7 @@ const navItems: { id: Surface; label: string; icon: typeof Grid2X2 }[] = [
   { id: "habits", label: "Habits", icon: TimerReset },
   { id: "focus", label: "Focus", icon: Command },
   { id: "connections", label: "Connections", icon: CalendarDays },
-  { id: "insights", label: "Insights", icon: BarChart3 },
+  { id: "insights", label: "Analytics", icon: BarChart3 },
   { id: "review", label: "Review", icon: Sparkles },
   { id: "settings", label: "Settings", icon: Settings2 },
 ];
@@ -8378,6 +8381,35 @@ export default function Home() {
   };
 
   const surfaceTitle = plannerViewLabel(plannerLocation);
+  const { switchable: themeSwitchable, toggleTheme } = useTheme();
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
+  useCommandPaletteShortcut(openCommandPalette);
+  const navBadges = useMemo(
+    () =>
+      snapshot
+        ? navBadgeCounts({
+            today,
+            tasks: snapshot.tasks,
+            todayTaskCount: todayProjection
+              ? todayProjection.timeline.filter(row => row.kind === "task").length + todayProjection.flexible.length
+              : null,
+            dueHabitCount: todayProjection ? todayProjection.habits.filter(habit => habit.state === "due").length : null,
+          })
+        : undefined,
+    [snapshot, today, todayProjection]
+  );
+  const openPaletteTask = (taskId: string) => {
+    const next = searchOpenLocation({ entity: "task", id: taskId }, { query: workspaceSearchQuery, taskQuery: taskSearch, taskFilter, taskSort });
+    setPlannerLocation(current => ({ ...current, ...next } as PlannerLocation));
+    if (typeof window !== "undefined") writePlannerLocation(new URL(window.location.href), next as PlannerLocation, window.history);
+  };
+  const searchFromPalette = (query: string) => {
+    updateWorkspaceSearchQuery(query);
+    navigatePlanner({ destination: "home", view: "search", action: "search" });
+  };
+  const activeHomeTab = homeTabForLocation(plannerLocation);
+
   if (!snapshot) {
     return (
       <PlannerShell
@@ -8462,9 +8494,21 @@ export default function Home() {
           onOpenFocus={() => selectSurface("focus")}
         />
       ) : null}
-      viewNavigation={plannerLocation.destination === "home" && (plannerLocation.view === "today" || plannerLocation.view === "overview") ? <nav className="workspace-view-switch home-view-switch" aria-label="Home views">
-        {(["today", "overview"] as const).map(view => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "home", view })}>{view === "today" ? "Today" : "Overview"}</button>)}
-      </nav> : undefined}
+      viewNavigation={activeHomeTab ? (
+        <div className="pc-home-tabs">
+          <SegmentedTabs<HomeTabId>
+            label="Home views"
+            value={activeHomeTab}
+            onValueChange={value => {
+              const tab = homeTabs.find(candidate => candidate.value === value);
+              if (tab) navigatePlanner(tab.target);
+            }}
+            items={homeTabs.map(tab => ({ value: tab.value, label: tab.label, badge: tab.value === "today" ? navBadges?.todayLeft ?? null : null }))}
+          />
+        </div>
+      ) : undefined}
+      badges={navBadges}
+      onOpenCommand={openCommandPalette}
       quickCapture={
         <form className="quick-capture" onSubmit={createQuickTask}>
           <Plus size={19} />
@@ -9017,7 +9061,7 @@ export default function Home() {
           </Suspense>
         ) : null}
         {surface === "insights" ? (
-          <Suspense fallback={<DestinationLoading label="Insights" />}>
+          <Suspense fallback={<DestinationLoading label="Analytics" />}>
             <PlanningInsightsWorkspace
               dashboard={dashboardQuery.data}
               onOpenPlan={() => selectSurface("plan")}
@@ -9244,6 +9288,16 @@ export default function Home() {
         onOpenChange={setMobileCustomizationOpen}
         preferences={preferences}
         onChange={setPreferences}
+      />
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        tasks={snapshot.tasks}
+        onNavigate={navigatePlanner}
+        onAction={runGlobalAction}
+        onOpenTask={openPaletteTask}
+        onSearch={searchFromPalette}
+        onToggleTheme={themeSwitchable ? toggleTheme : undefined}
       />
     </PlannerShell>
   );
