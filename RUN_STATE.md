@@ -24,6 +24,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | In progress 2026-10-13 |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
 | D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
+| D3.5.2 | Browser verification slice (owner 2026-10-13), after D3.5 and its MD updates. Test the work with Playwright (+ CDP for animation timings, perf traces, CPU throttling), playwright-cli and agent-browser/agent-reach, on the demo preview at 1440/390, light/dark, with reduced motion. The owner helps verify animations. Installed: playwright-python 1.60, playwright-cli, agent-browser, agent-reach, Chrome. Missing: browser-use (pip + LLM key), Chrome DevTools MCP (not configured), Claude in Chrome (not connected). Ask the owner for links/approval before installing | Not started |
 | D4 | "Why it matters" reasons from existing facts | Not started |
 | D5 | Light Analytics | Not started |
 | D6 | Polish, empty/first-run states | Not started |

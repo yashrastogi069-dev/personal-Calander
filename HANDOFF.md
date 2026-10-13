@@ -22,6 +22,10 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
   - After D2.5 verification: install `@dnd-kit/core`, `@dnd-kit/sortable` and `@dnd-kit/utilities` (approved). Then Fable builds the UI (§14 Fable column), opus builds `useTaskDnd` and the container wiring.
   - Sub-checkpoints: D3a, D3b, D3c.
 - **D3.5 iPhone nav & gestures:** not started. Fable designs and builds; scope is in DECISIONS (2026-10-13 iPhone section).
+- **D3.5.2 browser verification (owner, after D3.5 + MD updates):**
+  - Tools available now: Playwright + CDP, playwright-cli, agent-browser, agent-reach.
+  - Not available: browser-use, Chrome DevTools MCP and Claude in Chrome. The owner will send links or approve installs.
+  - The owner helps verify the animations.
 - **Owner questions pending:** confirm the three D3 assumptions (DECISIONS, end).
 - **Look at the app:** `python scripts/open-demo-preview.py` (Vite on :3100).
 - **Checkpoint rule:** after every checkpoint, update ALL MDs (this block first), commit, push, continue. See CLAUDE.md "Checkpoints".
