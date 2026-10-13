@@ -25,6 +25,11 @@ export function shiftLocalDate(localDate: string, amount: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function displayLocalDate(localDate: string, timezone: string, options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) {
-  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: safeTimeZone(timezone) }).format(new Date(`${localDate}T12:00:00.000Z`));
+/**
+ * A local date is already a calendar day, so it is formatted in UTC. Formatting UTC noon in the workspace
+ * zone moved it to the next day at UTC+12 and beyond (New Zealand in daylight time showed tomorrow).
+ * The timezone stays in the signature for callers; it no longer shifts the day.
+ */
+export function displayLocalDate(localDate: string, _timezone: string, options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) {
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${localDate}T12:00:00.000Z`));
 }
