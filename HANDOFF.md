@@ -55,8 +55,24 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 2. Update or retire the stale `preview-task15.py` and `preview-linked-planner.py`.
 3. Then D4 (why it matters), D5 (light Analytics) and D6 (polish and first-run states), each with its own checkpoint, handoff and push.
 
+## Owner checks in progress (2026-10-13)
+- The owner checks the Vercel Preview and the animations themselves, using `docs/OWNER_PREVIEW_CHECKLIST.md`.
+  - Preview for `1acc7ec` (Vercel: success): https://personal-calander-6wkxtwevp-yashnew869-2746s-projects.vercel.app
+  - Agents still do not run Vercel checks. Wait for the owner's report and fix whatever they find before D3 polish.
+
 ## Open owner questions
-- **Phone primary shortcut defaults:** they are still Today, Tasks and Daily plan; v2.1 shows Home, Today and Calendar. Changing them changes a stored-preference default, so they're left until the owner decides. On phone, the "Home" target still opens Today.
+- **Phone primary shortcut defaults:** they are still Today, Tasks and Daily plan; v2.1 shows Home, Today and Calendar. Defaults live in `shared/phase4Preferences.ts` (`phase4DefaultPreferences.primary`) and only apply when an account has no saved shortcut list, so a saved custom list is never overwritten. On phone, the "Home" target still opens Today.
+- **Phone navigation concept (owner asked for designer thinking, 2026-10-13).** Options put to the owner:
+  - (a) A v2.1 floating glass bar (Home / Today / + / Calendar / More) that shrinks on scroll and shows a context-aware "+".
+  - (b) The same bar plus iPhone gestures:
+    - swipe a task row to complete or reschedule
+    - swipe days in Today/Calendar
+    - long-press tabs and "+" for quick actions
+    - tap the active tab to scroll to the top
+    - swipe up on the bar for More
+  - (c) A left drawer on phone. Not recommended: the hamburger hides navigation and the top-left is out of thumb reach on large iPhones. Keep the left sidebar for iPad and desktop.
+  - iPhone Safari has no Vibration API, so web haptics are not available.
+  - Record the answers in DECISIONS.md and here.
 - **Fable composition review of the Dashboard:** optional, and needs the owner's OK.
 
 ## Known risks and limits

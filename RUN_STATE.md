@@ -63,6 +63,11 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 
 ## Checkpoint log
 
+- 2026-10-13 after D2 push:
+  - The owner will check the Vercel Preview and the animations themselves. The URL and the 12-step list are in `docs/OWNER_PREVIEW_CHECKLIST.md`.
+  - Interview round on phone navigation is open: Home/Today/Calendar shortcuts, iPhone gestures and motion, bottom bar vs left panel. See HANDOFF "Open owner questions".
+  - D3 starts after the answers, or in parallel if the answers don't affect the Tasks board.
+
 - 2026-10-13 D2 built locally:
   - **Dashboard:** the default landing, built by opus with the design skills loaded.
   - **Logic:** opus independent review; 7 medium findings fixed.
