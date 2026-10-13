@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DashboardView, layoutScheduleItems, milestoneLanes } from "./DashboardView";
+import { DashboardView, daysBetween, layoutScheduleItems } from "./DashboardView";
+import { FocusSessionContext, type FocusSessionValue } from "@/features/focus/FocusSessionContext";
 import { dashboardFixture, emptyDashboardFixture, FIXTURE_TIMEZONE, noopDashboardActions } from "./dashboardFixture";
 import type { DashboardModel, DashboardScheduleItem } from "./dashboardTypes";
 
@@ -82,12 +83,13 @@ describe("DashboardView", () => {
   it("draws the now-line only when nowMinute is known", () => {
     const withNow = render();
     expect(withNow).toContain('data-testid="dashboard-now-line"');
-    expect(withNow).toMatch(/pc-dash-now-dot pc-pulse/);
+    // The line is its own element (drawn behind the blocks); the time pill sits in the gutter.
+    expect(withNow).toMatch(/class="pc-dash-now-line"[\s\S]*?class="pc-dash-now-time/);
     expect(text(withNow)).toContain("10:45 AM");
 
     const withoutNow = render({ ...dashboardFixture, schedule: { ...dashboardFixture.schedule, nowMinute: null } });
     expect(withoutNow).not.toContain("dashboard-now-line");
-    expect(withoutNow).not.toContain("pc-pulse");
+    expect(withoutNow).not.toContain("pc-dash-now-line");
   });
 
   it("formats schedule times in the workspace timezone and marks appointments busy", () => {
@@ -266,13 +268,88 @@ describe("layoutScheduleItems", () => {
   });
 });
 
-describe("milestoneLanes", () => {
-  it("moves close labels to a second lane", () => {
-    const lanes = milestoneLanes([
-      { id: "a", title: "A", dueLocalDate: "2026-10-15", offsetPercent: 10 },
-      { id: "b", title: "B", dueLocalDate: "2026-10-17", offsetPercent: 20 },
-      { id: "c", title: "C", dueLocalDate: "2026-11-01", offsetPercent: 70 },
-    ]);
-    expect(lanes.map(item => item.lane)).toEqual([0, 1, 0]);
+describe("Next 30 days strip", () => {
+  it("lists every milestone as its own row, so labels cannot collide", () => {
+    const html = render({
+      ...dashboardFixture,
+      milestones: [
+        { id: "a", title: "Alpha", dueLocalDate: "2026-10-14", offsetPercent: 3 },
+        { id: "b", title: "Beta", dueLocalDate: "2026-10-15", offsetPercent: 7 },
+        { id: "c", title: "Gamma", dueLocalDate: "2026-10-16", offsetPercent: 10 },
+      ],
+    });
+    expect(matches(html, /class="pc-dash-strip-marker/g)).toHaveLength(3);
+    const list = html.slice(html.indexOf('class="pc-dash-strip-list"'));
+    expect(matches(list, /<li/g).length).toBeGreaterThanOrEqual(3);
+    expect(text(list)).toMatch(/Alpha · 14 Oct/);
+  });
+
+  it("counts whole days between local dates", () => {
+    expect(daysBetween("2026-10-13", "2026-10-13")).toBe(0);
+    expect(daysBetween("2026-10-13", "2026-10-14")).toBe(1);
+    expect(daysBetween("2026-10-30", "2026-11-12")).toBe(13);
+  });
+});
+
+function focusValue(overrides: Partial<FocusSessionValue>): FocusSessionValue {
+  const noop = () => {};
+  return {
+    scope: { workspaceId: "w", timezone: FIXTURE_TIMEZONE } as FocusSessionValue["scope"],
+    today: "2026-10-13", snapshot: {}, online: true, session: null, task: null, title: "Draft Q4 report", toneClass: "pc-tone-work",
+    nextMeeting: null, pending: false, error: null, clearError: noop, pause: noop, resume: noop, finish: noop, finishing: false,
+    finishError: null, clearFinishError: noop, lastSaved: null, handoff: null, recentHandoff: null, dismissHandoff: noop, sessions: [],
+    durableFollowUp: false, saveFollowUp: noop, followUpPending: false, followUpError: null, clearFollowUpError: noop, savedFlash: false,
+    celebrateId: null, finishSheetOpen: false, openFinish: noop, closeFinish: noop, onOpenFocus: noop, onOpenTask: noop, onOpenPlan: noop,
+    onStartAnother: noop,
+    ...overrides,
+  };
+}
+
+function renderWithFocus(value: FocusSessionValue) {
+  return renderToStaticMarkup(
+    <FocusSessionContext.Provider value={value}>
+      <DashboardView model={dashboardFixture} actions={noopDashboardActions()} timezone={FIXTURE_TIMEZONE} />
+    </FocusSessionContext.Provider>
+  );
+}
+
+describe("Dashboard focus card", () => {
+  const live = { id: "s1", state: "active", activeSeconds: 14 * 60 + 32, lastResumedAt: null, targetMinutes: 25, version: 1 } as FocusSessionValue["session"];
+
+  it("is the white weekly card with a Start focus row when idle", () => {
+    const html = render();
+    const card = html.slice(html.indexOf("pc-dash-area-focus"), html.indexOf("pc-dash-area-due"));
+    expect(card).toContain("pc-dash-kpi");
+    expect(card).not.toContain("pc-dash-night");
+    expect(text(card)).toContain("Focus this week");
+    expect(text(card)).toContain("Start focus on Draft portfolio case study");
+  });
+
+  it("becomes the night instrument while a session runs, with labelled controls", () => {
+    const html = renderWithFocus(focusValue({ session: live }));
+    const card = html.slice(html.indexOf("pc-dash-area-focus"), html.indexOf("pc-dash-area-due"));
+    expect(card).toContain("pc-dash-night pc-on-night pc-dash-focus-live pc-tone-work");
+    expect(card).toContain('class="pc-dial pc-dial-sm is-running');
+    expect(text(card)).toContain("Focusing");
+    expect(text(card)).toContain("Draft Q4 report");
+    expect(card).toMatch(/role="timer"[^>]*>14 minutes of 25, Draft Q4 report</);
+    expect(text(card)).toMatch(/Pause/);
+    expect(text(card)).toMatch(/Finish/);
+    expect(card).toContain("this week");
+  });
+
+  it("guards controls offline and reads Resume while paused", () => {
+    const paused = renderWithFocus(focusValue({ session: { ...live!, state: "paused" } as FocusSessionValue["session"] }));
+    expect(text(paused.slice(paused.indexOf("pc-dash-area-focus"), paused.indexOf("pc-dash-area-due")))).toContain("Resume");
+    const offline = renderWithFocus(focusValue({ session: live, online: false }));
+    const card = offline.slice(offline.indexOf("pc-dash-area-focus"), offline.indexOf("pc-dash-area-due"));
+    expect(card).toMatch(/disabled=""[^>]*>[\s\S]*?Offline/);
+  });
+
+  it("says Saved with a next-step link for a recent finish", () => {
+    const html = renderWithFocus(focusValue({ recentHandoff: { id: "s0", version: 2, taskId: "t", taskTitle: "Draft Q4 report", outcome: "continue", note: "", nextStepAction: null, nextStepTaskId: null, activeSeconds: 25 * 60, targetMinutes: 25, endedAt: null, state: "completed" } }));
+    const card = html.slice(html.indexOf("pc-dash-area-focus"), html.indexOf("pc-dash-area-due"));
+    expect(text(card)).toContain("Saved · 25m on Draft Q4 report");
+    expect(text(card)).toContain("Choose next step");
   });
 });

@@ -1,8 +1,9 @@
 // Shared premium Sheet: a bottom sheet on phones (drag down to dismiss, momentum 0.11 px/ms, damped
-// upward pull) and a centred dialog on larger screens. The labelled Close button is always present,
+// upward pull), a centred dialog on larger screens, or a right-docked side panel (variant "side",
+// 480px, slides in on x with the SHEET curve; it becomes the bottom sheet on phones). The labelled Close button is always present,
 // so the gesture is never the only way out. Radix Dialog owns focus trapping and focus return.
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { AnimatePresence, motion, useDragControls, type PanInfo } from "framer-motion";
+import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo, type TargetAndTransition, type Transition } from "framer-motion";
 import { X } from "lucide-react";
 import { useRef, type ReactNode } from "react";
 import { EASE_OUT, SHEET, shouldDismissSheet } from "@/design/motion";
@@ -17,8 +18,8 @@ export type SheetProps = {
   /** Visually hidden title when the content carries its own visible heading. */
   hideTitle?: boolean;
   description?: ReactNode;
-  /** "auto" = bottom sheet on phones, dialog elsewhere. */
-  variant?: "auto" | "sheet" | "dialog";
+  /** "auto" = bottom sheet on phones, dialog elsewhere. "side" = right panel (bottom sheet on phones). */
+  variant?: "auto" | "sheet" | "dialog" | "side";
   className?: string;
   /** Extra class on the content panel, e.g. a tone class. */
   contentClassName?: string;
@@ -29,6 +30,27 @@ export type SheetProps = {
   closeLabel?: string;
   children: ReactNode;
 };
+
+export type SheetKind = "sheet" | "dialog" | "side";
+
+/** Which panel a variant renders at the current width. */
+export function sheetKind(variant: NonNullable<SheetProps["variant"]>, phone: boolean): SheetKind {
+  if (variant === "sheet" || (phone && (variant === "auto" || variant === "side"))) return "sheet";
+  return variant === "side" ? "side" : "dialog";
+}
+
+const INSTANT: Transition = { duration: 0 };
+
+/**
+ * Enter/exit motion per panel kind. Reduced motion makes the panel appear and leave in place
+ * (no travel, no scale), instantly.
+ */
+export function sheetMotion(kind: SheetKind, reduced: boolean): { initial: TargetAndTransition; animate: TargetAndTransition; exit: TargetAndTransition; transition: Transition } {
+  if (reduced) return { initial: { opacity: 1 }, animate: { opacity: 1, x: 0, y: 0, scale: 1 }, exit: { opacity: 0, transition: INSTANT }, transition: INSTANT };
+  if (kind === "sheet") return { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%", transition: { duration: 0.2, ease: EASE_OUT } }, transition: SHEET };
+  if (kind === "side") return { initial: { x: "100%" }, animate: { x: 0 }, exit: { x: "100%", transition: { duration: 0.2, ease: EASE_OUT } }, transition: SHEET };
+  return { initial: { opacity: 0, scale: 0.96, y: 8 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.98, transition: { duration: 0.16, ease: EASE_OUT } }, transition: { duration: 0.24, ease: EASE_OUT } };
+}
 
 export function Sheet({
   open,
@@ -45,7 +67,10 @@ export function Sheet({
   children,
 }: SheetProps) {
   const phone = useIsPhone();
-  const asSheet = variant === "sheet" || (variant === "auto" && phone);
+  const kind = sheetKind(variant, phone);
+  const asSheet = kind === "sheet";
+  const reduced = useReducedMotion() ?? false;
+  const panelMotion = sheetMotion(kind, reduced);
   const controls = useDragControls();
   const panel = useRef<HTMLDivElement | null>(null);
   const onDragEnd = (_: unknown, info: PanInfo) => {
@@ -59,11 +84,11 @@ export function Sheet({
           <DialogPrimitive.Portal forceMount>
             <DialogPrimitive.Overlay asChild forceMount>
               <motion.div
-                className="pc-sheet-overlay"
+                className={cn("pc-sheet-overlay", kind === "side" && "is-side")}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: { duration: 0.16, ease: EASE_OUT } }}
-                transition={asSheet ? SHEET : { duration: 0.24, ease: EASE_OUT }}
+                transition={reduced ? INSTANT : asSheet || kind === "side" ? SHEET : { duration: 0.24, ease: EASE_OUT }}
               />
             </DialogPrimitive.Overlay>
             <DialogPrimitive.Content
@@ -75,11 +100,12 @@ export function Sheet({
             >
               <motion.div
                 ref={panel}
-                className={cn("pc-sheet", asSheet ? "is-sheet" : "is-dialog", className, contentClassName)}
-                initial={asSheet ? { y: "100%" } : { opacity: 0, scale: 0.96, y: 8 }}
-                animate={asSheet ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
-                exit={asSheet ? { y: "100%", transition: { duration: 0.2, ease: EASE_OUT } } : { opacity: 0, scale: 0.98, transition: { duration: 0.16, ease: EASE_OUT } }}
-                transition={asSheet ? SHEET : { duration: 0.24, ease: EASE_OUT }}
+                className={cn("pc-sheet", `is-${kind}`, className, contentClassName)}
+                data-sheet-kind={kind}
+                initial={panelMotion.initial}
+                animate={panelMotion.animate}
+                exit={panelMotion.exit}
+                transition={panelMotion.transition}
                 drag={asSheet ? "y" : false}
                 dragListener={false}
                 dragControls={controls}

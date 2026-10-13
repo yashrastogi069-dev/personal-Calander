@@ -65,8 +65,10 @@ describe("reduced motion coverage", () => {
     ["design/tokens-v2.css", [".pc-live::after", ".pc-icon-pop", "--pc-dur-draw: 0ms", "--pc-dur-celebrate: 0ms"]],
     [
       "features/dashboard/dashboard.css",
-      [".pc-dash-hero::before", ".pc-dash-live", ".is-celebrating", ".pc-dash-tick", ".pc-dash-bar-bubble", ".pc-dash-hero-check"],
+      [".pc-dash-hero::before", ".pc-dash-live", ".is-celebrating", ".pc-dash-tick", ".pc-dash-bar-bubble", ".pc-dash-hero-check", ".pc-dash-focus-body.pc-blur-in", ".pc-dash-strip-marker"],
     ],
+    ["features/focus/focus.css", [".pc-dial-xs-live::after", ".pc-digit-roll", ".pc-dial.is-flash .pc-dial-arc", ".pc-focus-pill"]],
+    ["components/premium/premium.css", [".pc-choice-reveal"]],
     ["features/shell/premium-shell.css", [".pc-phone-capture > svg",'.pc-palette[data-state="open"]', '.pc-palette[data-state="closed"]']],
   ];
   for (const [file, names] of cases) {
@@ -78,7 +80,7 @@ describe("reduced motion coverage", () => {
   }
 
   it("keeps every infinite animation behind a reduced-motion opt-out", () => {
-    for (const file of ["design/tokens-v2.css", "features/dashboard/dashboard.css", "features/shell/premium-shell.css"]) {
+    for (const file of ["design/tokens-v2.css", "features/dashboard/dashboard.css", "features/shell/premium-shell.css", "features/focus/focus.css", "components/premium/premium.css"]) {
       const css = read(file);
       const reduced = reducedMotionCss(css);
       const infinite = [...css.matchAll(/animation:\s*([a-z0-9-]+)[^;]*\binfinite\b/g)].map(match => match[1]);

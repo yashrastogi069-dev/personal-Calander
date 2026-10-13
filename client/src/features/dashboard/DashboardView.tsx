@@ -17,12 +17,15 @@ import {
   Flame,
   ListChecks,
   Milestone,
+  Pause,
   Play,
   Repeat,
   Sparkles,
+  Square,
   Sunrise,
   Target,
   Timer,
+  WifiOff,
   type LucideIcon,
 } from "lucide-react";
 import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
@@ -31,6 +34,11 @@ import { toneClassName, type ToneOrNeutral } from "@/design/categoryTone";
 import { easeOutQuart, prefersReducedMotion as prefersStill, useBecameTrue, useChangeCount } from "@/design/motion";
 import { formatMinutes } from "@/design/timeFormat";
 import { cn } from "@/lib/utils";
+import { FocusDial, FocusDigits } from "@/features/focus/FocusDial";
+import { FocusStatePill, FocusSubLine, focusPillState, focusSubLine } from "@/features/focus/FocusReadout";
+import { useFocusSession, type FocusSessionValue } from "@/features/focus/FocusSessionContext";
+import { useFocusElapsedSeconds, useNow } from "@/features/focus/FocusTimeDial";
+import { focusMeetingNotch, focusTimerSentence, formatClockTime, formatFocusClock, formatFocusMinutes } from "@/features/focus/focusDisplay";
 import type {
   DashboardActions,
   DashboardFocusWeek,
@@ -96,6 +104,39 @@ function CountUp({ value, format = n => String(Math.round(n)) }: { value: number
     </>
   );
 }
+
+/**
+ * Reports whether a scroller hides content before or after its viewport, so edge fades only
+ * appear where there is more to see.
+ */
+function useScrollEdges<T extends HTMLElement>(axis: "x" | "y") {
+  const ref = useRef<T>(null);
+  const [edges, setEdges] = useState({ before: false, after: false });
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => {
+      const position = axis === "x" ? element.scrollLeft : element.scrollTop;
+      const max = axis === "x" ? element.scrollWidth - element.clientWidth : element.scrollHeight - element.clientHeight;
+      const next = { before: position > 2, after: position < max - 2 };
+      setEdges(current => (current.before === next.before && current.after === next.after ? current : next));
+    };
+    update();
+    element.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
+    observer?.observe(element);
+    return () => {
+      element.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, [axis]);
+  return [ref, edges] as const;
+}
+
+const edgeData = (edges: { before: boolean; after: boolean }) => ({
+  "data-more-before": edges.before || undefined,
+  "data-more-after": edges.after || undefined,
+});
 
 function Ring({ value, size, stroke, className }: { value: number; size: number; stroke: number; className?: string }) {
   const radius = (size - stroke) / 2;
@@ -226,22 +267,15 @@ export function layoutScheduleItems(
   return placed;
 }
 
-/** Spreads milestone labels over as few lanes as needed so neighbours never overlap. */
-export function milestoneLanes(milestones: readonly DashboardMilestone[], minGap = 34): Array<DashboardMilestone & { lane: number }> {
-  const laneEnds: number[] = [];
-  return [...milestones]
-    .sort((a, b) => a.offsetPercent - b.offsetPercent)
-    .map(milestone => {
-      const offset = Math.max(0, Math.min(100, milestone.offsetPercent));
-      let lane = laneEnds.findIndex(last => offset - last >= minGap);
-      if (lane === -1) {
-        lane = laneEnds.length;
-        laneEnds.push(offset);
-      } else {
-        laneEnds[lane] = offset;
-      }
-      return { ...milestone, offsetPercent: offset, lane };
-    });
+/** Whole days from `from` to `to` (both YYYY-MM-DD). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000);
+}
+
+function relativeDays(days: number): string {
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -386,24 +420,81 @@ function HabitConsistencyCard({ data }: { data: DashboardHabitConsistency }) {
   );
 }
 
-function FocusCard({ data, actions }: { data: DashboardFocusWeek; actions: DashboardActions }) {
+type FocusCardMode = "idle" | "live" | "saved";
+
+/**
+ * D2.5 Surface A. The "Focus this week" card is the home of the timer: white with the week's
+ * figures while idle, a night instrument while a session is open, and a short "Saved" note with
+ * "Choose next step" for ten minutes after a session ends. Same grid area in every mode.
+ */
+function FocusCard({ data, actions, upNext }: { data: DashboardFocusWeek; actions: DashboardActions; upNext: DashboardUpNext | null }) {
   const id = useId();
+  const focus = useFocusSession();
+  const session = focus?.session ?? null;
+  const saved = !session ? focus?.recentHandoff ?? null : null;
+  const mode: FocusCardMode = session ? "live" : saved ? "saved" : "idle";
+  // The first paint stays still; a later mode change blurs the new content in.
+  const modeChanges = useChangeCount(mode);
+  return (
+    <Card
+      id={id}
+      area="focus"
+      index={2}
+      className={cn(
+        "pc-dash-focus",
+        mode === "live" ? cn("pc-dash-night pc-on-night pc-dash-focus-live", focus?.toneClass) : "pc-dash-kpi",
+        mode === "saved" && "pc-dash-focus-saved"
+      )}
+    >
+      <div key={mode} className={cn("pc-dash-focus-body", modeChanges > 0 && "pc-blur-in")}>
+        {mode === "live" && focus ? (
+          <FocusLive titleId={id} focus={focus} data={data} />
+        ) : mode === "saved" && focus && saved ? (
+          <FocusSaved titleId={id} focus={focus} data={data} minutes={Math.max(1, Math.round(saved.activeSeconds / 60))} title={saved.taskTitle} />
+        ) : (
+          <FocusIdle titleId={id} data={data} actions={actions} upNext={upNext} onOpenFocus={focus?.onOpenFocus ?? actions.openFocus} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function FocusOpenButton({ onClick, light = false }: { onClick: () => void; light?: boolean }) {
+  return (
+    <button type="button" className={cn("pc-dash-focus-open", light && "is-night")} onClick={onClick}>
+      Open<span className="pc-dash-sr"> Focus</span>
+      <ArrowUpRight {...ICON} size={15} />
+    </button>
+  );
+}
+
+function FocusIdle({
+  titleId,
+  data,
+  actions,
+  upNext,
+  onOpenFocus,
+}: {
+  titleId: string;
+  data: DashboardFocusWeek;
+  actions: DashboardActions;
+  upNext: DashboardUpNext | null;
+  onOpenFocus: () => void;
+}) {
   const scale = Math.max(data.actualMinutes, data.plannedMinutes ?? 0, 1);
   return (
-    <Card id={id} area="focus" index={2} className="pc-dash-kpi">
+    <>
       <header className="pc-dash-kpi-head">
         <span className="pc-dash-kpi-icon pc-tone-personal"><Timer {...ICON} /></span>
-        <h2 id={id}>
+        <h2 id={titleId}>
           <span className="pc-dash-long">Focus this week</span>
           <span className="pc-dash-short">Focus week</span>
         </h2>
+        <span className="pc-dash-kpi-detail pc-dash-focus-open-slot"><FocusOpenButton onClick={onOpenFocus} /></span>
       </header>
       {data.actualMinutes <= 0 ? (
         <div className="pc-dash-kpi-empty">
           <p>No focus logged this week</p>
-          <button type="button" className="pc-dash-link pc-dash-kpi-detail" onClick={actions.openFocus}>
-            <Play {...ICON} size={14} /> Start focus
-          </button>
         </div>
       ) : (
         <>
@@ -432,7 +523,99 @@ function FocusCard({ data, actions }: { data: DashboardFocusWeek; actions: Dashb
           </ul>
         </>
       )}
-    </Card>
+      <div className="pc-dash-focus-start pc-dash-kpi-detail">
+        {/* Opens the Focus screen with the task chosen; the length stays the user's call. */}
+        <button type="button" className="pc-dash-btn pc-dash-btn-ghost pc-dash-focus-start-btn" onClick={upNext ? () => actions.startFocus(upNext.taskId) : actions.openFocus}>
+          <Play {...ICON} size={13} fill="currentColor" /> Start focus
+        </button>
+        {upNext ? <span className="pc-dash-focus-start-on">on <b>{upNext.title}</b></span> : null}
+      </div>
+    </>
+  );
+}
+
+function FocusSaved({ titleId, focus, data, minutes, title }: { titleId: string; focus: FocusSessionValue; data: DashboardFocusWeek; minutes: number; title: string }) {
+  return (
+    <>
+      <header className="pc-dash-kpi-head">
+        <span className="pc-dash-kpi-icon pc-dash-focus-saved-icon"><CheckCircle2 {...ICON} /></span>
+        <h2 id={titleId}>
+          <span className="pc-dash-long">Focus saved</span>
+          <span className="pc-dash-short">Saved</span>
+        </h2>
+      </header>
+      <p className="pc-dash-focus-saved-line">
+        <b>Saved</b> · <span className="pc-num">{formatFocusMinutes(minutes)}</span> on <span className="pc-dash-focus-saved-title">{title}</span>
+      </p>
+      <div className="pc-dash-focus-saved-actions pc-dash-kpi-detail">
+        <button type="button" className="pc-dash-btn pc-dash-btn-accent" onClick={focus.onOpenFocus}>
+          Choose next step <ArrowUpRight {...ICON} size={15} />
+        </button>
+        {data.actualMinutes > 0 ? <span className="pc-dash-focus-foot pc-num">{formatMinutes(data.actualMinutes)} this week</span> : null}
+      </div>
+    </>
+  );
+}
+
+function FocusLive({ titleId, focus, data }: { titleId: string; focus: FocusSessionValue; data: DashboardFocusWeek }) {
+  const session = focus.session!;
+  const elapsed = useFocusElapsedSeconds(session);
+  const running = session.state === "active";
+  const nowMs = useNow(15_000, running);
+  const state = focusPillState(session, elapsed, focus.online);
+  const timeZone = focus.scope.timezone;
+  const digits = formatFocusClock(elapsed);
+  const notchFraction = running ? focusMeetingNotch(focus.nextMeeting?.startsAt, nowMs, elapsed, session.targetMinutes) : null;
+  const notch = notchFraction != null && focus.nextMeeting
+    ? { fraction: notchFraction, label: `Meeting ${formatClockTime(focus.nextMeeting.startsAt, timeZone)} · ${focus.nextMeeting.title}` }
+    : null;
+  const controlKey = !focus.online ? "offline" : running ? "pause" : "play";
+  return (
+    <>
+      <header className="pc-dash-focus-head">
+        <h2 id={titleId} className="pc-dash-sr">Focus</h2>
+        <FocusStatePill state={state} session={session} elapsedSeconds={elapsed} timeZone={timeZone} />
+        <FocusOpenButton onClick={focus.onOpenFocus} light />
+      </header>
+      <div className="pc-dash-focus-main">
+        <FocusDial
+          size="sm"
+          state={running ? "running" : "paused"}
+          elapsedSeconds={elapsed}
+          targetMinutes={session.targetMinutes}
+          offline={!focus.online}
+          notch={notch}
+          sessionKey={session.id}
+        />
+        <div className="pc-dash-focus-read">
+          <FocusDigits text={digits} prefix={focus.online ? undefined : "≈"} className={cn("pc-dash-focus-digits", digits.length > 5 && "is-long")} />
+          <p className="pc-dash-focus-sub pc-num"><FocusSubLine text={focusSubLine(session, elapsed, focus.online, nowMs, timeZone)} /></p>
+          <p className="pc-dash-focus-task">
+            <span className="pc-dot" aria-hidden="true" />
+            <span className="pc-dash-focus-task-title">{focus.title}</span>
+          </p>
+          <span role="timer" className="pc-dash-sr">{focusTimerSentence(elapsed, session.targetMinutes, focus.title)}</span>
+        </div>
+      </div>
+      {focus.error ? <p className="pc-dash-focus-error" role="alert">{focus.error}</p> : null}
+      <div className="pc-dash-focus-actions">
+        <button
+          type="button"
+          className="pc-dash-btn pc-dash-btn-light"
+          onClick={running ? focus.pause : focus.resume}
+          disabled={!focus.online || focus.pending}
+        >
+          <span key={controlKey} className="pc-dash-focus-icon pc-pop" aria-hidden="true">
+            {!focus.online ? <WifiOff {...ICON} size={14} /> : running ? <Pause {...ICON} size={14} fill="currentColor" /> : <Play {...ICON} size={14} fill="currentColor" />}
+          </span>
+          {!focus.online ? "Offline" : running ? "Pause" : "Resume"}
+        </button>
+        <button type="button" className="pc-dash-btn pc-dash-btn-night" onClick={focus.openFinish} disabled={!focus.online}>
+          <Square {...ICON} size={12} fill="currentColor" /> Finish
+        </button>
+      </div>
+      {data.actualMinutes > 0 ? <p className="pc-dash-focus-foot pc-num">{formatMinutes(data.actualMinutes)} this week</p> : null}
+    </>
   );
 }
 
@@ -469,7 +652,7 @@ function DueCard({ model, actions }: { model: DashboardModel; actions: Dashboard
 }
 
 function DayLens({ schedule, model, actions, fmt }: { schedule: DashboardSchedule; model: DashboardModel; actions: DashboardActions; fmt: Formatters }) {
-  const scroller = useRef<HTMLDivElement>(null);
+  const [scroller, edges] = useScrollEdges<HTMLDivElement>("y");
   const hours = Math.max(1, schedule.endHour - schedule.startHour);
   const windowStart = schedule.startHour * 60;
   const placed = useMemo(
@@ -498,7 +681,7 @@ function DayLens({ schedule, model, actions, fmt }: { schedule: DashboardSchedul
   }
 
   return (
-    <div className="pc-dash-day-scroll" ref={scroller}>
+    <div className="pc-dash-day-scroll" ref={scroller} {...edgeData(edges)}>
       <div className="pc-dash-day" style={{ "--pc-dash-hours": hours } as CSSProperties}>
         {Array.from({ length: hours }, (_, index) => (
           <div key={index} className="pc-dash-hour" style={{ "--pc-dash-at": index } as CSSProperties}>
@@ -543,8 +726,10 @@ function DayLens({ schedule, model, actions, fmt }: { schedule: DashboardSchedul
           })}
         </ol>
         {schedule.nowMinute != null && (
+          // The line runs behind the blocks (they are opaque), so it never strikes through a title;
+          // the time pill sits in the hour gutter, above everything.
           <div className="pc-dash-now" style={{ "--pc-dash-top": (schedule.nowMinute - windowStart) / 60 } as CSSProperties} data-testid="dashboard-now-line">
-            <span className="pc-dash-now-dot pc-pulse" aria-hidden="true" />
+            <span className="pc-dash-now-line" aria-hidden="true" />
             <span className="pc-dash-now-time pc-num">
               <span className="pc-dash-sr">Now </span>
               {fmt.minuteOfDay(schedule.nowMinute)}
@@ -774,8 +959,9 @@ function ProjectRow({ project, actions, fmt }: { project: DashboardProject; acti
 function GoalsCard({ model, actions, fmt }: { model: DashboardModel; actions: DashboardActions; fmt: Formatters }) {
   const id = useId();
   const stripId = useId();
-  const lanes = milestoneLanes(model.milestones);
-  const laneCount = lanes.reduce((max, item) => Math.max(max, item.lane + 1), 0);
+  const milestones = model.milestones;
+  // Hovering a row lights its marker on the track, tying the list to the timeline.
+  const [hot, setHot] = useState<string | null>(null);
   return (
     <Card id={id} area="goals" index={7} className="pc-dash-goals">
       <header className="pc-dash-head">
@@ -798,21 +984,35 @@ function GoalsCard({ model, actions, fmt }: { model: DashboardModel; actions: Da
       )}
       <section className="pc-dash-strip" aria-labelledby={stripId}>
         <h3 id={stripId}>Next 30 days</h3>
-        {lanes.length ? (
+        {milestones.length ? (
           <>
-            <div className="pc-dash-strip-line" aria-hidden="true">
-              {lanes.map(milestone => (
-                <span key={milestone.id} className="pc-dash-strip-marker pc-pop" style={{ left: `${milestone.offsetPercent}%` }} />
+            <div className="pc-dash-strip-track" aria-hidden="true">
+              <span className="pc-dash-strip-line" />
+              {milestones.map((milestone, index) => (
+                <span
+                  key={milestone.id}
+                  className={cn("pc-dash-strip-marker pc-pop", hot === milestone.id && "is-hot")}
+                  style={{ ...stagger(index), left: `${Math.max(0, Math.min(100, milestone.offsetPercent))}%` }}
+                />
               ))}
+              <span className="pc-dash-strip-axis is-start">Today</span>
+              <span className="pc-dash-strip-axis is-end">30 days</span>
             </div>
-            <ol className="pc-dash-strip-labels" style={{ "--pc-dash-lanes": laneCount } as CSSProperties}>
-              {lanes.map(milestone => (
+            <ol className="pc-dash-strip-list">
+              {milestones.map(milestone => (
                 <li
                   key={milestone.id}
-                  className={cn(milestone.offsetPercent < 18 && "is-start", milestone.offsetPercent > 82 && "is-end")}
-                  style={{ left: `${milestone.offsetPercent}%`, "--pc-dash-lane": milestone.lane } as CSSProperties}
+                  className={cn(hot === milestone.id && "is-hot")}
+                  onPointerEnter={() => setHot(milestone.id)}
+                  onPointerLeave={() => setHot(current => (current === milestone.id ? null : current))}
                 >
-                  <span className="pc-dash-strip-title">{milestone.title}</span> · <time dateTime={milestone.dueLocalDate}>{fmt.date(milestone.dueLocalDate)}</time>
+                  <span className="pc-dash-strip-dot" aria-hidden="true" />
+                  <span className="pc-dash-strip-title">{milestone.title}</span>
+                  <span className="pc-dash-strip-when pc-num">
+                    <span className="pc-dash-sr"> · </span>
+                    <time dateTime={milestone.dueLocalDate}>{fmt.date(milestone.dueLocalDate)}</time>
+                    <span className="pc-dash-strip-rel"> {relativeDays(daysBetween(model.localDate, milestone.dueLocalDate))}</span>
+                  </span>
                 </li>
               ))}
             </ol>
@@ -885,6 +1085,7 @@ function HabitsCard({ model, actions, pending, error }: { model: DashboardModel;
   const checkedIn = habits.filter(habit => habit.state === "completed").length;
   const checkedInChanges = useChangeCount(checkedIn);
   const canCheckIn = typeof actions.checkInHabit === "function";
+  const [row, edges] = useScrollEdges<HTMLUListElement>("x");
   return (
     <Card id={id} area="habits" index={8} className="pc-dash-habits">
       <header className="pc-dash-head">
@@ -900,7 +1101,7 @@ function HabitsCard({ model, actions, pending, error }: { model: DashboardModel;
       </header>
       {error && <p className="pc-dash-habit-error" role="alert">{error}</p>}
       {habits.length ? (
-        <ul className="pc-dash-habit-row" aria-busy={pending || undefined}>
+        <ul className="pc-dash-habit-row" ref={row} {...edgeData(edges)} aria-busy={pending || undefined}>
           {habits.map(habit => (
             <HabitItem key={habit.id} habit={habit} disabled={!canCheckIn || pending} onCheckIn={() => actions.checkInHabit?.(habit.id)} />
           ))}
@@ -936,7 +1137,7 @@ export function DashboardView({
     <section className="pc-dash" aria-label="Dashboard">
       <HeroCard model={model} actions={actions} />
       <HabitConsistencyCard data={model.habitConsistency} />
-      <FocusCard data={model.focusWeek} actions={actions} />
+      <FocusCard data={model.focusWeek} actions={actions} upNext={model.upNext} />
       <DueCard model={model} actions={actions} />
       <ScheduleCard model={model} actions={actions} fmt={fmt} />
       <UpNextCard model={model} actions={actions} fmt={fmt} />

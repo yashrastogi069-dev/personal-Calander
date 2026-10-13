@@ -2,6 +2,10 @@
    to .pc-dash; "html body .pc-shell .pc-dash" is used where legacy element rules (button, h2) interfere.
    Literal white appears only on the blue hero and the night "Up next" card. */
 
+/* Registered so the edge fades can ease in and out. */
+@property --pc-dash-fade-before { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --pc-dash-fade-after { syntax: "<length>"; inherits: false; initial-value: 0px; }
+
 /* ---------- Grid ---------------------------------------------------------------------------- */
 .pc-dash {
   --pc-dash-gap: 16px;
@@ -336,7 +340,18 @@ html body .pc-shell .pc-dash .pc-dash-due.is-clear h2 { color: var(--pc-ok); }
 .pc-dash-lens { animation: pc-dash-lens 220ms var(--pc-ease) both; }
 @keyframes pc-dash-lens { from { opacity: 0; filter: blur(3px); transform: translateY(4px); } to { opacity: 1; filter: none; transform: none; } }
 
-.pc-dash-day-scroll { max-height: calc(var(--pc-dash-hour) * 6.5); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.pc-dash-day-scroll {
+  max-height: calc(var(--pc-dash-hour) * 6.5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  /* Edge fades appear only where more of the day is hidden (set from scroll position). */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--pc-dash-fade-before), #000 calc(100% - var(--pc-dash-fade-after)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--pc-dash-fade-before), #000 calc(100% - var(--pc-dash-fade-after)), transparent 100%);
+  transition: --pc-dash-fade-before var(--pc-dur-base) var(--pc-ease), --pc-dash-fade-after var(--pc-dur-base) var(--pc-ease);
+}
+.pc-dash-day-scroll[data-more-before] { --pc-dash-fade-before: 28px; }
+.pc-dash-day-scroll[data-more-after] { --pc-dash-fade-after: 48px; }
 .pc-dash-day { position: relative; height: calc(var(--pc-dash-hours) * var(--pc-dash-hour)); margin-top: 8px; }
 .pc-dash-hour {
   position: absolute;
@@ -354,7 +369,8 @@ html body .pc-shell .pc-dash .pc-dash-due.is-clear h2 { color: var(--pc-ok); }
   font-size: var(--pc-text-caption);
   line-height: var(--pc-lh-caption);
 }
-.pc-dash-day-lane { position: absolute; inset: 0 0 0 72px; }
+/* The lane is its own layer above the now-line; blocks are opaque so the line passes behind them. */
+.pc-dash-day-lane { position: absolute; z-index: 2; inset: 0 0 0 72px; }
 .pc-dash-day-lane > li {
   position: absolute;
   top: calc(var(--pc-dash-top) * var(--pc-dash-hour) + 2px);
@@ -362,6 +378,9 @@ html body .pc-shell .pc-dash .pc-dash-due.is-clear h2 { color: var(--pc-ok); }
   width: calc(100% / var(--pc-dash-cols) - 4px);
   height: calc(var(--pc-dash-len) * var(--pc-dash-hour) - 4px);
   min-height: 24px;
+  border-radius: var(--pc-r-chip);
+  /* Opaque base so translucent states (done) never show the now-line through them. */
+  background: var(--pc-card);
 }
 .pc-dash-ev {
   display: flex;
@@ -397,19 +416,32 @@ html body .pc-dash .pc-dash-ev.is-task.is-done { opacity: .62; }
 }
 .pc-dash-ev.is-busy .pc-dash-ev-title { color: var(--ink); }
 
-.pc-dash-now { position: absolute; z-index: var(--pc-z-raised); top: calc(var(--pc-dash-top) * var(--pc-dash-hour)); left: 64px; right: 0; height: 0; border-top: 2px solid var(--pc-off); pointer-events: none; box-shadow: 0 0 10px color-mix(in srgb, var(--pc-off) 45%, transparent); }
-.pc-dash-now-dot { position: absolute; top: -6px; left: -5px; width: 10px; height: 10px; border-radius: var(--pc-r-pill); background: var(--pc-off); }
+/* Now: no z-index on the wrapper, so the line (z 1) sits under the lane (z 2) and the time pill
+   (z 3) sits over everything in the hour gutter. */
+.pc-dash-now { position: absolute; top: calc(var(--pc-dash-top) * var(--pc-dash-hour)); left: 0; right: 0; height: 0; pointer-events: none; }
+.pc-dash-now-line {
+  position: absolute;
+  z-index: 1;
+  top: -1px;
+  left: 64px;
+  right: 0;
+  border-top: 2px solid var(--pc-off);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--pc-off) 45%, transparent);
+}
 .pc-dash-now-time {
   position: absolute;
-  top: -11px;
-  right: 0;
-  padding: 2px 8px;
+  z-index: 3;
+  top: -10px;
+  right: calc(100% - 70px);
+  padding: 2px 7px;
   border-radius: var(--pc-r-pill);
   background: var(--pc-off);
   color: var(--pc-card);
   font-size: var(--pc-text-caption);
   font-weight: var(--pc-w-bold);
   line-height: var(--pc-lh-caption);
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px var(--pc-card);
 }
 html body .pc-dash .pc-dash-unscheduled { align-self: flex-start; }
 
@@ -497,9 +529,11 @@ html body .pc-shell .pc-dash .pc-dash-later h3 { margin-bottom: 8px; color: var(
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--pc-planned) 55%, transparent) 0 2px, transparent 2px 6px);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc-planned) 35%, transparent);
 }
-.pc-dash-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; flex: 1; align-items: end; }
-.pc-dash-bar { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.pc-dash-bar-track { position: relative; display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 140px; padding-top: 28px; }
+/* The bars take the card's spare height (so a tall neighbour never leaves a void above them), up to a
+   sensible cap; anything beyond the cap sits below the bars, above the planning links. */
+.pc-dash-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; flex: 1 1 auto; min-height: 168px; max-height: 440px; align-items: stretch; }
+.pc-dash-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; min-height: 0; }
+.pc-dash-bar-track { position: relative; display: flex; flex: 1 1 auto; align-items: flex-end; justify-content: center; width: 100%; min-height: 112px; padding-top: 28px; }
 .pc-dash-bar-stack { display: flex; flex-direction: column; width: min(32px, 70%); min-height: 8px; overflow: hidden; border-radius: var(--pc-r-control); }
 .pc-dash-bar-rest { flex-basis: 0; }
 .pc-dash-bar-done { flex-basis: 0; background: var(--pc-done); }
@@ -525,7 +559,7 @@ html body .pc-shell .pc-dash .pc-dash-later h3 { margin-bottom: 8px; color: var(
 @keyframes pc-dash-bubble { from { opacity: 0; transform: translateY(4px) scale(.92); } to { opacity: 1; transform: none; } }
 .pc-dash-bar-label { color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
 .pc-dash-bar.is-today .pc-dash-bar-label { color: var(--accent); font-weight: var(--pc-w-bold); }
-.pc-dash-thread { display: flex; flex-wrap: wrap; gap: 4px 18px; padding-top: 10px; border-top: 1px solid var(--pc-line); }
+.pc-dash-thread { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--pc-line); }
 
 /* ---------- Goals & projects ---------------------------------------------------------------------------- */
 .pc-dash-goals { container-type: inline-size; }
@@ -557,25 +591,44 @@ html body .pc-dash :is(.pc-dash-project, .pc-dash-weekday):active { transform: s
 .pc-dash-project-title { overflow: hidden; font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); font-weight: var(--pc-w-semibold); white-space: nowrap; text-overflow: ellipsis; }
 .pc-dash-project-meta { color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-regular); }
 .pc-dash-strip { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--pc-line); }
-.pc-dash-strip-line { position: relative; height: 4px; margin: 4px 6px 0; border-radius: var(--pc-r-pill); background: var(--pc-track); }
+/* Next 30 days: a track that shows the spread, and a list that never collides. A hovered row lights
+   its marker. */
+.pc-dash-strip-track { position: relative; height: 30px; margin: 2px 6px 0; }
+.pc-dash-strip-line { position: absolute; top: 4px; left: 0; right: 0; height: 4px; border-radius: var(--pc-r-pill); background: var(--pc-track); }
 .pc-dash-strip-line::before { content: ""; position: absolute; left: 0; top: -3px; width: 4px; height: 10px; border-radius: var(--pc-r-pill); background: var(--accent); }
-.pc-dash-strip-marker { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid var(--pc-card); border-radius: calc(var(--pc-r-chip) / 2); background: var(--accent); }
-.pc-dash-strip-labels { position: relative; height: calc(var(--pc-dash-lanes, 1) * 20px); margin-inline: 6px !important; }
-.pc-dash-strip-labels li {
+.pc-dash-strip-marker {
   position: absolute;
-  top: calc(var(--pc-dash-lane) * 20px);
-  max-width: 48%;
-  overflow: hidden;
-  transform: translateX(-50%);
-  color: var(--ink-muted);
-  font-size: var(--pc-text-caption);
-  line-height: var(--pc-lh-caption);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  top: 6px;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--pc-card);
+  border-radius: var(--pc-r-pill);
+  background: var(--accent);
+  transition: transform var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease);
 }
-.pc-dash-strip-labels li.is-start { transform: translateX(-6px); }
-.pc-dash-strip-labels li.is-end { transform: translateX(calc(-100% + 6px)); }
-.pc-dash-strip-title { color: var(--ink); font-weight: var(--pc-w-semibold); }
+.pc-dash-strip-marker.is-hot { z-index: 1; transform: scale(1.35); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.pc-dash-strip-axis { position: absolute; bottom: 0; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-dash-strip-axis.is-start { left: -6px; }
+.pc-dash-strip-axis.is-end { right: -6px; }
+.pc-dash-strip-list { display: flex; flex-direction: column; gap: 2px; }
+.pc-dash-strip-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 3px 8px;
+  margin-inline: -8px;
+  border-radius: var(--pc-r-chip);
+  font-size: var(--pc-text-label);
+  line-height: var(--pc-lh-label);
+  transition: background-color var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-dash-strip-list li.is-hot { background: var(--pc-card-2); }
+.pc-dash-strip-dot { width: 8px; height: 8px; border-radius: var(--pc-r-pill); background: var(--accent); }
+.pc-dash-strip-title { overflow: hidden; color: var(--ink); font-weight: var(--pc-w-semibold); white-space: nowrap; text-overflow: ellipsis; }
+.pc-dash-strip-when { display: inline-flex; align-items: baseline; gap: 6px; color: var(--ink); font-weight: var(--pc-w-medium); white-space: nowrap; }
+.pc-dash-strip-rel { color: var(--ink-muted); font-size: var(--pc-text-caption); font-weight: var(--pc-w-regular); }
 
 /* ---------- Habits ---------------------------------------------------------------------------- */
 .pc-dash-habit-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
@@ -645,6 +698,89 @@ html body .pc-dash .pc-dash-habit.is-celebrating .pc-dash-check { animation: pc-
 .pc-dash-trace li.is-missed { background: transparent; box-shadow: inset 0 0 0 1.5px var(--pc-k); }
 .pc-dash-trace li.is-skipped { height: 2px; margin-block: 2.5px; border-radius: var(--pc-r-pill); background: var(--pc-k); }
 
+/* ---------- Focus card (D2.5 Surface A) ---------------------------------------------------------------------------- */
+/* One grid area, three modes: white KPI (idle), night instrument (live), "Saved" note (finished).
+   The card's colours crossfade; the content blur-bridges in on a mode change (keyed in React). */
+.pc-dash-focus { transition: background-color var(--pc-dur-base) var(--pc-ease), border-color var(--pc-dur-base) var(--pc-ease), color var(--pc-dur-base) var(--pc-ease); }
+.pc-dash-focus-body { display: flex; flex: 1 1 auto; flex-direction: column; gap: inherit; min-width: 0; }
+.pc-dash-focus .pc-dash-kpi-head { width: 100%; }
+.pc-dash-focus-open-slot { margin-left: auto; }
+html body .pc-dash .pc-dash-focus-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--pc-r-pill);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--pc-text-label);
+  font-weight: var(--pc-w-semibold);
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease);
+}
+html body .pc-dash .pc-dash-focus-open > svg { transition: transform var(--pc-dur-fast) var(--pc-ease); }
+html body .pc-dash .pc-dash-focus-open.is-night { margin-left: auto; color: var(--pc-on-night-muted); }
+
+/* Idle: the start row under a hairline. */
+.pc-dash-focus-start { display: flex; align-items: center; gap: 10px; min-width: 0; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--pc-line); }
+html body .pc-dash .pc-dash-focus-start-btn { flex: none; min-height: 34px; padding: 0 14px; font-size: var(--pc-text-label); }
+.pc-dash-focus-start-on { min-width: 0; overflow: hidden; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); white-space: nowrap; text-overflow: ellipsis; }
+.pc-dash-focus-start-on b { color: var(--ink); font-weight: var(--pc-w-semibold); }
+
+/* Saved */
+.pc-dash-focus-saved-icon { background: var(--pc-ok-soft); color: var(--pc-ok); }
+.pc-dash-focus-saved-line { display: -webkit-box; overflow: hidden; color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pc-dash-focus-saved-line b { color: var(--pc-ok); font-weight: var(--pc-w-bold); }
+.pc-dash-focus-saved-line .pc-num { color: var(--ink); font-size: 22px; font-weight: var(--pc-w-display); letter-spacing: var(--pc-tracking-tight); }
+.pc-dash-focus-saved-title { color: var(--ink); font-weight: var(--pc-w-semibold); }
+.pc-dash-focus-saved-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: auto; }
+.pc-dash-focus-saved .pc-dash-kpi-head + .pc-dash-focus-saved-line { animation: pc-rise var(--pc-dur-base) var(--pc-ease) both; }
+
+/* Live: night instrument with a faint contour texture in the session's tone. */
+.pc-dash-card.pc-dash-focus-live {
+  --ink: #fff;
+  --ink-muted: var(--pc-on-night-muted);
+  --pc-card-2: rgb(255 255 255 / .08);
+  gap: 12px;
+  isolation: isolate;
+  background:
+    radial-gradient(90% 80% at 0% 0%, color-mix(in srgb, var(--pc-k) 20%, transparent), transparent 62%),
+    var(--pc-night);
+}
+.pc-dash-focus-live::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-radial-gradient(circle at 105% 110%, transparent 0 13px, color-mix(in srgb, var(--pc-k) 16%, transparent) 13px 14px);
+  -webkit-mask-image: radial-gradient(70% 80% at 100% 100%, #000, transparent 75%);
+  mask-image: radial-gradient(70% 80% at 100% 100%, #000, transparent 75%);
+}
+.pc-dash-focus-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pc-dash-focus-main { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pc-dash-focus-read { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc-dash-focus-digits { font-size: 40px; line-height: 44px; }
+.pc-dash-focus-digits.is-long { font-size: 32px; line-height: 40px; }
+.pc-dash-focus-live .pc-dial.is-paused + .pc-dash-focus-read .pc-dash-focus-digits { color: color-mix(in srgb, #fff 80%, transparent); }
+.pc-dash-focus-sub { overflow: hidden; color: var(--pc-on-night-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); white-space: nowrap; text-overflow: ellipsis; }
+.pc-dash-focus-task { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 2px !important; color: #fff; font-size: var(--pc-text-body-sm); font-weight: var(--pc-w-semibold); line-height: var(--pc-lh-body-sm); }
+.pc-dash-focus-task .pc-dot { flex: none; background: var(--pc-k); }
+.pc-dash-focus-task-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* "ends ~6:58 am" drops to its own line rather than truncating in the narrow card. */
+.pc-dash-focus-sub .pc-focus-sub-ends { display: block; overflow: hidden; text-overflow: ellipsis; }
+.pc-dash-focus-sub .pc-focus-sub-sep { display: none; }
+.pc-dash-focus-error { color: var(--pc-off); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-dash-focus-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html body .pc-dash .pc-dash-focus-actions .pc-dash-btn { min-height: 44px; padding: 0 14px; }
+html body .pc-dash .pc-dash-focus-actions .pc-dash-btn:disabled { cursor: not-allowed; opacity: .55; }
+.pc-dash-focus-icon { display: inline-grid; place-items: center; }
+.pc-dash-focus-foot { color: var(--pc-on-night-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-dash-focus-saved .pc-dash-focus-foot { color: var(--ink-muted); }
+
 /* ---------- Hover (pointer devices only) ---------------------------------------------------------------------------- */
 @media (hover: hover) and (pointer: fine) {
   html body .pc-dash .pc-dash-btn-accent:hover { background: var(--pc-accent-strong); }
@@ -657,6 +793,9 @@ html body .pc-dash .pc-dash-habit.is-celebrating .pc-dash-check { animation: pc-
   html body .pc-dash .pc-dash-project:hover { background: var(--pc-card-2); }
   .pc-dash-habit:hover { transform: translateY(-1px); }
   .pc-dash-card:hover::after { opacity: 1; }
+  html body .pc-dash .pc-dash-focus-open:hover { background: var(--selection); }
+  html body .pc-dash .pc-dash-focus-open.is-night:hover { background: rgb(255 255 255 / .1); color: #fff; }
+  html body .pc-dash .pc-dash-focus-open:hover > svg { transform: translate(2px, -2px); }
   /* Outbound arrows lean the way they go. */
   html body .pc-dash :is(.pc-dash-hero-open, .pc-dash-schedule-open, .pc-dash-unscheduled):hover > svg,
   html body .pc-dash .pc-dash-quiet:hover > .pc-dash-nudge { transform: translate(2px, -2px); }
@@ -707,6 +846,21 @@ html body .pc-dash .pc-dash-habit.is-celebrating .pc-dash-check { animation: pc-
       "week week week";
   }
   .pc-dash-card { gap: 14px; }
+  /* A live session moves the focus card to the top of the stack, full width. */
+  .pc-dash:has(.pc-dash-focus-live) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "focus focus"
+      "hero hero"
+      "habit due"
+      "up up"
+      "sched sched"
+      "habits habits"
+      "goals goals"
+      "week week";
+  }
+  .pc-dash-card.pc-dash-focus-live { padding: 16px; }
+  .pc-dash-focus-digits { font-size: 40px; }
 
   /* Compact KPI tiles: icon, figure, short label. */
   .pc-dash-kpi { gap: 6px; padding: 12px; }
@@ -737,23 +891,32 @@ html body .pc-dash .pc-dash-habit.is-celebrating .pc-dash-check { animation: pc-
   .pc-dash-schedule-head .pc-dash-capacity { order: 3; margin-right: 0; }
   html body .pc-dash .pc-dash-schedule-open { min-height: 44px; padding: 0 14px; }
   .pc-dash-day-lane { left: 64px; }
-  .pc-dash-now { left: 58px; }
+  .pc-dash-now-line { left: 58px; }
+  .pc-dash-now-time { right: calc(100% - 62px); padding-inline: 5px; }
   .pc-dash-day-scroll { max-height: calc(var(--pc-dash-hour) * 7.5); }
   .pc-dash-weeklens { grid-template-columns: repeat(7, minmax(64px, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
   .pc-dash-weeklens > li { scroll-snap-align: start; }
 
+  /* Carousel: the next card always peeks, cards snap, and the edges fade only where more is hidden.
+     Block padding gives the check-in burst room inside the scroller's clip. */
   .pc-dash-habit-row {
     display: flex;
     gap: 10px;
-    margin-inline: calc(var(--pc-dash-pad) * -1) !important;
-    padding: 0 var(--pc-dash-pad) 4px !important;
+    margin: -12px calc(var(--pc-dash-pad) * -1) -8px !important;
+    padding: 12px var(--pc-dash-pad) 12px !important;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scroll-padding-inline: var(--pc-dash-pad);
     scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--pc-dash-fade-before), #000 calc(100% - var(--pc-dash-fade-after)), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--pc-dash-fade-before), #000 calc(100% - var(--pc-dash-fade-after)), transparent 100%);
+    transition: --pc-dash-fade-before var(--pc-dur-base) var(--pc-ease), --pc-dash-fade-after var(--pc-dur-base) var(--pc-ease);
   }
+  .pc-dash-habit-row[data-more-before] { --pc-dash-fade-before: 20px; }
+  .pc-dash-habit-row[data-more-after] { --pc-dash-fade-after: 36px; }
   .pc-dash-habit-row::-webkit-scrollbar { display: none; }
-  .pc-dash-habit { flex: 0 0 min(72%, 260px); scroll-snap-align: start; }
+  .pc-dash-habit { flex: 0 0 min(76%, 270px); scroll-snap-align: start; }
   html body .pc-dash .pc-dash-check { width: 44px; height: 44px; }
   html body .pc-dash :is(.pc-dash-link, .pc-dash-quiet) { min-height: 44px; }
   html body .pc-dash .pc-dash-project { min-height: 56px; }
@@ -781,5 +944,8 @@ html.dark .pc-dash-now-time { color: var(--pc-night); }
   .pc-dash-hero::before, .pc-dash-live::after, .pc-dash-tick, .pc-dash-bar-bubble, .pc-dash-hero-check { animation: none !important; }
   .pc-dash-habit.is-celebrating :is(.pc-dash-check, .pc-dash-check-mark path) { animation: none !important; }
   .pc-dash-habit.is-celebrating .pc-dash-burst::before, .pc-dash-habit.is-celebrating .pc-dash-burst::after { animation: none !important; }
-  html body .pc-dash :is(.pc-dash-nudge, .pc-dash-hero-open > svg, .pc-dash-schedule-open > svg, .pc-dash-unscheduled > svg, .pc-dash-check-mark) { transform: none !important; }
+  .pc-dash-focus, .pc-dash-strip-marker, .pc-dash-strip-list li, .pc-dash-day-scroll, .pc-dash-habit-row { transition: none !important; }
+  .pc-dash-focus-body.pc-blur-in, .pc-dash-focus-saved-line, .pc-dash-focus-icon { animation: none !important; }
+  .pc-dash-strip-marker.is-hot { transform: none; }
+  html body .pc-dash :is(.pc-dash-nudge, .pc-dash-focus-open > svg, .pc-dash-hero-open > svg, .pc-dash-schedule-open > svg, .pc-dash-unscheduled > svg, .pc-dash-check-mark) { transform: none !important; }
 }

@@ -63,6 +63,25 @@ export function focusSubLine(session: FocusWatchSession, elapsedSeconds: number,
   return ends ? `${target} · ${ends}` : target;
 }
 
+/**
+ * The sub line as markup: the "ends around" part is its own span so tight
+ * containers (the md dial, the dashboard card) can drop it onto a second line
+ * instead of overflowing the ring or truncating.
+ */
+export function FocusSubLine({ text }: { text: string }) {
+  const split = text.indexOf(" · ");
+  if (split < 0) return <>{text}</>;
+  return (
+    <>
+      <span className="pc-focus-sub-target">{text.slice(0, split)}</span>
+      <span className="pc-focus-sub-ends">
+        <span className="pc-focus-sub-sep" aria-hidden="true">{" · "}</span>
+        {text.slice(split + 3)}
+      </span>
+    </>
+  );
+}
+
 export function FocusInstrument({
   size,
   session,
@@ -105,7 +124,7 @@ export function FocusInstrument({
       <FocusStatePill state={state} session={session} elapsedSeconds={elapsedSeconds} timeZone={timeZone} />
       <FocusDigits text={digits} prefix={session && !online ? "≈" : undefined} className={cn("pc-focus-digits-dial", digits.length > 5 && "is-long")} />
       <span className="pc-focus-sub pc-num">
-        {session ? focusSubLine(session, elapsedSeconds, online, nowMs, timeZone) : "planned length"}
+        {session ? <FocusSubLine text={focusSubLine(session, elapsedSeconds, online, nowMs, timeZone)} /> : "planned length"}
       </span>
       {session ? (
         <span role="timer" className="pc-sr-only">{focusTimerSentence(elapsedSeconds, session.targetMinutes, title)}</span>

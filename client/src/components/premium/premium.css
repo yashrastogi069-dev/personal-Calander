@@ -40,6 +40,21 @@ html .pc-sheet.is-dialog {
   border-radius: var(--pc-r-feature);
   padding: 20px 24px 24px;
 }
+/* Side panel: docked right, full height, keeps the page beside it readable. */
+html .pc-sheet.is-side {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  max-height: none;
+  padding: 20px 24px calc(24px + env(safe-area-inset-bottom));
+  border-block: 0;
+  border-right: 0;
+  border-radius: var(--pc-r-feature) 0 0 var(--pc-r-feature);
+  will-change: transform;
+}
+.pc-sheet-overlay.is-side { background: rgb(10 17 28 / .22); backdrop-filter: none; }
+html .pc-sheet.is-side .pc-sheet-body { flex: 1 1 auto; margin: 0 -24px; padding: 8px 24px 0; }
 html .pc-sheet.is-sheet {
   left: 0;
   right: 0;

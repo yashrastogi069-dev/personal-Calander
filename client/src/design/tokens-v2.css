@@ -129,6 +129,8 @@ html:root.dark {
    they hold 3:1 on --pc-night in both themes. Hex values are literal so the contrast test can read them. */
 .pc-on-night {
   --pc-on-night-ink: #ffffff;
+  --pc-ok: #7bd4ac;
+  --pc-off: #ffaaa8;
   --pc-cat-work: #5b8ef0; --pc-cat-work-soft: #1d3354; --pc-cat-work-ink: #b3cdff;
   --pc-cat-health: #26a089; --pc-cat-health-soft: #133a36; --pc-cat-health-ink: #86e3cf;
   --pc-cat-learning: #c4852f; --pc-cat-learning-soft: #3b2f1f; --pc-cat-learning-ink: #f2c477;

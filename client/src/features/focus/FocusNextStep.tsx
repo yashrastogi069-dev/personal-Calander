@@ -122,6 +122,8 @@ export function FocusNextStep({
   const savedTask = tasks.find((task: any) => task.id === handoff.nextStepTaskId);
   const draftMatchesSaved = handoff.nextStepAction === shown.action && (shown.action !== "task" || handoff.nextStepTaskId === shown.taskId);
   const remoteChangedDuringEdit = draft.edited && handoff.version !== draft.baseVersion && !draftMatchesSaved;
+  // A saved task that no longer exists can't be opened; the user must choose (and save) another.
+  const savedUsable = draftMatchesSaved && (shown.action !== "task" || draftTaskAvailable);
   const canSave = durableAvailable && isOnline && !isSaving && !remoteChangedDuringEdit && !!onSave && !!handoff.id && typeof handoff.version === "number" && draft.sessionId === handoff.id && (shown.action !== "task" || draftTaskAvailable);
 
   const go = (action: NextStepAction, taskId: string | null) => {
@@ -130,14 +132,14 @@ export function FocusNextStep({
     onDone();
   };
   const primary = () => {
-    if (draftMatchesSaved) { go(shown.action, shown.taskId || null); return; }
+    if (savedUsable) { go(shown.action, shown.taskId || null); return; }
     if (!canSave || !handoff.id || handoff.version === undefined) return;
     const taskId = shown.action === "task" ? shown.taskId : null;
     onSave?.(handoff.id, handoff.version, shown.action, taskId, () => go(shown.action, taskId));
   };
   const primaryLabel = isSaving
     ? "Saving…"
-    : draftMatchesSaved
+    : savedUsable
       ? shown.action === "task" ? "Open task" : shown.action === "plan" ? "Open daily plan" : "Done"
       : error ? "Retry save" : "Save and go";
 
@@ -241,7 +243,7 @@ export function FocusNextStep({
           ) : null}
           {handoff.nextStepAction === "task" && !savedTask ? <p className="pc-focus-hint">The saved task is unavailable; choose another next action.</p> : null}
           <div className="pc-focus-panel-actions">
-            <button type="button" className="pc-focus-btn is-primary pc-focusable" disabled={draftMatchesSaved ? false : !canSave} onClick={primary}>
+            <button type="button" className="pc-focus-btn is-primary pc-focusable" disabled={savedUsable ? false : !canSave} onClick={primary}>
               {primaryLabel}
             </button>
             <button type="button" className="pc-focus-btn is-text pc-focusable" onClick={onStartAnother}>

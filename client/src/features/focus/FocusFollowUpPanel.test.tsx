@@ -33,7 +33,7 @@ describe("Focus follow-up accessible controls", () => {
     const markup = renderPanel(true);
     const controlledId = markup.match(/aria-expanded="false" aria-controls="([^"]+)"/)?.[1];
     expect(controlledId).toBeTruthy();
-    expect(markup).toContain(`id="${controlledId}" class="focus-follow-up-session-detail" hidden=""`);
+    expect(markup).toMatch(new RegExp(`id="${controlledId}" class="focus-follow-up-session-detail[^"]*" hidden=""`));
   });
 });
 
@@ -41,43 +41,11 @@ const handoff = { id: "finished-session", version: 2, taskId: null, taskTitle: "
 const durableSnapshot = { focusHabitAttributionAvailable: true, tasks: [{ id: "next-task", title: "Next task", state: "todo" }] };
 
 describe("Durable Focus presentation", () => {
-  it("offers legacy navigation without offering a save when capability is absent", () => {
-    const markup = renderPanel(true, { handoff, onSaveFollowUp: vi.fn() });
-    expect(markup).toContain("Saved next actions are unavailable");
-    expect(markup).toContain("Plan next step");
+  it("keeps the legacy habit footnote when attribution is unavailable", () => {
+    const markup = renderPanel(true);
     expect(markup).toContain("time is not attributed to habits yet");
-    expect(markup).not.toContain("Save next action");
-  });
-
-  it("distinguishes an unsaved next action from an explicitly saved none", () => {
-    const unsaved = renderPanel(true, { snapshot: durableSnapshot, handoff, onSaveFollowUp: vi.fn() });
-    expect(unsaved).toContain("Next action not saved.");
-    expect(unsaved).toMatch(/<button(?![^>]*\sdisabled=)[^>]*>Save next action<\/button>/);
-    const saved = renderPanel(true, { snapshot: durableSnapshot, handoff: { ...handoff, nextStepAction: "none" }, onSaveFollowUp: vi.fn() });
-    expect(saved).toContain("Saved next action: No next action.");
-    expect(saved).toMatch(/<button[^>]*disabled=""[^>]*>Save next action<\/button>/);
-  });
-
-  it("disables saving offline and pending, and keeps errors beside the retained draft", () => {
-    const offline = renderPanel(false, { snapshot: durableSnapshot, handoff, onSaveFollowUp: vi.fn() });
-    expect(offline).toContain("Reconnect to save the next action. Your draft stays here.");
-    expect(offline).toMatch(/<button[^>]*disabled=""[^>]*>Save next action<\/button>/);
-    const pending = renderPanel(true, { snapshot: durableSnapshot, handoff, onSaveFollowUp: vi.fn(), isSavingFollowUp: true });
-    expect(pending).toMatch(/<button[^>]*disabled=""[^>]*>Saving next action…<\/button>/);
-    const conflict = renderPanel(true, { snapshot: durableSnapshot, handoff, onSaveFollowUp: vi.fn(), followUpError: "Session changed elsewhere." });
-    expect(conflict).toContain('role="alert"');
-    expect(conflict).toContain("Session changed elsewhere.");
-    expect(conflict).toContain("Your draft is retained.");
-    expect(conflict).toContain("Retry save");
-  });
-
-  it("keeps an unavailable saved target visible and prevents saving it", () => {
-    const markup = renderPanel(true, { snapshot: durableSnapshot, handoff: { ...handoff, nextStepAction: "task", nextStepTaskId: "missing-task" }, onSaveFollowUp: vi.fn() });
-    expect(markup).toContain("Saved next action: Task unavailable.");
-    expect(markup).toContain("Selected task unavailable");
-    expect(markup).toContain("Choose an available task before saving.");
-    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Save next action<\/button>/);
-    expect(markup).not.toContain("Open saved task");
+    // The next-step editor moved to Finish step 2 (FocusNextStep); the rail never offers a save.
+    expect(markup).not.toContain("Save and go");
   });
 
   it("preserves edited drafts through a same-session version refresh and resets on another session", () => {

@@ -84,7 +84,10 @@
 .pc-focus-live { color: var(--pc-k); }
 .pc-dial-md .pc-focus-state { min-height: 22px; padding: 2px 8px; font-size: var(--pc-text-caption); }
 .pc-focus-sub { color: var(--ink-muted); font: var(--pc-w-medium) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); white-space: nowrap; }
-.pc-dial-md .pc-focus-sub { font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-dial-md .pc-focus-sub { font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); text-align: center; }
+/* Inside the md ring the end time sits on its own line so it never crosses the ring. */
+.pc-dial-md .pc-focus-sub-ends { display: block; }
+.pc-dial-md .pc-focus-sub-sep { display: none; }
 
 /* ───────────────────────── Shared bits ───────────────────────── */
 .pc-focus-hint { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
@@ -313,7 +316,7 @@ html .pc-focus-rail .pc-focus-rail-title { display: flex; align-items: center; g
 .pc-focus-pill.is-paused .pc-focusable:focus-visible { outline-color: var(--focus-ring); }
 .pc-focus-pill.is-offline .pc-focus-pill-digits { color: var(--pc-on-night-muted); }
 .pc-focus-pill.is-saved { gap: 8px; padding: 0 16px 0 10px; font: var(--pc-w-semibold) var(--pc-text-body-sm)/1 var(--pc-font); }
-.pc-focus-pill-check { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7bd4ac; color: #0a111c; }
+.pc-focus-pill-check { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--pc-ok); color: var(--pc-night); }
 
 /* Popover (desktop) and sheet (phone) bodies. */
 html .pc-focus-pop { z-index: var(--pc-z-overlay); width: 320px; max-width: calc(100vw - 24px); border: 1px solid var(--pc-line); border-radius: var(--pc-r-panel); background: var(--pc-card); color: var(--ink); box-shadow: var(--pc-e2); transform-origin: var(--radix-popover-content-transform-origin); }
