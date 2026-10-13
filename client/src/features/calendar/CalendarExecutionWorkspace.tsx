@@ -41,9 +41,9 @@ function isEditableShortcutTarget(target: EventTarget | null) {
   return target.matches("input, textarea, select, [contenteditable=true]") || Boolean(target.closest("[role=dialog]"));
 }
 
-export function CalendarExecutionWorkspace({ scope, snapshot, today, rolloverPreview, rolloverLoading, rolloverPending, onApplyMorningRollover, onOpenTasks, onCreateTask, onComplete, onUnreserve }: { scope: WorkspaceScope; snapshot: CalendarExecutionSnapshot; today: string; rolloverPreview?: { fromLocalDate: string; candidates: Array<{ id: string; expectedVersion: number; rescheduleCount: number }> }; rolloverLoading: boolean; rolloverPending: boolean; onApplyMorningRollover: () => Promise<void>; onOpenTasks: () => void; onCreateTask: () => void; onComplete: (task: any) => Promise<string | null>; onUnreserve: (task: any) => Promise<string | null> }) {
+export function CalendarExecutionWorkspace({ scope, snapshot, today, initialDate, rolloverPreview, rolloverLoading, rolloverPending, onApplyMorningRollover, onOpenTasks, onCreateTask, onComplete, onUnreserve }: { scope: WorkspaceScope; snapshot: CalendarExecutionSnapshot; today: string; initialDate?: string; rolloverPreview?: { fromLocalDate: string; candidates: Array<{ id: string; expectedVersion: number; rescheduleCount: number }> }; rolloverLoading: boolean; rolloverPending: boolean; onApplyMorningRollover: () => Promise<void>; onOpenTasks: () => void; onCreateTask: () => void; onComplete: (task: any) => Promise<string | null>; onUnreserve: (task: any) => Promise<string | null> }) {
   const utils = trpc.useUtils();
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(initialDate ?? today);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);

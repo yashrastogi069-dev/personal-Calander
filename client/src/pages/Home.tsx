@@ -93,6 +93,7 @@ import { projectToday } from "@shared/todayProjection";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
 import { ProjectsGoalsWorkspace } from "@/features/goals/ProjectsGoalsWorkspace";
 import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace";
+import { restorePlanDate } from "@/features/planning/planBoard";
 import { TodayWorkspace } from "@/features/today/TodayWorkspace";
 import { buildRecoveryEntries } from "@/features/recovery/recoveryModel";
 import {
@@ -6918,6 +6919,22 @@ export default function Home() {
   const workspaceEnsured = useRef(false);
   const utils = trpc.useUtils();
   const range = useMemo(() => isoRange(today), [today]);
+  // Plan's selected day is navigation only; session storage is scoped to the workspace.
+  const planDateKey = `plan-date:${scope.workspaceId}`;
+  const readPlanDate = useCallback(() => {
+    let saved: string | null = null;
+    try { saved = window.sessionStorage.getItem(planDateKey); } catch { /* blocked storage falls back to today */ }
+    return restorePlanDate(saved, today, range);
+  }, [planDateKey, range, today]);
+  const [planSelectedDate, setPlanSelectedDate] = useState(readPlanDate);
+  useEffect(() => { setPlanSelectedDate(readPlanDate()); }, [readPlanDate]);
+  const selectPlanDate = useCallback((date: string) => {
+    const next = restorePlanDate(date, today, range);
+    setPlanSelectedDate(next);
+    try { window.sessionStorage.setItem(planDateKey, next); } catch { /* navigation still works without storage */ }
+  }, [planDateKey, range, today]);
+  const [calendarHandoffDate, setCalendarHandoffDate] = useState<string | null>(null);
+  useEffect(() => { if (surface !== "calendar") setCalendarHandoffDate(null); }, [surface]);
   const [pendingOperations, setPendingOperations] = useState<
     PlannerOperation[]
   >([]);
@@ -8654,6 +8671,15 @@ export default function Home() {
                   onOpenTasks={focusTaskSearch}
                   onOpenGoals={() => selectSurface("goals")}
                   onOpenCalendar={() => selectSurface("calendar")}
+                  selectedDate={planSelectedDate}
+                  onSelectDate={selectPlanDate}
+                  snapshotRange={range}
+                  storageScopeKey={scope.workspaceId}
+                  onOpenCalendarDate={date => {
+                    setCalendarHandoffDate(date);
+                    selectSurface("calendar");
+                  }}
+                  onOpenTaskRecord={openTaskRecord}
                 />
                 {plannerLocation.view !== "weekly" ? <OwnedToolsDisclosure summary="Planning and recurring work tools">
                   <DailyCompass />
@@ -8748,6 +8774,8 @@ export default function Home() {
         {surface === "calendar" ? (
           <section className="calendar-surface">
             <CalendarExecutionWorkspace
+              key={calendarHandoffDate ?? "today"}
+              initialDate={calendarHandoffDate ?? undefined}
               scope={scope}
               snapshot={{ ...snapshot, tasks: activeTasks }}
               today={today}

@@ -22,8 +22,15 @@ type PwaContextValue = { state: PwaState; actions: PwaActions };
 
 const PwaContext = createContext<PwaContextValue | null>(null);
 
+/** Browsers can expose Storage yet throw on every call (blocked site data); each call must fail soft. */
 function safeStorage(kind: "localStorage" | "sessionStorage") {
-  try { return window[kind]; } catch { return null; }
+  let storage: Storage;
+  try { storage = window[kind]; } catch { return null; }
+  return {
+    getItem: (key: string) => { try { return storage.getItem(key); } catch { return null; } },
+    setItem: (key: string, value: string) => { try { storage.setItem(key, value); } catch { /* blocked storage */ } },
+    removeItem: (key: string) => { try { storage.removeItem(key); } catch { /* blocked storage */ } },
+  };
 }
 
 function initialDisplay() {

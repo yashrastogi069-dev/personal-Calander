@@ -32,27 +32,30 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { PlanWeekBoard } from "./PlanWeekBoard";
+import { completePlanningWeek, projectPlanWeek, weekStartFor } from "./planBoard";
 import "./plan-stages.css";
 
 type PlanWorkspaceProps = {
   view?: "daily" | "weekly";
   scope: WorkspaceScope;
   today: string;
+  selectedDate?: string;
+  onSelectDate?: (date: string) => void;
+  snapshotRange?: { start: string; end: string };
+  storageScopeKey?: string;
   snapshot: any;
   dashboard: any;
   onOpenTasks: () => void;
   onOpenGoals: () => void;
   onOpenCalendar: () => void;
+  onOpenCalendarDate?: (date: string) => void;
+  onOpenTaskRecord?: (id: string) => void;
   focusEarlierCommitments?: boolean;
   onRecoveryIntentConsumed?: () => void;
   focusItemId?: string | null;
   isOnline?: boolean;
 };
-
-function weekStartFor(localDate: string) {
-  const weekday = new Date(`${localDate}T12:00:00.000Z`).getUTCDay();
-  return shiftLocalDate(localDate, weekday === 0 ? -6 : 1 - weekday);
-}
 
 function dateSummary(task: any) {
   if (task.scheduledLocalDate) return `Planned ${task.scheduledLocalDate}`;
@@ -205,9 +208,11 @@ function DailyCommitmentRow({
 export function PlanningSettings({
   workspace,
   scope,
+  isOnline = true,
 }: {
   workspace: any;
   scope: WorkspaceScope;
+  isOnline?: boolean;
 }) {
   const utils = trpc.useUtils();
   const [workdayStartsAt, setWorkdayStartsAt] = useState(
@@ -249,6 +254,7 @@ export function PlanningSettings({
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!isOnline) { setError("Reconnect to save planning preferences. Your entries remain here."); return; }
     const breakMinutes = Number(defaultBreakMinutes);
     if (workdayEndsAt <= workdayStartsAt) {
       setError("Workday end must be after the workday start.");
@@ -339,7 +345,7 @@ export function PlanningSettings({
           <Button
             type="submit"
             className="primary-action"
-            disabled={update.isPending}
+            disabled={!isOnline || update.isPending}
           >
             {update.isPending ? "Saving…" : "Save preferences"}
           </Button>
@@ -464,11 +470,13 @@ function DayAvailability({
   today,
   workspace,
   exception,
+  isOnline,
 }: {
   scope: WorkspaceScope;
   today: string;
   workspace: any;
   exception: any | undefined;
+  isOnline: boolean;
 }) {
   const utils = trpc.useUtils();
   const [unavailable, setUnavailable] = useState(
@@ -532,6 +540,7 @@ function DayAvailability({
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!isOnline) { setError("Reconnect to save availability. Your entries remain here."); return; }
     const breakValue = Number(breakMinutes);
     if (!unavailable && endsAt <= startsAt) {
       setError("Available end must be after available start.");
@@ -627,21 +636,22 @@ function DayAvailability({
           </p>
         ) : null}
         <div className="day-availability-actions">
-          <Button type="submit" disabled={upsert.isPending}>
+          <Button type="submit" disabled={!isOnline || upsert.isPending}>
             {upsert.isPending ? "Saving…" : "Save today"}
           </Button>
           {exception ? (
             <Button
               type="button"
               variant="ghost"
-              onClick={() =>
+              onClick={() => {
+                if (!isOnline) return;
                 clear.mutate({
                   ...scope,
                   id: exception.id,
                   expectedVersion: exception.version,
-                })
-              }
-              disabled={clear.isPending}
+                });
+              }}
+              disabled={!isOnline || clear.isPending}
             >
               Use regular hours
             </Button>
@@ -657,11 +667,13 @@ function ScheduleAssistance({
   today,
   tasks,
   proposals,
+  isOnline,
 }: {
   scope: WorkspaceScope;
   today: string;
   tasks: any[];
   proposals: any[];
+  isOnline: boolean;
 }) {
   const utils = trpc.useUtils();
   const eligible = tasks.filter(
@@ -746,6 +758,7 @@ function ScheduleAssistance({
         <form
           onSubmit={event => {
             event.preventDefault();
+            if (!isOnline) { setError("Reconnect to request a slot. Your selection remains here."); return; }
             if (taskId === "none") {
               setError("Choose a task with a focus-time estimate first.");
               return;
@@ -778,7 +791,7 @@ function ScheduleAssistance({
               onChange={event => setLocalDate(event.target.value)}
             />
           </div>
-          <Button type="submit" disabled={create.isPending}>
+          <Button type="submit" disabled={!isOnline || create.isPending}>
             {create.isPending ? "Finding…" : "Find an open slot"}
           </Button>
         </form>
@@ -816,7 +829,7 @@ function ScheduleAssistance({
                           taskExpectedVersion: task.version,
                         })
                       }
-                      disabled={!task || approve.isPending}
+                      disabled={!isOnline || !task || approve.isPending}
                     >
                       Approve time
                     </Button>
@@ -829,7 +842,7 @@ function ScheduleAssistance({
                           expectedVersion: proposal.version,
                         })
                       }
-                      disabled={dismiss.isPending}
+                      disabled={!isOnline || dismiss.isPending}
                     >
                       Dismiss
                     </button>
@@ -848,7 +861,7 @@ function ScheduleAssistance({
                           taskExpectedVersion: task.version,
                         })
                       }
-                      disabled={!task || undo.isPending}
+                      disabled={!isOnline || !task || undo.isPending}
                     >
                       Undo reservation
                     </button>
@@ -866,25 +879,33 @@ function ScheduleAssistance({
 export function PlanWorkspace({
   view = "daily",
   scope,
-  today,
+  today: workspaceToday,
+  selectedDate = workspaceToday,
+  onSelectDate,
+  snapshotRange,
+  storageScopeKey,
   snapshot,
   dashboard,
   onOpenTasks,
   onOpenGoals,
   onOpenCalendar,
+  onOpenCalendarDate,
+  onOpenTaskRecord,
   focusEarlierCommitments = false,
   onRecoveryIntentConsumed,
   focusItemId = null,
   isOnline = true,
 }: PlanWorkspaceProps) {
+  const today = selectedDate;
+  const draftScope = storageScopeKey ?? scope.workspaceId;
+  const loadedRange = snapshotRange ?? { start: shiftLocalDate(workspaceToday, -27), end: shiftLocalDate(workspaceToday, 28) };
+  const selectedDayCovered = today >= loadedRange.start && today <= loadedRange.end;
   const utils = trpc.useUtils();
-  const [intentionDraft, setIntentionDraft] = useState<{ planId: string | null; value: string } | null>(null);
+  const [intentionDrafts, setIntentionDrafts] = useState<Record<string, string>>({});
   const [taskSearch, setTaskSearch] = useState("");
-  const [objectiveTitle, setObjectiveTitle] = useState("");
-  const [objectiveGoalId, setObjectiveGoalId] = useState("none");
-  const [objectiveProjectId, setObjectiveProjectId] = useState("none");
+  const [objectiveDrafts, setObjectiveDrafts] = useState<Record<string, { title: string; goalId: string; projectId: string }>>({});
   const [objectiveEvidenceDrafts, setObjectiveEvidenceDrafts] = useState<Record<string, string>>({});
-  const [reflectionDraft, setReflectionDraft] = useState<{ planId: string; value: string } | null>(null);
+  const [reflectionDrafts, setReflectionDrafts] = useState<Record<string, string>>({});
   const [activeStage, setActiveStage] = useState<"recover" | "capacity" | "commit" | "reserve" | "review">("commit");
   const planStageOrder = ["recover", "capacity", "commit", "reserve", "review"] as const;
   const planStageLabels = { recover: "Resolve", capacity: "Capacity", commit: "Commit", reserve: "Reserve", review: "Review" } as const;
@@ -892,6 +913,11 @@ export function PlanWorkspace({
   const [localError, setLocalError] = useState<string | null>(null);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const recoveryTriggerRef = useRef<HTMLButtonElement>(null);
+  const guardOnline = () => {
+    if (isOnline && selectedDayCovered) return true;
+    setLocalError(!selectedDayCovered ? "This day is outside the loaded planner snapshot. Choose a loaded date before changing the plan." : "Reconnect to save this Plan change. Your draft remains on this device until you leave this page.");
+    return false;
+  };
   const refresh = () => {
     utils.planner.workspace.snapshot.invalidate();
     utils.planner.dashboard.invalidate();
@@ -934,9 +960,7 @@ export function PlanWorkspace({
   });
   const createObjective = trpc.planner.weeklyObjective.create.useMutation({
     onSuccess: () => {
-      setObjectiveTitle("");
-      setObjectiveGoalId("none");
-      setObjectiveProjectId("none");
+      setObjectiveDrafts(current => { const next = { ...current }; delete next[`${draftScope}:${weekStart}`]; return next; });
       refresh();
     },
     onError: error =>
@@ -957,19 +981,17 @@ export function PlanWorkspace({
   const currentPlan = (snapshot.dailyPlans ?? []).find(
     (plan: any) => plan.localDate === today && plan.state !== "archived"
   );
-  const intention = intentionDraft && intentionDraft.planId === (currentPlan?.id ?? null)
-    ? intentionDraft.value
-    : (currentPlan?.intention ?? "");
-  const reflection = reflectionDraft && reflectionDraft.planId === currentPlan?.id
-    ? reflectionDraft.value
-    : (currentPlan?.reflection ?? "");
+  const dayDraftKey = `${draftScope}:${today}:${currentPlan?.id ?? "new"}`;
+  const intention = intentionDrafts[dayDraftKey] ?? currentPlan?.intention ?? "";
+  const reflection = reflectionDrafts[dayDraftKey] ?? currentPlan?.reflection ?? "";
   useEffect(() => {
-    const saved = window.sessionStorage.getItem(`plan-stage:${scope.workspaceId}`);
+    let saved: string | null = null;
+    try { saved = window.sessionStorage.getItem(`plan-stage:${draftScope}`); } catch { /* private browsing or blocked storage */ }
     if (saved === "recover" || saved === "capacity" || saved === "commit" || saved === "reserve" || saved === "review") setActiveStage(saved);
-  }, [scope.workspaceId]);
+  }, [draftScope]);
   useEffect(() => {
-    window.sessionStorage.setItem(`plan-stage:${scope.workspaceId}`, activeStage);
-  }, [scope.workspaceId, activeStage]);
+    try { window.sessionStorage.setItem(`plan-stage:${draftScope}`, activeStage); } catch { /* navigation still works without storage */ }
+  }, [draftScope, activeStage]);
   const currentPlanItems = (snapshot.dailyPlanItems ?? [])
     .filter((item: any) => item.dailyPlanId === currentPlan?.id)
     .sort((left: any, right: any) => left.position - right.position);
@@ -1064,6 +1086,13 @@ export function PlanWorkspace({
     )
     .slice(0, 12);
   const weekStart = weekStartFor(today);
+  const objectiveDraftKey = `${draftScope}:${weekStart}`;
+  const objectiveDraft = objectiveDrafts[objectiveDraftKey] ?? { title: "", goalId: "none", projectId: "none" };
+  const objectiveTitle = objectiveDraft.title;
+  const objectiveGoalId = objectiveDraft.goalId;
+  const objectiveProjectId = objectiveDraft.projectId;
+  const setObjectiveDraft = (patch: Partial<typeof objectiveDraft>) => setObjectiveDrafts(current => ({ ...current, [objectiveDraftKey]: { ...(current[objectiveDraftKey] ?? { title: "", goalId: "none", projectId: "none" }), ...patch } }));
+  const board = useMemo(() => projectPlanWeek({ weekStart, timezone: scope.timezone, range: loadedRange, snapshot }), [weekStart, scope.timezone, loadedRange.start, loadedRange.end, snapshot]);
   const currentObjectives = (snapshot.weeklyObjectives ?? []).filter(
     (objective: any) =>
       objective.weekStartLocalDate === weekStart &&
@@ -1117,6 +1146,7 @@ export function PlanWorkspace({
     (item: any) => item.state === "committed"
   );
   const startPlan = () => {
+    if (!guardOnline()) return;
     setLocalError(null);
     upsertPlan.mutate({
       ...scope,
@@ -1127,6 +1157,7 @@ export function PlanWorkspace({
   };
   const saveIntention = () => {
     if (!currentPlan) return startPlan();
+    if (!guardOnline()) return;
     setLocalError(null);
     upsertPlan.mutate({
       ...scope,
@@ -1138,6 +1169,7 @@ export function PlanWorkspace({
   };
   const reopenPlan = () => {
     if (!currentPlan || currentPlan.state !== "closed") return;
+    if (!guardOnline()) return;
     setLocalError(null);
     upsertPlan.mutate({ ...scope, localDate: today, expectedVersion: currentPlan.version, state: "active" });
   };
@@ -1148,6 +1180,7 @@ export function PlanWorkspace({
     resolvedToLocalDate?: string
   ) => {
     if (!task) return;
+    if (!guardOnline()) return;
     if (
       task.state === "completed" ||
       task.state === "archived" ||
@@ -1175,6 +1208,7 @@ export function PlanWorkspace({
     });
   };
   const move = (item: any, direction: -1 | 1) => {
+    if (!guardOnline()) return;
     setLocalError(null);
     moveItem.mutate({
       ...scope,
@@ -1185,6 +1219,7 @@ export function PlanWorkspace({
   };
   const close = () => {
     if (!currentPlan) return;
+    if (!guardOnline()) return;
     if (unresolved.length) {
       setLocalError(
         `Resolve ${unresolved.length} remaining commitment${unresolved.length === 1 ? "" : "s"} before closing the day.`
@@ -1201,6 +1236,7 @@ export function PlanWorkspace({
   };
   const submitObjective = (event: FormEvent) => {
     event.preventDefault();
+    if (!guardOnline()) return;
     const title = objectiveTitle.trim();
     if (!title) {
       setLocalError("Name the weekly outcome before saving it.");
@@ -1233,9 +1269,9 @@ export function PlanWorkspace({
       />
       <header className="plan-workspace-header">
         <div>
-          <h2 id="plan-workspace-heading">{view === "weekly" ? "Choose the outcomes that deserve this week." : "Make today believable."}</h2>
+          <h2 id="plan-workspace-heading">{view === "weekly" ? "Plan the week you can see." : "Make this day believable."}</h2>
           <p>
-            {view === "weekly" ? "Save weekly objectives, record evidence, and carry unfinished outcomes forward. Daily commitments stay in Daily plan." : "Choose a few commitments, check the real room in your day, and close each one deliberately."}
+            {view === "weekly" ? "Saved work across seven days, with objectives and unplanned tasks in view." : "Choose a few commitments, check the real room in this day, and close each one deliberately."}
           </p>
         </div>
         <span>
@@ -1243,10 +1279,27 @@ export function PlanWorkspace({
             weekday: "long",
             month: "short",
             day: "numeric",
-          })}
+          })} · {scope.timezone}
         </span>
       </header>
-      <div className="plan-daily-content" hidden={view === "weekly"}>
+      {view === "daily" ? <nav className="plan-day-navigation" aria-label="Planning day">
+        <button type="button" aria-label="Previous planning day" disabled={shiftLocalDate(today, -1) < loadedRange.start} onClick={() => onSelectDate?.(shiftLocalDate(today, -1))}><ChevronLeft size={18} /></button>
+        <label>Selected day <input type="date" value={today} min={loadedRange.start} max={loadedRange.end} onChange={event => { if (event.target.value) onSelectDate?.(event.target.value); }} /></label>
+        <button type="button" aria-label="Next planning day" disabled={shiftLocalDate(today, 1) > loadedRange.end} onClick={() => onSelectDate?.(shiftLocalDate(today, 1))}><ChevronRight size={18} /></button>
+        <button type="button" disabled={today === workspaceToday} onClick={() => onSelectDate?.(workspaceToday)}>Today</button>
+      </nav> : null}
+      {view === "weekly" ? <PlanWeekBoard
+        board={board}
+        selectedDate={today}
+        timezone={scope.timezone}
+        onSelectDay={date => onSelectDate?.(date)}
+        onPreviousWeek={() => { const date = shiftLocalDate(today, -7); if (completePlanningWeek(weekStartFor(date), loadedRange)) onSelectDate?.(date); }}
+        onNextWeek={() => { const date = shiftLocalDate(today, 7); if (completePlanningWeek(weekStartFor(date), loadedRange)) onSelectDate?.(date); }}
+        onOpenTask={id => onOpenTaskRecord?.(id)}
+        onOpenCalendar={date => { if (onOpenCalendarDate) onOpenCalendarDate(date); else onOpenCalendar(); }}
+      /> : null}
+      {!selectedDayCovered ? <p className="plan-coverage-note" role="status">Selected date {today} is outside the loaded planner snapshot ({loadedRange.start} to {loadedRange.end}). Saved context for this day is unavailable. Choose a loaded planning week.</p> : null}
+      <div className="plan-daily-content" hidden={view === "weekly" || !selectedDayCovered}>
       <nav className="plan-stage-nav" aria-label="Planning stages">
         {([
           ["recover", "01", "Resolve", recoveryEntries.length ? `${recoveryEntries.length} open` : "Clear"],
@@ -1330,11 +1383,11 @@ export function PlanWorkspace({
                 Start with an intention, then choose only the work you can stand
                 behind.
               </p>
-              <Label htmlFor="daily-intention">Today’s intention</Label>
+              <Label htmlFor="daily-intention">Day’s intention</Label>
               <Input
                 id="daily-intention"
                 value={intention}
-                onChange={event => setIntentionDraft({ planId: null, value: event.target.value })}
+                onChange={event => setIntentionDrafts(current => ({ ...current, [dayDraftKey]: event.target.value }))}
                 maxLength={3000}
                 placeholder="What would make today feel well spent?"
               />
@@ -1342,19 +1395,19 @@ export function PlanWorkspace({
                 type="button"
                 className="primary-action"
                 onClick={startPlan}
-                disabled={upsertPlan.isPending}
+                disabled={upsertPlan.isPending || !isOnline}
               >
-                {upsertPlan.isPending ? "Starting…" : "Start today’s plan"}
+                {upsertPlan.isPending ? "Starting…" : "Start this day’s plan"}
               </Button>
             </div>
           ) : (
             <>
               <div className="plan-intention">
-                <Label htmlFor="daily-intention">Today’s intention</Label>
+                <Label htmlFor="daily-intention">Day’s intention</Label>
                 <Input
                   id="daily-intention"
                   value={intention}
-                  onChange={event => setIntentionDraft({ planId: currentPlan.id, value: event.target.value })}
+                  onChange={event => setIntentionDrafts(current => ({ ...current, [dayDraftKey]: event.target.value }))}
                   maxLength={3000}
                   placeholder="Name the direction for today"
                   disabled={currentPlan.state === "closed"}
@@ -1362,7 +1415,7 @@ export function PlanWorkspace({
                 <button
                   type="button"
                   onClick={saveIntention}
-                  disabled={upsertPlan.isPending || currentPlan.state === "closed" || intention.trim() === (currentPlan.intention ?? "")}
+                  disabled={!isOnline || upsertPlan.isPending || currentPlan.state === "closed" || intention.trim() === (currentPlan.intention ?? "")}
                 >
                   Save intention
                 </button>
@@ -1377,7 +1430,7 @@ export function PlanWorkspace({
                       tomorrow={shiftLocalDate(today, 1)}
                       onResolve={resolve}
                       onMove={move}
-                      pending={resolveItem.isPending || moveItem.isPending}
+                      pending={!isOnline || resolveItem.isPending || moveItem.isPending}
                     />
                   ))
                 ) : (
@@ -1403,14 +1456,14 @@ export function PlanWorkspace({
                   <Input
                     id="daily-reflection"
                     value={reflection}
-                    onChange={event => setReflectionDraft({ planId: currentPlan.id, value: event.target.value })}
+                    onChange={event => setReflectionDrafts(current => ({ ...current, [dayDraftKey]: event.target.value }))}
                     maxLength={5000}
                     placeholder="What should tomorrow inherit from today?"
                   />
                   <Button
                     type="button"
                     onClick={close}
-                    disabled={closePlan.isPending}
+                    disabled={!isOnline || closePlan.isPending}
                   >
                     {closePlan.isPending
                       ? "Closing…"
@@ -1422,7 +1475,7 @@ export function PlanWorkspace({
               ) : (
                 <div className="plan-closed-note">
                   <p><Check size={16} /> Closed deliberately. Reflection remains in today’s plan history.</p>
-                  <button type="button" onClick={reopenPlan} disabled={upsertPlan.isPending}>Reopen this day</button>
+                  <button type="button" onClick={reopenPlan} disabled={!isOnline || upsertPlan.isPending}>Reopen this day</button>
                 </div>
               )}
             </>
@@ -1469,8 +1522,9 @@ export function PlanWorkspace({
             today={today}
             workspace={snapshot.workspace}
             exception={availabilityException}
+            isOnline={isOnline}
           />
-          <PlanningSettings workspace={snapshot.workspace} scope={scope} />
+          <PlanningSettings workspace={snapshot.workspace} scope={scope} isOnline={isOnline} />
           <AccountabilitySettings workspace={snapshot.workspace} scope={scope} isOnline={isOnline} />
         </aside>
       </div>
@@ -1516,14 +1570,14 @@ export function PlanWorkspace({
                     type="button"
                     variant="ghost"
                     onClick={() => {
-                      if (currentPlan)
+                      if (currentPlan && guardOnline())
                         addItem.mutate({
                           ...scope,
                           dailyPlanId: currentPlan.id,
                           taskId: task.id,
                         });
                     }}
-                    disabled={!currentPlan || addItem.isPending}
+                    disabled={!isOnline || !currentPlan || addItem.isPending}
                     aria-describedby={!currentPlan ? "plan-start-before-commit" : undefined}
                   >
                     Commit
@@ -1545,6 +1599,7 @@ export function PlanWorkspace({
         today={today}
         tasks={unfinishedTasks}
         proposals={snapshot.scheduleProposals ?? []}
+        isOnline={isOnline}
       /> : null}
       {activeStage === "review" ? (
         <section className="plan-review-panel" aria-labelledby="plan-review-heading">
@@ -1602,7 +1657,7 @@ export function PlanWorkspace({
             <Input
               id="weekly-objective-title"
               value={objectiveTitle}
-              onChange={event => setObjectiveTitle(event.target.value)}
+              onChange={event => setObjectiveDraft({ title: event.target.value })}
               placeholder="What matters by the end of this week?"
               maxLength={280}
             />
@@ -1613,7 +1668,7 @@ export function PlanWorkspace({
               <select
                 id="weekly-objective-goal"
                 value={objectiveGoalId}
-                onChange={event => setObjectiveGoalId(event.target.value)}
+                onChange={event => setObjectiveDraft({ goalId: event.target.value })}
               >
                 <option value="none">No goal link</option>
                 {(snapshot.goals ?? [])
@@ -1630,7 +1685,7 @@ export function PlanWorkspace({
               <select
                 id="weekly-objective-project"
                 value={objectiveProjectId}
-                onChange={event => setObjectiveProjectId(event.target.value)}
+                onChange={event => setObjectiveDraft({ projectId: event.target.value })}
               >
                 <option value="none">No project link</option>
                 {(snapshot.projects ?? [])
@@ -1646,7 +1701,7 @@ export function PlanWorkspace({
           <Button
             type="submit"
             className="primary-action"
-            disabled={createObjective.isPending}
+            disabled={!isOnline || !selectedDayCovered || createObjective.isPending}
           >
             {createObjective.isPending ? "Saving…" : "Add weekly objective"}
           </Button>
@@ -1669,26 +1724,27 @@ export function PlanWorkspace({
                 </div>
                 <div className="weekly-evidence-edit">
                   <Label htmlFor={`weekly-evidence-${objective.id}`}>Evidence of progress</Label>
-                  <Input id={`weekly-evidence-${objective.id}`} value={objectiveEvidenceDrafts[objective.id] ?? objective.evidence ?? ""} onChange={event => setObjectiveEvidenceDrafts(current => ({ ...current, [objective.id]: event.target.value }))} maxLength={5000} placeholder="What actually happened?" />
-                  <button type="button" onClick={() => updateObjective.mutate({ ...scope, id: objective.id, expectedVersion: objective.version, patch: { evidence: (objectiveEvidenceDrafts[objective.id] ?? "").trim() } })} disabled={updateObjective.isPending || objectiveEvidenceDrafts[objective.id] === undefined || !objectiveEvidenceDrafts[objective.id].trim() || objectiveEvidenceDrafts[objective.id].trim() === (objective.evidence ?? "")}>Save evidence</button>
+                  <Input id={`weekly-evidence-${objective.id}`} value={objectiveEvidenceDrafts[`${draftScope}:${objective.id}`] ?? objective.evidence ?? ""} onChange={event => setObjectiveEvidenceDrafts(current => ({ ...current, [`${draftScope}:${objective.id}`]: event.target.value }))} maxLength={5000} placeholder="What actually happened?" />
+                  <button type="button" onClick={() => { if (guardOnline()) updateObjective.mutate({ ...scope, id: objective.id, expectedVersion: objective.version, patch: { evidence: (objectiveEvidenceDrafts[`${draftScope}:${objective.id}`] ?? "").trim() } }); }} disabled={!isOnline || !selectedDayCovered || updateObjective.isPending || objectiveEvidenceDrafts[`${draftScope}:${objective.id}`] === undefined || !objectiveEvidenceDrafts[`${draftScope}:${objective.id}`].trim() || objectiveEvidenceDrafts[`${draftScope}:${objective.id}`].trim() === (objective.evidence ?? "")}>Save evidence</button>
                 </div>
                 <div>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      if (!guardOnline()) return;
                       updateObjective.mutate({
                         ...scope,
                         id: objective.id,
                         expectedVersion: objective.version,
                         patch: {
                           state: "completed",
-                          evidence: (objectiveEvidenceDrafts[objective.id] ?? objective.evidence ?? "").trim(),
+                          evidence: (objectiveEvidenceDrafts[`${draftScope}:${objective.id}`] ?? objective.evidence ?? "").trim(),
                         },
-                      })
-                    }
+                      });
+                    }}
                     disabled={
-                      updateObjective.isPending ||
-                      !(objectiveEvidenceDrafts[objective.id] ?? objective.evidence ?? "").trim() ||
+                      !isOnline || !selectedDayCovered || updateObjective.isPending ||
+                      !(objectiveEvidenceDrafts[`${draftScope}:${objective.id}`] ?? objective.evidence ?? "").trim() ||
                       objective.state === "completed"
                     }
                   >
@@ -1696,16 +1752,17 @@ export function PlanWorkspace({
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      if (!guardOnline()) return;
                       carryObjective.mutate({
                         ...scope,
                         id: objective.id,
                         expectedVersion: objective.version,
                         nextWeekStartLocalDate: shiftLocalDate(weekStart, 7),
-                      })
-                    }
+                      });
+                    }}
                     disabled={
-                      carryObjective.isPending ||
+                      !isOnline || !selectedDayCovered || carryObjective.isPending ||
                       objective.state === "completed"
                     }
                   >
