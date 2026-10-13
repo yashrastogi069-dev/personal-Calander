@@ -151,3 +151,13 @@ Git delivery receipt (2026-10-04): source checkpoint `09a52f09d9751ce06452506e31
 Files changed: `client/src/features/{shell,tasks,today,focus}` presentation/tests, `client/src/pages/Home.tsx`, `client/src/hooks/useWorkspaceToday.{ts,test.tsx}`, focused server UI/config contract tests, synthetic browser scripts, `vercel.json`, AGENTS/MEMORY and related product/decision/state/evidence/debt/checkpoint docs; seven selected concept images copied into `design-system/personal-calander/concepts/`. No backend mutation/schema implementation changed. Unrelated competition reference folder and `.playwright-cli` artifacts excluded from staging.
 
 Independent SOL review caught missing heatmap period/timezone/aggregate summary; fixed and focused 23/23 tests passed. Aggregates count explicit loaded check-ins, not compliance, complete history or fabricated scores. Tests cover unknown/future/out-of-window records; deliberate planning-date preservation has helper tests, while mounted overnight refresh has browser evidence. Physical iPhone/VoiceOver/PWA offline/relaunch, live schema/TLS/backup, notifications/calendar provider authorization/delivery, full-app UX/accessibility/performance and authenticated Preview remain separate gates. Owner requested new premium branch with automatic Preview enabled, old dev remote untouched and hard stop after this checkpoint.
+
+## 2026-10-13 C3 Plan Studio local checkpoint
+
+- Commit `8a242e6` on `work/premium-redesign` (base `2f7a7fe`).
+- Unit: `npx vitest run` 115 files / 754 passed / 3 skipped. `planBoard.test.ts` 6/6 (Monday identity, deadline-only stays unplanned, same-task/day source collapse with state retained, missing links, saved-date restore inside snapshot, partial weeks).
+- Worktree note: `scripts/phase4-product-migration.test.ts` hash pin failed only because `core.autocrlf=true` checked out `0004_phase4_product_model.sql` with CRLF; LF re-checkout restores reviewed SHA-256 `a685febe...`. No migration content changed.
+- TypeScript `npm run check` passed. `npm run build` passed (PWA `23906020e7c0a35d`, 28 shell files).
+- Browser: `scripts/preview-premium-plan.py` against Vite on 127.0.0.1:3100, all APIs intercepted, synthetic fixtures, clock fixed 2026-09-20 UTC: 36/36 (board/source dedup/touch targets, weekend select + Calendar handoff + Back + reload with no Plan writes, offline Save disabled with draft retained, versioned intention upsert, empty and blocked-storage contexts at 320/1440). Workspace `ensure` bootstrap is now recorded separately from Plan writes.
+- Defect found and fixed: blocked site data made `PwaProvider` throw on first render (blank app). Storage calls now fail soft.
+- Not run: Vercel Preview, authenticated live data, physical iPhone, real provider calendars.

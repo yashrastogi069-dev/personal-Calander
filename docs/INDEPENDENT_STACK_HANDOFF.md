@@ -1,6 +1,14 @@
 # Independent stack: current workbench handoff
 
-## 2026-10-04 premium v2 first checkpoint (current)
+## 2026-10-13 C3 Plan Studio finished locally; BEST Shots redesign programme opened (current)
+
+Owner instruction 2026-10-13: finish the incomplete Plan Studio, then redesign Dashboard and screens to match and exceed `BEST Shots/` (rich-but-calm motion, white/blue identity kept), interviewing the owner at decision points and telling/asking before each Fable use. Work runs on `work/premium-redesign` (worktree) and is pushed to `dev/personal-calendar-premium-v2` only after local verification. No Vercel check, live write, migration or main merge is authorized.
+
+Delivered locally: commit `8a242e6` (weekly dated board, selected-day continuity, Calendar date handoff, task-record handoff, `plan-week.css`, blocked-storage crash fix in `PwaProvider`). Evidence: 115 Vitest files / 754 passed / 3 skipped (one worktree-only CRLF artifact on the reviewed 0004 migration hash resolved by LF checkout, no repo change); TypeScript and build passed (PWA `23906020e7c0a35d`, 28 shell files); Plan harness 36/36 at 320/390/768/1440 light/dark plus empty and blocked-storage contexts, synthetic data only. [Evidence](PHASE4_SLICE_EVIDENCE.md). Not verified: Preview, physical iPhone, real provider events.
+
+Redesign sequence proposed (Fable structural review, owner approval pending): D0 tokens/motion/primitives, D1 routed shell/grouped nav/view tabs/command palette, D2 Dashboard + Today switch, D3 Tasks board drag (needs new dependency approval), D4 "why it matters" from existing facts, D5 light Analytics, D6 polish/empty states. Gated: G1 stakes fields (migration), G2 hard reminders (migration + live push), G3 two-way Google sync (OAuth verification, token storage, privacy review). Loop state: `RUN_STATE.md`.
+
+## 2026-10-04 premium v2 first checkpoint
 
 Latest owner instruction: do not check Vercel; they will verify the Preview. Keep automatic deployment enabled and verify only the Git push locally/remotely.
 
