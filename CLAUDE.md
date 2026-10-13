@@ -13,10 +13,11 @@ Use subagents wherever they help: independent review, screenshot/visual review, 
 | --- | --- |
 | haiku | Mechanical edits, greps, renames, log/file digests |
 | sonnet | Read-only exploration and routine screenshot checks |
-| opus | UI/UX design and building (load `impeccable:impeccable`, `design-taste-frontend`, `emilkowal-animations` first), all logic (data/projection, state), architecture, risky integration, independent code review |
-| fable | Key design moments only (planning, UI/UX structure, important design decisions). Always tell the owner when Fable runs. |
+| opus | All logic (data/projection, state), architecture, risky integration, test and preview tooling, independent code review |
+| fable (Fable 5.1) | ALL UI/UX design: specs, layout, icons, motion, and building the visual UI layer. Load `impeccable:impeccable`, `design-taste-frontend`, `emilkowal-animations` first. Always tell the owner when Fable runs. |
 
-Owner update 2026-10-13: use opus (not sonnet) for UI/UX design and for logic, and have UI agents load the design skills before designing.
+Owner update 2026-10-13 (latest, supersedes earlier): "use FABLE 5.1 not opus for designs". Fable does all design work. Opus keeps logic and review.
+- Assumption, not yet confirmed: Fable also builds the visual UI code. Opus wires the logic.
 
 - Give every subagent an objective, scope, file paths, expected output (≤450 words, prioritised) and an explicit read-only or may-edit statement.
 - Parallel editors must own separate files; otherwise run sequentially.
@@ -30,7 +31,7 @@ Every screen in D3–D6 (and any later UI work) must look modern and futuristic 
 - **Reuse the motion system:** `client/src/design/motion.ts` and the `--pc-ease`/`--pc-dur-*`/`pc-rise`/`pc-pop` tokens and classes in `tokens-v2.css`. Don't invent one-off timings.
 - **Modern UI:** the v2.1 look (white/blue plus slate dark, validated category palette, status pills, glassy surfaces where it fits, generous rounded cards). Keep pushing it further each slice, without breaking the approved identity.
 - **Always:** honour `prefers-reduced-motion` (everything off or instant). Show real data only; no decorative fake numbers. Keep it accessible (contrast, focus rings, labels).
-- **Who builds it:** opus agents with `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` loaded do the UI and motion work. Use Fable for key design moments, and tell the owner.
+- **Who builds it:** Fable 5.1 agents with `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` loaded do the UI design and motion work. Opus does the logic. Tell the owner whenever Fable runs.
 
 ## Checkpoints
 - After every checkpoint: update `HANDOFF.md` + `RUN_STATE.md`, commit, `git push origin HEAD:dev/personal-calendar-premium-v2`, then keep going. Never push to main, never force-push.

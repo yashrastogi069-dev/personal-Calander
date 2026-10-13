@@ -4,7 +4,7 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
 
 ## Owner rules (standing, read every session)
 1. **Checkpoints:** after every checkpoint, update HANDOFF.md and RUN_STATE.md (plus MEMORY.md and docs as needed), commit, push, then keep going.
-2. **Subagents:** use them wherever they help, with the routing table below. Opus does UI/UX (after loading the design skills) and all logic. Tell the owner whenever Fable runs.
+2. **Subagents:** use them wherever they help, with the routing table below. **Fable 5.1 does ALL UI/UX design** (owner, 2026-10-13: "use FABLE 5.1 not opus for designs"), after loading the design skills. Opus does logic and review. Tell the owner whenever Fable runs.
 3. **Design direction:** cool, futuristic icons, animations and motion, and a modern UI on every screen. The full rule is in `CLAUDE.md` under "Design direction". In short:
    - expressive labelled icons in tinted tiles
    - plenty of state-driven motion (count-ups, fills, staggered entry, glides, spring check-offs, hover lift and press scale), under ~300ms with ease-out
@@ -55,7 +55,7 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 2. Update or retire the stale `preview-task15.py` and `preview-linked-planner.py`.
 3. D3.5 iPhone nav & gestures:
    - Fable designs the system first; tell the owner when it runs.
-   - Then opus builds it with the design skills loaded.
+   - Then Fable builds the UI, with the design skills loaded. Opus wires the logic.
    - Add `@use-gesture/react`.
    - Scope is in the owner decisions above.
 4. Then D4 (why it matters), D5 (light Analytics) and D6 (polish and first-run states), each with its own checkpoint, handoff and push.
@@ -72,7 +72,7 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 - **"+" button:** context-aware (event on Calendar, habit on Habits, task elsewhere).
 - **Gestures:** swipe task rows, swipe between days, long-press quick actions, pinch Calendar zoom, tap the active tab to scroll to the top. `@use-gesture/react` is approved.
 - **Motion and extras:** directional slide on tab switch, outline→filled icons with spring pop and bouncing badges, More as a launcher grid, and pull to refresh with a filling ring.
-- **Who designs it:** Fable designs the phone nav, gesture and motion system before opus builds it. Tell the owner when Fable runs.
+- **Who designs it:** Fable designs and builds the phone nav, gesture and motion UI, and opus wires the logic. Tell the owner when Fable runs.
 - **New slices:**
   - **D3.5 "iPhone nav & gestures"**, after D3.
   - **D7 "Glance & reminders"**, after D6: Calendar feed alerts and categories, app icon badge, lock-screen push. D7 unlocks G2, and the scheduler rollout needs the owner's dashboard steps.
@@ -114,8 +114,8 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 ## Subagent routing (owner instruction, updated 2026-10-13)
 - **haiku:** mechanical edits and greps.
 - **sonnet:** read-only exploration and routine screenshot checks.
-- **opus:** all UI/UX design and building (load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first), all logic, and independent review.
-- **fable:** key design moments only; always tell the owner. Used once so far, for the D0 spec review.
+- **opus:** all logic, architecture, test and preview tooling, and independent review.
+- **fable (Fable 5.1):** ALL UI/UX design and the visual UI build. Load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first. Always tell the owner. Owner, 2026-10-13: "use FABLE 5.1 not opus for designs".
 - Give every subagent an objective, scope, file paths, a ≤450-word output and an explicit read-only or may-edit statement. Parallel editors must own separate files. Verify their claims before you accept them: the delight pass missed `server/phase4Shell.test.ts`, so always run the FULL suite.
 
 ## Gotchas

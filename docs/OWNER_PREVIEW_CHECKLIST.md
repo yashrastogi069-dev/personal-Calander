@@ -2,6 +2,13 @@
 
 The owner runs these checks; agents do not run Vercel checks (gated). Report back with: what snapped instead of animating, anything that felt slow or janky, anything clipped, and any wrong numbers.
 
+## Why it looked old or empty (owner report, 2026-10-13)
+
+- `https://personal-calander.vercel.app` and the installed home-screen app are **production**, built from `main`, so they still run the old code. The redesign is only on the branch Preview below; its bundle was confirmed to contain the D2 Dashboard code.
+- The dev database behind the Preview is empty (one user, zero tasks), so the Dashboard had nothing to count or animate.
+- Inner surfaces (Focus, Tasks, Habits, Plan inner panels, Review, Settings) still have the old look because D3 onwards hasn't been built. A redesign map is being drafted (Fable, 2026-10-13).
+- Fix: use the rich demo preview (`python scripts/open-demo-preview.py`, being built 2026-10-13). It has lots of fake data on the real clock and never touches live data.
+
 ## Where to look
 
 1. **Vercel Preview (real sign-in, dev data).** Commit `1acc7ec` (includes D2 `d3b25da`), deployment status: success.

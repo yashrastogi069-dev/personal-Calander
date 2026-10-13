@@ -7,8 +7,8 @@ Branch: `work/premium-redesign` (worktree `.claude/worktrees/premium-redesign`),
 Model routing (owner update 2026-10-13, see CLAUDE.md):
 - haiku: mechanical edits and greps
 - sonnet: read-only exploration and routine screenshot checks
-- opus: all UI/UX design and building (load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first), all logic, architecture and independent review
-- fable: key design decisions only, and always tell the owner
+- opus: all logic, architecture, tooling and independent review
+- fable (Fable 5.1): ALL UI/UX design and the visual UI build (load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first). Always tell the owner. Owner, 2026-10-13: "use FABLE 5.1 not opus for designs".
 
 Design direction (owner standing rule, 2026-10-13): icons, animations and motion must be cool and futuristic, and the UI modern, on every screen. Motion is state-driven, stays under ~300ms, reuses `motion.ts` and the tokens, and honours reduced motion. Real data only. The full rule is in CLAUDE.md under "Design direction"; the D2 delight pass is the bar.
 
@@ -64,6 +64,13 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - Owner decisions to record in DECISIONS.md with D0: Roadmap in Plan + Goals & Projects + compact Home strip; Today drops weekly overview and links to the week; Insights becomes Analytics under Reflect; grey backdrop on Dashboard only.
 
 ## Checkpoint log
+
+- 2026-10-13 owner report: "things are not wired, still old code, no real data, Focus clock looks BAD; redesign inner surfaces like the Coterie Time tracker (`BEST Shots/WhatsApp Image 2026-10-12 at 4.37.07 PM (6).jpeg`)".
+  - Diagnosis: the Preview has D2. The owner saw production and/or empty dev data. Inner surfaces are still old by plan.
+  - Running:
+    - Fable (owner-approved) is writing `docs/superpowers/specs/2026-10-13-premium-redesign-focus-and-inner-surfaces.md`.
+    - Opus is building `scripts/demo-fixtures.py` + `scripts/open-demo-preview.py` (rich fake data, real clock, mutations echo).
+  - Next: verify both, show the owner the demo, interview on the redesign map, then re-plan D3+.
 
 - 2026-10-13 after D2 push:
   - The owner will check the Vercel Preview and the animations themselves. The URL and the 12-step list are in `docs/OWNER_PREVIEW_CHECKLIST.md`.
