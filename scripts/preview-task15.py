@@ -18,6 +18,15 @@ URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3000"
 PRODUCT["assert_loopback_url"](URL)
 
 
+def choose_stage(page, index, stage):
+    """Desktop uses the stage buttons; phones use the C3 mobile stepper's jump select."""
+    nav = page.locator(".plan-stage-nav button").nth(index)
+    if nav.is_visible():
+        nav.click()
+    else:
+        page.get_by_label("Jump to planning stage").select_option(stage)
+
+
 def no_horizontal_overflow(page, label):
     metrics = PRODUCT["overflow_metrics"](page)
     assert not metrics["horizontalOverflow"], (label, metrics)
@@ -47,11 +56,11 @@ def run_width(browser, width):
         plan.wait_for()
         assert plan.get_attribute("data-plan-stage") == "commit"
         for index, stage in enumerate(("recover", "capacity", "commit", "reserve", "review")):
-            page.locator(".plan-stage-nav button").nth(index).click()
+            choose_stage(page, index, stage)
             assert plan.get_attribute("data-plan-stage") == stage
             no_horizontal_overflow(page, f"Plan {stage} {width}")
         page.get_by_role("heading", name="Recent planning history").wait_for()
-        page.locator(".plan-stage-nav button").nth(3).click()
+        choose_stage(page, 3, "reserve")
         page.get_by_role("button", name="Open Calendar").click()
         PRODUCT["wait_for_target"](page, "plan", "calendar")
         page.get_by_role("heading", name="Reserve real focus time").wait_for()

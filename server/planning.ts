@@ -947,7 +947,10 @@ export async function createHabit(scope: PlannerScope, input: Omit<typeof habits
   const db = await requireDb();
   await assertScopedRecordLinks(db, scope, { goalId: input.goalId, categoryId: input.categoryId });
   const id = nanoid();
-  await db.insert(habits).values({ id, workspaceId: scope.workspaceId, ...input });
+  // Stamp the workspace-local start day so schedules never fall back to the UTC date of createdAt (east of UTC that adds a false missed day).
+  const schedule = input.schedule && typeof input.schedule === "object" && !Array.isArray(input.schedule) ? input.schedule as Record<string, unknown> : {};
+  const startLocalDate = typeof schedule.startLocalDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(schedule.startLocalDate) ? schedule.startLocalDate : currentLocalDate(scope.timezone);
+  await db.insert(habits).values({ id, workspaceId: scope.workspaceId, ...input, schedule: { ...schedule, startLocalDate } });
   return (await db.select().from(habits).where(and(eq(habits.workspaceId, scope.workspaceId), eq(habits.id, id))).limit(1))[0]!;
 }
 

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("./db", () => ({ getDb: mocks.getDb }));
 vi.mock("./workspaceOwnership", () => ({ requireWorkspaceOwner: vi.fn().mockResolvedValue(undefined), getAccountWorkspace: vi.fn() }));
 
-import { PlannerConflictError, clearHabitCheckIn, getHabitPracticeEvidence, updateHabit, upsertHabitCheckIn } from "./planning";
+import { PlannerConflictError, clearHabitCheckIn, createHabit, getHabitPracticeEvidence, updateHabit, upsertHabitCheckIn } from "./planning";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
@@ -122,5 +122,20 @@ describe.sequential("versioned habit updates on the established schema", () => {
     expect(history.checkIns).toEqual(expect.arrayContaining([expect.objectContaining({ id: "old-archived-check", habitId: "habit-archived", note: "Kept from an earlier year" })]));
     expect(history.habits).toEqual(expect.arrayContaining([expect.objectContaining({ id: "habit-archived", archivedAt: expect.any(Date) })]));
     expect((await database.query(`SELECT count(*)::int AS count FROM "habitCheckIns" WHERE id = 'old-archived-check'`)).rows).toEqual([{ count: 1 }]);
+  });
+
+  it("stamps a new habit with the workspace-local start day, not the UTC date of createdAt", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      // 08:00 on 13 Oct in Auckland is still 12 Oct in UTC.
+      vi.setSystemTime(new Date("2026-10-12T19:00:00.000Z"));
+      const auckland = { workspaceId: scope.workspaceId, timezone: "Pacific/Auckland" };
+      const created = await createHabit(auckland, { name: "Stretch", color: "#0f9d8a", frequency: "daily", schedule: { cadence: "daily" } });
+      expect(created.schedule).toMatchObject({ cadence: "daily", startLocalDate: "2026-10-13" });
+      const explicit = await createHabit(auckland, { name: "Run", color: "#0f9d8a", frequency: "daily", schedule: { startLocalDate: "2026-10-20" } });
+      expect(explicit.schedule).toMatchObject({ startLocalDate: "2026-10-20" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
