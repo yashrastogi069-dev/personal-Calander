@@ -11,8 +11,8 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 | # | Step | Status |
 |---|---|---|
 | C3 | Plan Studio weekly board + date continuity | Done locally, `8a242e6`; build + 754 tests + harness 36/36 |
-| A | Owner approval of redesign sequence (D0-D6, G1-G3) | Waiting on owner |
-| D0 | Tokens v2 (radius pill, elevation, hero/dark cards, hatch), motion tokens, primitives, quarantine legacy green CSS | Not started |
+| A | Owner approval of redesign sequence (D0-D6, G1-G3) | Approved 2026-10-13 (also @dnd-kit, pill radius, Fable for D0 spec) |
+| D0 | Fable D0 spec running, then tokens v2 (radius pill, elevation, hero/dark cards, hatch), motion tokens, primitives, quarantine legacy green CSS | Not started |
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Not started |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Not started |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
@@ -23,7 +23,4 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 
 ## Open owner questions
 
-1. Approve the D0-D6 order and gates?
-2. Fable for the D0 visual/motion spec (tokens, Dashboard layout)?
-3. Add `@dnd-kit` for D3 drag?
-4. Add a `pill` radius (999px) to DESIGN.md?
+None. Next: review Fable D0 spec with owner, then implement D0.

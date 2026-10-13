@@ -1,5 +1,9 @@
 # Current decisions
 
+## 2026-10-13: BEST Shots redesign programme approved
+
+Owner approved (interview 2026-10-13): Dashboard becomes the home with a one-click switch to Today; white/blue + slate-dark identity kept and upgraded with BEST Shots treatment (filled hero card, dark accent card, hatched future bars, tinted tiles); motion "rich but calm" (<=300ms UI, reduced motion honoured); grouped sidebar, per-page view tabs (max 4), command palette; desktop and phone equal. Build order D0 tokens/motion/primitives, D1 routed shell/nav, D2 Dashboard, D3 Tasks drag, D4 "why it matters" from existing facts, D5 light Analytics, D6 polish. Gated separately: G1 stakes fields (migration), G2 hard reminders (migration + live push), G3 two-way Google sync (OAuth verification, token storage, privacy review). Approved: `@dnd-kit` for D3 drag; `pill` (999px) radius added to the design system; Fable used for key design specs with owner told each time. New code does not go into `Home.tsx`; pages move to routes one at a time behind smoke tests. Source: owner interview + Fable structural review, recorded in `RUN_STATE.md`.
+
 ## 2026-10-03: visible reconstruction replaces foundation-only delivery
 
 Owner rejected C1/C2's limited visible difference and explicitly requested the C2 push followed by building the approved white/blue screenshot composition. Deliver full visible workflows (Today/work/day/habits, Tasks List/details) with actual rendered comparison, not further groundwork presented as redesign. Existing IDs/options/history and infrastructure gates remain. SOL delegation only; Astra requires fresh permission. Reference: `design-system/personal-calander/concepts/2026-10-03-blue-workspace-preview.png`.
