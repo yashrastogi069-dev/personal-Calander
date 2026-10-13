@@ -112,24 +112,46 @@ def wait_for_target(page, destination: str, view: str | None = None) -> None:
     )
 
 
+PHONE_LABEL_ALIASES = {"Plan": ("Daily plan",)}
+
+
 def click_destination(page, label: str) -> None:
     sheet = page.get_by_role("dialog", name="More planning")
     if sheet.is_visible():
         sheet.wait_for(state="hidden")
     # D1 rail keeps Goals, Connections and Categories inside a collapsed "More" disclosure.
     page.evaluate("document.querySelectorAll('details.pc-rail-more:not([open])').forEach(d => { d.open = true })")
-    for candidate in page.get_by_role("button", name=label, exact=True).all():
-        if candidate.is_visible() and candidate.evaluate(
-            "element => element.closest('[role=dialog]') === null"
-        ):
-            candidate.click()
-            return
+    # The rail names plan/daily "Plan"; the phone bar keeps its shortcut label "Daily plan".
+    for name in (label, *PHONE_LABEL_ALIASES.get(label, ())):
+        for candidate in page.get_by_role("button", name=name, exact=True).all():
+            if candidate.is_visible() and candidate.evaluate(
+                "element => element.closest('[role=dialog]') === null"
+            ):
+                candidate.click()
+                return
     more = page.get_by_role("button", name="More", exact=True)
     if not more.count():
         raise AssertionError({"missingDestination": label, "url": page.url, "visibleButtons": page.locator("button:visible").all_text_contents()[:40]})
     more.click()
     sheet.wait_for(state="visible")
     sheet.get_by_role("button", name=label, exact=True).click()
+
+
+def set_task_filter(page, label: str, value: str) -> None:
+    # Phone Tasks swaps the filter button group for a select (since 09a52f0).
+    group = page.locator(".filter-group")
+    if group.is_visible():
+        group.get_by_role("button", name=label, exact=True).click()
+    else:
+        page.get_by_label("Filter tasks", exact=True).select_option(value)
+
+
+def task_filter_value(page) -> str:
+    group = page.locator(".filter-group")
+    if group.is_visible():
+        return group.locator("button.is-active").inner_text().strip()
+    select = page.get_by_label("Filter tasks", exact=True)
+    return select.locator("option:checked").inner_text().strip()
 
 
 def wait_for_parameter(page, name: str, value: str) -> None:
@@ -234,9 +256,7 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         task_search = page.locator("[data-task-search]")
         task_search.fill("lease")
         wait_for_parameter(page, "taskQ", "lease")
-        page.locator(".filter-group").get_by_role(
-            "button", name="Today", exact=True
-        ).click()
+        set_task_filter(page, "Today", "today")
         wait_for_parameter(page, "taskFilter", "today")
         replace_record_and_notify(page, "record-one")
         tasks_one_location = current_location(page)
@@ -253,9 +273,7 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         task_search = page.locator("[data-task-search]")
         task_search.fill("budget")
         wait_for_parameter(page, "taskQ", "budget")
-        page.locator(".filter-group").get_by_role(
-            "button", name="Deadline risk", exact=True
-        ).click()
+        set_task_filter(page, "Deadline risk", "deadline_risk")
         wait_for_parameter(page, "taskFilter", "deadline_risk")
         replace_record_and_notify(page, "record-two")
         tasks_two_location = current_location(page)
@@ -266,9 +284,7 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         page.go_back()
         wait_for_target(page, "tasks", "list")
         assert page.locator("[data-task-search]").input_value() == "lease"
-        assert page.locator(".filter-group").get_by_role(
-            "button", name="Today", exact=True
-        ).get_attribute("class") == "is-active"
+        assert task_filter_value(page) == "Today"
         assert page.locator('[data-scroll-owner="destination"]').get_attribute(
             "data-selected-record"
         ) == "record-one"

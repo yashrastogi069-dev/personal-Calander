@@ -1,4 +1,4 @@
-# HANDOFF — premium redesign (updated 2026-10-13, after D1)
+# HANDOFF — premium redesign (updated 2026-10-13, D1 closed, D2 in progress)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2` (never main, never force).
 Owner rules: write a handoff and push after EVERY checkpoint, then keep going. Use subagents with routing (below). Tell the owner whenever Fable runs.
@@ -7,10 +7,7 @@ Gated (do not touch): G1 stakes, G2 hard reminders, G3 Google two-way sync, Verc
 ## Status
 - D0 tokens, motion and primitives: DONE (b0312c8). Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md`.
 - D1 shell/nav: DONE locally. Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d1-shell.md`. 808 tests, check and build pass.
-- D1 OPEN ITEM (do first): re-run the browser harnesses. Vite was stopped by the host for low memory, so they were not re-run after the review fixes:
-  - `npx vite --port 3100 --strictPort --host 127.0.0.1` (background)
-  - then `python scripts/preview-premium-shell.py` (expect 16/16; the phone order is now 2 | + | 2), `preview-premium-plan.py` (36/36), `preview-premium-gallery.py` (8/8) and `preview-phase4-product.py` (updated for Analytics and the More `<details>`).
-  - Review screenshots in `%TEMP%\premium-shell`. Record the results in `docs/PHASE4_SLICE_EVIDENCE.md` (D1 section).
+- D1 browser harnesses re-run 2026-10-13: shell 16/16, plan 36/36, gallery 8/8, phase4 shell-navigation 2/2 (harness fixes only). D1 CLOSED.
 - D2–D6: not started.
 
 ## Next: D2 Dashboard (home/overview)
@@ -19,6 +16,7 @@ Gated (do not touch): G1 stakes, G2 hard reminders, G3 Google two-way sync, Verc
 3. Cards: Up next (fix the empty middle), Today progress ring, Week rhythm (fix the spare height), Roadmap strip, Habits, focus planned vs actual (from focus sessions; `timeChipState` in `client/src/design/timeFormat.ts`).
 4. Motion: entrance on first mount only, hover lift only for `(hover:hover)`, pulse only on the now-line, ring and count-up ≤600ms, reduced motion respected.
 5. Carried-over polish:
+   - 390px Home tabs truncate ("Dashb…"); make them full width. The centre phone Capture looks washed out.
    - dark-mode active rail item and tab contrast
    - check that Onest renders (the harness may use a fallback font)
    - legacy green search-input surface on dark Tasks (do it with the D3 Tasks work)

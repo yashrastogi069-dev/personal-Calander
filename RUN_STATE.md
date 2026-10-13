@@ -13,8 +13,8 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 | C3 | Plan Studio weekly board + date continuity | Done locally, `8a242e6`; build + 754 tests + harness 36/36 |
 | A | Owner approval of redesign sequence (D0-D6, G1-G3) | Approved 2026-10-13 (also @dnd-kit, pill radius, Fable for D0 spec) |
 | D0 | Tokens v2, motion, primitives, legacy-green ratchet | Done 2026-10-13: 800 tests, build, Plan harness 36/36, gallery harness 8/8; pushed |
-| D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done locally; browser harness re-run pending |
-| D2 | Dashboard home + one-click Today switch, Schedule card lens | Not started |
+| D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
+| D2 | Dashboard home + one-click Today switch, Schedule card lens | In progress |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
 | D4 | "Why it matters" reasons from existing facts | Not started |
 | D5 | Light Analytics | Not started |

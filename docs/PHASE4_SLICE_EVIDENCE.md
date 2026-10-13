@@ -178,7 +178,14 @@ Independent SOL review caught missing heatmap period/timezone/aggregate summary;
   - `npm run check` passed.
   - `npm run build` passed.
 - Before the review fixes, `scripts/preview-premium-shell.py` passed 16/16 (1440/390 × light/dark × 4 pages: overflow, tabs, rail groups, phone capture, ⌘K jump, tab switch).
-- NOT re-run after the fixes: the shell harness, the Plan harness (36/36 at D0), the gallery harness (8/8 at D0) and `preview-phase4-product.py` (updated for Analytics and More). The Vite dev server was stopped by the host for low memory.
+- Re-run after the fixes (2026-10-13, Vite 127.0.0.1:3100, synthetic fixtures):
+  - `preview-premium-shell.py`: 16/16 (phone order 2 | + | 2).
+  - `preview-premium-plan.py`: 36/36.
+  - `preview-premium-gallery.py`: 8/8.
+  - `preview-phase4-product.py --url http://127.0.0.1:3100` (shell-navigation): 2/2 at 390 and 1440. Two stale harness assumptions were fixed. Neither was a product regression:
+    - Phone plan/daily keeps its shortcut label "Daily plan" (asserted in `PlannerShell.test.tsx`). The harness now aliases "Plan" to it.
+    - Since `09a52f0`, phone Tasks has used the "Filter tasks" select instead of `.filter-group`. The harness now uses whichever control is visible.
+- Screenshots reviewed (`%TEMP%\premium-shell`). Carried into D2: the 390 Home tabs truncate ("Dashb…", "Calen…") instead of spanning full width, and the centre Capture looks washed out.
 - Reviews:
   - Sonnet visual review against the v2.1 boards. Applied: phone padding, phone tabs, search nowrap, rail heading and collapse layout. Deferred: inline header (D2), dark contrast and the legacy green input (D6).
   - Opus code review: 10 findings, all applied except the aria-controls note.
