@@ -21,6 +21,8 @@ import {
   TimerReset,
   type LucideIcon,
 } from "lucide-react";
+import { motion } from "framer-motion";
+import { GLIDE, RADIUS } from "@/design/motion";
 import {
   activeNavState,
   badgeText,
@@ -115,7 +117,18 @@ function RailItem({
       title={collapsed ? item.label : undefined}
       onClick={() => onNavigate(item.target)}
     >
-      <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
+      {exact ? (
+        // One shared highlight glides between destinations; reduced motion comes from <MotionConfig reducedMotion="user">.
+        <motion.span
+          layoutId="pc-rail-active"
+          layoutDependency={item.id}
+          className="pc-rail-indicator"
+          aria-hidden="true"
+          style={{ borderRadius: RADIUS.control }}
+          transition={GLIDE}
+        />
+      ) : null}
+      <Icon aria-hidden="true" size={18} strokeWidth={1.75} className={exact ? "pc-icon-pop" : undefined} />
       <span>{item.label}</span>
       {badge ? (
         <span className={`pc-rail-badge${item.badge === "overdue" ? " is-alert" : ""}`}>{badge}</span>
@@ -183,7 +196,7 @@ export function PlannerRail({
         <kbd aria-hidden="true">⌘K</kbd>
       </button>
 
-      <nav aria-label="Planning destinations" className="planner-nav pc-rail-nav">
+      <motion.nav layoutScroll aria-label="Planning destinations" className="planner-nav pc-rail-nav">
         {premiumNavGroups.map(group => (
           <div key={group.id} className="pc-rail-group" role="group" aria-label={group.label ?? "Home"}>
             {group.label ? <span className="planner-nav-section-label pc-rail-heading">{group.label}</span> : null}
@@ -218,7 +231,7 @@ export function PlannerRail({
             ))}
           </div>
         </details>
-      </nav>
+      </motion.nav>
 
       <div className="rail-footer">
         <button

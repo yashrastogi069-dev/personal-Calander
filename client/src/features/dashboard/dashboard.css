@@ -1,0 +1,785 @@
+/* D2 premium Dashboard. Tokens: design/tokens-v2.css (dark mode = html:root.dark). Everything is scoped
+   to .pc-dash; "html body .pc-shell .pc-dash" is used where legacy element rules (button, h2) interfere.
+   Literal white appears only on the blue hero and the night "Up next" card. */
+
+/* ---------- Grid ---------------------------------------------------------------------------- */
+.pc-dash {
+  --pc-dash-gap: 16px;
+  --pc-dash-pad: 20px;
+  --pc-dash-hour: 56px;
+  display: grid;
+  /* 4/3/3/2 KPI rhythm on top; ~7/5 split for the two middle rows. */
+  grid-template-columns: minmax(0, 4fr) minmax(0, 3fr) minmax(0, 1.2fr) minmax(0, 1.8fr) minmax(0, 2fr);
+  grid-template-areas:
+    "hero habit focus focus due"
+    "sched sched sched up up"
+    "week week week goals goals"
+    "habits habits habits habits habits";
+  gap: var(--pc-dash-gap);
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--pc-font);
+}
+.pc-dash-area-hero { grid-area: hero; }
+.pc-dash-area-habit { grid-area: habit; }
+.pc-dash-area-focus { grid-area: focus; }
+.pc-dash-area-due { grid-area: due; }
+.pc-dash-area-sched { grid-area: sched; }
+.pc-dash-area-up { grid-area: up; align-self: start; }
+.pc-dash-area-week { grid-area: week; }
+.pc-dash-area-goals { grid-area: goals; }
+.pc-dash-area-habits { grid-area: habits; }
+
+/* ---------- Shared ---------------------------------------------------------------------------- */
+.pc-dash-sr {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+html body .pc-dash :is(h2, h3, p, ol, ul) { margin: 0; padding: 0; }
+html body .pc-dash :is(ol, ul) { list-style: none; }
+html body .pc-dash button { font: inherit; letter-spacing: inherit; }
+
+.pc-dash-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: var(--pc-dash-pad);
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-panel);
+  background: var(--pc-card);
+  box-shadow: var(--pc-e1);
+}
+
+html body .pc-shell .pc-dash h2 {
+  color: var(--ink);
+  font: var(--pc-w-semibold) var(--pc-text-h2)/var(--pc-lh-h2) var(--pc-font);
+  letter-spacing: var(--pc-tracking-tight);
+  text-wrap: balance;
+}
+html body .pc-shell .pc-dash h3 {
+  color: var(--ink-muted);
+  font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font);
+}
+
+.pc-dash-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; }
+.pc-dash-head-sub { margin-top: 2px !important; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-dash-head-links { display: flex; align-items: center; gap: 4px 14px; }
+.pc-dash-muted { color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-dash-long { display: inline; }
+.pc-dash-short { display: none; }
+
+/* Buttons and links */
+html body .pc-dash .pc-dash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--pc-r-pill);
+  font-size: var(--pc-text-body-sm);
+  font-weight: var(--pc-w-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease);
+}
+html body .pc-dash .pc-dash-btn:active { transform: scale(.97); }
+html body .pc-dash .pc-dash-btn-accent { background: var(--accent); color: var(--accent-foreground); }
+html body .pc-dash .pc-dash-btn-ghost { border-color: var(--border); background: var(--pc-card); color: var(--ink); }
+html body .pc-dash .pc-dash-btn-light { background: #fff; color: var(--pc-night); box-shadow: var(--pc-e1); }
+html body .pc-dash .pc-dash-btn-night { border-color: rgb(255 255 255 / .28); background: transparent; color: #fff; }
+
+html body .pc-dash .pc-dash-link,
+html body .pc-dash .pc-dash-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--pc-text-body-sm);
+  font-weight: var(--pc-w-semibold);
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+html body .pc-dash .pc-dash-link { color: var(--accent); }
+html body .pc-dash .pc-dash-quiet { color: var(--ink-muted); font-weight: var(--pc-w-medium); font-size: var(--pc-text-label); }
+html body .pc-dash :is(.pc-dash-link, .pc-dash-quiet):hover { text-decoration: underline; }
+html body .pc-dash .pc-dash-quiet:hover { color: var(--ink); }
+
+html body .pc-dash :is(button, [tabindex]):focus-visible {
+  outline: var(--pc-focus-width) solid var(--focus-ring);
+  outline-offset: var(--pc-focus-offset);
+}
+html body .pc-dash :is(.pc-dash-hero, .pc-dash-night) button:focus-visible { outline-color: #fff; }
+
+/* Rings */
+.pc-dash-ring { flex: none; display: block; }
+.pc-dash-ring-track { stroke: var(--pc-track); }
+.pc-dash-ring-arc {
+  stroke: var(--accent);
+  transition: stroke-dashoffset var(--pc-dur-base) var(--pc-ease-data);
+  animation: pc-dash-ring-draw var(--pc-dur-data) var(--pc-ease-data) 120ms backwards;
+}
+.pc-dash-ring-done .pc-dash-ring-arc { stroke: var(--pc-done); }
+.pc-dash-ring-tone .pc-dash-ring-arc { stroke: var(--pc-k); }
+.pc-dash-ring-hero .pc-dash-ring-track { stroke: rgb(255 255 255 / .22); }
+.pc-dash-ring-hero .pc-dash-ring-arc { stroke: #fff; }
+/* No "to" frame: the arc draws towards its own inline offset. */
+@keyframes pc-dash-ring-draw { from { stroke-dashoffset: 100; } }
+
+/* Empty states */
+.pc-dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  padding: 24px;
+  border: 1px dashed var(--border);
+  border-radius: var(--pc-r-control);
+  color: var(--ink-muted);
+  text-align: center;
+}
+.pc-dash-empty p { color: var(--ink); font-size: var(--pc-text-body); font-weight: var(--pc-w-medium); }
+.pc-dash-empty.is-inline { flex-direction: row; justify-content: space-between; min-height: 0; padding: 16px 20px; text-align: left; }
+
+/* ---------- Hero ---------------------------------------------------------------------------- */
+.pc-dash-hero {
+  justify-content: space-between;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--pc-r-feature);
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / .14), transparent 55%),
+    linear-gradient(140deg, var(--pc-hero-1), var(--pc-hero-2));
+  box-shadow: var(--pc-e2);
+  color: #fff;
+}
+html body .pc-shell .pc-dash .pc-dash-hero h2 { color: #fff; font-size: var(--pc-text-body); }
+.pc-dash-hero-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html body .pc-dash .pc-dash-hero-open {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px; height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pc-r-pill);
+  background: rgb(255 255 255 / .16);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease);
+}
+html body .pc-dash .pc-dash-hero-open:active { transform: scale(.94); }
+.pc-dash-hero-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pc-dash-hero-count { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.pc-dash-hero-done { font-size: var(--pc-text-display); line-height: var(--pc-lh-display); font-weight: var(--pc-w-display); letter-spacing: var(--pc-tracking-display); }
+.pc-dash-hero-of { font-size: 22px; font-weight: var(--pc-w-semibold); letter-spacing: var(--pc-tracking-tight); opacity: .92; }
+.pc-dash-segbar { display: flex; gap: 4px; height: 6px; }
+.pc-dash-segbar > span { flex: 1 1 0; border-radius: var(--pc-r-pill); background: rgb(255 255 255 / .28); }
+.pc-dash-segbar > span.is-done { background: #fff; }
+.pc-dash-segbar.is-continuous { overflow: hidden; border-radius: var(--pc-r-pill); background: rgb(255 255 255 / .28); }
+.pc-dash-segbar.is-continuous > span { flex: none; }
+.pc-dash-hero-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-dash-hero-pill {
+  padding: 4px 10px;
+  border-radius: var(--pc-r-pill);
+  background: rgb(255 255 255 / .16);
+  color: #fff;
+  font-size: var(--pc-text-caption);
+  font-weight: var(--pc-w-semibold);
+  line-height: var(--pc-lh-caption);
+  white-space: nowrap;
+}
+.pc-dash-hero-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.pc-dash-hero-empty p { font-size: 24px; line-height: 30px; font-weight: var(--pc-w-bold); letter-spacing: var(--pc-tracking-tight); }
+.pc-dash-hero-empty-icon { margin-bottom: -6px; opacity: .85; }
+
+/* Ambient light: two soft blooms drift behind the content. One composited layer, paused under reduced motion. */
+.pc-dash-hero { isolation: isolate; }
+.pc-dash-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -35%;
+  pointer-events: none;
+  background:
+    radial-gradient(30% 36% at 28% 30%, rgb(255 255 255 / .16), transparent 70%),
+    radial-gradient(28% 32% at 74% 72%, color-mix(in srgb, var(--pc-night-accent) 30%, transparent), transparent 70%);
+  animation: pc-dash-aurora var(--pc-dur-ambient) ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes pc-dash-aurora {
+  from { transform: translate3d(-5%, -3%, 0) rotate(-4deg); }
+  to { transform: translate3d(6%, 4%, 0) rotate(8deg); }
+}
+.pc-dash-hero-ring { position: relative; display: grid; flex: none; place-items: center; }
+.pc-dash-hero-ring > .pc-dash-ring { grid-area: 1 / 1; }
+/* Every commitment done: the arc glows and a check settles in once the ring has drawn. */
+.pc-dash-hero-check { grid-area: 1 / 1; color: #fff; animation: pc-dash-check-in 360ms var(--pc-ease) 700ms both; }
+.pc-dash-hero.is-complete .pc-dash-ring-arc { filter: drop-shadow(0 0 6px rgb(255 255 255 / .55)); }
+@keyframes pc-dash-check-in { from { opacity: 0; transform: scale(.7); } 60% { opacity: 1; transform: scale(1.08); } to { opacity: 1; transform: none; } }
+
+/* A changed figure rolls in (keyed in React, so the first paint stays still). */
+.pc-dash-tick { display: inline-block; animation: pc-tick var(--pc-dur-base) var(--pc-ease) both; }
+
+/* ---------- Titles, notes, link icons ---------------------------------------------------------------------------- */
+html body .pc-shell .pc-dash .pc-dash-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pc-dash-title-icon {
+  box-sizing: content-box;
+  flex: none;
+  padding: 6px;
+  border-radius: var(--pc-r-chip);
+  background: var(--selection);
+  color: var(--accent);
+}
+.pc-dash-hero .pc-dash-title-icon { background: rgb(255 255 255 / .16); color: #fff; }
+.pc-dash-note { display: inline-flex; align-items: center; gap: 8px; }
+.pc-dash-note > svg { flex: none; color: var(--ink-subtle); }
+.pc-dash-lead { flex: none; opacity: .85; }
+.pc-dash-nudge,
+html body .pc-dash .pc-dash-hero-open > svg,
+html body .pc-dash .pc-dash-schedule-open > svg,
+html body .pc-dash .pc-dash-unscheduled > svg { transition: transform var(--pc-dur-fast) var(--pc-ease); }
+
+/* Hover depth: a pre-rendered deeper shadow fades in (opacity only, no repaint of the card). */
+.pc-dash-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--pc-e2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--pc-dur-base) var(--pc-ease);
+}
+/* The hero clips its own ambient layer (overflow: hidden), so it keeps its static e2 and skips this. */
+.pc-dash-hero::after { content: none; }
+.pc-dash-night::after { box-shadow: var(--pc-e3); }
+
+/* ---------- KPI cards ---------------------------------------------------------------------------- */
+.pc-dash-kpi { gap: 14px; }
+.pc-dash-kpi-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+html body .pc-shell .pc-dash .pc-dash-kpi h2 { min-width: 0; color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-dash-kpi-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: var(--pc-r-chip);
+  background: var(--pc-k-soft);
+  color: var(--pc-k-ink);
+}
+.pc-dash-kpi-metric { display: flex; align-items: center; gap: 16px; }
+.pc-dash-kpi-figure { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc-dash-kpi-figure.is-inline { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.pc-dash-kpi-figure > b { color: var(--ink); font-size: 34px; line-height: 40px; font-weight: var(--pc-w-display); letter-spacing: var(--pc-tracking-display); white-space: nowrap; }
+.pc-dash-kpi-sub { color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-dash-kpi-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 4px; color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+
+/* Habit day squares */
+.pc-dash-days { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; margin-top: auto !important; }
+.pc-dash-sq { aspect-ratio: 1; max-height: 18px; border-radius: calc(var(--pc-r-chip) / 2); background: var(--pc-track); }
+.pc-dash-sq.is-full { background: var(--pc-done); }
+.pc-dash-sq.is-partial { background: color-mix(in srgb, var(--pc-done) 42%, var(--pc-card)); }
+.pc-dash-sq.is-missed { background: var(--pc-track); }
+.pc-dash-sq.is-none { background: transparent; box-shadow: inset 0 0 0 1px var(--pc-line); }
+.pc-dash-sq.is-today { background: transparent; box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* Focus stack */
+.pc-dash-stack { display: flex; gap: 2px; height: 8px; overflow: hidden; border-radius: var(--pc-r-pill); background: var(--pc-track); }
+.pc-dash-stack > span { flex: none; min-width: 3px; background: var(--pc-k); }
+.pc-dash-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: auto !important; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-dash-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.pc-dash-legend b { color: var(--ink); font-weight: var(--pc-w-semibold); }
+
+/* Due */
+.pc-dash-due { border-color: transparent; background: var(--pc-risk-soft); box-shadow: none; }
+.pc-dash-due-icon { background: color-mix(in srgb, var(--pc-risk) 14%, transparent); color: var(--pc-risk); }
+.pc-dash-due.is-clear .pc-dash-due-icon { background: color-mix(in srgb, var(--pc-ok) 14%, transparent); color: var(--pc-ok); }
+html body .pc-shell .pc-dash .pc-dash-due h2 { color: var(--pc-risk); font-weight: var(--pc-w-bold); }
+.pc-dash-due .pc-dash-kpi-figure { margin-top: auto; }
+.pc-dash-due .pc-dash-kpi-figure > b { color: var(--pc-risk); font-size: 40px; }
+.pc-dash-due .pc-dash-kpi-sub { color: var(--pc-risk); font-weight: var(--pc-w-semibold); }
+html body .pc-dash .pc-dash-due-review { align-self: flex-start; color: var(--pc-risk); text-decoration: underline; }
+.pc-dash-due.is-clear { background: var(--pc-ok-soft); }
+html body .pc-shell .pc-dash .pc-dash-due.is-clear h2 { color: var(--pc-ok); }
+.pc-dash-due-clear { display: flex; align-items: center; gap: 8px; margin-top: auto !important; color: var(--pc-ok); font-size: var(--pc-text-body); font-weight: var(--pc-w-semibold); }
+
+/* ---------- Schedule ---------------------------------------------------------------------------- */
+.pc-dash-schedule-head { align-items: center; }
+.pc-dash-schedule-head h2 { margin-right: 4px !important; }
+/* SegmentedTabs wraps .pc-seg in a Radix root <div>; that div is the flex item. */
+.pc-dash-schedule-head > div { flex: none; }
+.pc-dash-capacity { margin-right: auto; }
+.pc-dash-allday { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.pc-dash-allday li {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
+  padding: 4px 10px; border-radius: var(--pc-r-pill); background: var(--pc-track);
+  color: var(--ink); font-size: var(--pc-text-label); overflow-wrap: anywhere;
+}
+.pc-dash-allday-tag { color: var(--ink-muted); font-weight: var(--pc-w-semibold); }
+/* Day/Week switch: a short blur bridge rather than a hard cut. */
+.pc-dash-lens { animation: pc-dash-lens 220ms var(--pc-ease) both; }
+@keyframes pc-dash-lens { from { opacity: 0; filter: blur(3px); transform: translateY(4px); } to { opacity: 1; filter: none; transform: none; } }
+
+.pc-dash-day-scroll { max-height: calc(var(--pc-dash-hour) * 6.5); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.pc-dash-day { position: relative; height: calc(var(--pc-dash-hours) * var(--pc-dash-hour)); margin-top: 8px; }
+.pc-dash-hour {
+  position: absolute;
+  inset: calc(var(--pc-dash-at) * var(--pc-dash-hour)) 0 auto 0;
+  height: var(--pc-dash-hour);
+  border-top: 1px solid var(--pc-line);
+}
+.pc-dash-hour > span {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  padding-right: 6px;
+  background: var(--pc-card);
+  color: var(--ink-muted);
+  font-size: var(--pc-text-caption);
+  line-height: var(--pc-lh-caption);
+}
+.pc-dash-day-lane { position: absolute; inset: 0 0 0 72px; }
+.pc-dash-day-lane > li {
+  position: absolute;
+  top: calc(var(--pc-dash-top) * var(--pc-dash-hour) + 2px);
+  left: calc(var(--pc-dash-col) / var(--pc-dash-cols) * 100%);
+  width: calc(100% / var(--pc-dash-cols) - 4px);
+  height: calc(var(--pc-dash-len) * var(--pc-dash-hour) - 4px);
+  min-height: 24px;
+}
+.pc-dash-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  overflow: hidden;
+  border-radius: var(--pc-r-chip);
+  text-align: left;
+}
+.pc-dash-ev-slot > .pc-dash-ev { position: relative; }
+.pc-dash-ev.is-compact, .pc-dash-ev-slot.is-compact .pc-dash-ev { flex-direction: row; align-items: center; gap: 8px; padding-block: 2px; }
+.pc-dash-ev-title { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; font-size: var(--pc-text-label); line-height: var(--pc-lh-label); font-weight: var(--pc-w-semibold); white-space: nowrap; text-overflow: ellipsis; }
+.pc-dash-ev-title > span { overflow: hidden; text-overflow: ellipsis; }
+.pc-dash-ev-title > svg { flex: none; }
+.pc-dash-ev-meta { overflow: hidden; font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); white-space: nowrap; text-overflow: ellipsis; opacity: .85; }
+html body .pc-dash .pc-dash-ev.is-task {
+  border: 1px solid color-mix(in srgb, var(--pc-k) 30%, transparent);
+  background: var(--pc-k-soft);
+  color: var(--pc-k-ink);
+  cursor: pointer;
+  transition: box-shadow var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-fast) var(--pc-ease);
+}
+html body .pc-dash .pc-dash-ev.is-task.is-done { opacity: .62; }
+.pc-dash-ev.is-done .pc-dash-ev-title > span { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.pc-dash-ev.is-busy {
+  border: 1px solid var(--pc-line);
+  background: repeating-linear-gradient(135deg, var(--pc-busy) 0 6px, transparent 6px 12px), var(--pc-card-2);
+  color: var(--ink-muted);
+}
+.pc-dash-ev.is-busy .pc-dash-ev-title { color: var(--ink); }
+
+.pc-dash-now { position: absolute; z-index: var(--pc-z-raised); top: calc(var(--pc-dash-top) * var(--pc-dash-hour)); left: 64px; right: 0; height: 0; border-top: 2px solid var(--pc-off); pointer-events: none; box-shadow: 0 0 10px color-mix(in srgb, var(--pc-off) 45%, transparent); }
+.pc-dash-now-dot { position: absolute; top: -6px; left: -5px; width: 10px; height: 10px; border-radius: var(--pc-r-pill); background: var(--pc-off); }
+.pc-dash-now-time {
+  position: absolute;
+  top: -11px;
+  right: 0;
+  padding: 2px 8px;
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-off);
+  color: var(--pc-card);
+  font-size: var(--pc-text-caption);
+  font-weight: var(--pc-w-bold);
+  line-height: var(--pc-lh-caption);
+}
+html body .pc-dash .pc-dash-unscheduled { align-self: flex-start; }
+
+/* Week lens */
+.pc-dash-weeklens { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+html body .pc-dash .pc-dash-weekday {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-height: 132px;
+  padding: 12px 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-control);
+  background: var(--pc-card-2);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-fast) var(--pc-ease);
+}
+html body .pc-dash .pc-dash-weekday.is-today { border-color: var(--accent); background: var(--selection); }
+.pc-dash-weekday-name { color: var(--ink-muted); font-size: var(--pc-text-caption); font-weight: var(--pc-w-semibold); }
+.pc-dash-weekday.is-today .pc-dash-weekday-name { color: var(--accent); }
+.pc-dash-weekday-count { color: var(--ink-muted); font-size: var(--pc-text-body-sm); }
+.pc-dash-weekday-count b { color: var(--ink); font-size: 22px; font-weight: var(--pc-w-bold); }
+.pc-dash-weekday-bar { width: 100%; height: 4px; overflow: hidden; border-radius: var(--pc-r-pill); background: var(--pc-track); }
+.pc-dash-weekday-bar > span { display: block; height: 100%; background: var(--pc-done); }
+.pc-dash-weekday.is-today .pc-dash-weekday-bar > span { background: var(--accent); }
+.pc-dash-weekday-events { margin-top: auto; color: var(--ink-muted); font-size: var(--pc-text-caption); }
+
+/* ---------- Up next (night) ---------------------------------------------------------------------------- */
+.pc-dash-night {
+  gap: 20px;
+  border-color: var(--pc-night-border);
+  background:
+    radial-gradient(90% 70% at 0% 0%, rgb(255 255 255 / .06), transparent 60%),
+    var(--pc-night);
+  box-shadow: var(--pc-e2);
+  color: #fff;
+}
+.pc-dash-up { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.pc-dash-up-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-dash-night-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--pc-r-pill);
+  background: rgb(255 255 255 / .1);
+  color: var(--pc-night-accent);
+  font-size: var(--pc-text-caption);
+  font-weight: var(--pc-w-semibold);
+  line-height: var(--pc-lh-caption);
+}
+.pc-dash-night-pill:not(:first-child) { color: #fff; }
+.pc-dash-night-pill.is-now { background: color-mix(in srgb, var(--pc-off) 30%, transparent); color: #fff; }
+.pc-dash-night-pill > svg { flex: none; }
+.pc-dash-live { width: 7px; height: 7px; color: #fff; }
+.pc-dash-night-pill .pc-dot { background: var(--pc-k); }
+.pc-dash-up-title { color: #fff; font-size: 24px; line-height: 30px; font-weight: var(--pc-w-bold); letter-spacing: var(--pc-tracking-tight); text-wrap: balance; }
+.pc-dash-up-project { margin-top: -6px !important; color: var(--pc-on-night-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-dash-up-project b { color: #fff; font-weight: var(--pc-w-semibold); }
+.pc-dash-up-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pc-dash-up-range { color: var(--pc-on-night-muted); font-size: var(--pc-text-label); }
+html body .pc-dash .pc-dash-time-night { background: rgb(255 255 255 / .1); color: var(--pc-on-night-muted); }
+html body .pc-dash .pc-dash-time-night b { color: #fff; }
+html body .pc-dash .pc-dash-time-night.pc-time-over-estimate { background: color-mix(in srgb, var(--pc-risk) 28%, transparent); color: #fff; }
+.pc-dash-up-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.pc-dash-up-actions .pc-dash-btn { min-height: 44px; }
+.pc-dash-later { padding-top: 16px; border-top: 1px solid rgb(255 255 255 / .12); }
+html body .pc-shell .pc-dash .pc-dash-later h3 { margin-bottom: 8px; color: var(--pc-on-night-muted); }
+.pc-dash-later li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 0; font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-dash-later .pc-dot { background: var(--pc-k); }
+.pc-dash-later-title { overflow: hidden; color: #fff; white-space: nowrap; text-overflow: ellipsis; }
+.pc-dash-later time { color: var(--pc-on-night-muted); font-size: var(--pc-text-label); }
+.pc-dash-later-empty { color: var(--pc-on-night-muted); font-size: var(--pc-text-body-sm); }
+
+/* ---------- Week rhythm ---------------------------------------------------------------------------- */
+.pc-dash-rhythm-legend { display: flex; gap: 14px; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-dash-rhythm-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.pc-dash-swatch { width: 10px; height: 10px; border-radius: calc(var(--pc-r-chip) / 2); }
+.pc-dash-swatch.is-done { background: var(--pc-done); }
+.pc-dash-swatch.is-hatched, .pc-dash-bar-rest {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--pc-planned) 55%, transparent) 0 2px, transparent 2px 6px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc-planned) 35%, transparent);
+}
+.pc-dash-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; flex: 1; align-items: end; }
+.pc-dash-bar { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pc-dash-bar-track { position: relative; display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 140px; padding-top: 28px; }
+.pc-dash-bar-stack { display: flex; flex-direction: column; width: min(32px, 70%); min-height: 8px; overflow: hidden; border-radius: var(--pc-r-control); }
+.pc-dash-bar-rest { flex-basis: 0; }
+.pc-dash-bar-done { flex-basis: 0; background: var(--pc-done); }
+.pc-dash-bar.is-today .pc-dash-bar-done { background: var(--accent); }
+.pc-dash-bar-tick { width: min(32px, 70%); height: 3px; border-radius: var(--pc-r-pill); background: var(--pc-line); }
+.pc-dash-bar-bubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  /* translate (not transform) so the pop-in can animate transform freely. */
+  translate: -50% 0;
+  padding: 2px 8px;
+  border-radius: var(--pc-r-pill);
+  background: var(--ink);
+  color: var(--pc-card);
+  font-size: var(--pc-text-caption);
+  font-weight: var(--pc-w-bold);
+  line-height: var(--pc-lh-caption);
+  white-space: nowrap;
+  /* Lands after today's bar has grown. */
+  animation: pc-dash-bubble 320ms var(--pc-ease) 760ms both;
+}
+@keyframes pc-dash-bubble { from { opacity: 0; transform: translateY(4px) scale(.92); } to { opacity: 1; transform: none; } }
+.pc-dash-bar-label { color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-dash-bar.is-today .pc-dash-bar-label { color: var(--accent); font-weight: var(--pc-w-bold); }
+.pc-dash-thread { display: flex; flex-wrap: wrap; gap: 4px 18px; padding-top: 10px; border-top: 1px solid var(--pc-line); }
+
+/* ---------- Goals & projects ---------------------------------------------------------------------------- */
+.pc-dash-goals { container-type: inline-size; }
+.pc-dash-projects { display: flex; flex-direction: column; gap: 2px; }
+@container (max-width: 380px) {
+  html body .pc-dash .pc-dash-project { grid-template-columns: auto minmax(0, 1fr); row-gap: 4px; }
+  html body .pc-dash .pc-dash-project > .pc-status { grid-column: 2; justify-self: start; }
+  html body .pc-dash .pc-dash-project > .pc-dash-ring { grid-row: span 2; align-self: start; }
+}
+html body .pc-dash .pc-dash-project {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px;
+  margin-inline: -8px;
+  width: calc(100% + 16px);
+  border: 0;
+  border-radius: var(--pc-r-control);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease);
+}
+html body .pc-dash :is(.pc-dash-project, .pc-dash-weekday):active { transform: scale(.98); }
+.pc-dash-project-text { display: flex; flex-direction: column; min-width: 0; }
+.pc-dash-project-title { overflow: hidden; font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); font-weight: var(--pc-w-semibold); white-space: nowrap; text-overflow: ellipsis; }
+.pc-dash-project-meta { color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-regular); }
+.pc-dash-strip { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--pc-line); }
+.pc-dash-strip-line { position: relative; height: 4px; margin: 4px 6px 0; border-radius: var(--pc-r-pill); background: var(--pc-track); }
+.pc-dash-strip-line::before { content: ""; position: absolute; left: 0; top: -3px; width: 4px; height: 10px; border-radius: var(--pc-r-pill); background: var(--accent); }
+.pc-dash-strip-marker { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid var(--pc-card); border-radius: calc(var(--pc-r-chip) / 2); background: var(--accent); }
+.pc-dash-strip-labels { position: relative; height: calc(var(--pc-dash-lanes, 1) * 20px); margin-inline: 6px !important; }
+.pc-dash-strip-labels li {
+  position: absolute;
+  top: calc(var(--pc-dash-lane) * 20px);
+  max-width: 48%;
+  overflow: hidden;
+  transform: translateX(-50%);
+  color: var(--ink-muted);
+  font-size: var(--pc-text-caption);
+  line-height: var(--pc-lh-caption);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pc-dash-strip-labels li.is-start { transform: translateX(-6px); }
+.pc-dash-strip-labels li.is-end { transform: translateX(calc(-100% + 6px)); }
+.pc-dash-strip-title { color: var(--ink); font-weight: var(--pc-w-semibold); }
+
+/* ---------- Habits ---------------------------------------------------------------------------- */
+.pc-dash-habit-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.pc-dash-habit {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 2px solid transparent;
+  border-radius: var(--pc-r-control);
+  background: var(--pc-k-soft);
+  color: var(--pc-k-ink);
+  transition: border-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-dash-habit.is-done { border-color: var(--pc-k); }
+html body .pc-dash .pc-dash-check {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px; height: 36px;
+  padding: 0;
+  border: 2px solid var(--pc-k);
+  border-radius: var(--pc-r-pill);
+  background: transparent;
+  color: var(--pc-k-soft);
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease);
+}
+html body .pc-dash .pc-dash-check[aria-pressed="true"] { background: var(--pc-k); }
+html body .pc-dash .pc-dash-check:active:not(:disabled) { transform: scale(.92); }
+html body .pc-dash .pc-dash-check:disabled { cursor: not-allowed; opacity: .55; }
+
+/* Check-in: the mark is always in the DOM and fades in on state; a fresh check-in (is-celebrating,
+   set only on a false-to-true flip) draws the stroke, springs the button and sends out a small burst. */
+.pc-dash-check-wrap { position: relative; display: grid; place-items: center; flex: none; }
+html body .pc-dash .pc-dash-check { position: relative; z-index: 1; }
+.pc-dash-check-mark { opacity: 0; transform: scale(.6); transition: opacity var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-base) var(--pc-ease); }
+.pc-dash-check[aria-pressed="true"] .pc-dash-check-mark { opacity: 1; transform: none; }
+.pc-dash-burst { position: absolute; z-index: 0; inset: -14px; border-radius: var(--pc-r-pill); pointer-events: none; }
+.pc-dash-burst::before,
+.pc-dash-burst::after { content: ""; position: absolute; border-radius: inherit; opacity: 0; }
+.pc-dash-burst::before { inset: 14px; border: 2px solid var(--pc-k); }
+.pc-dash-burst::after {
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 6%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 94% 50%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 50% 94%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 6% 50%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 82% 18%, var(--pc-k) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 82% 82%, var(--pc-k) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 18% 82%, var(--pc-k) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 18% 18%, var(--pc-k) 0 2px, transparent 2.5px);
+}
+.pc-dash-habit.is-celebrating .pc-dash-check-mark path { stroke-dasharray: 24; animation: pc-check-draw var(--pc-dur-draw) var(--pc-ease) 60ms both; }
+html body .pc-dash .pc-dash-habit.is-celebrating .pc-dash-check { animation: pc-spring-pop 420ms var(--pc-ease); }
+.pc-dash-habit.is-celebrating .pc-dash-burst::before { animation: pc-burst-ring var(--pc-dur-celebrate) var(--pc-ease) both; }
+.pc-dash-habit.is-celebrating .pc-dash-burst::after { animation: pc-burst-dots var(--pc-dur-celebrate) var(--pc-ease) 40ms both; }
+.pc-dash-streak { display: inline; margin-right: 4px; vertical-align: -2px; color: var(--pc-k); }
+.pc-dash-habit-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc-dash-habit-title { font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); font-weight: var(--pc-w-bold); overflow-wrap: anywhere; }
+.pc-dash-habit-status { font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-dash-habit-error { margin: 0 0 8px; color: var(--pc-off); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-dash-trace { display: flex; gap: 5px; margin-top: 6px !important; }
+.pc-dash-trace li { width: 7px; height: 7px; border-radius: var(--pc-r-pill); background: color-mix(in srgb, var(--pc-k) 22%, transparent); }
+.pc-dash-trace li.is-completed { background: var(--pc-k); }
+.pc-dash-trace li.is-missed { background: transparent; box-shadow: inset 0 0 0 1.5px var(--pc-k); }
+.pc-dash-trace li.is-skipped { height: 2px; margin-block: 2.5px; border-radius: var(--pc-r-pill); background: var(--pc-k); }
+
+/* ---------- Hover (pointer devices only) ---------------------------------------------------------------------------- */
+@media (hover: hover) and (pointer: fine) {
+  html body .pc-dash .pc-dash-btn-accent:hover { background: var(--pc-accent-strong); }
+  html body .pc-dash .pc-dash-btn-ghost:hover { border-color: var(--accent); }
+  html body .pc-dash .pc-dash-btn-light:hover { box-shadow: var(--pc-e2); }
+  html body .pc-dash .pc-dash-btn-night:hover { border-color: rgb(255 255 255 / .6); }
+  html body .pc-dash .pc-dash-hero-open:hover { background: rgb(255 255 255 / .26); }
+  html body .pc-dash .pc-dash-ev.is-task:hover { box-shadow: var(--pc-e2); transform: translateY(-1px); }
+  html body .pc-dash .pc-dash-weekday:hover { border-color: var(--accent); transform: translateY(-1px); }
+  html body .pc-dash .pc-dash-project:hover { background: var(--pc-card-2); }
+  .pc-dash-habit:hover { transform: translateY(-1px); }
+  .pc-dash-card:hover::after { opacity: 1; }
+  /* Outbound arrows lean the way they go. */
+  html body .pc-dash :is(.pc-dash-hero-open, .pc-dash-schedule-open, .pc-dash-unscheduled):hover > svg,
+  html body .pc-dash .pc-dash-quiet:hover > .pc-dash-nudge { transform: translate(2px, -2px); }
+}
+
+/* ---------- Narrow desktop (rail open, ~750-1000px main) ---------------------------------------------------------------------------- */
+@media (max-width: 1280px) and (min-width: 1061px) {
+  .pc-dash {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas:
+      "hero habit"
+      "focus due"
+      "sched up"
+      "week goals"
+      "habits habits";
+  }
+}
+
+/* ---------- Tablet ---------------------------------------------------------------------------- */
+@media (max-width: 1060px) and (min-width: 681px) {
+  .pc-dash {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "hero habit"
+      "focus due"
+      "sched sched"
+      "up goals"
+      "week week"
+      "habits habits";
+  }
+  .pc-dash-area-up { align-self: stretch; }
+}
+
+/* ---------- Phone ---------------------------------------------------------------------------- */
+@media (max-width: 680px) {
+  .pc-dash {
+    --pc-dash-gap: 12px;
+    --pc-dash-pad: 16px;
+    --pc-dash-hour: 52px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "hero hero hero"
+      "habit focus due"
+      "up up up"
+      "sched sched sched"
+      "habits habits habits"
+      "goals goals goals"
+      "week week week";
+  }
+  .pc-dash-card { gap: 14px; }
+
+  /* Compact KPI tiles: icon, figure, short label. */
+  .pc-dash-kpi { gap: 6px; padding: 12px; }
+  .pc-dash-kpi-head { display: contents; }
+  .pc-dash-kpi-icon { order: 0; }
+  .pc-dash-kpi-metric, .pc-dash-kpi-figure, .pc-dash-kpi-empty, .pc-dash-due-clear { order: 1; }
+  html body .pc-shell .pc-dash .pc-dash-kpi h2 { order: 2; font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+  .pc-dash-kpi-detail { display: none !important; }
+  .pc-dash-long { display: none; }
+  .pc-dash-short { display: inline; }
+  .pc-dash-kpi-icon { width: 28px; height: 28px; }
+  .pc-dash-kpi-figure, .pc-dash-kpi-figure.is-inline { flex-direction: column; align-items: flex-start; gap: 0; margin-top: 4px; }
+  .pc-dash-kpi-figure > b, .pc-dash-due .pc-dash-kpi-figure > b { font-size: 22px; line-height: 28px; letter-spacing: var(--pc-tracking-tight); }
+  .pc-dash-kpi-sub { font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+  .pc-dash-kpi-empty, .pc-dash-due-clear { margin-top: 4px; font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+  .pc-dash-due-clear svg { display: none; }
+  /* The whole Due tile becomes the Review target. */
+  html body .pc-dash .pc-dash-due-review { position: static; min-height: 0; order: 3; font-size: var(--pc-text-caption); }
+  html body .pc-dash .pc-dash-due-review::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+
+  .pc-dash-hero-done { font-size: 44px; line-height: 48px; }
+  html body .pc-dash .pc-dash-hero-open { width: 44px; height: 44px; }
+  .pc-dash-ring-hero { width: 64px; height: 64px; }
+
+  .pc-dash-schedule-head h2 { flex: 1 1 auto; }
+  .pc-dash-schedule-head .pc-dash-schedule-open { order: 1; }
+  .pc-dash-schedule-head > div { order: 2; flex: 1 1 100%; }
+  .pc-dash-schedule-head .pc-dash-capacity { order: 3; margin-right: 0; }
+  html body .pc-dash .pc-dash-schedule-open { min-height: 44px; padding: 0 14px; }
+  .pc-dash-day-lane { left: 64px; }
+  .pc-dash-now { left: 58px; }
+  .pc-dash-day-scroll { max-height: calc(var(--pc-dash-hour) * 7.5); }
+  .pc-dash-weeklens { grid-template-columns: repeat(7, minmax(64px, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+  .pc-dash-weeklens > li { scroll-snap-align: start; }
+
+  .pc-dash-habit-row {
+    display: flex;
+    gap: 10px;
+    margin-inline: calc(var(--pc-dash-pad) * -1) !important;
+    padding: 0 var(--pc-dash-pad) 4px !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--pc-dash-pad);
+    scrollbar-width: none;
+  }
+  .pc-dash-habit-row::-webkit-scrollbar { display: none; }
+  .pc-dash-habit { flex: 0 0 min(72%, 260px); scroll-snap-align: start; }
+  html body .pc-dash .pc-dash-check { width: 44px; height: 44px; }
+  html body .pc-dash :is(.pc-dash-link, .pc-dash-quiet) { min-height: 44px; }
+  html body .pc-dash .pc-dash-project { min-height: 56px; }
+  .pc-dash-empty.is-inline { flex-direction: column; align-items: flex-start; }
+  .pc-dash-bar-track { height: 120px; }
+}
+
+@media (max-width: 360px) {
+  .pc-dash-kpi { padding: 10px; }
+  .pc-dash-kpi-figure > b, .pc-dash-due .pc-dash-kpi-figure > b { font-size: 19px; }
+  .pc-dash-hero-of { font-size: 18px; }
+}
+
+/* ---------- Dark mode adjustments (tokens do most of the work) ---------------------------------------------------------------------------- */
+html.dark .pc-dash-hour > span { background: var(--pc-card); }
+html.dark .pc-dash-now-time { color: var(--pc-night); }
+
+/* ---------- Reduced motion ---------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .pc-dash-ring-arc, .pc-dash-lens { animation: none !important; }
+  .pc-dash-ring-arc { transition: none; }
+  html body .pc-dash :is(.pc-dash-btn, .pc-dash-check, .pc-dash-hero-open, .pc-dash-ev, .pc-dash-weekday, .pc-dash-habit, .pc-dash-project) { transform: none !important; }
+  /* Delight pass: ambient drift, live ping, check-in celebration, figure ticks and pop-ins all stop.
+     State still reads: the check mark cross-fades, the hero check and bubble simply appear. */
+  .pc-dash-hero::before, .pc-dash-live::after, .pc-dash-tick, .pc-dash-bar-bubble, .pc-dash-hero-check { animation: none !important; }
+  .pc-dash-habit.is-celebrating :is(.pc-dash-check, .pc-dash-check-mark path) { animation: none !important; }
+  .pc-dash-habit.is-celebrating .pc-dash-burst::before, .pc-dash-habit.is-celebrating .pc-dash-burst::after { animation: none !important; }
+  html body .pc-dash :is(.pc-dash-nudge, .pc-dash-hero-open > svg, .pc-dash-schedule-open > svg, .pc-dash-unscheduled > svg, .pc-dash-check-mark) { transform: none !important; }
+}

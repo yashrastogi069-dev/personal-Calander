@@ -1,53 +1,103 @@
-# HANDOFF — premium redesign (updated 2026-10-13, D1 closed, D2 in progress)
+# HANDOFF: premium redesign (updated 2026-10-13, D2 Dashboard plus delight pass, local)
 
-Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2` (never main, never force).
-Owner rules: write a handoff and push after EVERY checkpoint, then keep going. Use subagents with routing (below). Tell the owner whenever Fable runs.
-Gated (do not touch): G1 stakes, G2 hard reminders, G3 Google two-way sync, Vercel checks, live DB writes, schema migration.
+Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
+
+## Owner rules (standing, read every session)
+1. **Checkpoints:** after every checkpoint, update HANDOFF.md and RUN_STATE.md (plus MEMORY.md and docs as needed), commit, push, then keep going.
+2. **Subagents:** use them wherever they help, with the routing table below. Opus does UI/UX (after loading the design skills) and all logic. Tell the owner whenever Fable runs.
+3. **Design direction:** cool, futuristic icons, animations and motion, and a modern UI on every screen. The full rule is in `CLAUDE.md` under "Design direction". In short:
+   - expressive labelled icons in tinted tiles
+   - plenty of state-driven motion (count-ups, fills, staggered entry, glides, spring check-offs, hover lift and press scale), under ~300ms with ease-out
+   - reuse `client/src/design/motion.ts` and the tokens in `tokens-v2.css`
+   - push the v2.1 look further each slice
+   - always honour reduced motion
+   - real data only
+   The D2 delight pass is the bar to meet or beat.
+4. **Ask first:** before a new dependency, a gated item or using Fable outside key moments. Never merge to or push to main; never force-push.
+
+Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Vercel checks, live DB writes, schema migration.
 
 ## Status
-- D0 tokens, motion and primitives: DONE (b0312c8). Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md`.
-- D1 shell/nav: DONE locally. Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d1-shell.md`. 808 tests, check and build pass.
-- D1 browser harnesses re-run 2026-10-13: shell 16/16, plan 36/36, gallery 8/8, phase4 shell-navigation 2/2 (harness fixes only). D1 CLOSED.
-- D2–D6: not started.
+- **D0** (tokens, motion, primitives): DONE (b0312c8).
+- **D1** (shell and navigation): DONE (c092b82, f9fcdb5).
+- **D2** (Dashboard home): built locally.
+  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-d2-dashboard.md`. Decisions are in `docs/DECISIONS.md`, evidence in `docs/PHASE4_SLICE_EVIDENCE.md`.
+  - The default landing is now home/overview (the Dashboard). The legacy "planner at a glance" list is gone; its weekly-objectives, saved-reviews and goals routes survive as quiet links.
+  - Logic is in `client/src/features/dashboard/dashboardModel.ts`, a pure projection over the saved snapshot, wired in Home.tsx (`dashboardModel` useMemo).
+  - UI is in `DashboardView.tsx` and `dashboard.css` (built by opus with the impeccable, design-taste-frontend and emilkowal-animations skills).
+  - An independent opus review found 7 medium and 6 low issues. All medium ones are fixed and tested; the accepted low ones are listed under "Known limits" in the spec.
+- **Delight pass** (owner ask: "cool icons, animations, motions"), by opus with the design skills loaded:
+  - Card-header icon tiles.
+  - Hero colour drift, plus a ring glow and drawn check when everything is done.
+  - Rolling counts.
+  - Habit check-in tick with a spring, a burst and a streak flame.
+  - A live dot only for a "now" item.
+  - Sidebar and phone-bar glide highlights, with the active icon popping.
+  - Capture "+" turns to "×" on press.
+  - The palette opens with a blur.
+  - New `client/src/design/motion.ts`, with tests.
+  - Reduced motion turns all of it off; a test checks that every infinite loop has an opt-out.
+- **Final verification (after the delight pass and the test fix)** (details in the evidence doc):
+  - Typecheck is clean; the build passes.
+  - Full suite: 122 files, 859 passed, 3 skipped, 0 failed.
+  - Harnesses on http://127.0.0.1:3100: shell 20/20, plan 36/36, gallery 8/8, phase4 2/2. The C2 re-run result is in RUN_STATE.md.
+  - Agent-memory checkpoint recorded.
 
-## Next: D2 Dashboard (home/overview)
-1. Build the real Dashboard and make it the default landing (currently home/today; `defaultLocationTarget` in `client/src/lib/plannerLocation.ts`).
-2. Header per v2.1 Main.png: eyebrow date, H1 ~32px/700, intention subline; Home tabs inline in the title row before Capture; no border-bottom.
-3. Cards: Up next (fix the empty middle), Today progress ring, Week rhythm (fix the spare height), Roadmap strip, Habits, focus planned vs actual (from focus sessions; `timeChipState` in `client/src/design/timeFormat.ts`).
-4. Motion: entrance on first mount only, hover lift only for `(hover:hover)`, pulse only on the now-line, ring and count-up ≤600ms, reduced motion respected.
-5. Carried-over polish:
-   - 390px Home tabs truncate ("Dashb…"); make them full width. The centre phone Capture looks washed out.
-   - dark-mode active rail item and tab contrast
-   - check that Onest renders (the harness may use a fallback font)
-   - legacy green search-input surface on dark Tasks (do it with the D3 Tasks work)
-Suggested subagents for D2: sonnet builds the card components (may edit, in its own files); opus reviews the data and projection logic; Fable is optional for the Dashboard composition review ("key moment"; tell the owner); sonnet does the screenshot review against Main.png/Dark.png/Phone.png.
-After D2: D3 Tasks drag (@dnd-kit approved), D4 "why it matters", D5 Analytics, D6 polish (extra palette slots, swatch-only category editor, lower the legacy-green baselines in `client/src/design/legacyGreen.test.ts`).
+## Next
+1. D3: Tasks board drag (@dnd-kit approved). Build it to the design-direction rule:
+   - drag lift and shadow
+   - spring drop
+   - lane highlight on hover
+   - column count roll
+   - labelled lucide icons
+   - reduced-motion fallbacks
+2. Update or retire the stale `preview-task15.py` and `preview-linked-planner.py`.
+3. Then D4 (why it matters), D5 (light Analytics) and D6 (polish and first-run states), each with its own checkpoint, handoff and push.
+
+## Open owner questions
+- **Phone primary shortcut defaults:** they are still Today, Tasks and Daily plan; v2.1 shows Home, Today and Calendar. Changing them changes a stored-preference default, so they're left until the owner decides. On phone, the "Home" target still opens Today.
+- **Fable composition review of the Dashboard:** optional, and needs the owner's OK.
+
+## Known risks and limits
+- **Habit start date:** `shared/habitSchedule.ts` uses the UTC date of `createdAt`. East of UTC, a new daily habit can show one false "missed" day. This is pre-existing and shared with Today and Habits, so it's deferred.
+- **Glide animations:** the sidebar and Home-tab glides only animate if Home keeps the shell mounted across navigation; otherwise they snap. Not yet checked in motion; screenshots only show the end states.
+- **Habit burst:** may be slightly cut off inside the phone habit scroller.
+- **Stale legacy harnesses, not D2 regressions:**
+  - `preview-task15.py` clicks `.plan-stage-nav` on phones, but C3 replaced it with `.plan-mobile-stepper`.
+  - `preview-linked-planner.py` expects a rail "Settings" button, which has been "Open account settings" since the Phase 4 shell.
+  - Update or retire both.
+- **Flaky first run:** one earlier full-suite run had 2 errors that didn't recur on two re-runs; they look load-related.
+- **Not verified:** no Vercel Preview, live data or physical iPhone checks.
 
 ## Where things live
-- Tokens and primitives: `client/src/design/` (tokens-v2.css, primitives.css, categoryTone.ts, timeFormat.ts) and `client/src/components/premium/` (Pills, SegmentedTabs). There is also a dev-only `/premium-gallery`.
-- Shell: `client/src/features/shell/`:
-  - premiumNavigation.ts (model + badges)
-  - PlannerRail.tsx
-  - CommandPalette.tsx
-  - PhoneNavigation.tsx
-  - PlannerShell.tsx
-  - premium-shell.css
-- Home wiring: `client/src/pages/Home.tsx`, around lines 8383–8420 (palette, badges) and the `viewNavigation` SegmentedTabs.
-- Harnesses: `scripts/preview-premium-{shell,plan,gallery}.py`. Captures go to %TEMP%, never into the repo.
+- **Dashboard:** `client/src/features/dashboard/`:
+  - dashboardTypes.ts
+  - dashboardModel.ts plus its test
+  - DashboardView.tsx plus its test
+  - dashboard.css
+  - dashboardFixture.ts
+  - useMinuteNow.ts
+- **Tokens, primitives, motion:** `client/src/design/` (tokens-v2.css, motion.ts, categoryTone.ts, timeFormat.ts) and `client/src/components/premium/` (Pills, SegmentedTabs).
+- **Shell:** `client/src/features/shell/` (premiumNavigation.ts, PlannerRail.tsx, CommandPalette.tsx, PhoneNavigation.tsx, PlannerShell.tsx with eyebrow, subtitle, titleContext and tabsInHeader, premium-shell.css).
+- **Home wiring:** `client/src/pages/Home.tsx`:
+  - the `todayProjectionInput` and `todayProjection` memos
+  - the `dashboardModel` memo, which stamps pending completions
+  - the `<DashboardView>` actions
+- **Harnesses:** `scripts/preview-premium-{shell,plan,gallery}.py`, `preview-c2-connected.py`, `preview-phase4-product.py`. Captures go to %TEMP%, never into the repo.
+- **Local look with synthetic data:** `python scripts/open-local-preview.py`.
 
-## Subagent routing (owner instruction)
-- haiku: mechanical edits and greps.
-- sonnet: ordinary UI work and screenshot/visual review.
-- opus: architecture, risky changes, independent code review.
-- fable: key design moments only. Always tell the owner when it runs. Used once (D0 spec review).
-Give each subagent an objective, scope, file paths, expected output (≤450 words, prioritised), and an explicit read-only or may-edit statement. Verify their claims before applying.
-D1 history: sonnet compared the shell screenshots with the v2.1 boards (12 findings), and opus reviewed the D1 diff (10 findings). Both are applied except the deferred items in the D1 spec.
+## Subagent routing (owner instruction, updated 2026-10-13)
+- **haiku:** mechanical edits and greps.
+- **sonnet:** read-only exploration and routine screenshot checks.
+- **opus:** all UI/UX design and building (load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first), all logic, and independent review.
+- **fable:** key design moments only; always tell the owner. Used once so far, for the D0 spec review.
+- Give every subagent an objective, scope, file paths, a ≤450-word output and an explicit read-only or may-edit statement. Parallel editors must own separate files. Verify their claims before you accept them: the delight pass missed `server/phase4Shell.test.ts`, so always run the FULL suite.
 
 ## Gotchas
-- Never commit `v2-preview/` PNGs. `tmp/` is gitignored (debug scripts).
-- Never use bare `git stash`.
-- The worktree guard rejects `$CLAUDE_JOB_DIR` paths and long chained heredocs, so split commands.
-- cmdk item `value`s must be static strings.
-- `useTheme` in Home's main component is its own call.
-- Memory can run low: the host may kill the background Vite server. Restart it only when you need the harnesses.
-- Agent-memory store: `node scripts/agent-memory.mjs` (session 03532cfd-2fbd-4d3b-b503-ca234a6f349c). Add a checkpoint event when you can.
+- **Never commit:** `v2-preview/` PNGs. `tmp/` is gitignored and holds the patch scripts.
+- **Never use:** bare `git stash`.
+- **Worktree guard:** it rejects heredocs, loops with variables and `$TEMP` and `$CLAUDE_JOB_DIR` expansions. Use Write/Edit or node scripts in `tmp/`.
+- **Stray servers:**
+  - A Vite on :3117 was left by the first UI agent; stopping it was blocked by permissions.
+  - A full `npm run dev` server on :3000 was started at 13:33 from a cmd window outside this session (possibly the owner's). Leave it alone.
+- **Agent memory:** `node scripts/agent-memory.mjs`, session 03532cfd-2fbd-4d3b-b503-ca234a6f349c.

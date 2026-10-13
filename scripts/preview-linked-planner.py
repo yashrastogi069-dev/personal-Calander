@@ -34,7 +34,8 @@ def main():
             for size in shared["SIZES"]:
                 context, page, errors = shared["new_page"](browser, size)
                 requests, unexpected = shared["install_preview"](context, args.url, "linked", fixtures())
-                page.goto(args.url, wait_until="networkidle")
+                # D2: the Dashboard is the default landing; this check covers Today.
+                page.goto(args.url.rstrip("/") + "/?destination=home&view=today", wait_until="networkidle")
                 try:
                     expect(page.get_by_role("heading", name="Today", exact=True)).to_be_visible(timeout=20000)
                 except AssertionError as error:

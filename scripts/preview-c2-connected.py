@@ -83,16 +83,18 @@ def main():
                     check("alias-" + alias, alias_check)
 
                 def connected():
+                    # D2: the Dashboard replaces the legacy overview at home/overview.
                     goto("?destination=home&view=overview")
-                    expect(page.get_by_role("heading", name="Your saved planner at a glance")).to_be_visible()
-                    page.locator(".planner-overview").get_by_role("button", name="Quarterly reset").click()
+                    dashboard = page.locator("section.pc-dash")
+                    expect(dashboard).to_be_visible()
+                    dashboard.get_by_role("button", name=re.compile("Quarterly reset")).first.click()
                     expect(page.locator("#project-detail-heading")).to_have_text("Quarterly reset")
                     assert "record=preview-project" in page.url
                     page.reload(wait_until="networkidle")
                     expect(page.locator("#project-detail-heading")).to_have_text("Quarterly reset")
                     page.go_back(wait_until="networkidle")
-                    expect(page.locator(".planner-overview")).to_be_visible()
-                    page.get_by_role("button", name="Open weekly objectives").click()
+                    expect(dashboard).to_be_visible()
+                    dashboard.get_by_role("button", name="Open weekly objectives").click()
                     expect(page.locator("#weekly-objective-title")).to_be_visible()
                     expect(page.locator(".plan-stage-nav")).not_to_be_visible()
                     expect(page.get_by_text("Synthetic weekly evidence", exact=True)).to_be_visible()
@@ -179,8 +181,12 @@ def main():
                     assert any(item["destination"] == "plan" and item["view"] == "weekly" for item in saved["order"])
                     if width <= 680:
                         nav = page.get_by_role("navigation", name="Phone planning destinations")
-                        for label in ("Calendar", "Habits", "Focus", "Connections"):
+                        # D1: with Capture centred, the pill shows three pins (2 | + | 2); the fourth stays in More.
+                        for label in ("Calendar", "Habits", "Focus"):
                             expect(nav.get_by_role("button", name=label, exact=True)).to_be_visible()
+                        nav.get_by_role("button", name="More", exact=True).click()
+                        expect(page.locator("#phase4-phone-more").get_by_role("button", name="Connections", exact=True)).to_be_visible()
+                        page.keyboard.press("Escape")
                 check("legacy-pins-backup-and-new-view-choices", pin_migration)
 
                 def unpin_reload():
@@ -191,13 +197,16 @@ def main():
                     assert before >= 2
                     sheet.get_by_role("button", name="Pinned", exact=True).first.click()
                     sheet.get_by_role("button", name="Close phone customization", exact=True).click()
-                    assert page.locator(".mobile-planner-nav > button").count() == before
-                    if width <= 680:
-                        assert page.locator(".mobile-planner-nav").evaluate("e => getComputedStyle(e).gridTemplateColumns.split(' ').length") == before
+                    # D1 pill: pinned shortcuts (max 3 beside Capture) + Capture + More; unpinning never refills from defaults.
+                    shortcuts = page.locator('.mobile-planner-nav > button:not(.pc-phone-capture):not([aria-controls="phase4-phone-more"])')
+                    has_capture = page.locator(".mobile-planner-nav > .pc-phone-capture").count() == 1
+                    expected = min(before - 1, 3) if has_capture else before - 1
+                    assert shortcuts.count() == expected, (shortcuts.count(), expected)
                     page.reload(wait_until="networkidle")
-                    assert page.locator(".mobile-planner-nav > button").count() == before
+                    assert shortcuts.count() == expected, (shortcuts.count(), expected)
                     if width <= 680:
-                        assert page.locator(".mobile-planner-nav").evaluate("e => getComputedStyle(e).gridTemplateColumns.split(' ').length") == before
+                        box = page.locator(".mobile-planner-nav").bounding_box()
+                        assert box and box["x"] >= 0 and box["x"] + box["width"] <= width, box
                 check("unpin-rendered-no-refill-reload", unpin_reload)
 
                 def record_family():

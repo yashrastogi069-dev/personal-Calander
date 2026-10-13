@@ -72,6 +72,10 @@ html:root {
   --pc-dur-exit: 160ms;
   --pc-dur-data: 600ms;
   --pc-stagger: 40ms;
+  /* Delight pass (additive): stroke draws, completion moments, the hero's ambient drift. */
+  --pc-dur-draw: 280ms;
+  --pc-dur-celebrate: 520ms;
+  --pc-dur-ambient: 22s;
 }
 
 html:root.dark {
@@ -130,6 +134,22 @@ html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-wid
 @keyframes pc-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes pc-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pc-off) 35%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
 
+/* Delight pass (additive). Live state dot: a calm ping, only for state that is actually running now. */
+.pc-live { position: relative; display: inline-block; flex: none; width: 8px; height: 8px; border-radius: var(--pc-r-pill); background: currentColor; }
+.pc-live::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; animation: pc-live 2s var(--pc-ease) infinite; }
+/* Icon micro-motion when a nav item becomes active. */
+.pc-icon-pop { animation: pc-icon-pop 300ms var(--pc-ease); }
+
+@keyframes pc-live { 0% { opacity: .6; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes pc-icon-pop { 0% { transform: none; } 40% { transform: translateY(-1px) scale(1.14); } 100% { transform: none; } }
+@keyframes pc-check-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+@keyframes pc-spring-pop { 0% { transform: scale(.86); } 55% { transform: scale(1.08); } 100% { transform: none; } }
+@keyframes pc-burst-ring { from { opacity: .55; transform: scale(.7); } to { opacity: 0; transform: scale(1.9); } }
+@keyframes pc-burst-dots { 0% { opacity: 0; transform: scale(.5) rotate(0deg); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.25) rotate(18deg); } }
+@keyframes pc-tick { from { opacity: 0; transform: translateY(45%); } to { opacity: 1; transform: none; } }
+@keyframes pc-blur-in { from { opacity: 0; transform: scale(.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes pc-blur-out { from { opacity: 1; transform: none; filter: none; } to { opacity: 0; transform: scale(.98); filter: blur(4px); } }
+
 @media (prefers-reduced-motion: reduce) {
   html:root {
     --pc-dur-press: 0ms;
@@ -137,7 +157,10 @@ html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-wid
     --pc-dur-exit: 0ms;
     --pc-dur-data: 0ms;
     --pc-stagger: 0ms;
+    --pc-dur-draw: 0ms;
+    --pc-dur-celebrate: 0ms;
   }
   :is(.pc-rise, .pc-pop, .pc-grow-x, .pc-grow-y, .pc-pulse) { animation: none !important; }
+  .pc-live::after, .pc-icon-pop { animation: none !important; }
   [class*="pc-"] { transition-property: color, background-color, border-color, opacity !important; }
 }

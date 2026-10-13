@@ -55,7 +55,7 @@ describe("connected navigation contract", () => {
     expect(preferences.order).toContainEqual({ destination: "home", view: "overview" });
   });
   it("labels exact child pins", () => {
-    expect(plannerViewLabel({ destination: "home", view: "overview" })).toBe("Overview");
+    expect(plannerViewLabel({ destination: "home", view: "overview" })).toBe("Dashboard");
     expect(plannerViewLabel({ destination: "plan", view: "weekly" })).toBe("Weekly plan");
     expect(plannerViewLabel({ destination: "settings", view: "sync" })).toBe("Data & sync");
   });

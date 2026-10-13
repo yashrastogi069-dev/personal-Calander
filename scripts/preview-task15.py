@@ -39,7 +39,7 @@ def run_width(browser, width):
     fixtures["planner.task.rolloverPreview"] = {"fromLocalDate": "2026-09-19", "candidates": []}
     requests, unexpected = AUTH["install_preview"](context, URL, "linked", fixtures)
     try:
-        page.goto(URL, wait_until="networkidle")
+        page.goto(URL.rstrip("/") + "/?destination=home&view=today", wait_until="networkidle")
         page.get_by_role("heading", name="Today", exact=True).wait_for()
         PRODUCT["click_destination"](page, "Plan")
         PRODUCT["wait_for_target"](page, "plan", "daily")

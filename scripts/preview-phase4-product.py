@@ -115,6 +115,11 @@ def wait_for_target(page, destination: str, view: str | None = None) -> None:
 PHONE_LABEL_ALIASES = {"Plan": ("Daily plan",)}
 
 
+def today_url(url: str) -> str:
+    # D2 made the Dashboard the default landing; these scenarios start on Today.
+    return url.rstrip("/") + "/?destination=home&view=today"
+
+
 def click_destination(page, label: str) -> None:
     sheet = page.get_by_role("dialog", name="More planning")
     if sheet.is_visible():
@@ -220,7 +225,7 @@ def run_shell_navigation(browser, url: str, output: Path, width: int) -> dict:
         "plannerRequests": requests,
     }
     try:
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         page.get_by_role("heading", name="Today", exact=True).wait_for(
             state="visible", timeout=20_000
         )
@@ -840,7 +845,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
     requests, unexpected = auth["install_preview"](context, url, "linked", fixtures)
     result = {"scenario": "today", "width": width, "height": height, "data": "synthetic-only", "runtimeErrors": runtime_errors, "consoleErrors": console_errors, "unexpectedRequests": unexpected, "plannerRequests": requests}
     try:
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible", timeout=20_000)
         sections = today.locator("[data-today-section]").evaluate_all("elements => elements.map(element => element.dataset.todaySection)")
@@ -942,7 +947,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
         page.on("pageerror", lambda error: runtime_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         guarded = today.locator('[data-task-record-id="today-reserved"]')
@@ -986,7 +991,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
         page.on("pageerror", lambda error: runtime_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         combined = today.locator('[data-task-record-id="today-reserved"]')
@@ -1039,7 +1044,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
         page.on("pageerror", lambda error: runtime_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         older_guard = today.locator('[data-task-record-id="today-reserved"]')
@@ -1067,7 +1072,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
         page.on("pageerror", lambda error: runtime_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         unavailable = today.locator('[data-task-record-id="today-series-no-occurrence"]')
@@ -1093,7 +1098,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
         page.on("pageerror", lambda error: runtime_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         assert today.locator(".today-primary-action").count() == 0
@@ -1111,7 +1116,7 @@ def run_today(browser, url: str, output: Path, width: int) -> dict:
         page.clock.set_fixed_time(datetime(2026, 9, 21, 9, 0, tzinfo=timezone.utc))
         page.on("pageerror", lambda error: runtime_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and "favicon" not in message.text.lower() else None)
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible")
         assert not console_errors, ("reload", console_errors)
@@ -1188,7 +1193,7 @@ def run_offline_rejected_cache(browser, url: str, output: Path, width: int) -> d
       };
     })"""
     try:
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         today = page.locator(".today-workspace")
         today.wait_for(state="visible", timeout=20_000)
         row = today.locator('[data-task-record-id="offline-rejected-task"]')
@@ -1275,7 +1280,7 @@ def run_recovery_phone(browser, url: str, output: Path, width: int) -> dict:
     fixtures["planner.recovery.resolve"] = {"id": "confirmed-resolution", "action": "reduce"}
     requests, unexpected = auth["install_preview"](context, url, "linked", fixtures)
     try:
-        page.goto(url, wait_until="networkidle")
+        page.goto(today_url(url), wait_until="networkidle")
         page.locator(".today-workspace").wait_for(state="visible", timeout=20_000)
         page.locator(".today-workspace .recovery-indicator button").click()
         sheet = page.get_by_role("dialog", name="Choose what happens next.")

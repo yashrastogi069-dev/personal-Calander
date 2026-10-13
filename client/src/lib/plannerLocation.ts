@@ -63,7 +63,7 @@ export type PlannerPopStateTarget = Pick<
 
 const defaultLocationTarget: PlannerLocationTarget = {
   destination: "home",
-  view: "today",
+  view: "overview",
 };
 
 function canonicalTargetFrom(url: URL): PlannerLocationTarget | null {

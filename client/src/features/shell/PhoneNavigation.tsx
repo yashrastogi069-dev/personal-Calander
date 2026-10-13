@@ -11,6 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useRef } from "react";
+import { motion } from "framer-motion";
+import { GLIDE, RADIUS } from "@/design/motion";
 import {
   phase4Destinations,
   type Phase4DestinationId,
@@ -205,6 +207,17 @@ export function PhoneNavigation({
     onNavigate(target);
     onMoreOpenChange(false);
   };
+  // Premium pill only: a soft highlight glides behind the active icon (reduced motion via <MotionConfig reducedMotion="user">).
+  const indicator = (active: boolean) =>
+    onCapture && active ? (
+      <motion.span
+        layoutId="pc-phone-active"
+        className="pc-phone-indicator"
+        aria-hidden="true"
+        style={{ borderRadius: RADIUS.pill }}
+        transition={GLIDE}
+      />
+    ) : null;
 
   return (
     <>
@@ -221,7 +234,9 @@ export function PhoneNavigation({
                 aria-current={isActive(location, target) ? "page" : undefined}
                 onClick={() => navigate(target)}
               >
-                <Icon aria-hidden="true" size={20} strokeWidth={1.8} />
+                {/* While the More sheet is open the highlight sits on More, so only one indicator exists. */}
+                {indicator(active && !moreOpen)}
+                <Icon aria-hidden="true" size={20} strokeWidth={1.8} className={onCapture && active ? "pc-icon-pop" : undefined} />
                 <span>{labelForShortcut(target)}</span>
               </button>
             );
@@ -243,6 +258,7 @@ export function PhoneNavigation({
           aria-expanded={moreOpen}
           onClick={() => onMoreOpenChange(!moreOpen)}
         >
+          {indicator(moreOpen || moreIsActive)}
           <MoreHorizontal aria-hidden="true" size={21} strokeWidth={1.8} />
           <span>More</span>
         </button>

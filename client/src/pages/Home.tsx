@@ -93,7 +93,11 @@ import { projectToday } from "@shared/todayProjection";
 import { ReviewChecklist } from "@/features/review/ReviewChecklist";
 import { ProjectsGoalsWorkspace } from "@/features/goals/ProjectsGoalsWorkspace";
 import { CalendarExecutionWorkspace } from "@/features/calendar/CalendarExecutionWorkspace";
-import { restorePlanDate } from "@/features/planning/planBoard";
+import { projectPlanWeek, restorePlanDate, weekStartFor } from "@/features/planning/planBoard";
+import { DashboardView } from "@/features/dashboard/DashboardView";
+import { projectDashboard } from "@/features/dashboard/dashboardModel";
+import { useMinuteNow } from "@/features/dashboard/useMinuteNow";
+import { roadmapProjection } from "@shared/roadmap";
 import { TodayWorkspace } from "@/features/today/TodayWorkspace";
 import { buildRecoveryEntries } from "@/features/recovery/recoveryModel";
 import {
@@ -146,6 +150,7 @@ import {
   subscribeToPlannerLocation,
   writePlannerLocation,
   type PlannerLocation,
+  type PlannerLocationUpdate,
 } from "@/lib/plannerLocation";
 import { plannerViewLabel, plannerSettingsViews } from "@shared/phase4Navigation";
 import { useTheme, type Theme } from "@/contexts/ThemeContext";
@@ -541,6 +546,12 @@ const priorityMeta = {
 } as const;
 
 const priorityOrder = ["none", "low", "medium", "high", "critical"] as const;
+
+/** "Pacific/Auckland" → "Auckland"; UTC and offsets stay as written. */
+function timezoneCity(timezone: string) {
+  const city = timezone.split("/").pop() ?? timezone;
+  return city.replaceAll("_", " ");
+}
 
 function isoRange(today: string) {
   return { start: shiftLocalDate(today, -27), end: shiftLocalDate(today, 28) };
@@ -7107,23 +7118,27 @@ export default function Home() {
     ensureWorkspace.mutate(scope);
   }, [scope]);
 
-  const snapshot = availableSnapshot.data
-    ? {
-        ...availableSnapshot.data,
-        projects: availableSnapshot.data.projects.filter(
-          project => project.state !== "archived"
-        ),
-        habitCheckIn: availableSnapshot.data.habitCheckIns,
-      }
-    : availableSnapshot.data;
+  const snapshot = useMemo(
+    () =>
+      availableSnapshot.data
+        ? {
+            ...availableSnapshot.data,
+            projects: availableSnapshot.data.projects.filter(
+              project => project.state !== "archived"
+            ),
+            habitCheckIn: availableSnapshot.data.habitCheckIns,
+          }
+        : availableSnapshot.data,
+    [availableSnapshot.data]
+  );
   // The execution surfaces intentionally hide archived projects, but Roadmap
   // and a selected project detail must retain their recorded history.
   const roadmapSnapshot = availableSnapshot.data
     ? { ...snapshot, projects: availableSnapshot.data.projects }
     : snapshot;
-  const todayProjection = useMemo(() => {
+  const todayProjectionInput = useMemo(() => {
     if (!snapshot) return null;
-    return projectToday({
+    return {
       localDate: today,
       workspace: {
         id: snapshot.workspace.id,
@@ -7147,8 +7162,12 @@ export default function Home() {
       planningAvailabilityExceptions: snapshot.planningAvailabilityExceptions,
       commitmentResolutions: snapshot.commitmentResolutions ?? [],
       carriedCommitments: snapshot.carriedCommitments ?? [],
-    });
+    } satisfies Parameters<typeof projectToday>[0];
   }, [snapshot, today, optimisticTaskStates]);
+  const todayProjection = useMemo(
+    () => (todayProjectionInput ? projectToday(todayProjectionInput) : null),
+    [todayProjectionInput]
+  );
   const activeTasks = useMemo(
     () =>
       (snapshot?.tasks ?? [])
@@ -7250,7 +7269,7 @@ export default function Home() {
     if (typeof window === "undefined") return;
     return subscribeToPlannerLocation(window, setPlannerLocation);
   }, []);
-  const navigatePlanner = useCallback((target: PlannerLocationTarget) => {
+  const navigatePlanner = useCallback((target: PlannerLocationUpdate) => {
     const current = parsePlannerLocation(new URL(window.location.href));
     const navigationTarget = mergePlannerLocation(current, target);
     setPlannerLocation(navigationTarget);
@@ -8404,6 +8423,59 @@ export default function Home() {
         : undefined,
     [snapshot, today, todayProjection]
   );
+  // D2 Dashboard (home/overview): one projection over the saved snapshot, refreshed each minute while visible.
+  const dashboardVisible = plannerLocation.destination === "home" && plannerLocation.view === "overview";
+  const dashboardNow = useMinuteNow(dashboardVisible);
+  const dashboardModel = useMemo(() => {
+    if (!dashboardVisible || !snapshot || !todayProjection || !todayProjectionInput) return null;
+    // A completion still pending sync (optimistic tick or queued offline update) has no completedAt yet.
+    // Stamp it so Today's evidence counts it as done now instead of dropping it from the commitments.
+    const pendingCompletedIds = new Set([
+      ...Object.keys(optimisticTaskStates).filter(id => optimisticTaskStates[id] === "completed"),
+      ...pendingOperations
+        .filter(operation => operation.entity === "task" && operation.kind === "update" && operation.state !== "needs_review" && operation.patch?.state === "completed")
+        .map(operation => operation.entityId),
+    ]);
+    const tasks = snapshot.tasks.map(task => {
+      const next = optimisticTaskStates[task.id] ? { ...task, state: optimisticTaskStates[task.id] } : task;
+      return pendingCompletedIds.has(task.id) && next.state === "completed" && !next.completedAt ? { ...next, completedAt: dashboardNow } : next;
+    });
+    const today_ = pendingCompletedIds.size ? projectToday({ ...todayProjectionInput, tasks }) : todayProjection;
+    let roadmapItems: ReturnType<typeof roadmapProjection>["items"] | null = null;
+    try {
+      roadmapItems = roadmapProjection({
+        workspaceId: snapshot.workspace.id,
+        todayLocalDate: today,
+        resolution: "month",
+        projects: snapshot.projects,
+        milestones: snapshot.milestones,
+        tasks,
+        projectDependencies: snapshot.projectDependencies ?? [],
+        capabilities: { projectRisk: Boolean(snapshot.projectRiskAvailable), projectDependencies: Boolean(snapshot.projectDependenciesAvailable) },
+      }).items;
+    } catch {
+      // A malformed date leaves project status unknown (no pill) rather than hiding the Dashboard.
+    }
+    return projectDashboard({
+      localDate: today,
+      now: dashboardNow,
+      timezone: scope.timezone,
+      workdayStartsAt: snapshot.workspace.workdayStartsAt,
+      workdayEndsAt: snapshot.workspace.workdayEndsAt,
+      tasks,
+      categories: snapshot.categories,
+      projects: snapshot.projects,
+      milestones: snapshot.milestones,
+      habits: snapshot.habits,
+      habitCheckIns: snapshot.habitCheckIns,
+      focusSessions: snapshot.focusSessions ?? [],
+      dailyPlans: snapshot.dailyPlans,
+      externalEvents: snapshot.externalEvents,
+      today: today_,
+      week: projectPlanWeek({ weekStart: weekStartFor(today), timezone: scope.timezone, range, snapshot: { ...snapshot, tasks } }),
+      roadmapItems,
+    });
+  }, [dashboardVisible, snapshot, todayProjection, todayProjectionInput, optimisticTaskStates, pendingOperations, today, dashboardNow, scope.timezone, range]);
   const openPaletteTask = (taskId: string) => {
     searchReturnTargetRef.current = null;
     searchRecordFocusRef.current = null;
@@ -8483,7 +8555,11 @@ export default function Home() {
       location={plannerLocation}
       preferences={preferences}
       timezone={scope.timezone}
-      title={surfaceTitle}
+      title={dashboardModel ? dashboardModel.greeting : surfaceTitle}
+      titleContext={dashboardModel ? "Dashboard" : undefined}
+      eyebrow={dashboardModel ? `${displayLocalDate(today, scope.timezone, { weekday: "long", day: "numeric", month: "long" })} · ${timezoneCity(scope.timezone)}` : undefined}
+      subtitle={dashboardModel?.intention ? <>Today’s intention: <b>{dashboardModel.intention}</b></> : undefined}
+      tabsInHeader={Boolean(activeHomeTab)}
       selectedRecord={plannerLocation.selectedRecord}
       dateLabel={displayLocalDate(today, scope.timezone, {
         weekday: "long",
@@ -8606,15 +8682,38 @@ export default function Home() {
         {plannerLocation.destination === "settings" ? <nav className="workspace-view-switch" aria-label="Settings groups">
           {plannerSettingsViews.map(([view, label]) => <button key={view} type="button" aria-current={plannerLocation.view === view ? "page" : undefined} onClick={() => navigatePlanner({ destination: "settings", view })}>{label}</button>)}
         </nav> : null}
-        {surface === "today" && plannerLocation.view === "overview" ? <section className="planner-overview" aria-labelledby="planner-overview-heading">
-          <header><h2 id="planner-overview-heading">Your saved planner at a glance</h2><p>Source: {availableSnapshot.isCached ? "saved device snapshot" : "current planner snapshot"}. Open a record to see its actual commitments and evidence. Missing evidence is not treated as progress.</p></header>
-          <div className="planner-overview-grid">
-            <section><h3>Projects</h3>{snapshot.projects.length ? snapshot.projects.slice(0, 6).map((project: any) => <button key={project.id} type="button" onClick={() => openProjectRecord(project.id)}>{project.title}<span>{project.state?.replaceAll("_", " ") || "No state recorded"}</span></button>) : <p>No project is available in this snapshot.</p>}</section>
-            <section><h3>Goals</h3>{snapshot.goals.length ? snapshot.goals.slice(0, 6).map((goal: any) => <button key={goal.id} type="button" onClick={() => openGoalRecord(goal.id)}>{goal.title}<span>{goal.state?.replaceAll("_", " ") || "No state recorded"}</span></button>) : <p>No goal is available in this snapshot.</p>}</section>
-            <section><h3>Planning continuity</h3><p>{snapshot.weeklyObjectives.length} saved weekly objectives · {snapshot.dailyPlans.length} saved daily plans in this snapshot.</p><button type="button" onClick={() => navigatePlanner({ destination: "plan", view: "weekly" })}>Open weekly objectives</button><button type="button" onClick={() => navigatePlanner({ destination: "review", view: "history" })}>Open saved reviews</button></section>
-            <section><h3>Habits &amp; focus</h3><p>{snapshot.habits.length} habits in this snapshot. Check-ins and Focus sessions are evidence, not inferred completion.</p><button type="button" onClick={() => selectSurface("habits")}>Open habits</button><button type="button" onClick={() => selectSurface("focus")}>Open Focus</button></section>
-          </div>
-        </section> : null}
+        {surface === "today" && plannerLocation.view === "overview" ? (
+          dashboardModel ? (
+            <DashboardView
+              model={dashboardModel}
+              timezone={scope.timezone}
+              habitPending={habitPending}
+              habitError={habitActionError}
+              actions={{
+                openToday: () => navigatePlanner({ destination: "home", view: "today" }),
+                openCalendar: () => navigatePlanner({ destination: "plan", view: "calendar" }),
+                openPlanDay: () => navigatePlanner({ destination: "plan", view: "daily" }),
+                openTasks: filter => navigatePlanner({ destination: "tasks", view: "list", taskFilter: filter === "overdue" ? "deadline_risk" : filter ?? "all" }),
+                openHabits: () => selectSurface("habits"),
+                openFocus: () => runGlobalAction("focus"),
+                openRoadmap: () => navigatePlanner({ destination: "plan", view: "roadmap" }),
+                openWeeklyPlan: () => navigatePlanner({ destination: "plan", view: "weekly" }),
+                openReviewHistory: () => navigatePlanner({ destination: "review", view: "history" }),
+                openGoals: () => navigatePlanner({ destination: "intentions", view: "outcomes" }),
+                openProject: projectId => openProjectRecord(projectId),
+                openTask: taskId => openTaskRecord(taskId),
+                startFocus: taskId => { setFocusEntryTaskId(taskId); selectSurface("focus"); },
+                checkInHabit: isOnline && !availableSnapshot.isCached
+                  ? habitId => {
+                      const habit = dashboardModel.habitsToday.find(item => item.id === habitId);
+                      if (habit?.state === "completed") undoHabitCheckIn(habitId, today);
+                      else recordHabitCheckIn(habitId, today, "completed");
+                    }
+                  : undefined,
+              }}
+            />
+          ) : null
+        ) : null}
         {surface === "today" && plannerLocation.view !== "overview" ? (
           todayProjection && snapshot ? (
             <TodayWorkspace

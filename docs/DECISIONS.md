@@ -64,3 +64,17 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - Phone with Capture shows three preferred shortcuts (2 | + | 2, v2.1). The fourth moves to More. This is an assumption made without owner input, and stored preferences are untouched.
 - The default landing stays home/today until D2.
 - Spec: [D1 shell](superpowers/specs/2026-10-13-premium-redesign-d1-shell.md).
+
+## 2026-10-13: premium redesign D2 Dashboard
+
+- The bare URL now lands on home/overview, the Dashboard. Explicit URLs, `?surface=today` and the PWA shortcuts are unchanged. The `overview` label is "Dashboard".
+- The legacy "planner at a glance" list is replaced. Its routes (weekly objectives, saved reviews, goals) stay as quiet Dashboard links, so no capability is dropped.
+- Evidence rules, owner rule "Missing evidence is not treated as progress":
+  - A project with no roadmap evidence has no status pill instead of "On track".
+  - Unknown planned time shows as "—".
+  - A pending completion counts only once Home stamps it as evidence.
+  - All-day events sit in their own strip.
+- Habit check-in from the Dashboard runs only online on a live snapshot, waits for any in-flight habit write, and shows the shared habit error.
+- Deferred: the UTC fallback for the habit start date in `shared/habitSchedule.ts` (affects Today and Habits too). The phone "Home" target stays Today until the owner chooses the phone shortcut defaults.
+- Owner, 2026-10-13: use opus for UI/UX (with the design skills loaded) and for logic. The owner also asked for more icons, animation and motion; an opus delight pass follows the D2 logic.
+- Spec: [D2 Dashboard](superpowers/specs/2026-10-13-premium-redesign-d2-dashboard.md).

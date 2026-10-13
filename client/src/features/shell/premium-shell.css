@@ -85,10 +85,14 @@ html body .pc-shell .pc-rail-more > summary {
   cursor: pointer;
   transition: background-color var(--pc-dur-fast) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease);
 }
-html body .pc-shell .pc-rail-nav button > span:not(.pc-rail-badge) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .pc-shell .pc-rail-nav button > span:not(.pc-rail-badge, .pc-rail-indicator) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html body .pc-shell .pc-rail-nav button:hover,
 html body .pc-shell .pc-rail-more > summary:hover { background: var(--selection); color: var(--ink); }
-html body .pc-shell .pc-rail-nav button.is-active { background: var(--selection) !important; color: var(--accent) !important; font-weight: 650; box-shadow: none; }
+/* The active fill is a shared framer-motion layer (.pc-rail-indicator) that glides between items. */
+html body .pc-shell .pc-rail-nav button { position: relative; }
+html body .pc-shell .pc-rail-nav button.is-active { background: transparent !important; color: var(--accent) !important; font-weight: 650; box-shadow: none; }
+html body .pc-shell .pc-rail-indicator { position: absolute; inset: 0; z-index: 0; background: var(--selection); pointer-events: none; }
+html body .pc-shell .pc-rail-nav button > :not(.pc-rail-indicator) { position: relative; z-index: 1; }
 html body .pc-shell .pc-rail-nav button.is-active-parent { color: var(--ink) !important; background: transparent !important; font-weight: 650; }
 html body .pc-shell .pc-rail-nav button::before { display: none !important; }
 html body .pc-shell .pc-rail-nav button:focus-visible,
@@ -120,25 +124,48 @@ html body .pc-shell .rail-footer { margin-top: auto; padding-top: 10px; border-t
 /* Collapsed rail (preference or ≤1060px): icons only. */
 html body .pc-shell.is-rail-collapsed { grid-template-columns: 74px minmax(0, 1fr); }
 html body .pc-shell.is-rail-collapsed .pc-rail { padding-inline: 10px; }
-html body .pc-shell.is-rail-collapsed :is(.pc-rail-heading, .pc-rail-badge, .pc-rail-search > span, .pc-rail-search kbd, .pc-rail-nav button > span, .pc-rail-more > summary > span) { display: none; }
+html body .pc-shell.is-rail-collapsed :is(.pc-rail-heading, .pc-rail-badge, .pc-rail-search > span, .pc-rail-search kbd, .pc-rail-nav button > span:not(.pc-rail-indicator), .pc-rail-more > summary > span) { display: none; }
 html body .pc-shell.is-rail-collapsed :is(.pc-rail-search, .pc-rail-nav button, .pc-rail-more > summary) { justify-content: center; padding: 0; }
 
 @media (max-width: 1060px) and (min-width: 681px) {
   html body .pc-shell { grid-template-columns: 74px minmax(0, 1fr); }
   html body .pc-shell .pc-rail { padding-inline: 10px; }
-  html body .pc-shell :is(.pc-rail-heading, .pc-rail-badge, .pc-rail-search > span, .pc-rail-search kbd, .pc-rail-nav button > span, .pc-rail-more > summary > span) { display: none; }
+  html body .pc-shell :is(.pc-rail-heading, .pc-rail-badge, .pc-rail-search > span, .pc-rail-search kbd, .pc-rail-nav button > span:not(.pc-rail-indicator), .pc-rail-more > summary > span) { display: none; }
   html body .pc-shell :is(.pc-rail-search, .pc-rail-nav button, .pc-rail-more > summary) { justify-content: center; padding: 0; }
 }
 
 /* Home tabs region */
 html body .pc-shell .pc-home-tabs { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }
 
+/* D2 hero header (v2.1 Main): eyebrow, H1, intention; tabs inline before Capture; no rule under it. */
+html body .pc-shell .planner-topbar.pc-topbar-hero { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; min-height: 0; padding: 20px 0 20px; border-bottom: 0; }
+html body .pc-shell .pc-topbar-hero .planner-title h1 { font-size: 32px !important; line-height: 38px !important; font-weight: var(--pc-w-bold); letter-spacing: var(--pc-tracking-display); }
+html body .pc-shell .pc-topbar-eyebrow { margin: 0 0 4px; color: var(--ink-muted); font: var(--pc-w-medium) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+html body .pc-shell .pc-topbar-subtitle { margin: 6px 0 0; color: var(--ink-muted); font: var(--pc-w-regular) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); }
+html body .pc-shell .pc-topbar-subtitle b { color: var(--ink); font-weight: var(--pc-w-semibold); }
+html body .pc-shell .pc-topbar-tabs .pc-home-tabs { margin: 0; }
+html body .pc-shell .pc-topbar-hero .phase4-top-actions { align-self: center; }
+/* Radix Tabs.Root wraps the list in a div, so size the wrapper and the list together. */
+html body .pc-shell .pc-home-tabs > div { display: flex; min-width: 0; }
+
+@media (max-width: 1180px) and (min-width: 681px) {
+  html body .pc-shell .planner-topbar.pc-topbar-hero { grid-template-columns: minmax(0, 1fr) auto; }
+  html body .pc-shell .pc-topbar-hero .pc-topbar-tabs { grid-column: 1 / -1; grid-row: 2; }
+}
+
 /* Command palette */
 .pc-palette { max-width: min(640px, calc(100% - 32px)) !important; border-radius: var(--pc-r-panel) !important; box-shadow: var(--pc-e3) !important; }
 .pc-palette [cmdk-group-heading] { color: var(--ink-subtle); font: 650 12px/16px var(--pc-font); }
 .pc-palette [cmdk-item] { min-height: 44px; border-radius: var(--pc-r-control); font: 550 14px/1.3 var(--pc-font); }
 .pc-palette [cmdk-item][data-selected="true"] { background: var(--selection); color: var(--ink); }
+.pc-palette [cmdk-item] svg { color: var(--ink-subtle); }
+.pc-palette [cmdk-item][data-selected="true"] svg { color: var(--accent); }
 .pc-palette-task { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Opens with a short scale + blur bridge, closes faster. Centring uses the `translate` property, so transform is free. */
+html body .pc-palette[data-state="open"] { animation: pc-blur-in 200ms var(--pc-ease) both; }
+html body .pc-palette[data-state="closed"] { animation: pc-blur-out 140ms var(--pc-ease) both; }
+/* Depth behind the palette only: a slate tint with a light blur instead of the default black wash. */
+html body [data-slot="dialog-overlay"]:has(+ .pc-palette) { background: color-mix(in srgb, var(--pc-night) 38%, transparent); backdrop-filter: blur(3px); }
 
 /* Phone: floating pill with a centre Capture button (v2.1). */
 @media (max-width: 680px) {
@@ -188,11 +215,56 @@ html body .pc-shell .pc-home-tabs { display: flex; align-items: center; gap: 12p
     transition: transform var(--pc-dur-press) var(--pc-ease);
   }
   html body .pc-shell .pc-phone-capture:active { transform: scale(.94); }
+  /* The plus turns while pressed (fast in, eased back out); the halo ring brightens on press. */
+  html body .pc-shell .pc-phone-capture > svg { transition: transform 260ms var(--pc-ease); }
+  html body .pc-shell .pc-phone-capture:active > svg { transform: rotate(90deg); transition-duration: var(--pc-dur-fast); }
+  html body .pc-shell .pc-phone-nav > button.pc-phone-capture {
+    box-shadow:
+      0 8px 24px color-mix(in srgb, var(--pc-hero-1) 35%, transparent),
+      0 0 0 5px color-mix(in srgb, var(--pc-hero-1) 14%, transparent) !important;
+    transition: transform var(--pc-dur-press) var(--pc-ease), box-shadow var(--pc-dur-base) var(--pc-ease);
+  }
+  html body .pc-shell .pc-phone-nav > button.pc-phone-capture:active {
+    box-shadow:
+      0 6px 18px color-mix(in srgb, var(--pc-hero-1) 45%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--pc-hero-1) 22%, transparent) !important;
+  }
+  /* Active destination: a soft pill glides behind the icon (framer-motion layoutId). */
+  html body .pc-shell .pc-phone-indicator {
+    position: absolute;
+    z-index: 0;
+    top: 4px;
+    left: 0;
+    right: 0;
+    width: min(56px, calc(100% - 8px));
+    height: 30px;
+    margin-inline: auto;
+    background: var(--selection);
+    pointer-events: none;
+  }
+  html body .pc-shell .pc-phone-nav > button > :not(.pc-phone-indicator) { position: relative; z-index: 1; }
+  /* Legacy index.css sets !important colours on every .mobile-planner-nav button. */
+  html body .pc-shell .pc-phone-nav > button.pc-phone-capture { color: #ffffff !important; background: linear-gradient(135deg, var(--pc-hero-1), var(--pc-hero-2)) !important; box-shadow: 0 8px 24px rgb(20 89 222 / .35) !important; }
+  html body .pc-shell .pc-phone-nav > button.is-active:not(.pc-phone-capture) { background: transparent !important; box-shadow: none !important; }
   html body .pc-shell .pc-phone-nav button:focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 2px; }
   /* Keep content clear of the floating pill (56px capture + 12px padding + 12px offset + breathing room). */
   html body .pc-shell [data-scroll-owner="destination"] { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
   html body .pc-shell .pc-home-tabs { margin-bottom: 12px; }
-  html body .pc-shell .pc-home-tabs > .pc-seg { width: 100%; }
+  html body .pc-shell .pc-home-tabs > div,
+  html body .pc-shell .pc-home-tabs .pc-seg { width: 100%; }
+  html body .pc-shell .planner-topbar.pc-topbar-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 0 12px; }
+  html body .pc-shell .pc-topbar-hero .planner-title h1 { font-size: 28px !important; line-height: 34px !important; }
+  html body .pc-shell .pc-topbar-hero .pc-topbar-tabs { grid-column: 1 / -1; grid-row: 2; }
   html body .pc-shell .pc-home-tabs .pc-seg-tab { flex: 1 1 0; min-width: 0; }
   html body .pc-shell .pc-home-tabs .pc-seg-badge { display: none; }
+}
+
+@keyframes pc-palette-fade { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Palette: plain cross-fade, no scale or blur. Capture: no turn or halo growth. Indicators are handled by MotionConfig. */
+  html body .pc-palette[data-state="open"] { animation: pc-palette-fade 120ms linear both; }
+  html body .pc-palette[data-state="closed"] { animation: pc-palette-fade 100ms linear reverse both; }
+  html body .pc-shell .pc-phone-capture,
+  html body .pc-shell .pc-phone-capture > svg { transform: none !important; }
 }

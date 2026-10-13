@@ -4,7 +4,13 @@ Owner goal (2026-10-13): finish Plan Studio, then redesign Dashboard and every s
 
 Branch: `work/premium-redesign` (worktree `.claude/worktrees/premium-redesign`), pushed to `dev/personal-calendar-premium-v2` after verification. Never main. No Vercel checks, live writes or migrations.
 
-Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screenshot review; opus = architecture, risky integration, independent review; fable = key design decisions, only with owner OK each time.
+Model routing (owner update 2026-10-13, see CLAUDE.md):
+- haiku: mechanical edits and greps
+- sonnet: read-only exploration and routine screenshot checks
+- opus: all UI/UX design and building (load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first), all logic, architecture and independent review
+- fable: key design decisions only, and always tell the owner
+
+Design direction (owner standing rule, 2026-10-13): icons, animations and motion must be cool and futuristic, and the UI modern, on every screen. Motion is state-driven, stays under ~300ms, reuses `motion.ts` and the tokens, and honours reduced motion. Real data only. The full rule is in CLAUDE.md under "Design direction"; the D2 delight pass is the bar.
 
 ## Steps
 
@@ -14,7 +20,7 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 | A | Owner approval of redesign sequence (D0-D6, G1-G3) | Approved 2026-10-13 (also @dnd-kit, pill radius, Fable for D0 spec) |
 | D0 | Tokens v2, motion, primitives, legacy-green ratchet | Done 2026-10-13: 800 tests, build, Plan harness 36/36, gallery harness 8/8; pushed |
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
-| D2 | Dashboard home + one-click Today switch, Schedule card lens | In progress |
+| D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2; pushed with this checkpoint |
 | D3 | Tasks board drag (needs @dnd-kit approval) | Not started |
 | D4 | "Why it matters" reasons from existing facts | Not started |
 | D5 | Light Analytics | Not started |
@@ -57,6 +63,12 @@ Model routing: haiku = mechanical edits/greps; sonnet = ordinary UI work, screen
 
 ## Checkpoint log
 
+- 2026-10-13 D2 built locally:
+  - **Dashboard:** the default landing, built by opus with the design skills loaded.
+  - **Logic:** opus independent review; 7 medium findings fixed.
+  - **Delight pass:** icons and motion, after the owner asked for "cool icons, animations, motions".
+  - **Docs:** spec `docs/superpowers/specs/2026-10-13-premium-redesign-d2-dashboard.md`, decisions in DECISIONS.md, evidence in PHASE4_SLICE_EVIDENCE.md.
+  - **Next:** final verification, then commit and push, then D3.
 - 2026-10-13 D0 done. Spec `docs/superpowers/specs/2026-10-13-premium-redesign-d0-design.md` (Fable-reviewed, owner told). Code in `client/src/design/` and `client/src/components/premium/`. Evidence in `docs/PHASE4_SLICE_EVIDENCE.md`. Next: D1.
 
 ## 2026-10-13 checkpoint — D1 WIP (usage limit)

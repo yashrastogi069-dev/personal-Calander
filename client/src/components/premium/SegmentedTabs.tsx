@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { motion } from "framer-motion";
+import { GLIDE, RADIUS } from "@/design/motion";
 import { cn } from "@/lib/utils";
 
 export type SegmentedItem<T extends string> = { value: T; label: ReactNode; badge?: number | null };
@@ -35,7 +36,9 @@ export function SegmentedTabs<T extends string>({
                   layoutId={`pc-seg-${indicatorId}`}
                   className="pc-seg-indicator"
                   aria-hidden="true"
-                  transition={{ type: "tween", duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
+                  // Numeric radius lets framer correct the pill's corners while it scales between tabs of different widths.
+                  style={{ borderRadius: RADIUS.pill }}
+                  transition={GLIDE}
                 />
               )}
               <span className="pc-seg-label">{item.label}</span>

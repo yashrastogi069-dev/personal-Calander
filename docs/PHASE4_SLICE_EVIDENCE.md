@@ -190,3 +190,30 @@ Independent SOL review caught missing heatmap period/timezone/aggregate summary;
   - Sonnet visual review against the v2.1 boards. Applied: phone padding, phone tabs, search nowrap, rail heading and collapse layout. Deferred: inline header (D2), dark contrast and the legacy green input (D6).
   - Opus code review: 10 findings, all applied except the aria-controls note.
 - No Preview, live database or device checks were run.
+
+## 2026-10-13: premium redesign D2 (Dashboard home) plus the delight pass
+
+Status: local and in progress. This entry records only results that were actually run.
+
+- **Unit tests:** `npx vitest run client/src/features/dashboard` gave 37/37 after the review fixes (model 17, view 20). The delight agent then reported 121/121 across the dashboard, design, premium-components and shell folders, including a new `client/src/design/motion.test.ts` (8 tests).
+- **Typecheck:** `npx tsc --noEmit -p .` was clean after the review fixes and again after the delight pass.
+- **Full suite:**
+  - Before the delight pass: 121 files, 845 passed, 3 skipped. An earlier run had 2 load-related errors that didn't recur.
+  - After the delight pass: 858 passed, 1 failed, 3 skipped. The failure is `server/phase4Shell.test.ts`: its regex required the icon straight after the active item's opening tag, but the new decorative `pc-rail-indicator` span now comes first. There is still exactly one `aria-current`. The regex now allows the optional indicator, and the file passes 17/17. Final full re-run: 122 files, 859 passed, 3 skipped, 0 failed (290s).
+- **Final harness re-run** (after the delight pass and the test fix): shell 20/20, plan 36/36, gallery 8/8, phase4 2/2.
+- **Build:** `npm run build` passed after the review fixes and again after the delight pass (PWA release generated).
+- **Browser harnesses** (Vite 127.0.0.1:3100, synthetic intercepted fixtures):
+  - `preview-c2-connected.py`, light, before the delight pass: 106 passed, 6 failed. The Dashboard flow passed: project, back, reload, then weekly objectives. The failures were two pre-D2 phone-pin checks written before the D1 pill (Capture plus three pins). Both were updated; `--only-unpin` now passes 16/16 across 4 widths × 2 themes.
+  - `preview-phase4-product.py --url http://127.0.0.1:3100`: 2/2.
+  - `preview-premium-shell.py`, after the delight pass (run by the delight agent): 20/20. That includes a new bare-URL case that lands on the Dashboard.
+  - `preview-task15.py` and `preview-linked-planner.py` fail on legacy assumptions that predate D2: the phone `.plan-stage-nav` (C3 replaced it with a stepper) and a rail "Settings" button (it has been "Open account settings" since the Phase 4 shell). Not D2 regressions; still to be updated or retired.
+- **Reviews:** an independent opus logic and wiring review found 13 issues. All 7 medium issues are fixed with tests:
+  - occurrence evidence everywhere
+  - pending completions stamped as evidence
+  - all-day events kept out of the Day window
+  - no "On track" without roadmap evidence
+  - habit pending and error surfaced
+  - snapshot memoised
+  - unknown planned time shown as "—"
+  The accepted low issues are under "Known limits" in the D2 spec.
+- **Not run:** Vercel Preview, live database and physical-device checks.

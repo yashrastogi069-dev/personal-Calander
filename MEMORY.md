@@ -1,6 +1,7 @@
 # Working memory
 
-- 2026-10-13 (owner): Claude sessions use subagents with model routing (haiku mechanical, sonnet UI/visual review, opus architecture/review, Fable key design moments with owner told). Rules and the local preview command live in [CLAUDE.md](CLAUDE.md). Premium redesign status: [HANDOFF.md](HANDOFF.md).
+- 2026-10-13 (owner): Claude sessions use subagents with model routing: opus for UI/UX design (design skills loaded) and all logic, haiku mechanical, sonnet read-only, Fable key design moments (owner told). Rules and the local preview command live in [CLAUDE.md](CLAUDE.md). Premium redesign status: [HANDOFF.md](HANDOFF.md).
+- 2026-10-13 D2: the Dashboard is the default landing (home/overview), with an owner-requested icon and motion pass on top. Verified (859 tests, harnesses green) and pushed. Standing owner design rule: cool, futuristic icons, animations and motion, and a modern UI on every screen (CLAUDE.md "Design direction"). Sources: [D2 spec](docs/superpowers/specs/2026-10-13-premium-redesign-d2-dashboard.md), [evidence](docs/PHASE4_SLICE_EVIDENCE.md). Open owner question: the phone shortcut defaults.
 
 Updated 2026-10-04. This is a short navigation aid, not a deployment record. For live migration status, read [the handoff](docs/INDEPENDENT_STACK_HANDOFF.md).
 

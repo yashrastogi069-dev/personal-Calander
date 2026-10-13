@@ -12,7 +12,8 @@ UI = runpy.run_path(str(ROOT / "preview-ui-review.py"))
 AUTH = runpy.run_path(str(ROOT / "preview-auth-states.py"))
 PLAN = runpy.run_path(str(ROOT / "preview-premium-plan.py"))
 
-PAGES = [("home", "overview", "Dashboard"), ("home", "today", "Today"), ("plan", "calendar", "Calendar"), ("tasks", "list", None)]
+# (None, None) is the bare URL: D2 makes the Dashboard the default landing.
+PAGES = [(None, None, "Dashboard"), ("home", "overview", "Dashboard"), ("home", "today", "Today"), ("plan", "calendar", "Calendar"), ("tasks", "list", None)]
 
 
 def main():
@@ -39,7 +40,7 @@ def main():
                         page.clock.set_fixed_time(datetime(2026, 9, 20, 9, 0, tzinfo=timezone.utc))
                         errors, checks = [], {}
                         page.on("pageerror", lambda error: errors.append(str(error)))
-                        page.goto(f"{url}/?destination={destination}&view={view}", wait_until="networkidle")
+                        page.goto(f"{url}/?destination={destination}&view={view}" if destination else f"{url}/", wait_until="networkidle")
                         page.locator(".pc-shell").wait_for()
                         page.wait_for_timeout(900)
                         checks["noOverflow"] = not page.evaluate("document.documentElement.scrollWidth > window.innerWidth")
@@ -48,6 +49,8 @@ def main():
                             checks["homeTabs"] = tabs.count() == 1 and page.get_by_role("tab", name=tab).first.get_attribute("aria-selected") == "true"
                         else:
                             checks["noHomeTabs"] = tabs.count() == 0
+                        if tab == "Dashboard":
+                            checks["dashboard"] = page.locator("section.pc-dash").is_visible()
                         if phone:
                             capture_button = page.locator(".pc-phone-capture")
                             box = capture_button.bounding_box() if capture_button.count() else None
@@ -57,7 +60,7 @@ def main():
                         else:
                             rail = page.get_by_role("navigation", name="Planning destinations")
                             checks["railGroups"] = all(rail.get_by_role("group", name=name).count() == 1 for name in ("Plan", "Grow", "Reflect"))
-                        name = f"shell-{width}-{theme}-{destination}-{view}"
+                        name = f"shell-{width}-{theme}-{destination or 'default'}-{view or 'landing'}"
                         page.screenshot(path=str(capture / f"{name}.png"), full_page=False)
                         if destination == "home" and view == "today":
                             page.keyboard.press("Control+k")

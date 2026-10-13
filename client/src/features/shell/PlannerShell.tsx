@@ -29,6 +29,14 @@ export type PlannerShellProps = {
   utilityActions?: ReactNode;
   focusControl?: ReactNode;
   viewNavigation?: ReactNode;
+  /** D2 hero header: small line above the title (replaces the date line). */
+  eyebrow?: ReactNode;
+  /** D2 hero header: line under the title, e.g. today's intention. */
+  subtitle?: ReactNode;
+  /** Screen-reader-only view name appended to the h1 when the visible title is a greeting. */
+  titleContext?: string;
+  /** Render viewNavigation inline in the title row, before the actions (v2.1 Main). */
+  tabsInHeader?: boolean;
   /** Live counts for rail badges (D1). */
   badges?: NavBadgeCounts;
   /** Opens the ⌘K command palette. */
@@ -52,6 +60,10 @@ export function PlannerShell({
   utilityActions,
   focusControl,
   viewNavigation,
+  eyebrow,
+  subtitle,
+  titleContext,
+  tabsInHeader = false,
   badges,
   onOpenCommand,
   children,
@@ -87,11 +99,14 @@ export function PlannerShell({
         data-scroll-owner="destination"
         data-selected-record={selectedRecord ?? undefined}
       >
-        <header className="planner-topbar">
+        <header className={`planner-topbar${tabsInHeader ? " pc-topbar-hero" : ""}`}>
           <div className="planner-title">
-            <h1>{title}</h1>
-            <p className="top-date">{dateLabel}</p>
+            {eyebrow ? <p className="pc-topbar-eyebrow">{eyebrow}</p> : null}
+            <h1>{title}{titleContext ? <span className="sr-only">, {titleContext}</span> : null}</h1>
+            {eyebrow ? null : <p className="top-date">{dateLabel}</p>}
+            {subtitle ? <p className="pc-topbar-subtitle">{subtitle}</p> : null}
           </div>
+          {tabsInHeader && viewNavigation ? <div className="pc-topbar-tabs" data-shell-region="view-navigation">{viewNavigation}</div> : null}
           <div className="top-actions phase4-top-actions">
             <GlobalActions
               onAction={onGlobalAction}
@@ -100,7 +115,7 @@ export function PlannerShell({
             />
           </div>
         </header>
-        {viewNavigation ? <div className="planner-view-navigation" data-shell-region="view-navigation">{viewNavigation}</div> : null}
+        {viewNavigation && !tabsInHeader ? <div className="planner-view-navigation" data-shell-region="view-navigation">{viewNavigation}</div> : null}
         {syncStatus ? <div className="planner-status-region">{syncStatus}</div> : null}
         {focusControl}
         {children}

@@ -198,7 +198,8 @@ describe("Phase 4 stable planner shell", () => {
     );
 
     expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(1);
-    expect(html).toMatch(/aria-current="page"[^>]*><svg[^>]*>[\s\S]*?<span>Calendar<\/span>/);
+    // The active item may lead with the decorative glide indicator before its icon.
+    expect(html).toMatch(/aria-current="page"[^>]*>(?:<span class="pc-rail-indicator"[^>]*><\/span>)?<svg[^>]*>[\s\S]*?<span>Calendar<\/span>/);
   });
 
   it("keeps exactly five visible phone controls including More", () => {
