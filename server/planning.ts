@@ -38,7 +38,8 @@ import {
 import { getDb } from "./db";
 import { focusSessionColumns, hasFocusFollowupColumns, readFocusHabitAttribution } from "./focus";
 import { establishedGoalColumns, establishedProjectColumns, establishedWorkspaceColumns } from "./phase4SchemaCompatibility";
-import { dashboardSummary, recurringLocalDates, shiftLocalDate, type RecurrenceRule, wouldCreateDependencyCycle } from "./plannerRules";
+import { dashboardSummary, recurringLocalDates, shiftLocalDate, wouldCreateDependencyCycle } from "./plannerRules";
+import { isRecurrenceRule } from "../shared/taskRecurrence";
 import { incompleteHardPrerequisites } from "../shared/dependencyPolicy";
 import { taskPatchForDailyPlanOutcome } from "../shared/dailyPlanResolution";
 import { reorderCommittedDailyPlanItems } from "../shared/dailyPlanOrdering";
@@ -537,12 +538,6 @@ export async function createTask(scope: PlannerScope, input: Omit<typeof tasks.$
     throw error;
   }
   return (await db.select().from(tasks).where(and(eq(tasks.workspaceId, scope.workspaceId), eq(tasks.id, id))).limit(1))[0]!;
-}
-
-function isRecurrenceRule(value: unknown): value is RecurrenceRule {
-  if (!value || typeof value !== "object") return false;
-  const rule = value as Record<string, unknown>;
-  return rule.frequency === "daily" || rule.frequency === "weekly" || rule.frequency === "monthly";
 }
 
 export async function materializeTaskOccurrences(scope: PlannerScope, input: { start: string; end: string }) {

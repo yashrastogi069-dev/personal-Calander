@@ -124,4 +124,48 @@ describe("canonicalTaskPresentation", () => {
 
     expect(result.keyTime?.label).toBe("Reserved 14:00–14:45");
   });
+
+  describe("recurring series key time (D3 §7, the 'Plan for Sep 24' bug)", () => {
+    const daily = () => task({ title: "LinkedIn engagement: 15 minutes", recurrenceRule: { frequency: "daily" }, recurrenceAnchor: "scheduled", scheduledLocalDate: "2026-09-24", dueLocalDate: null });
+    const onOct14 = { ...context, surface: "tasks" as const, localDate: "2026-10-14" };
+    const occurrence = (state: string) => ({ id: "occ-1", taskId: "task-1", localDate: "2026-10-14", state, version: 1 });
+
+    it("shows Today for a pending occurrence, not the series anchor", () => {
+      const keyTime = canonicalTaskPresentation(daily(), { ...onOct14, occurrences: [occurrence("pending")] }).keyTime;
+      expect(keyTime).toMatchObject({ kind: "occurrence", label: "Today", localDate: "2026-10-14", status: "pending_today", cadence: "Daily" });
+      expect(keyTime?.label).not.toContain("Sep");
+    });
+
+    it("shows Done today after the occurrence is resolved, with the next date in the accessible name", () => {
+      const keyTime = canonicalTaskPresentation(daily(), { ...onOct14, occurrences: [occurrence("completed")] }).keyTime;
+      expect(keyTime).toMatchObject({ kind: "occurrence", label: "Done today", status: "resolved_today" });
+      expect(keyTime?.kind === "occurrence" && keyTime.accessibleLabel).toBe("Daily. Done today. Next Thu 15 Oct.");
+    });
+
+    it("shows Skipped today for a skipped occurrence", () => {
+      expect(canonicalTaskPresentation(daily(), { ...onOct14, occurrences: [occurrence("skipped")] }).keyTime?.label).toBe("Skipped today");
+    });
+
+    it("shows the next weekly Thursday", () => {
+      const weekly = task({ recurrenceRule: { frequency: "weekly", weekdays: [4] }, scheduledLocalDate: "2026-09-24", dueLocalDate: null });
+      expect(canonicalTaskPresentation(weekly, onOct14).keyTime?.label).toBe("Next Thu 15 Oct");
+    });
+
+    it("never shows 'Plan for Sep 24' on any day of the following two months", () => {
+      for (let day = 0; day < 60; day += 1) {
+        const localDate = new Date(Date.UTC(2026, 8, 25 + day)).toISOString().slice(0, 10);
+        const label = canonicalTaskPresentation(daily(), { ...context, localDate }).keyTime?.label ?? "";
+        expect(label).not.toMatch(/Plan for/);
+      }
+    });
+
+    it("reports a finished series and a completion-anchored series honestly", () => {
+      expect(canonicalTaskPresentation(task({ recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-24", recurrenceUntilLocalDate: "2026-09-30" }), onOct14).keyTime?.label).toBe("Series ended 30 Sep");
+      expect(canonicalTaskPresentation(task({ recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-24", recurrenceAnchor: "completion" }), onOct14).keyTime?.label).toBe("Repeats after completion");
+    });
+
+    it("keeps non-recurring tasks on the existing Plan for / Due by labels", () => {
+      expect(canonicalTaskPresentation(task({ recurrenceRule: null }), onOct14).keyTime).toMatchObject({ kind: "plan_for", label: "Plan for Sep 20" });
+    });
+  });
 });

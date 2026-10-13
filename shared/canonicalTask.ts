@@ -1,3 +1,6 @@
+import { weekdayDayMonthLabel, dayMonthLabel } from "./taskDateLabels";
+import { recurrenceCadenceLabel, recurringTaskStatus, type RecurringTaskStatus, type TaskOccurrenceLike } from "./taskRecurrence";
+
 export type TaskDateValue = Date | string;
 
 export type CanonicalTask = {
@@ -43,11 +46,15 @@ export type CanonicalTaskContext = {
   categoryName?: string | null;
   projectTitle?: string | null;
   goalTitle?: string | null;
+  /** `snapshot.taskOccurrences`. Without it a recurring task still shows its computed next date. */
+  occurrences?: readonly TaskOccurrenceLike[];
 };
 
 export type CanonicalTaskKeyTime =
   | { kind: "reserved_time"; label: string; startsAt: TaskDateValue; endsAt: TaskDateValue }
-  | { kind: "plan_for" | "due_by"; label: string; localDate: string };
+  | { kind: "plan_for" | "due_by"; label: string; localDate: string }
+  /** A recurring series: the occurrence, never the series anchor (D3 §7). */
+  | { kind: "occurrence"; label: string; accessibleLabel: string; localDate: string | null; status: RecurringTaskStatus["kind"]; cadence: string };
 
 export type CanonicalTaskMetadata =
   | { kind: "project" | "goal" | "category"; label: string; recordId: string }
@@ -87,7 +94,36 @@ function localDateLabel(value: string) {
     .format(new Date(Date.UTC(year, month - 1, day, 12)));
 }
 
+/**
+ * Occurrence copy for a recurring series (D3 §7): "Today", "Done today", "Next Fri 16 Oct",
+ * "Series ended 30 Oct" or "Repeats after completion". The anchor date is never shown as a plan.
+ */
+export function recurringOccurrenceLabel(status: RecurringTaskStatus) {
+  const cadence = recurrenceCadenceLabel(status.rule);
+  if (status.kind === "pending_today") return { label: "Today", accessibleLabel: `${cadence}, due today`, localDate: status.localDate, tone: "accent" as const, cadence };
+  if (status.kind === "resolved_today") {
+    const label = status.state === "completed" ? "Done today" : status.state === "skipped" ? "Skipped today" : "Missed today";
+    const next = status.next ? ` Next ${weekdayDayMonthLabel(status.next)}.` : "";
+    return { label, accessibleLabel: `${cadence}. ${label}.${next}`, localDate: status.localDate, tone: "neutral" as const, cadence };
+  }
+  if (status.kind === "next") {
+    const label = `Next ${weekdayDayMonthLabel(status.localDate)}`;
+    return { label, accessibleLabel: `${cadence}. ${label}`, localDate: status.localDate, tone: "neutral" as const, cadence };
+  }
+  if (status.kind === "ended") {
+    const label = `Series ended ${dayMonthLabel(status.until)}`;
+    return { label, accessibleLabel: `${cadence}. ${label}`, localDate: null, tone: "neutral" as const, cadence };
+  }
+  if (status.kind === "after_completion") return { label: "Repeats after completion", accessibleLabel: `${cadence}. Repeats after completion`, localDate: null, tone: "neutral" as const, cadence };
+  return { label: "No upcoming repeat", accessibleLabel: `${cadence}. No upcoming repeat`, localDate: null, tone: "neutral" as const, cadence };
+}
+
 function keyTimeForTask(task: CanonicalTask, context: CanonicalTaskContext): CanonicalTaskKeyTime | null {
+  const recurring = recurringTaskStatus(task, context.localDate, context.occurrences);
+  if (recurring) {
+    const copy = recurringOccurrenceLabel(recurring);
+    return { kind: "occurrence", label: copy.label, accessibleLabel: copy.accessibleLabel, localDate: copy.localDate, status: recurring.kind, cadence: copy.cadence };
+  }
   if (task.plannedStartAt && task.plannedEndAt) {
     const start = timeLabel(task.plannedStartAt, context.timezone);
     const end = timeLabel(task.plannedEndAt, context.timezone);
