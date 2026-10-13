@@ -1,6 +1,6 @@
 # Premium redesign: Focus timer system and inner-surface map
 
-Date: 2026-10-13. Author: Fable (owner-approved key design moment). Status: design proposal, not built. Branch `work/premium-redesign`.
+Date: 2026-10-13. Author: Fable (owner-approved key design moment). Status: Part 1 (Focus) built and pushed in D2.5 (`91bb8d2`, `fc87b33`). The opus review fixes are in progress (see HANDOFF). Not built yet: the shared-element dial→pill move, pill compaction, Space/F shortcuts and haptics (no web haptics on iPhone). Known limit: the 10-minute "recent session" window compares the server's `endedAt` with the device clock. Branch `work/premium-redesign`.
 
 Owner input behind it: "Focus clock really looks BAD", "so many things need redesign and new UX/UI". The main reference is the Coterie "Time tracker" (`BEST Shots/... 4.37.07 PM (6).jpeg`). The secondary reference is the Fernly "Time Tracker" card (`BEST Shots/... 4.37.07 PM.jpeg`).
 

@@ -219,3 +219,15 @@ Status: local and in progress. This entry records only results that were actuall
   - unknown planned time shown as "—"
   The accepted low issues are under "Known limits" in the D2 spec.
 - **Not run:** Vercel Preview, live database and physical-device checks.
+
+## 2026-10-13: D2.5 Focus and the D3 logic layer
+
+- **Before push (`fc87b33`):** full suite 131 files, 1033 passed, 3 skipped; `npm run check` clean; `npm run build` passed. Pushed to `dev/personal-calendar-premium-v2`.
+- **Demo tour** (`scripts/open-demo-preview.py --headless --matrix`, after the harness change to click "Start another focus" then "Start focus"):
+  - 1440 and 390, light and dark: 4/4.
+  - Each view: dashboard rendered, 6 habit buttons, check-in mutation sent, focus started.
+  - 0 runtime errors, 0 console errors, no unexpected calls, no horizontal overflow.
+- **Opus review:** 0 high, 4 medium, 5 low, plus the now-line overlap. Its 6 targeted test files passed (113 tests). The fix status is tracked in HANDOFF.
+- **Review fixes:** applied locally; verification is pending. Numbers will be added here once run.
+- **Not run:** Vercel Preview, live database and physical-device checks.
+

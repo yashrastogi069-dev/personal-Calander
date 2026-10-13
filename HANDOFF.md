@@ -1,32 +1,44 @@
-# HANDOFF: premium redesign (updated 2026-10-13, D2.5 Focus in progress, D3 logic in progress)
+# HANDOFF: premium redesign (updated 2026-10-13: D2.5 Focus pushed, review fixes in progress, D3 logic pushed)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
 - **Goal:** keep going until D3.5 is done and pushed, then the owner checks (owner, 2026-10-13). The session runs as a self-paced `/loop`.
-- **Done and pushed:**
-  - D0, D1, D2.
-  - Habit local start date `b440ddf`.
-- **Committed, NOT pushed yet** (push after the D2.5 full suite):
-  - `33d96df`: stopped focus time counts, plus the Fable Focus spec.
-  - `b580222`: NZ header date fix.
-  - `773ee0f`: rich demo preview.
-  - `91bb8d2`: D2.5 WIP.
-- **D2.5 Focus (in progress, Fable 5.1 building):**
-  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-focus-and-inner-surfaces.md`.
-  - Remaining: Finish flow, dark live Dashboard card, 4 Dashboard fixes, `Sheet variant="side"`, two stale focus tests.
-  - Then: opus logic review, full verification, checkpoint.
-- **D3 Tasks:**
-  - Spec: `docs/superpowers/specs/2026-10-13-premium-redesign-d3-tasks.md`, by Fable 5.1.
-  - Opus is building the pure logic in `shared/task*.ts` and `client/src/features/tasks/*Model.ts`.
-  - After D2.5 verification: install `@dnd-kit/core`, `@dnd-kit/sortable` and `@dnd-kit/utilities` (approved). Then Fable builds the UI (§14 Fable column), opus builds `useTaskDnd` and the container wiring.
-  - Sub-checkpoints: D3a, D3b, D3c.
-- **D3.5 iPhone nav & gestures:** not started. Fable designs and builds; scope is in DECISIONS (2026-10-13 iPhone section).
+- **Pushed:** `dev/personal-calendar-premium-v2` = `fc87b33`. It holds D0, D1, D2, the habit start date fix, stopped-focus time counting, the NZ header date fix, the demo preview, D2.5 Focus (`91bb8d2` + `fc87b33`) and the D3 logic layer (`65be9e0`). Verified: full suite 131 files, 1033 passed / 3 skipped; `npm run check` clean; build passes.
+- **Demo tour (2026-10-13, after the harness fix):** 4/4 viewports (1440 and 390, light and dark). Focus starts, habit check-in works, 0 runtime or console errors, no unexpected calls, no horizontal overflow.
+- **Opus review of D2.5 + D3 logic (2026-10-13):** no high-severity issues; 4 medium and 5 low. Status of each:
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | Dashboard "Now" card offers Start focus for a task already running | FIXED locally (not yet tested or committed): shows "Open focus" / "Focusing · Open" when a session is open (`DashboardView.tsx` UpNextCard) |
+| 2 | Pause/Resume then a quick Finish sends a stale version (conflict) | FIXED locally: pause/resume `onSuccess` awaits the snapshot refetch (`FocusSessionContext.tsx` `refresh`) |
+| 3 | Finish offers "Done" for tasks the server refuses (recurring series, open plan, prerequisites, archived) | FIXED locally: new `doneBlockedReason` from `taskCompletionCheck`; the Done tile is disabled with the reason (`FocusSessionContext.tsx`, `FocusFinishFlow.tsx`) |
+| 4 | Deadline-anchored recurring series sit in "Past due" forever (`shared/taskBuckets.ts:79`) | TODO, OWNER DECISION: a test deliberately locks today's behaviour to match the D1 badge. Proposed: skip the overdue rule when recurring and no Plan-for date, and change the badge to match |
+| 5 | "Start focus on X" from the Dashboard lands on "What next?" within 10 minutes of a finish | FIXED locally: `useStartFocus` in `DashboardView.tsx` dismisses the pending review first |
+| 6 | The "What next?" step can vanish mid-edit when the 10-minute window ends | FIXED locally: the review is pinned once shown, until answered or closed (`FocusWorkspace.tsx`) |
+| 7 | Clock skew on the 10-minute window; the interval keeps ticking after expiry | ACCEPTED (low, harmless); note in the spec's known limits |
+| 8 | "Next 7 days" drop not capped by the deadline | FIXED locally with a new test (`shared/taskDrop.ts`, `server/taskDrop.test.ts`) |
+| 9 | Renumbering can scatter hidden tasks if the UI passes a filtered lane | TODO in D3 wiring: `useTaskDnd` must pass the full lane to `planSortOrderMove`, or refuse while filters hide tasks |
+| f | Dashboard now-line time pill overlaps the "7:00 AM" gutter label | TODO: add `is-near-now` on the hour within 15 min of now in `DayLens` and hide its label (`dashboard.css:431`) |
+
+- **Also done locally (uncommitted):** `scripts/open-demo-preview.py` clicks "Start another focus" then "Start focus", because Focus now opens on "What next?" after a recent session.
+- **Next steps, in order:**
+  1. Fix the now-line pill (f).
+  2. Run `npm run check` and the full suite. Re-run the demo tour matrix.
+  3. Commit "fix(focus): review fixes" and push.
+  4. Install the D3 packages (see the blocker below).
+  5. Start the D3 UI: Fable builds §14 of the D3 spec; opus builds `useTaskDnd` (respect #9), the TaskWorkspace wiring and the Home mount, passes occurrences to the other callers, fixes the Someday badge, and writes `scripts/preview-premium-tasks.py`.
+- **BLOCKER, needs the owner:** the worktree `node_modules` is a Windows junction to the main checkout's `node_modules`, so `pnpm add @dnd-kit/...` refuses (virtual-store mismatch). The safe fix is to stop the worktree Vite servers (:3100, :3117), remove only the junction (`cmd /c rmdir node_modules`; this doesn't touch the main checkout) and run `pnpm install` in the worktree. The permission check blocked this as a shared-resource change, so the owner must approve it or run it. Alternative: the owner installs the packages in the main checkout.
+- **D2.5 left for later (Fable's notes):** the shared-element dial→pill move, pill compaction, Space/F shortcuts and haptics were not built. `focus-watch.css` is no longer imported.
+- **D3.5 iPhone nav & gestures:** not started. Fable designs and builds; the scope is in DECISIONS (2026-10-13 iPhone section). `@use-gesture/react` is approved; it is blocked by the same install issue.
 - **D3.5.2 browser verification (owner, after D3.5 + MD updates):**
-  - Tools available now: Playwright + CDP, playwright-cli, agent-browser, agent-reach.
-  - Not available yet: browser-use, Chrome DevTools MCP and Claude in Chrome. The owner APPROVED (2026-10-13) installing all three at the start of D3.5.2. Use whichever tool is most effective per check.
+  - Available now: Playwright + CDP, playwright-cli, agent-browser and agent-reach.
+  - Approved to install at the start of D3.5.2: browser-use, Chrome DevTools MCP and Claude in Chrome. Use whichever tool is most effective per check.
   - The owner helps verify the animations.
-- **Owner questions pending:** confirm the three D3 assumptions (DECISIONS, end).
+- **Owner questions pending:**
+  - Review #4 above.
+  - The three D3 assumptions (DECISIONS, end).
+  - Approval of the `node_modules` fix.
 - **Look at the app:** `python scripts/open-demo-preview.py` (Vite on :3100).
 - **Checkpoint rule:** after every checkpoint, update ALL MDs (this block first), commit, push, continue. See CLAUDE.md "Checkpoints".
 
@@ -130,7 +142,7 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 - **Recurring task meta** shows "Plan for <anchor date>" instead of the occurrence date (D3).
 
 ## Known risks and limits
-- **Habit start date:** `shared/habitSchedule.ts` uses the UTC date of `createdAt`. East of UTC, a new daily habit can show one false "missed" day. This is pre-existing and shared with Today and Habits, so it's deferred.
+- **Habit start date:** fixed in `b440ddf`. New habits are stamped with a workspace-local `startLocalDate`. Older habits without it still fall back to the UTC date of `createdAt`.
 - **Glide animations:** the sidebar and Home-tab glides only animate if Home keeps the shell mounted across navigation; otherwise they snap. Not yet checked in motion; screenshots only show the end states.
 - **Habit burst:** may be slightly cut off inside the phone habit scroller.
 - **Stale legacy harnesses, not D2 regressions:**

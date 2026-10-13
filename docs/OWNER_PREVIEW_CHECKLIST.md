@@ -45,3 +45,11 @@ The owner runs these checks; agents do not run Vercel checks (gated). Report bac
 ## Decided since
 
 Phone bottom bar moves to Home / Today / + / Calendar / More in slice D3.5 (see DECISIONS.md, 2026-10-13). Until then the bar shown in the Preview is the old one.
+
+## D2.5 Focus (pushed `fc87b33`; check after D3.5 with the demo preview)
+
+- **Dashboard focus card:** dark while a session is live, white when idle.
+- **Focus screen:** after you finish a session it opens on "What next?" for 10 minutes. "Start another focus" goes back to setup.
+- **Pending review fixes (local):** the "Now" card shows "Open focus" when a session is already running. "Done" is greyed out with a reason when the task can't be completed from Focus.
+- **Known, still to fix:** the now-line time pill can cover the hour label (e.g. 7:00 AM) when it's within about 15 minutes of the hour.
+

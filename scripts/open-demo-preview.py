@@ -12,6 +12,7 @@ Start Vite first: npx vite --port 3100 --strictPort --host 127.0.0.1
   python scripts/open-demo-preview.py --headless --shots DIR [--matrix]   # verification tour
 """
 import argparse
+import re
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -107,14 +108,23 @@ def run_tour(browser, args, width, height, theme, shots: Path) -> dict:
             continue
         if label == "focus":
             shoot(page, shots / f"{tag}-focus.png", width, height)
-            start = page.get_by_role("button", name="Start focus").first
+            # After a recent session Focus opens on the next-step panel; "Start another focus"
+            # returns to setup, where "Start focus" starts the session.
+            another = page.get_by_role("button", name="Start another focus").first
+            if another.count():
+                another.click()
+                settle(page, 600)
+                report["checks"]["startAnotherShown"] = True
+            start = page.get_by_role("button", name="Start focus", exact=True).first
             if start.count():
                 start.click()
                 page.wait_for_timeout(3200)
                 report["checks"]["focusStarted"] = "planner.focus.start" in backend.mutations
                 shoot(page, shots / f"{tag}-focus-running.png", width, height)
+            elif page.get_by_role("button", name=re.compile(r"^(Pause|Finish)")).count():
+                report["checks"]["focusStarted"] = "session already running"
             else:
-                report["checks"]["focusStarted"] = "no Start focus button found"
+                report["checks"]["focusStarted"] = "no start button found"
             continue
         shoot(page, shots / f"{tag}-{label}.png", width, height)
         if label == "calendar":

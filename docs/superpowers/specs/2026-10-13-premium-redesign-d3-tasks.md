@@ -1,6 +1,6 @@
 # Premium redesign D3: Tasks (list, board with drag, Inbox triage, detail sheet)
 
-Date: 2026-10-13. Author: Fable 5.1 (owner-approved key design moment). Status: design spec, not built. Branch `work/premium-redesign`.
+Date: 2026-10-13. Author: Fable 5.1 (owner-approved key design moment). Status: logic layer built and pushed (`65be9e0`). The "Next 7 days" drop is now capped at the deadline. The UI (§14 Fable column) and `useTaskDnd` are not built: they wait on the `@dnd-kit` install (see HANDOFF blocker). When wiring `useTaskDnd`, pass the full lane to `planSortOrderMove` (review #9). Branch `work/premium-redesign`.
 Builds on [D0](2026-10-13-premium-redesign-d0-design.md), [D1](2026-10-13-premium-redesign-d1-shell.md), [D2](2026-10-13-premium-redesign-d2-dashboard.md) and the [Focus and inner-surface map](2026-10-13-premium-redesign-focus-and-inner-surfaces.md) (Part 2, rows "Tasks", "Task detail sheet", "Inbox triage").
 
 Owner input: "a long flat list ending in a 'Task triage tools' stub"; every screen modern, futuristic and cool, with lots of state-driven motion. `@dnd-kit` is approved for D3 (DECISIONS 2026-10-13).
