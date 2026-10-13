@@ -9,6 +9,31 @@ export const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 /** Shared-element glide for tab and nav indicators (mirrors --pc-dur-base). */
 export const GLIDE = { type: "tween", duration: 0.24, ease: EASE_OUT } as const;
 
+/** Mirrors --pc-ease-sheet (iOS sheet curve) for framer-motion. */
+export const SHEET_EASE = [0.32, 0.72, 0, 1] as const;
+
+/** Phone sheets and the pill-to-sheet move (mirrors --pc-dur-sheet). */
+export const SHEET = { type: "tween", duration: 0.3, ease: SHEET_EASE } as const;
+
+/** Momentum threshold for flick-to-dismiss, in px per ms (Vaul / Emil Kowalski). */
+export const DISMISS_VELOCITY = 0.11;
+
+/**
+ * True when a downward sheet drag should dismiss: a fast flick (≥0.11 px/ms) or a drag past
+ * a quarter of the sheet's height. `velocityPxPerSecond` is framer-motion's info.velocity.y.
+ */
+export function shouldDismissSheet(offsetPx: number, velocityPxPerSecond: number, sheetHeightPx: number): boolean {
+  if (offsetPx <= 0) return false;
+  if (velocityPxPerSecond / 1000 >= DISMISS_VELOCITY) return true;
+  return offsetPx >= Math.max(80, sheetHeightPx * 0.25);
+}
+
+/** Damped upward drag: the sheet moves less the further it is pulled past its rest position. */
+export function dampUpward(offsetPx: number): number {
+  if (offsetPx >= 0) return offsetPx;
+  return -8 * Math.log1p(-offsetPx / 8);
+}
+
 /** framer-motion corrects border-radius during layout scale only for numeric radii, so these mirror the tokens. */
 export const RADIUS = { control: 12, pill: 999 } as const;
 

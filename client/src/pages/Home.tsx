@@ -106,7 +106,7 @@ import {
 } from "@/features/shell/DestinationBoundary";
 import { PlannerShell } from "@/features/shell/PlannerShell";
 import { FocusPersistentControl } from "@/features/focus/FocusPersistentControl";
-import type { FocusWatchSession } from "@/features/focus/FocusTimeDial";
+import { FocusSessionProvider } from "@/features/focus/FocusSessionContext";
 import {
   movePlannerShortcut,
   plannerShortcutKey,
@@ -8543,14 +8543,20 @@ export default function Home() {
     syncSummary.needsReview === 0 &&
     !syncSummary.retry &&
     (typeof navigator === "undefined" || navigator.onLine);
-  const openFocusSession = (snapshot.focusSessions ?? []).find(
-    (session: any) => session.state === "active" || session.state === "paused"
-  ) as FocusWatchSession | undefined;
-  const focusLinkedTask = openFocusSession?.taskId
-    ? (snapshot.tasks ?? []).find((task: any) => task.id === openFocusSession.taskId)
-    : null;
   const focusActionsOnline = isOnline && !availableSnapshot.isCached && !snapshotQuery.error;
+  // The pill is hidden where the session already has a home: the Focus screen and the Dashboard card.
+  const showFocusPill = surface !== "focus" && !(surface === "today" && plannerLocation.view === "overview");
   return (
+    <FocusSessionProvider
+      scope={scope}
+      snapshot={snapshot}
+      today={today}
+      online={focusActionsOnline}
+      onOpenFocus={() => selectSurface("focus")}
+      onOpenTask={openTaskRecord}
+      onOpenPlan={() => navigatePlanner({ destination: "plan", view: "daily" })}
+      onStartAnother={() => { setFocusEntryTaskId(null); selectSurface("focus"); }}
+    >
     <PlannerShell
       location={plannerLocation}
       preferences={preferences}
@@ -8569,16 +8575,7 @@ export default function Home() {
       onNavigate={navigatePlanner}
       onPreferencesChange={setPreferences}
       onGlobalAction={runGlobalAction}
-      focusControl={surface !== "focus" && openFocusSession ? (
-        <FocusPersistentControl
-          scope={scope}
-          session={openFocusSession}
-          taskTitle={focusLinkedTask?.title ?? (openFocusSession.taskId ? "Linked task unavailable" : "Unlinked focus")}
-          confirmedOnline={focusActionsOnline}
-          prominent={surface === "today"}
-          onOpenFocus={() => selectSurface("focus")}
-        />
-      ) : null}
+      focusControl={showFocusPill ? <FocusPersistentControl /> : null}
       viewNavigation={activeHomeTab ? (
         <div className="pc-home-tabs">
           <SegmentedTabs<HomeTabId>
@@ -9409,6 +9406,7 @@ export default function Home() {
         onToggleTheme={themeSwitchable ? toggleTheme : undefined}
       />
     </PlannerShell>
+    </FocusSessionProvider>
   );
 }
 

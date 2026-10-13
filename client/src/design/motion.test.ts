@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { becameTrue, easeOutQuart, EASE_OUT, GLIDE, prefersReducedMotion } from "./motion";
+import { becameTrue, dampUpward, easeOutQuart, EASE_OUT, GLIDE, prefersReducedMotion, SHEET, shouldDismissSheet } from "./motion";
 
 const read = (path: string) => readFileSync(resolve(__dirname, "..", path), "utf8");
 
@@ -41,6 +41,18 @@ describe("motion helpers", () => {
     expect(GLIDE.duration).toBeLessThanOrEqual(0.3);
     expect(EASE_OUT).toEqual([0.23, 1, 0.32, 1]);
     expect(read("design/tokens-v2.css")).toContain("--pc-ease: cubic-bezier(.23, 1, .32, 1)");
+  });
+
+  it("dismisses a sheet on a 0.11 px/ms flick or a long drag, never on an upward pull", () => {
+    expect(shouldDismissSheet(20, 120, 400)).toBe(true);
+    expect(shouldDismissSheet(20, 100, 400)).toBe(false);
+    expect(shouldDismissSheet(110, 0, 400)).toBe(true);
+    expect(shouldDismissSheet(-40, 900, 400)).toBe(false);
+    expect(dampUpward(-80)).toBeGreaterThan(-80);
+    expect(dampUpward(-80)).toBeLessThan(0);
+    expect(dampUpward(30)).toBe(30);
+    expect(SHEET.duration).toBeLessThanOrEqual(0.3);
+    expect(read("design/tokens-v2.css")).toContain("--pc-ease-sheet: cubic-bezier(.32, .72, 0, 1)");
   });
 
   it("treats a missing window as reduced motion", () => {

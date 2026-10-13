@@ -83,6 +83,24 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 - **Fable composition review of the Dashboard:** optional, and needs the owner's OK.
 - **Owner preview report:** pending (see "Owner checks in progress").
 
+## Demo audit findings to fix in their slices (opus demo tour, 2026-10-13)
+- **Fixed already:**
+  - Headers showed tomorrow in NZ (`displayLocalDate`, `b580222`).
+  - Dashboard now-line strikethrough, milestone label overlap, Week rhythm empty space and phone habit carousel clipping were handed to Fable inside D2.5.
+- **Today (D3.5):**
+  - The "Completed today" card says "4 evidence records" but its body is empty.
+  - The "Upcoming milestone" card is mostly empty.
+- **Tasks (D3):** a long flat list ending in a "Task triage tools" stub.
+- **Daily plan (D4):** text-link action rows and monospace kickers.
+- **Weekly plan (D4):** one day column grows to about 5,200px tall.
+- **Calendar (D3.5):**
+  - opens in Day view
+  - 30-minute blocks clip "Complete"
+  - the grid is a short scroll box beside a 24-item inbox
+  - Week view is a separate legacy panel below the fold
+- **Roadmap (D4):** a May–Apr window, but bars overflow past the October column and later months are cut off.
+- **Recurring task meta** shows "Plan for <anchor date>" instead of the occurrence date (D3).
+
 ## Known risks and limits
 - **Habit start date:** `shared/habitSchedule.ts` uses the UTC date of `createdAt`. East of UTC, a new daily habit can show one false "missed" day. This is pre-existing and shared with Today and Habits, so it's deferred.
 - **Glide animations:** the sidebar and Home-tab glides only animate if Home keeps the shell mounted across navigation; otherwise they snap. Not yet checked in motion; screenshots only show the end states.

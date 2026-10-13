@@ -1,0 +1,388 @@
+/* D2.5 Focus: the FocusDial instrument, the Focus screen (stage + rail), the Finish panel, the
+   persistent pill and its popover/sheet. Spec: docs/superpowers/specs/2026-10-13-premium-redesign-
+   focus-and-inner-surfaces.md Part 1. Motion reuses --pc-ease / --pc-dur-* and the shared keyframes;
+   every loop and burst has a reduced-motion opt-out at the end of this file. */
+
+/* ───────────────────────── Instrument ───────────────────────── */
+.pc-dial { --pc-dial-size: var(--pc-dial-lg); position: relative; display: grid; place-items: center; flex: none; width: var(--pc-dial-size); aspect-ratio: 1; color: var(--ink); }
+.pc-dial-md { --pc-dial-size: var(--pc-dial-md); }
+.pc-dial-sm { --pc-dial-size: var(--pc-dial-sm); }
+.pc-dial-face { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pc-dial-face * { transform-box: view-box; }
+
+.pc-dial-tick { stroke: var(--pc-line); stroke-width: 2; stroke-linecap: round; transition: stroke var(--pc-dur-base) var(--pc-ease), opacity var(--pc-dur-base) var(--pc-ease); }
+.pc-dial-tick.is-major { stroke-width: 2.6; stroke: color-mix(in srgb, var(--pc-planned) 55%, var(--pc-line)); }
+.pc-dial-tick.is-lit { stroke: var(--pc-k); }
+/* Mount sweep: lit ticks light in order, capped so the whole sweep stays under 600ms. */
+.pc-dial.is-settling .pc-dial-tick { transition-delay: calc(min(var(--pc-tick-i, 0), 60) * 8ms); }
+
+.pc-dial-track { fill: none; stroke: var(--pc-track); stroke-width: 10; }
+/* Idle: the plan, not progress. Short radial dashes read as the D2 hatch on a ring. */
+.pc-dial-hatch { fill: none; stroke: var(--pc-planned); stroke-width: 10; stroke-dasharray: 1.6 4.4; opacity: .55; transition: opacity var(--pc-dur-base) var(--pc-ease); }
+.pc-dial-arc { fill: none; stroke: var(--pc-k); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset var(--pc-dur-base) var(--pc-ease), opacity var(--pc-dur-base) var(--pc-ease), stroke-width var(--pc-dur-fast) var(--pc-ease); }
+.pc-dial.is-settling .pc-dial-arc { transition-duration: var(--pc-dur-data); transition-timing-function: var(--pc-ease-data); }
+.pc-dial-lap { fill: none; stroke: var(--pc-k); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 0 9; }
+.pc-dial-lap-reveal { transition: stroke-dashoffset var(--pc-dur-base) var(--pc-ease); }
+
+.pc-comet { transform-origin: 120px 120px; transition: transform var(--pc-dur-fast) var(--pc-ease), opacity var(--pc-dur-base) var(--pc-ease); }
+.pc-comet line { stroke: var(--pc-k); stroke-width: 3; stroke-linecap: round; }
+.pc-dial-head { transform-origin: 120px 120px; transition: transform var(--pc-dur-base) var(--pc-ease); }
+.pc-dial-halo { fill: var(--pc-k); opacity: .18; transition: opacity var(--pc-dur-base) var(--pc-ease); }
+.pc-dial-dot { fill: var(--pc-k); stroke: var(--pc-card); stroke-width: 3; transition: fill var(--pc-dur-base) var(--pc-ease), stroke var(--pc-dur-base) var(--pc-ease); }
+
+/* Paused: the arc and lit ticks dim to 40%, the head turns hollow, the comet is gone. */
+.pc-dial.is-paused .pc-dial-arc, .pc-dial.is-paused .pc-dial-tick.is-lit, .pc-dial.is-paused .pc-dial-lap { opacity: .4; }
+.pc-dial.is-paused .pc-dial-halo { opacity: 0; }
+.pc-dial.is-paused .pc-dial-dot { fill: var(--pc-card); stroke: var(--pc-k); }
+.pc-dial.is-sweeping .pc-dial-arc, .pc-dial.is-sweeping .pc-dial-tick { transition: none; }
+
+/* Target reached on screen: ring flash (10 → 12 → 10) and a burst in the tone. */
+.pc-dial.is-flash .pc-dial-arc { animation: pc-dial-flash var(--pc-dur-celebrate) var(--pc-ease) both; }
+@keyframes pc-dial-flash { 0%, 100% { stroke-width: 10; } 40% { stroke-width: 12.5; } }
+.pc-dial-burst { position: absolute; inset: 0; pointer-events: none; }
+.pc-dial-burst .pc-burst-ring { position: absolute; inset: 9%; border: 2px solid var(--pc-k); border-radius: 50%; animation: pc-burst-ring var(--pc-dur-celebrate) var(--pc-ease) both; }
+.pc-dial-burst .pc-burst-dots { position: absolute; inset: -3%; border-radius: 50%; background:
+  radial-gradient(circle at 50% 2%, var(--pc-k) 0 3px, transparent 3.5px),
+  radial-gradient(circle at 98% 50%, var(--pc-k) 0 3px, transparent 3.5px),
+  radial-gradient(circle at 50% 98%, var(--pc-k) 0 3px, transparent 3.5px),
+  radial-gradient(circle at 2% 50%, var(--pc-k) 0 3px, transparent 3.5px),
+  radial-gradient(circle at 85% 15%, var(--pc-k) 0 2px, transparent 2.5px),
+  radial-gradient(circle at 15% 85%, var(--pc-k) 0 2px, transparent 2.5px),
+  radial-gradient(circle at 85% 85%, var(--pc-k) 0 2px, transparent 2.5px),
+  radial-gradient(circle at 15% 15%, var(--pc-k) 0 2px, transparent 2.5px);
+  animation: pc-burst-dots var(--pc-dur-celebrate) var(--pc-ease) 40ms both; }
+
+/* Next meeting on the face: a small bar on the rim (the rail repeats it as text). */
+.pc-dial-notch { position: absolute; width: 4px; height: 14px; border-radius: 2px; background: var(--pc-cat-social); box-shadow: 0 0 0 2px var(--pc-card); translate: -50% -50%; rotate: var(--pc-notch-turn); pointer-events: none; }
+
+.pc-dial-center { position: relative; z-index: 1; display: grid; justify-items: center; align-content: center; gap: 6px; max-width: 78%; text-align: center; }
+
+/* xs: the pill's ring. */
+.pc-dial-xs { position: relative; display: inline-grid; place-items: center; flex: none; width: var(--pc-dial-xs); height: var(--pc-dial-xs); }
+.pc-dial-xs svg { width: 100%; height: 100%; }
+.pc-dial-xs .pc-dial-track { stroke-width: 3; }
+.pc-dial-xs .pc-dial-arc { stroke-width: 3.5; }
+.pc-dial-xs.is-paused .pc-dial-arc { opacity: .5; }
+.pc-dial-xs-live { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--pc-k); }
+.pc-dial-xs-live::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: pc-live 2s var(--pc-ease) infinite; }
+
+/* Digits: tabular cells; only changed digits roll. */
+.pc-focus-digits { display: inline-flex; align-items: baseline; color: var(--ink); font-family: var(--pc-font); font-weight: var(--pc-w-display); letter-spacing: -.02em; line-height: 1; white-space: nowrap; }
+.pc-focus-digits-prefix { margin-right: .08em; color: var(--ink-muted); font-weight: var(--pc-w-semibold); }
+.pc-digit-roll { animation: pc-tick var(--pc-dur-fast) var(--pc-ease) both; }
+.pc-dial-lg .pc-focus-digits-dial { font-size: var(--pc-text-timer); }
+.pc-dial-lg .pc-focus-digits-dial.is-long { font-size: calc(var(--pc-text-timer) * .74); }
+.pc-dial-md .pc-focus-digits-dial { font-size: 34px; }
+.pc-dial-md .pc-focus-digits-dial.is-long { font-size: 26px; }
+.pc-dial.is-paused .pc-focus-digits { color: color-mix(in srgb, var(--ink) 78%, transparent); }
+
+/* State pill: every state has a word; colour never stands alone. Overtime stays neutral. */
+.pc-focus-state { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 3px 10px; border-radius: var(--pc-r-pill); background: var(--pc-k-soft); color: var(--pc-k-ink); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); white-space: nowrap; }
+.pc-focus-state.is-idle, .pc-focus-state.is-paused, .pc-focus-state.is-over { background: var(--pc-card-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--pc-line); }
+.pc-focus-state.is-offline { background: var(--pc-risk-soft); color: var(--pc-risk); }
+.pc-focus-state.is-saved { background: var(--pc-ok-soft); color: var(--pc-ok); }
+.pc-focus-live { color: var(--pc-k); }
+.pc-dial-md .pc-focus-state { min-height: 22px; padding: 2px 8px; font-size: var(--pc-text-caption); }
+.pc-focus-sub { color: var(--ink-muted); font: var(--pc-w-medium) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); white-space: nowrap; }
+.pc-dial-md .pc-focus-sub { font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+
+/* ───────────────────────── Shared bits ───────────────────────── */
+.pc-focus-hint { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-focus-hint.is-notice { padding: 10px 12px; border-radius: var(--pc-r-control); background: var(--pc-risk-soft); color: var(--ink); }
+.pc-focus-footnote { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-focus-label { color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+.pc-focus-optional { color: var(--ink-muted); font-weight: var(--pc-w-regular); }
+
+.pc-focus-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 1px solid transparent; border-radius: var(--pc-r-pill); background: transparent; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body-sm)/1 var(--pc-font); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), opacity var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-btn:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-btn:disabled { opacity: .5; cursor: not-allowed; }
+.pc-focus-btn.is-primary { background: var(--pc-k-ink); color: var(--pc-card); }
+.pc-focus-btn.is-ghost { border-color: var(--pc-line); background: var(--pc-card); }
+.pc-focus-btn.is-text { padding: 0 10px; color: var(--pc-k-ink); }
+.pc-focus-btn.is-small { justify-self: start; padding: 0 14px; font-size: var(--pc-text-label); }
+.pc-focus-link { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px; border: 0; background: none; color: var(--pc-k-ink); font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; cursor: pointer; }
+.pc-focus-link:disabled { opacity: .5; cursor: not-allowed; }
+
+.pc-focus-alert { display: grid; gap: 6px; margin: 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--pc-off) 35%, transparent); border-radius: var(--pc-r-control); background: var(--pc-off-soft); color: var(--ink); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-focus-alert p { margin: 0; }
+.pc-focus-alert > button { justify-self: start; }
+.pc-focus-banner { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border-radius: var(--pc-r-control); background: var(--pc-risk-soft); color: var(--pc-risk); font: var(--pc-w-medium) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); }
+.pc-focus-banner.is-error { background: var(--pc-off-soft); color: var(--pc-off); }
+.pc-focus-banner > span { flex: 1; }
+
+.pc-focus-field { display: grid; gap: 6px; }
+.pc-focus-field > label { color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+.pc-focus-field :is(select, textarea) { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-control); background: var(--pc-card); color: var(--ink); font: var(--pc-w-regular) 15px/1.4 var(--pc-font); transition: border-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-field textarea { resize: vertical; }
+.pc-focus-field :is(select, textarea):focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 1px; border-color: var(--pc-k); }
+
+.pc-focus-stepper { display: grid; gap: 6px; }
+.pc-focus-stepper > label { color: var(--ink-muted); font-size: var(--pc-text-label); }
+.pc-focus-stepper-row { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: var(--pc-text-body-sm); }
+.pc-focus-stepper-row input { width: 76px; height: 44px; padding: 0 8px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-control); background: var(--pc-card); color: var(--ink); font: var(--pc-w-semibold) 16px/1 var(--pc-font); font-variant-numeric: tabular-nums; text-align: center; }
+.pc-focus-stepper-row input[aria-invalid="true"] { border-color: var(--pc-off); }
+.pc-focus-step { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--pc-line); border-radius: 50%; background: var(--pc-card); color: var(--ink); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease); }
+.pc-focus-step:active:not(:disabled) { transform: scale(.94); }
+.pc-focus-step:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ───────────────────────── Focus screen ───────────────────────── */
+.pc-focus-screen { display: grid; gap: 14px; min-width: 0; padding-bottom: 24px; }
+.pc-focus-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; min-width: 0; }
+
+.pc-focus-stage { position: relative; display: grid; min-width: 0; padding: 22px 28px 20px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-feature); background: radial-gradient(120% 64% at 50% 0%, color-mix(in srgb, var(--pc-k-soft) 70%, transparent), transparent 72%), var(--pc-card); box-shadow: var(--pc-e1); transition: background-color var(--pc-dur-base) var(--pc-ease); }
+.pc-focus-live { display: grid; gap: 14px; min-width: 0; }
+.pc-focus-stage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-width: 0; }
+.pc-focus-stage-title { display: grid; gap: 8px; min-width: 0; }
+.pc-focus-stage-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html .pc-focus-screen .pc-focus-task-title { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink); font: var(--pc-w-semibold) 24px/30px var(--pc-font); letter-spacing: var(--pc-tracking-tight); -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; text-wrap: balance; }
+html .pc-focus-screen .pc-focus-task-title.is-question { font-size: 22px; line-height: 28px; }
+.pc-focus-menu-trigger { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-pill); background: var(--pc-card); color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-menu-trigger:active { transform: scale(.97); }
+.pc-focus-menu { min-width: 200px; }
+
+.pc-focus-stage-body { display: grid; justify-items: center; gap: 22px; min-width: 0; padding: 6px 0 2px; }
+.pc-focus-stage-body.is-finishing { grid-template-columns: auto minmax(0, 1fr); align-items: start; justify-items: stretch; gap: 32px; }
+.pc-focus-instrument-wrap { display: grid; place-items: center; min-width: 0; }
+.pc-focus-inline-finish { width: min(100%, 560px); }
+
+.pc-focus-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; }
+.pc-focus-thumb { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px 0 14px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-pill); background: var(--pc-card); color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body-sm)/1 var(--pc-font); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-base) var(--pc-ease), border-color var(--pc-dur-base) var(--pc-ease), color var(--pc-dur-base) var(--pc-ease); }
+.pc-focus-thumb-icon { display: inline-grid; place-items: center; }
+.pc-focus-thumb:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-thumb:disabled { opacity: .5; cursor: not-allowed; }
+/* Overtime invites closing with a soft tone fill (information, not a warning). */
+.pc-focus-thumb.is-invite { border-color: transparent; background: var(--pc-k-soft); color: var(--pc-k-ink); }
+.pc-focus-primary { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 168px; min-height: 56px; padding: 0 26px 0 22px; border: 0; border-radius: var(--pc-r-pill); background: var(--pc-k-ink); color: var(--pc-card); font: var(--pc-w-bold) var(--pc-text-body)/1 var(--pc-font); box-shadow: 0 8px 22px color-mix(in srgb, var(--pc-k) 26%, transparent); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), opacity var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-primary:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-primary:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+.pc-focus-primary-icon { display: inline-grid; place-items: center; }
+.pc-focus-stage-foot { margin: 6px 0 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); text-align: center; }
+
+/* Digits presentation. */
+.pc-focus-digits-face { display: grid; justify-items: center; gap: 10px; min-height: calc(var(--pc-dial-lg) * .8); align-content: center; }
+.pc-focus-digits-big { font-size: clamp(72px, 11vw, 120px); }
+.pc-focus-rule { display: block; width: min(320px, 70vw); height: 6px; overflow: hidden; border-radius: var(--pc-r-pill); background: var(--pc-track); }
+.pc-focus-rule > span { display: block; height: 100%; border-radius: inherit; background: var(--pc-k); transform-origin: left; transition: transform var(--pc-dur-base) var(--pc-ease); }
+.pc-focus-digits-face.is-paused .pc-focus-rule > span { opacity: .4; }
+
+/* Setup (idle). */
+.pc-focus-setup { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 40px; min-width: 0; padding: 8px 0; }
+.pc-focus-setup-dial { display: grid; place-items: center; }
+.pc-focus-setup-form { display: grid; gap: 14px; min-width: 0; max-width: 460px; }
+.pc-focus-setup .pc-dial-hatch { animation: pc-pop var(--pc-dur-base) var(--pc-ease) both; }
+.pc-focus-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-focus-chip { min-height: 44px; padding: 0 16px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-pill); background: var(--pc-card); color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body-sm)/1 var(--pc-font); white-space: nowrap; cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-chip:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-chip[aria-checked="true"] { border-color: var(--pc-k); background: var(--pc-k-soft); color: var(--pc-k-ink); box-shadow: inset 0 0 0 .5px var(--pc-k); }
+.pc-focus-disclosure { border-top: 1px solid var(--pc-line); padding-top: 4px; }
+.pc-focus-disclosure > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font); cursor: pointer; list-style: none; }
+.pc-focus-disclosure > summary::-webkit-details-marker { display: none; }
+.pc-focus-disclosure[open] > summary { color: var(--ink); }
+.pc-focus-start { display: inline-flex; align-items: center; justify-content: center; gap: 10px; justify-self: start; min-width: 200px; min-height: 56px; padding: 0 28px 0 24px; border: 0; border-radius: var(--pc-r-pill); background: var(--pc-k-ink); color: var(--pc-card); font: var(--pc-w-bold) var(--pc-text-body)/1 var(--pc-font); box-shadow: 0 8px 22px color-mix(in srgb, var(--pc-k) 26%, transparent); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), opacity var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-start:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-start:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+/* Task picker. */
+.pc-focus-picker-trigger { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 14px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-control); background: var(--pc-card); color: var(--ink); text-align: left; cursor: pointer; transition: border-color var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-picker-trigger[aria-expanded="true"] { border-color: var(--pc-k); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc-k) 16%, transparent); }
+.pc-focus-picker-icon, .pc-focus-picker-chevron { flex: none; color: var(--ink-muted); }
+.pc-focus-picker-chevron { transition: transform var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-picker-trigger[aria-expanded="true"] .pc-focus-picker-chevron { transform: rotate(180deg); }
+.pc-focus-picker-row { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.pc-focus-picker-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; color: var(--ink); font: var(--pc-w-medium) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); text-overflow: ellipsis; white-space: nowrap; }
+.pc-focus-picker-title.is-muted { color: var(--ink-muted); }
+.pc-focus-picker-meta { display: inline-flex; flex: none; align-items: center; gap: 8px; color: var(--ink-muted); font-size: var(--pc-text-label); }
+html .pc-focus-picker-pop { width: max(var(--radix-popover-trigger-width), 360px); max-width: calc(100vw - 24px); padding: 0; overflow: hidden; border: 1px solid var(--pc-line); border-radius: var(--pc-r-panel); background: var(--pc-card); box-shadow: var(--pc-e2); }
+.pc-focus-picker-command { background: var(--pc-card); }
+.pc-focus-picker-command [cmdk-input-wrapper], .pc-focus-picker-command [data-slot="command-input-wrapper"] { min-height: 48px; border-bottom: 1px solid var(--pc-line); }
+.pc-focus-picker-command [cmdk-list] { max-height: min(360px, 50vh); padding: 6px; overflow-y: auto; }
+.pc-focus-picker-command [cmdk-group-heading] { padding: 8px 8px 4px; color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-caption)/var(--pc-lh-caption) var(--pc-font); }
+.pc-focus-picker-command [cmdk-item] { display: flex; min-height: 44px; padding: 8px 10px; border-radius: var(--pc-r-chip); cursor: pointer; }
+.pc-focus-picker-command [cmdk-item][data-selected="true"] { background: var(--pc-busy); }
+.pc-focus-picker-command [cmdk-empty] { padding: 18px; color: var(--ink-muted); font-size: var(--pc-text-body-sm); text-align: center; }
+.pc-focus-picker-sheet .pc-focus-picker-command [cmdk-list] { max-height: 60vh; }
+
+/* Full screen. */
+.pc-focus-full { position: fixed; inset: 0; z-index: calc(var(--pc-z-overlay) + 5); display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 16px; padding: max(20px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom)); background: radial-gradient(90% 60% at 50% 30%, color-mix(in srgb, var(--pc-k-soft) 75%, transparent), transparent 70%), var(--pc-page); color: var(--ink); }
+.pc-focus-full:focus { outline: none; }
+.pc-focus-full-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(100%, 960px); }
+.pc-focus-full-task { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); }
+.pc-dial.pc-dial-full { --pc-dial-size: min(520px, 62vh, 90vw); align-self: center; }
+.pc-dial.pc-dial-full .pc-focus-digits-dial { font-size: clamp(64px, 9vh, 104px); }
+
+/* ───────────────────────── Finish panel ───────────────────────── */
+.pc-focus-flow { display: grid; gap: 16px; min-width: 0; }
+.pc-focus-flow[data-surface="stage"] { padding: 2px 0; }
+html .pc-focus-flow .pc-focus-panel-title { margin: 0; color: var(--ink); font: var(--pc-w-semibold) 22px/28px var(--pc-font); letter-spacing: var(--pc-tracking-tight); }
+.pc-focus-panel-title:focus { outline: none; }
+.pc-focus-panel-title:focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 4px; border-radius: 4px; }
+html .pc-focus-flow .pc-focus-subtitle { margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); }
+.pc-focus-recap { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pc-focus-recap-text { display: grid; gap: 4px; min-width: 0; }
+.pc-focus-recap-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0; min-width: 0; }
+.pc-focus-recap-time .pc-focus-digits { font-size: 30px; }
+.pc-focus-recap-on { min-width: 0; overflow: hidden; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); text-overflow: ellipsis; white-space: nowrap; }
+.pc-focus-panel-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pc-focus-btn.is-back { justify-self: start; padding-left: 4px; color: var(--ink-muted); }
+.pc-focus-tile-error { display: grid; justify-items: start; gap: 4px; color: var(--pc-off); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-focus-btn.is-busy { cursor: progress; }
+
+/* Step 2. */
+.pc-focus-next { display: grid; gap: 16px; min-width: 0; }
+.pc-focus-next-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.pc-focus-next-check { position: relative; display: grid; place-items: center; width: 44px; height: 44px; }
+.pc-focus-next-check svg { width: 44px; height: 44px; }
+.pc-focus-next-disc { fill: var(--pc-ok); }
+.pc-focus-next-mark { fill: none; stroke: var(--pc-card); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 24; stroke-dashoffset: 0; }
+.pc-focus-next-burst { position: absolute; inset: -10px; pointer-events: none; }
+.pc-focus-next.is-celebrating .pc-focus-next-check { animation: pc-spring-pop var(--pc-dur-celebrate) var(--pc-ease) both; }
+.pc-focus-next.is-celebrating .pc-focus-next-mark { animation: pc-check-draw var(--pc-dur-draw) var(--pc-ease) 120ms both; }
+.pc-focus-next.is-celebrating .pc-focus-next-burst::before { content: ""; position: absolute; inset: 0; border: 2px solid var(--pc-ok); border-radius: 50%; animation: pc-burst-ring var(--pc-dur-celebrate) var(--pc-ease) both; }
+.pc-focus-next.is-celebrating .pc-focus-next-burst::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; background:
+  radial-gradient(circle at 50% 0, var(--pc-ok) 0 2.5px, transparent 3px),
+  radial-gradient(circle at 100% 50%, var(--pc-ok) 0 2.5px, transparent 3px),
+  radial-gradient(circle at 50% 100%, var(--pc-ok) 0 2.5px, transparent 3px),
+  radial-gradient(circle at 0 50%, var(--pc-ok) 0 2.5px, transparent 3px),
+  radial-gradient(circle at 86% 14%, var(--pc-ok) 0 2px, transparent 2.5px),
+  radial-gradient(circle at 14% 86%, var(--pc-ok) 0 2px, transparent 2.5px);
+  animation: pc-burst-dots var(--pc-dur-celebrate) var(--pc-ease) 40ms both; }
+.pc-focus-next-summary { display: flex; flex-wrap: wrap; gap: 0 2px; margin: 2px 0 0; color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-focus-next-note { margin: 0; padding: 10px 14px; border-radius: var(--pc-r-control); background: var(--pc-card-2); color: var(--ink); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); overflow-wrap: anywhere; }
+.pc-focus-next-editor { display: grid; gap: 12px; }
+
+/* ───────────────────────── Rail ───────────────────────── */
+.pc-focus-rail { display: grid; gap: 12px; min-width: 0; }
+.pc-focus-rail-card { display: grid; gap: 10px; min-width: 0; padding: 16px 18px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-panel); background: var(--pc-card); box-shadow: var(--pc-e1); }
+.pc-focus-rail-card.is-last { background: radial-gradient(120% 100% at 0 0, color-mix(in srgb, var(--pc-k-soft) 70%, transparent), transparent 70%), var(--pc-card); }
+html .pc-focus-rail .pc-focus-rail-title { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); }
+.pc-focus-rail-lead { margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); overflow-wrap: anywhere; }
+.pc-focus-rail-sub { margin: 4px 0 0; color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-caption)/var(--pc-lh-caption) var(--pc-font); }
+.pc-focus-rail-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pc-focus-meeting { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 0 10px; align-items: baseline; }
+.pc-focus-meeting-time { color: var(--pc-cat-social-ink); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+.pc-focus-meeting-title { min-width: 0; overflow: hidden; color: var(--ink); font-size: var(--pc-text-body-sm); text-overflow: ellipsis; white-space: nowrap; }
+.pc-focus-meeting > .pc-focus-hint { grid-column: 2; }
+.pc-focus-strip { display: flex; align-items: flex-end; gap: 4px; height: 34px; }
+.pc-focus-strip-bar { flex: 1; max-width: 16px; height: calc(var(--h, .2) * 100%); border-radius: 4px; background: var(--pc-k); transform-origin: bottom; animation: pc-grow-y var(--pc-dur-data) var(--pc-ease-data) both; }
+.pc-focus-strip-bar.is-stopped { background: color-mix(in srgb, var(--pc-k) 40%, var(--pc-track)); }
+.pc-focus-habits { display: grid; gap: 6px; }
+.pc-focus-habit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.pc-focus-habit-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 8px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-pill); background: var(--pc-card); color: var(--ink); font: var(--pc-w-medium) var(--pc-text-body-sm)/1 var(--pc-font); cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-habit-chip:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-habit-chip:disabled { opacity: .55; cursor: not-allowed; }
+.pc-focus-habit-box { display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid var(--pc-line); border-radius: 7px; color: var(--pc-card); transition: background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-habit-chip.is-done { border-color: transparent; background: var(--pc-ok-soft); }
+.pc-focus-habit-chip.is-done .pc-focus-habit-box { border-color: var(--pc-ok); background: var(--pc-ok); animation: pc-spring-pop var(--pc-dur-celebrate) var(--pc-ease) both; }
+.pc-focus-habit-chip.is-skipped { background: var(--pc-card-2); color: var(--ink-muted); }
+.pc-focus-habit-chip.is-skipped .pc-focus-habit-box { color: var(--ink-muted); }
+.pc-focus-attribution { display: grid; gap: 4px; }
+.pc-focus-trail { display: grid; gap: 4px; }
+.pc-focus-trail-item { border-top: 1px solid var(--pc-line); }
+.pc-focus-trail-toggle { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 16px; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 2px; border: 0; background: none; color: var(--ink); font: var(--pc-w-medium) var(--pc-text-body-sm)/1.2 var(--pc-font); text-align: left; cursor: pointer; }
+.pc-focus-trail-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-focus-trail-chevron { color: var(--ink-muted); transition: transform var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-trail-toggle[aria-expanded="true"] .pc-focus-trail-chevron { transform: rotate(180deg); }
+.pc-focus-trail-detail { display: grid; gap: 4px; padding: 0 2px 10px; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-focus-trail-detail[hidden] { display: none; }
+.pc-focus-trail-detail p { margin: 0; }
+.pc-focus-evidence { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.pc-focus-evidence > div { display: grid; gap: 2px; min-width: 0; }
+.pc-focus-evidence dt { color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.pc-focus-evidence dd { margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-h2)/var(--pc-lh-h2) var(--pc-font); overflow-wrap: anywhere; }
+.pc-focus-evidence div:last-child dd { font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+
+/* ───────────────────────── Persistent pill ───────────────────────── */
+.pc-focus-dock { display: flex; align-items: center; margin-right: 8px; }
+.pc-focus-pill { display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 4px 0 4px; border: 1px solid var(--pc-night-border); border-radius: var(--pc-r-pill); background: var(--pc-night); color: var(--pc-on-night-ink, #fff); box-shadow: var(--pc-e2); transform-origin: left center; animation: pc-pop var(--pc-dur-base) var(--pc-ease) both; transition: background-color var(--pc-dur-fast) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-focus-pill .pc-focus-digits { color: inherit; }
+.pc-focus-pill-body { display: inline-flex; align-items: center; gap: 8px; min-width: 0; height: 36px; padding: 0 10px 0 6px; border: 0; border-radius: var(--pc-r-pill); background: transparent; color: inherit; cursor: pointer; transition: background-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease); }
+.pc-focus-pill-body:active { transform: scale(.97); }
+.pc-focus-pill-digits { font-size: 15px; font-weight: var(--pc-w-bold); }
+.pc-focus-pill-over { padding: 2px 6px; border-radius: var(--pc-r-pill); background: rgb(255 255 255 / .14); font: var(--pc-w-semibold) var(--pc-text-caption)/1 var(--pc-font); }
+.pc-focus-pill-task { max-width: 18ch; overflow: hidden; color: var(--pc-on-night-muted); font: var(--pc-w-medium) var(--pc-text-label)/1.2 var(--pc-font); text-overflow: ellipsis; white-space: nowrap; }
+.pc-focus-pill-action { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border: 0; border-radius: var(--pc-r-pill); background: rgb(255 255 255 / .12); color: inherit; font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font); cursor: pointer; transition: background-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease); }
+.pc-focus-pill-action:active:not(:disabled) { transform: scale(.97); }
+.pc-focus-pill-action:disabled { opacity: .6; cursor: not-allowed; }
+.pc-focus-pill-icon { display: inline-grid; place-items: center; }
+.pc-focus-pill .pc-focusable:focus-visible { outline-color: var(--pc-night-accent); }
+/* Paused: the capsule turns light with an ink border; the digits stand still. */
+.pc-focus-pill.is-paused { border-color: var(--ink); background: var(--pc-card-2); color: var(--ink); box-shadow: var(--pc-e1); }
+.pc-focus-pill.is-paused .pc-focus-pill-task { color: var(--ink-muted); }
+.pc-focus-pill.is-paused .pc-focus-pill-action { background: var(--pc-k-ink); color: var(--pc-card); }
+.pc-focus-pill.is-paused .pc-focus-pill-over { background: var(--pc-card); box-shadow: inset 0 0 0 1px var(--pc-line); }
+.pc-focus-pill.is-paused .pc-focusable:focus-visible { outline-color: var(--focus-ring); }
+.pc-focus-pill.is-offline .pc-focus-pill-digits { color: var(--pc-on-night-muted); }
+.pc-focus-pill.is-saved { gap: 8px; padding: 0 16px 0 10px; font: var(--pc-w-semibold) var(--pc-text-body-sm)/1 var(--pc-font); }
+.pc-focus-pill-check { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7bd4ac; color: #0a111c; }
+
+/* Popover (desktop) and sheet (phone) bodies. */
+html .pc-focus-pop { z-index: var(--pc-z-overlay); width: 320px; max-width: calc(100vw - 24px); border: 1px solid var(--pc-line); border-radius: var(--pc-r-panel); background: var(--pc-card); color: var(--ink); box-shadow: var(--pc-e2); transform-origin: var(--radix-popover-content-transform-origin); }
+html .pc-focus-pop[data-state="open"] { animation: pc-pop var(--pc-dur-base) var(--pc-ease) both; }
+html .pc-focus-pop[data-state="closed"] { animation: pc-blur-out var(--pc-dur-exit) var(--pc-ease) both; }
+.pc-focus-pop-body { display: grid; justify-items: center; gap: 12px; padding: 18px 16px 12px; }
+.pc-focus-pop-task { max-width: 100%; margin: 0; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.pc-focus-pop-title { color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body-sm)/var(--pc-lh-body-sm) var(--pc-font); }
+.pc-focus-pop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+
+/* ───────────────────────── Hover (pointer devices only) ───────────────────────── */
+@media (hover: hover) and (pointer: fine) {
+  .pc-focus-thumb:hover:not(:disabled), .pc-focus-chip:hover:not(:disabled), .pc-focus-menu-trigger:hover, .pc-focus-picker-trigger:hover, .pc-focus-btn.is-ghost:hover:not(:disabled), .pc-focus-habit-chip:hover:not(:disabled) { border-color: color-mix(in srgb, var(--pc-k) 55%, var(--pc-line)); }
+  .pc-focus-pill-body:hover { background: rgb(255 255 255 / .08); }
+  .pc-focus-pill-action:hover:not(:disabled) { background: rgb(255 255 255 / .2); }
+  .pc-focus-pill.is-paused .pc-focus-pill-body:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .pc-focus-trail-toggle:hover .pc-focus-trail-title { color: var(--pc-k-ink); }
+}
+
+/* ───────────────────────── Responsive ───────────────────────── */
+@media (max-width: 1180px) {
+  .pc-focus-layout { grid-template-columns: minmax(0, 1fr); }
+  .pc-focus-rail { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+}
+@media (max-width: 900px) {
+  .pc-focus-setup { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 20px; }
+  .pc-focus-setup-form { width: 100%; max-width: none; }
+  .pc-focus-stage-body.is-finishing { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+}
+@media (max-width: 680px) {
+  .pc-focus-screen { gap: 12px; }
+  .pc-focus-stage { padding: 16px 16px 14px; border-radius: 20px; }
+  .pc-focus-stage-head .pc-focus-menu-trigger { display: none; }
+  html .pc-focus-screen .pc-focus-task-title { font-size: 20px; line-height: 26px; }
+  html .pc-focus-screen .pc-focus-task-title.is-question { font-size: 19px; line-height: 24px; }
+  .pc-focus-setup-dial .pc-dial { --pc-dial-size: 220px; }
+  .pc-focus-setup-dial .pc-dial-lg .pc-focus-digits-dial { font-size: 52px; }
+  .pc-focus-chips { flex-wrap: nowrap; margin: 0 -16px; padding: 2px 16px 4px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .pc-focus-chips::-webkit-scrollbar { display: none; }
+  .pc-focus-chip { flex: none; scroll-snap-align: start; }
+  .pc-focus-start { justify-self: stretch; width: 100%; }
+  /* Thumb row: Finish · Pause (64px circle) · More, labels under the icons. */
+  .pc-focus-controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; justify-items: center; gap: 8px; width: 100%; }
+  .pc-focus-thumb, .pc-focus-primary { flex-direction: column; gap: 6px; min-width: 0; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--ink); font-size: var(--pc-text-label); }
+  .pc-focus-thumb-icon { width: 52px; height: 52px; border: 1px solid var(--pc-line); border-radius: 50%; background: var(--pc-card); transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-base) var(--pc-ease); }
+  .pc-focus-thumb.is-invite { background: transparent; }
+  .pc-focus-thumb.is-invite .pc-focus-thumb-icon { border-color: transparent; background: var(--pc-k-soft); color: var(--pc-k-ink); }
+  .pc-focus-primary-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--pc-k-ink); color: var(--pc-card); box-shadow: 0 8px 22px color-mix(in srgb, var(--pc-k) 30%, transparent); }
+  .pc-focus-primary:active:not(:disabled) { transform: none; }
+  .pc-focus-primary:active:not(:disabled) .pc-focus-primary-icon { transform: scale(.95); }
+  .pc-focus-thumb:active:not(:disabled) { transform: none; }
+  .pc-focus-thumb:active:not(:disabled) .pc-focus-thumb-icon { transform: scale(.95); }
+  .pc-focus-rail { grid-template-columns: minmax(0, 1fr); }
+  .pc-focus-meeting { grid-template-columns: 58px minmax(0, 1fr); }
+
+  /* The pill docks 8px above the glass bar, centred, at most 340px wide. */
+  .pc-focus-dock { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); z-index: var(--pc-z-nav); margin: 0; translate: -50% 0; max-width: min(340px, calc(100vw - 32px)); }
+  .pc-focus-dock .pc-focus-pill { max-width: 100%; }
+  .pc-focus-dock .pc-focus-pill-body { flex: 1; min-width: 0; }
+  .pc-focus-dock .pc-focus-pill-task { flex: 1; min-width: 0; max-width: none; }
+  .pc-focus-pill { transform-origin: center bottom; }
+}
+
+/* ───────────────────────── Reduced motion ───────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pc-comet, .pc-dial-burst, .pc-focus-next-burst { display: none !important; }
+  .pc-dial.is-flash .pc-dial-arc, .pc-digit-roll, .pc-dial-xs-live::after, .pc-focus-live::after,
+  .pc-focus-next.is-celebrating .pc-focus-next-check, .pc-focus-next.is-celebrating .pc-focus-next-mark,
+  .pc-focus-habit-chip.is-done .pc-focus-habit-box, .pc-focus-strip-bar, .pc-focus-pill, .pc-focus-setup .pc-dial-hatch,
+  html .pc-focus-pop[data-state="open"], html .pc-focus-pop[data-state="closed"] { animation: none !important; }
+  .pc-dial *, .pc-dial-head, .pc-focus-rule > span { transition: none !important; }
+}

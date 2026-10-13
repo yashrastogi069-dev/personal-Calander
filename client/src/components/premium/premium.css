@@ -1,0 +1,156 @@
+/* Shared premium pieces (D2.5): Sheet, ChoiceTiles, PageHeader, EmptyState, ReviewChip.
+   Tokens come from design/tokens-v2.css. "html" prefixes beat the legacy element rules in index.css. */
+
+.pc-sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Sheet ---------- */
+.pc-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--pc-z-overlay);
+  background: rgb(10 17 28 / .42);
+  backdrop-filter: blur(2px);
+}
+html .pc-sheet {
+  position: fixed;
+  z-index: calc(var(--pc-z-overlay) + 1);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 24px);
+  border: 1px solid var(--pc-line);
+  background: var(--pc-card);
+  color: var(--ink);
+  box-shadow: var(--pc-e3);
+  font-family: var(--pc-font);
+  outline: none;
+}
+html .pc-sheet.is-dialog {
+  top: 50%;
+  left: 50%;
+  width: min(560px, calc(100vw - 32px));
+  translate: -50% -50%;
+  border-radius: var(--pc-r-feature);
+  padding: 20px 24px 24px;
+}
+html .pc-sheet.is-sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: calc(100dvh - 40px);
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+  border-bottom: 0;
+  border-radius: var(--pc-r-feature) var(--pc-r-feature) 0 0;
+  will-change: transform;
+}
+.pc-sheet-grabber { display: grid; place-items: center; height: 22px; margin: 0 -16px; cursor: grab; touch-action: none; }
+.pc-sheet-grabber > span { width: 40px; height: 5px; border-radius: var(--pc-r-pill); background: var(--pc-line); }
+html .pc-sheet .pc-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+html .pc-sheet.is-sheet .pc-sheet-head { touch-action: none; }
+html .pc-sheet .pc-sheet-title { margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-h2)/var(--pc-lh-h2) var(--pc-font); letter-spacing: var(--pc-tracking-tight); }
+html .pc-sheet .pc-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink-muted);
+  font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font);
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .pc-sheet .pc-sheet-close:active { transform: scale(.97); }
+html .pc-sheet .pc-sheet-description { margin: 2px 0 0; color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.pc-sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-top: 8px; }
+html .pc-sheet.is-sheet .pc-sheet-body { margin: 0 -16px; padding: 8px 16px 0; }
+
+/* ---------- Choice tiles ---------- */
+.pc-choices { display: grid; gap: 8px; }
+.pc-choice {
+  position: relative;
+  border: 1.5px solid var(--pc-line);
+  border-radius: var(--pc-r-panel);
+  background: var(--pc-card);
+  transition: border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-choice.is-selected { border-color: var(--pc-k, var(--accent)); background: var(--pc-k-soft, var(--selection)); }
+.pc-choice.is-disabled { opacity: .62; }
+html .pc-choice .pc-choice-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease);
+}
+html .pc-choice .pc-choice-button:disabled { cursor: not-allowed; }
+html .pc-choice .pc-choice-button:not(:disabled):active { transform: scale(.99); }
+.pc-choice-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--pc-r-control); background: var(--pc-k-soft, var(--selection)); color: var(--pc-k-ink, var(--accent)); }
+.pc-choice.is-selected .pc-choice-icon { background: var(--pc-card); }
+.pc-choice-text { display: grid; gap: 2px; min-width: 0; }
+.pc-choice-title { font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); font-weight: var(--pc-w-semibold); }
+.pc-choice-description { color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-choice-radio { display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid var(--pc-faint); border-radius: var(--pc-r-pill); transition: border-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-choice-radio > span { width: 10px; height: 10px; border-radius: inherit; background: var(--pc-k, var(--accent)); opacity: 0; transform: scale(.6); transition: opacity var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-fast) var(--pc-ease); }
+.pc-choice.is-selected .pc-choice-radio { border-color: var(--pc-k, var(--accent)); }
+.pc-choice.is-selected .pc-choice-radio > span { opacity: 1; transform: none; animation: pc-spring-pop 320ms var(--pc-ease); }
+.pc-choice-reveal { padding: 0 14px 12px 60px; animation: pc-choice-reveal var(--pc-dur-base) var(--pc-ease) both; }
+.pc-choice-error { margin: 0 14px 12px 60px; color: var(--pc-off); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+@keyframes pc-choice-reveal { from { clip-path: inset(0 0 100% 0); opacity: 0; } to { clip-path: inset(0); opacity: 1; } }
+
+/* ---------- Page header, icon tiles, empty state, review chip ---------- */
+.pc-icon-tile { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: var(--pc-r-chip); background: var(--pc-k-soft, var(--selection)); color: var(--pc-k-ink, var(--accent)); }
+.pc-icon-tile.is-large { width: 44px; height: 44px; border-radius: var(--pc-r-control); }
+.pc-page-header { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pc-page-header-text { flex: 1; min-width: 0; }
+html .pc-page-header .pc-page-header-title { margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); letter-spacing: var(--pc-tracking-tight); }
+html .pc-page-header .pc-page-header-subtitle { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-page-header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.pc-empty { display: grid; justify-items: start; gap: 6px; padding: 4px 0; }
+html .pc-empty .pc-empty-title { margin: 6px 0 0; color: var(--ink); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); font-weight: var(--pc-w-semibold); }
+html .pc-empty .pc-empty-body { margin: 0; max-width: 46ch; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-empty-action { margin-top: 6px; }
+html .pc-review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--pc-risk) 30%, transparent);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-risk-soft);
+  color: var(--pc-risk);
+  font: var(--pc-w-medium) var(--pc-text-label)/1 var(--pc-font);
+  transition: transform var(--pc-dur-press) var(--pc-ease);
+}
+html button.pc-review-chip { cursor: pointer; }
+html button.pc-review-chip:active { transform: scale(.97); }
+
+@media (hover: hover) and (pointer: fine) {
+  html .pc-sheet .pc-sheet-close:hover { color: var(--ink); background: var(--pc-card-2); }
+  .pc-choice:not(.is-selected):not(.is-disabled):hover { border-color: color-mix(in srgb, var(--pc-k, var(--accent)) 45%, var(--pc-line)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-choice-reveal, .pc-choice.is-selected .pc-choice-radio > span { animation: none !important; }
+  html .pc-sheet .pc-sheet-close, html .pc-choice .pc-choice-button, html .pc-review-chip { transform: none !important; }
+}

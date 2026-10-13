@@ -76,6 +76,14 @@ html:root {
   --pc-dur-draw: 280ms;
   --pc-dur-celebrate: 520ms;
   --pc-dur-ambient: 22s;
+  /* D2.5 Focus (additive): the timer instrument and phone sheets. */
+  --pc-text-timer: clamp(56px, 15vw, 80px);
+  --pc-dial-lg: clamp(260px, 72vw, 360px);
+  --pc-dial-md: 168px;
+  --pc-dial-sm: 96px;
+  --pc-dial-xs: 24px;
+  --pc-ease-sheet: cubic-bezier(.32, .72, 0, 1);
+  --pc-dur-sheet: 300ms;
 }
 
 html:root.dark {
@@ -116,6 +124,33 @@ html:root.dark {
 .pc-tone-personal { --pc-k: var(--pc-cat-personal); --pc-k-soft: var(--pc-cat-personal-soft); --pc-k-ink: var(--pc-cat-personal-ink); }
 .pc-tone-social { --pc-k: var(--pc-cat-social); --pc-k-soft: var(--pc-cat-social-soft); --pc-k-ink: var(--pc-cat-social-ink); }
 .pc-tone-neutral { --pc-k: var(--pc-cat-neutral); --pc-k-soft: var(--pc-cat-neutral-soft); --pc-k-ink: var(--pc-cat-neutral-ink); }
+
+/* Night surfaces (Up next, live Focus card, Focus pill): category marks use the dark-theme values so
+   they hold 3:1 on --pc-night in both themes. Hex values are literal so the contrast test can read them. */
+.pc-on-night {
+  --pc-on-night-ink: #ffffff;
+  --pc-cat-work: #5b8ef0; --pc-cat-work-soft: #1d3354; --pc-cat-work-ink: #b3cdff;
+  --pc-cat-health: #26a089; --pc-cat-health-soft: #133a36; --pc-cat-health-ink: #86e3cf;
+  --pc-cat-learning: #c4852f; --pc-cat-learning-soft: #3b2f1f; --pc-cat-learning-ink: #f2c477;
+  --pc-cat-personal: #9479ee; --pc-cat-personal-soft: #2c2850; --pc-cat-personal-ink: #cdbcff;
+  --pc-cat-social: #dc5f80; --pc-cat-social-soft: #43283a; --pc-cat-social-ink: #ffb0c4;
+  --pc-cat-neutral: #8194ad; --pc-cat-neutral-soft: #203149; --pc-cat-neutral-ink: #afbed2;
+  --pc-cat-accent: #8ab5ff;
+  --pc-line: rgb(255 255 255 / .16);
+  --pc-track: rgb(255 255 255 / .12);
+  --pc-planned: #8194ad;
+  --pc-card: var(--pc-night);
+}
+/* Tone resolution reads the remapped category values above. The brand accent stands in for an
+   uncategorised session (never grey). */
+.pc-tone-accent { --pc-k: var(--accent); --pc-k-soft: var(--selection); --pc-k-ink: var(--accent); }
+.pc-on-night.pc-tone-accent, .pc-on-night .pc-tone-accent { --pc-k: var(--pc-cat-accent); --pc-k-soft: #1d3354; --pc-k-ink: #b3cdff; }
+
+/* Fixed-width digit cells: each digit can roll on its own without the row jittering. */
+.pc-digit { display: inline-block; width: .6em; text-align: center; font-variant-numeric: tabular-nums; }
+.pc-digit.is-sep { width: .3em; }
+/* Hatched "planned" fill, the D2 bar motif; used on the idle dial ring. */
+.pc-hatch { background-image: repeating-linear-gradient(135deg, var(--pc-planned) 0 1.5px, transparent 1.5px 6px); }
 
 /* Focus ring for every premium control. */
 html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
@@ -159,8 +194,11 @@ html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-wid
     --pc-stagger: 0ms;
     --pc-dur-draw: 0ms;
     --pc-dur-celebrate: 0ms;
+    --pc-dur-sheet: 0ms;
   }
   :is(.pc-rise, .pc-pop, .pc-grow-x, .pc-grow-y, .pc-pulse) { animation: none !important; }
   .pc-live::after, .pc-icon-pop { animation: none !important; }
+  .pc-comet, .pc-burst-ring, .pc-burst-dots, .pc-digit-roll { animation: none !important; }
+  .pc-comet { display: none; }
   [class*="pc-"] { transition-property: color, background-color, border-color, opacity !important; }
 }

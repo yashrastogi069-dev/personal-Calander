@@ -72,8 +72,8 @@ html .phase4-planner-shell.phase4-planner-shell .focus-companion.is-home .focus-
 @media (max-width:680px) {
   html .phase4-planner-shell.phase4-planner-shell { --workspace-inset: 16px; display: block; }
   html .phase4-planner-shell.phase4-planner-shell .planner-main { padding: 0 var(--workspace-inset) calc(92px + env(safe-area-inset-bottom)) !important; }
-  html .phase4-planner-shell.has-focus-control:not([data-view="today"]):not([data-view="overview"]) .planner-main { padding-bottom: calc(245px + env(safe-area-inset-bottom)) !important; }
-  html .phase4-planner-shell.has-focus-control:has(.focus-companion:not(.is-home).is-expanded) .planner-main { padding-bottom: calc(460px + env(safe-area-inset-bottom)) !important; }
+  /* D2.5: room for the 44px Focus pill docked above the bar (bar clearance + pill + 8px gap). */
+  html .phase4-planner-shell.has-focus-control:has(.pc-focus-pill) .planner-main { padding-bottom: calc(156px + env(safe-area-inset-bottom)) !important; }
   html .phase4-planner-shell.phase4-planner-shell .planner-topbar { min-height: 80px; gap: 8px; padding: 12px 0 8px; }
   html .phase4-planner-shell.phase4-planner-shell .planner-title h1 { font-size: 28px !important; line-height: 34px !important; }
   html .phase4-planner-shell.phase4-planner-shell .top-date { font-size: 14px !important; line-height: 20px !important; }

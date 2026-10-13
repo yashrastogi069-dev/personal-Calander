@@ -114,3 +114,23 @@ describe("v2 palette contrast", () => {
     });
   }
 });
+
+describe("night surface contrast (D2.5 Focus)", () => {
+  const night = block(".pc-on-night");
+  const surfaces = {
+    light: { background: THEMES.light.tokens["pc-night"], muted: THEMES.light.tokens["pc-on-night-muted"] },
+    dark: { background: THEMES.dark.tokens["pc-night"], muted: THEMES.dark.tokens["pc-on-night-muted"] },
+  };
+  for (const [theme, { background, muted }] of Object.entries(surfaces)) {
+    it(`${theme}: night text and muted text hold 4.5:1`, () => {
+      expect(background).toMatch(/^#/);
+      expect(contrast(night["pc-on-night-ink"], background)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(muted, background)).toBeGreaterThanOrEqual(4.5);
+    });
+    for (const tone of [...CATEGORY_TONES, "accent"]) {
+      it(`${theme} ${tone}: remapped tone ring holds 3:1 on night`, () => {
+        expect(contrast(night[`pc-cat-${tone}`], background)).toBeGreaterThanOrEqual(3);
+      });
+    }
+  }
+});

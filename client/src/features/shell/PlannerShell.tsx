@@ -108,6 +108,8 @@ export function PlannerShell({
           </div>
           {tabsInHeader && viewNavigation ? <div className="pc-topbar-tabs" data-shell-region="view-navigation">{viewNavigation}</div> : null}
           <div className="top-actions phase4-top-actions">
+            {/* D2.5: the Focus pill docks in the header's right cluster (fixed above the bar on phones). */}
+            {focusControl ? <div className="pc-focus-dock" data-shell-region="focus">{focusControl}</div> : null}
             <GlobalActions
               onAction={onGlobalAction}
               disabled={globalActionsDisabled}
@@ -117,7 +119,6 @@ export function PlannerShell({
         </header>
         {viewNavigation && !tabsInHeader ? <div className="planner-view-navigation" data-shell-region="view-navigation">{viewNavigation}</div> : null}
         {syncStatus ? <div className="planner-status-region">{syncStatus}</div> : null}
-        {focusControl}
         {children}
       </main>
       <PhoneNavigation
