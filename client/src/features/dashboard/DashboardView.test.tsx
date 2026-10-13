@@ -346,6 +346,16 @@ describe("Dashboard focus card", () => {
     expect(card).toMatch(/disabled=""[^>]*>[\s\S]*?Offline/);
   });
 
+  it("offers Open focus, not a second Start focus, on the Up next card while a session is open", () => {
+    const upCard = (html: string) => text(html.slice(html.indexOf("pc-dash-area-up"), html.indexOf("pc-dash-later")));
+    const sameTask = renderWithFocus(focusValue({ session: { ...live!, taskId: dashboardFixture.upNext!.taskId } as FocusSessionValue["session"] }));
+    expect(upCard(sameTask)).toContain("Focusing · Open");
+    expect(upCard(sameTask)).not.toContain("Start focus");
+    const otherTask = renderWithFocus(focusValue({ session: { ...live!, taskId: "another" } as FocusSessionValue["session"] }));
+    expect(upCard(otherTask)).toContain("Open focus");
+    expect(upCard(renderWithFocus(focusValue({})))).toContain("Start focus");
+  });
+
   it("says Saved with a next-step link for a recent finish", () => {
     const html = renderWithFocus(focusValue({ recentHandoff: { id: "s0", version: 2, taskId: "t", taskTitle: "Draft Q4 report", outcome: "continue", note: "", nextStepAction: null, nextStepTaskId: null, activeSeconds: 25 * 60, targetMinutes: 25, endedAt: null, state: "completed" } }));
     const card = html.slice(html.indexOf("pc-dash-area-focus"), html.indexOf("pc-dash-area-due"));

@@ -50,6 +50,6 @@ Phone bottom bar moves to Home / Today / + / Calendar / More in slice D3.5 (see 
 
 - **Dashboard focus card:** dark while a session is live, white when idle.
 - **Focus screen:** after you finish a session it opens on "What next?" for 10 minutes. "Start another focus" goes back to setup.
-- **Pending review fixes (local):** the "Now" card shows "Open focus" when a session is already running. "Done" is greyed out with a reason when the task can't be completed from Focus.
-- **Known, still to fix:** the now-line time pill can cover the hour label (e.g. 7:00 AM) when it's within about 15 minutes of the hour.
+- **Review fixes (pushed):** the "Now" card shows "Open focus" when a session is already running. "Done" is greyed out with a reason when the task can't be completed from Focus.
+- **Now-line:** the hour label next to the red time pill hides while they would overlap. Check that no label is ever covered.
 

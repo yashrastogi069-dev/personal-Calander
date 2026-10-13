@@ -85,9 +85,10 @@ function FinishStepOne({ surface, onBack }: { surface: "sheet" | "stage"; onBack
   useEffect(() => {
     if (surface === "stage") heading.current?.focus({ preventScroll: true });
   }, [surface]);
+  const doneBlocked = task?.doneBlockedReason ?? null;
   useEffect(() => {
-    if (!available && outcome !== "continue") setOutcome("continue");
-  }, [available, outcome]);
+    if ((!available && outcome !== "continue") || (doneBlocked && outcome === "done")) setOutcome("continue");
+  }, [available, doneBlocked, outcome]);
 
   const saving = focus.finishing;
   const estimateValid = Number.isInteger(estimate) && estimate >= FOCUS_MIN_TARGET;
@@ -131,7 +132,7 @@ function FinishStepOne({ surface, onBack }: { surface: "sheet" | "stage"; onBack
           value={outcome}
           onChange={value => { setOutcome(value); focus.clearFinishError(); }}
           options={[
-            { value: "done", title: "Done. Complete the task", icon: Check, disabled: !available, disabledReason: unavailableReason, error: errorFor("done") },
+            { value: "done", title: "Done. Complete the task", icon: Check, disabled: !available || Boolean(doneBlocked), disabledReason: available ? doneBlocked ?? unavailableReason : unavailableReason, error: errorFor("done") },
             { value: "continue", title: "Keep the task open", description: "Save the time and come back to it", icon: CircleDot },
             {
               value: "adjust_estimate",

@@ -228,6 +228,6 @@ Status: local and in progress. This entry records only results that were actuall
   - Each view: dashboard rendered, 6 habit buttons, check-in mutation sent, focus started.
   - 0 runtime errors, 0 console errors, no unexpected calls, no horizontal overflow.
 - **Opus review:** 0 high, 4 medium, 5 low, plus the now-line overlap. Its 6 targeted test files passed (113 tests). The fix status is tracked in HANDOFF.
-- **Review fixes:** applied locally; verification is pending. Numbers will be added here once run.
+- **Review fixes** (#1, #2, #3, #5, #6, #8 and the now-line pill): `npm run check` clean; full suite 131 files, 1035 passed, 3 skipped (2 new tests: the Up next focus gating and the Next 7 days deadline refusal); `npm run build` passed; demo tour matrix 4/4 clean. The screenshot shows "Focusing · Open" on the Now card and no now-pill overlap at 7:20.
 - **Not run:** Vercel Preview, live database and physical-device checks.
 

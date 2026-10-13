@@ -264,7 +264,17 @@ function whenDrop(task: DropTask, bucket: TaskWhenBucket, ctx: TaskDropContext):
   const reserved = reservationRefusal(task, ctx, null);
   if (reserved) return reserved;
 
-  if (bucket === "next_7_days") return { ok: true, write: { kind: "needsDate", min: shiftLocalDate(ctx.today, 1), max: shiftLocalDate(ctx.today, 7) } };
+  if (bucket === "next_7_days") {
+    const min = shiftLocalDate(ctx.today, 1);
+    const weekEnd = shiftLocalDate(ctx.today, 7);
+    // Like Later: never plan past the deadline, and a deadline today or earlier keeps the card where it is.
+    if (task.dueLocalDate && task.dueLocalDate < min) {
+      const keeps = task.dueLocalDate < ctx.today ? "past_due" : "today";
+      return { ok: false, rule: "deadline", reason: `Deadline ${dayMonthLabel(task.dueLocalDate)} keeps this in ${bucketLabel(keeps)}.`, action: "open_detail" };
+    }
+    const max = task.dueLocalDate && task.dueLocalDate < weekEnd ? task.dueLocalDate : weekEnd;
+    return { ok: true, write: { kind: "needsDate", min, max } };
+  }
 
   if (bucket === "later") {
     const laterStart = shiftLocalDate(ctx.today, 8);

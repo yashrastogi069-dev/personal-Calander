@@ -932,6 +932,7 @@ html body .pc-dash .pc-dash-focus-actions .pc-dash-btn:disabled { cursor: not-al
 
 /* ---------- Dark mode adjustments (tokens do most of the work) ---------------------------------------------------------------------------- */
 html.dark .pc-dash-hour > span { background: var(--pc-card); }
+.pc-dash-hour.is-near-now > span { visibility: hidden; }
 html.dark .pc-dash-now-time { color: var(--pc-night); }
 
 /* ---------- Reduced motion ---------------------------------------------------------------------------- */

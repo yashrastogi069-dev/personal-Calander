@@ -1,4 +1,4 @@
-# HANDOFF: premium redesign (updated 2026-10-13: D2.5 Focus pushed, review fixes in progress, D3 logic pushed)
+# HANDOFF: premium redesign (updated 2026-10-13: D2.5 Focus + review fixes pushed, D3 logic pushed, D3 UI blocked on install)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
@@ -10,24 +10,22 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
 
 | # | Finding | Status |
 |---|---|---|
-| 1 | Dashboard "Now" card offers Start focus for a task already running | FIXED locally (not yet tested or committed): shows "Open focus" / "Focusing · Open" when a session is open (`DashboardView.tsx` UpNextCard) |
-| 2 | Pause/Resume then a quick Finish sends a stale version (conflict) | FIXED locally: pause/resume `onSuccess` awaits the snapshot refetch (`FocusSessionContext.tsx` `refresh`) |
-| 3 | Finish offers "Done" for tasks the server refuses (recurring series, open plan, prerequisites, archived) | FIXED locally: new `doneBlockedReason` from `taskCompletionCheck`; the Done tile is disabled with the reason (`FocusSessionContext.tsx`, `FocusFinishFlow.tsx`) |
+| 1 | Dashboard "Now" card offers Start focus for a task already running | FIXED (tested): shows "Open focus" / "Focusing · Open" when a session is open (`DashboardView.tsx` UpNextCard) |
+| 2 | Pause/Resume then a quick Finish sends a stale version (conflict) | FIXED: pause/resume `onSuccess` awaits the snapshot refetch (`FocusSessionContext.tsx` `refresh`) |
+| 3 | Finish offers "Done" for tasks the server refuses (recurring series, open plan, prerequisites, archived) | FIXED: new `doneBlockedReason` from `taskCompletionCheck`; the Done tile is disabled with the reason (`FocusSessionContext.tsx`, `FocusFinishFlow.tsx`) |
 | 4 | Deadline-anchored recurring series sit in "Past due" forever (`shared/taskBuckets.ts:79`) | TODO, OWNER DECISION: a test deliberately locks today's behaviour to match the D1 badge. Proposed: skip the overdue rule when recurring and no Plan-for date, and change the badge to match |
-| 5 | "Start focus on X" from the Dashboard lands on "What next?" within 10 minutes of a finish | FIXED locally: `useStartFocus` in `DashboardView.tsx` dismisses the pending review first |
-| 6 | The "What next?" step can vanish mid-edit when the 10-minute window ends | FIXED locally: the review is pinned once shown, until answered or closed (`FocusWorkspace.tsx`) |
+| 5 | "Start focus on X" from the Dashboard lands on "What next?" within 10 minutes of a finish | FIXED: `useStartFocus` in `DashboardView.tsx` dismisses the pending review first |
+| 6 | The "What next?" step can vanish mid-edit when the 10-minute window ends | FIXED: the review is pinned once shown, until answered or closed (`FocusWorkspace.tsx`) |
 | 7 | Clock skew on the 10-minute window; the interval keeps ticking after expiry | ACCEPTED (low, harmless); note in the spec's known limits |
-| 8 | "Next 7 days" drop not capped by the deadline | FIXED locally with a new test (`shared/taskDrop.ts`, `server/taskDrop.test.ts`) |
+| 8 | "Next 7 days" drop not capped by the deadline | FIXED with a test (`shared/taskDrop.ts`, `server/taskDrop.test.ts`). A deadline inside the next 7 days already puts the task in that bucket, so the real gap was past-due and due-today tasks; those are now refused |
 | 9 | Renumbering can scatter hidden tasks if the UI passes a filtered lane | TODO in D3 wiring: `useTaskDnd` must pass the full lane to `planSortOrderMove`, or refuse while filters hide tasks |
-| f | Dashboard now-line time pill overlaps the "7:00 AM" gutter label | TODO: add `is-near-now` on the hour within 15 min of now in `DayLens` and hide its label (`dashboard.css:431`) |
+| f | Dashboard now-line time pill overlaps the "7:00 AM" gutter label | FIXED: `is-near-now` hides the hour label within 20 minutes of now (`DashboardView.tsx` DayLens, `dashboard.css`). Checked on a screenshot at 7:20 |
 
-- **Also done locally (uncommitted):** `scripts/open-demo-preview.py` clicks "Start another focus" then "Start focus", because Focus now opens on "What next?" after a recent session.
+- **Also done (pushed `ba1e72a`):** `scripts/open-demo-preview.py` clicks "Start another focus" then "Start focus", because Focus now opens on "What next?" after a recent session.
 - **Next steps, in order:**
-  1. Fix the now-line pill (f).
-  2. Run `npm run check` and the full suite. Re-run the demo tour matrix.
-  3. Commit "fix(focus): review fixes" and push.
-  4. Install the D3 packages (see the blocker below).
-  5. Start the D3 UI: Fable builds §14 of the D3 spec; opus builds `useTaskDnd` (respect #9), the TaskWorkspace wiring and the Home mount, passes occurrences to the other callers, fixes the Someday badge, and writes `scripts/preview-premium-tasks.py`.
+  1. DONE: review fixes verified. Check clean; full suite 131 files, 1035 passed / 3 skipped; build passes; demo tour 4/4 clean. Committed and pushed.
+  2. Install the D3 packages (see the blocker below).
+  3. Start the D3 UI: Fable builds §14 of the D3 spec; opus builds `useTaskDnd` (respect #9), the TaskWorkspace wiring and the Home mount, passes occurrences to the other callers, fixes the Someday badge, and writes `scripts/preview-premium-tasks.py`.
 - **BLOCKER, needs the owner:** the worktree `node_modules` is a Windows junction to the main checkout's `node_modules`, so `pnpm add @dnd-kit/...` refuses (virtual-store mismatch). The safe fix is to stop the worktree Vite servers (:3100, :3117), remove only the junction (`cmd /c rmdir node_modules`; this doesn't touch the main checkout) and run `pnpm install` in the worktree. The permission check blocked this as a shared-resource change, so the owner must approve it or run it. Alternative: the owner installs the packages in the main checkout.
 - **D2.5 left for later (Fable's notes):** the shared-element dial→pill move, pill compaction, Space/F shortcuts and haptics were not built. `focus-watch.css` is no longer imported.
 - **D3.5 iPhone nav & gestures:** not started. Fable designs and builds; the scope is in DECISIONS (2026-10-13 iPhone section). `@use-gesture/react` is approved; it is blocked by the same install issue.

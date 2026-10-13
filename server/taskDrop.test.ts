@@ -198,6 +198,13 @@ describe("planTaskDrop: When lens", () => {
       .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-15", max: "2026-10-21" } });
   });
 
+  it("refuses Next 7 days when the deadline is today or already past (never plans after it)", () => {
+    expect(planTaskDrop(task({ dueLocalDate: today }), { kind: "when", bucket: "next_7_days" }, ctx()))
+      .toMatchObject({ ok: false, rule: "deadline" });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-11-30", dueLocalDate: "2026-10-10" }), { kind: "when", bucket: "next_7_days" }, ctx()))
+      .toMatchObject({ ok: false, rule: "deadline", reason: "Deadline 10 Oct keeps this in Past due." });
+  });
+
   it("refuses Next 7 days, Later and No date for reserved work", () => {
     for (const bucket of ["next_7_days", "later", "no_date"] as const) {
       expect(planTaskDrop(task({ scheduledLocalDate: today, ...reservedToday }), { kind: "when", bucket }, ctx()))

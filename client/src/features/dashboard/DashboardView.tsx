@@ -481,6 +481,7 @@ function FocusIdle({
   upNext: DashboardUpNext | null;
   onOpenFocus: () => void;
 }) {
+  const startFocus = useStartFocus(actions);
   const scale = Math.max(data.actualMinutes, data.plannedMinutes ?? 0, 1);
   return (
     <>
@@ -525,7 +526,7 @@ function FocusIdle({
       )}
       <div className="pc-dash-focus-start pc-dash-kpi-detail">
         {/* Opens the Focus screen with the task chosen; the length stays the user's call. */}
-        <button type="button" className="pc-dash-btn pc-dash-btn-ghost pc-dash-focus-start-btn" onClick={upNext ? () => actions.startFocus(upNext.taskId) : actions.openFocus}>
+        <button type="button" className="pc-dash-btn pc-dash-btn-ghost pc-dash-focus-start-btn" onClick={upNext ? () => startFocus(upNext.taskId) : actions.openFocus}>
           <Play {...ICON} size={13} fill="currentColor" /> Start focus
         </button>
         {upNext ? <span className="pc-dash-focus-start-on">on <b>{upNext.title}</b></span> : null}
@@ -684,7 +685,12 @@ function DayLens({ schedule, model, actions, fmt }: { schedule: DashboardSchedul
     <div className="pc-dash-day-scroll" ref={scroller} {...edgeData(edges)}>
       <div className="pc-dash-day" style={{ "--pc-dash-hours": hours } as CSSProperties}>
         {Array.from({ length: hours }, (_, index) => (
-          <div key={index} className="pc-dash-hour" style={{ "--pc-dash-at": index } as CSSProperties}>
+          // The now pill takes the gutter; hide an hour label it would cover (within 20 minutes at the default hour height).
+          <div
+            key={index}
+            className={cn("pc-dash-hour", schedule.nowMinute != null && Math.abs(schedule.nowMinute - (schedule.startHour + index) * 60) < 20 && "is-near-now")}
+            style={{ "--pc-dash-at": index } as CSSProperties}
+          >
             <span className="pc-num">{fmt.minuteOfDay((schedule.startHour + index) * 60)}</span>
           </div>
         ))}
@@ -807,6 +813,15 @@ function ScheduleCard({ model, actions, fmt }: { model: DashboardModel; actions:
   );
 }
 
+/** Starting focus on a chosen task skips any unanswered "What next?" review: the choice is already made. */
+function useStartFocus(actions: DashboardActions) {
+  const focus = useFocusSession();
+  return (taskId: string) => {
+    if (focus?.recentHandoff) focus.dismissHandoff(focus.recentHandoff.id);
+    actions.startFocus(taskId);
+  };
+}
+
 function upNextTiming(upNext: DashboardUpNext): string {
   if (upNext.timing === "now") return "Now";
   if (upNext.timing === "anytime") return "Anytime";
@@ -819,6 +834,11 @@ function UpNextCard({ model, actions, fmt }: { model: DashboardModel; actions: D
   const id = useId();
   const laterId = useId();
   const { upNext, laterToday } = model;
+  const focus = useFocusSession();
+  const startFocus = useStartFocus(actions);
+  // Any open session (this task or another) means the action is to return to it, not start a second one.
+  const focusOpen = Boolean(focus?.session);
+  const focusingThis = Boolean(upNext && focus?.session?.taskId === upNext.taskId);
   const start = upNext ? fmt.time(upNext.startsAt) : null;
   const end = upNext ? fmt.time(upNext.endsAt) : null;
   return (
@@ -851,9 +871,15 @@ function UpNextCard({ model, actions, fmt }: { model: DashboardModel; actions: D
             <TimeChip plannedMinutes={upNext.plannedMinutes} actualMinutes={upNext.actualMinutes} className="pc-dash-time-night" />
           </div>
           <div className="pc-dash-up-actions">
-            <button type="button" className="pc-dash-btn pc-dash-btn-light" onClick={() => actions.startFocus(upNext.taskId)}>
-              <Play {...ICON} size={14} fill="currentColor" /> Start focus
-            </button>
+            {focusOpen && focus ? (
+              <button type="button" className="pc-dash-btn pc-dash-btn-light" onClick={focus.onOpenFocus}>
+                <Timer {...ICON} size={14} /> {focusingThis ? "Focusing · Open" : "Open focus"}
+              </button>
+            ) : (
+              <button type="button" className="pc-dash-btn pc-dash-btn-light" onClick={() => startFocus(upNext.taskId)}>
+                <Play {...ICON} size={14} fill="currentColor" /> Start focus
+              </button>
+            )}
             <button type="button" className="pc-dash-btn pc-dash-btn-night" onClick={event => actions.openTask(upNext.taskId, event.currentTarget)}>
               Open<span className="pc-dash-sr"> {upNext.title}</span>
             </button>

@@ -21,7 +21,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D0 | Tokens v2, motion, primitives, legacy-green ratchet | Done 2026-10-13: 800 tests, build, Plan harness 36/36, gallery harness 8/8; pushed |
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2, C2 222/224 (2 timeouts; their re-run 56/56); pushed `d3b25da` |
-| D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | Built and pushed `fc87b33` (1033 passed / 3 skipped, check, build; demo tour 4/4). Opus review fixes in progress; the status table is in HANDOFF |
+| D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | Built and pushed `fc87b33` (1033 passed / 3 skipped, check, build; demo tour 4/4). Opus review fixes done and pushed (1035 passed / 3 skipped). Open: #4 owner decision, #9 in useTaskDnd |
 | D3 | Tasks board drag (@dnd-kit approved) | Logic layer pushed `65be9e0`. UI blocked on the @dnd-kit install (node_modules junction; owner approval needed) |
 | D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
 | D3.5.2 | Browser verification slice (owner 2026-10-13), after D3.5 and its MD updates. Test the work with Playwright (+ CDP for animation timings, perf traces, CPU throttling), playwright-cli and agent-browser/agent-reach, on the demo preview at 1440/390, light/dark, with reduced motion. The owner helps verify animations. Installed: playwright-python 1.60, playwright-cli, agent-browser, agent-reach, Chrome. Missing: browser-use (pip + LLM key), Chrome DevTools MCP (not configured), Claude in Chrome (not connected). Owner APPROVED (2026-10-13) installing all three at the start of D3.5.2 and using whichever tool is most effective per check | Not started |
@@ -71,7 +71,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
   - **Pushed:** `fc87b33` to `dev/personal-calendar-premium-v2`.
   - **Demo tour:** the harness now clicks "Start another focus", then "Start focus". Matrix 4/4, clean.
   - **Opus review:** 0 high, 4 medium, 5 low. Fixed locally (unverified): #1, #2, #3, #5, #6, #8.
-  - **TODO:** the now-line pill (f), check + full suite + tour, then commit and push. #9 goes into the useTaskDnd wiring.
+  - **Then:** the now-line pill was fixed. Check clean, 1035 passed / 3 skipped, build, tour 4/4. Committed and pushed. #9 goes into the useTaskDnd wiring.
   - **Owner decision:** #4 (recurring series in Past due).
   - **Blocked:** replacing the worktree `node_modules` junction with its own install was denied by the permission check. The owner must approve it, or install @dnd-kit and @use-gesture/react themselves.
 

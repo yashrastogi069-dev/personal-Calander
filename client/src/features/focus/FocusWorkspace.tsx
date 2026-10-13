@@ -112,9 +112,12 @@ export function FocusWorkspace({
   useEffect(() => { if (!session) setInlineFinish(false); }, [session?.id]);
 
   const handoff = focus?.handoff ?? null;
+  // Once shown, the review stays pinned until answered or closed, so the 10-minute window
+  // expiring mid-edit doesn't drop the draft.
   const review: FocusHandoff | null = !session
-    ? (reviewId && handoff?.id === reviewId ? handoff : focus?.recentHandoff ?? null)
+    ? (reviewId && handoff?.id === reviewId && !handoff.nextStepAction ? handoff : focus?.recentHandoff ?? null)
     : null;
+  useEffect(() => { if (review && review.id !== reviewId) setReviewId(review.id); }, [review?.id]);
   const lastSession = !session && handoff && !review
     ? { id: handoff.id, taskTitle: handoff.taskTitle, activeSeconds: handoff.activeSeconds, nextStepAction: handoff.nextStepAction }
     : null;

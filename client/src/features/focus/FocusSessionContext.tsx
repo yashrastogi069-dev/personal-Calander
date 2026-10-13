@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import type { WorkspaceScope } from "@/lib/workspace";
 import { resolveCategoryTones, toneClassName, type ToneOrNeutral } from "@/design/categoryTone";
 import { buildMeetingHorizon } from "@shared/focusFollowUp";
+import { committedTaskPlans, taskCompletionCheck } from "@shared/taskDrop";
 import { useFocusElapsedSeconds, type FocusWatchSession } from "./FocusTimeDial";
 import {
   FOCUS_OFFLINE_GUIDANCE,
@@ -32,6 +33,8 @@ export type FocusTaskInfo = {
   projectTitle: string | null;
   tone: ToneOrNeutral;
   available: boolean;
+  /** Why "Done" would be refused by the server (recurring series, open plan, prerequisites), or null. */
+  doneBlockedReason: string | null;
 };
 
 export type FocusHandoff = {
@@ -158,10 +161,11 @@ export function FocusSessionProvider({
   const [finishSheetOpen, setFinishSheetOpen] = useState(false);
   const followUpSaved = useRef<(() => void) | null>(null);
 
-  const refresh = useCallback(() => {
-    void utils.planner.workspace.snapshot.invalidate();
-    void utils.planner.dashboard.invalidate();
-  }, [utils]);
+  // Returns the refetch so mutation callbacks can await it: the next write then sees the new version.
+  const refresh = useCallback(
+    () => Promise.all([utils.planner.workspace.snapshot.invalidate(), utils.planner.dashboard.invalidate()]).then(() => undefined),
+    [utils],
+  );
 
   const tasks: any[] = snapshot?.tasks ?? [];
   const rawSessions: any[] = snapshot?.focusSessions ?? [];
@@ -169,6 +173,21 @@ export function FocusSessionProvider({
 
   const tones = useMemo(() => resolveCategoryTones(snapshot?.categories ?? []), [snapshot?.categories]);
   const taskRecord = session?.taskId ? tasks.find(task => task.id === session.taskId) : null;
+  const taskAvailable = Boolean(taskRecord) && !taskRecord.archivedAt && taskRecord.state !== "completed" && taskRecord.state !== "archived" && taskRecord.outcome !== "wont_do";
+  // Mirrors the server's Done rules (server/focus.ts finishFocusSession) so the tile is disabled up front.
+  const doneBlockedReason = useMemo(() => {
+    if (!taskRecord || !taskAvailable) return null;
+    const check = taskCompletionCheck(taskRecord, {
+      today,
+      timezone: scope.timezone,
+      sort: "manual",
+      dependencies: snapshot?.taskDependencies ?? [],
+      tasks: tasks.map(item => ({ id: item.id, state: item.state })),
+      committedTasks: committedTaskPlans(snapshot?.dailyPlans ?? [], snapshot?.dailyPlanItems ?? []),
+    });
+    if (!check.ok) return check.reason;
+    return check.via === "update" ? null : "This task repeats. Mark today's occurrence done from Today or Tasks.";
+  }, [taskRecord, taskAvailable, today, scope.timezone, snapshot?.taskDependencies, snapshot?.dailyPlans, snapshot?.dailyPlanItems, tasks]);
   const task: FocusTaskInfo | null = session?.taskId
     ? {
         id: session.taskId,
@@ -178,7 +197,8 @@ export function FocusSessionProvider({
         categoryName: taskRecord?.categoryId ? (snapshot?.categories ?? []).find((category: any) => category.id === taskRecord.categoryId)?.name ?? null : null,
         projectTitle: taskRecord?.projectId ? (snapshot?.projects ?? []).find((project: any) => project.id === taskRecord.projectId)?.title ?? null : null,
         tone: taskRecord?.categoryId ? tones.get(taskRecord.categoryId) ?? "neutral" : "neutral",
-        available: Boolean(taskRecord) && taskRecord.state !== "completed" && taskRecord.state !== "archived" && taskRecord.outcome !== "wont_do",
+        available: taskAvailable,
+        doneBlockedReason,
       }
     : null;
   const toneClass = task && taskRecord?.categoryId && tones.get(taskRecord.categoryId) ? toneClassName(task.tone) : "pc-tone-accent";
@@ -230,14 +250,14 @@ export function FocusSessionProvider({
 
   const failed = (message: string) => {
     setError(message);
-    refresh();
+    void refresh();
   };
   const pauseMutation = trpc.planner.focus.pause.useMutation({
-    onSuccess: () => { setError(null); refresh(); },
+    onSuccess: async () => { setError(null); await refresh(); },
     onError: mutationError => failed(mutationError.message || "Focus could not be paused. Refresh and try again."),
   });
   const resumeMutation = trpc.planner.focus.resume.useMutation({
-    onSuccess: () => { setError(null); refresh(); },
+    onSuccess: async () => { setError(null); await refresh(); },
     onError: mutationError => failed(mutationError.message || "Focus could not be resumed. Refresh and try again."),
   });
   const finishMutation = trpc.planner.focus.finish.useMutation({
@@ -249,19 +269,19 @@ export function FocusSessionProvider({
       setError(null);
       setSavedFlash(true);
       setCelebrateId((data as any).outcome === "done" ? (data as any).id : null);
-      refresh();
+      void refresh();
       toast.success((data as any).outcome === "done" ? "Task completed and focus time recorded." : "Focus session recorded.");
     },
     onError: mutationError => {
       setFinishError(finishErrorMessage(mutationError.message));
-      refresh();
+      void refresh();
     },
   });
   const followUpMutation = trpc.planner.focus.setFollowUp.useMutation({
     onSuccess: data => {
       setLastSavedRaw((current: any) => newestFinishedSession(current, data as any));
       setFollowUpError(null);
-      refresh();
+      void refresh();
       toast.success("Next step saved.");
       const after = followUpSaved.current;
       followUpSaved.current = null;
@@ -270,7 +290,7 @@ export function FocusSessionProvider({
     onError: mutationError => {
       followUpSaved.current = null;
       setFollowUpError(mutationError.message || "Next step could not be saved. Refresh and retry.");
-      refresh();
+      void refresh();
     },
   });
 
