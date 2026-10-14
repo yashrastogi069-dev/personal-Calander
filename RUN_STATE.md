@@ -6,8 +6,8 @@ Branch: `work/premium-redesign` (worktree `.claude/worktrees/premium-redesign`),
 
 Model routing (owner update 2026-10-13, see CLAUDE.md):
 - haiku: mechanical edits and greps
-- sonnet: read-only exploration and routine screenshot checks
-- opus: all logic, architecture, tooling and independent review
+- sonnet: trivial read-only lookups only; never important work, UI/UX or screenshot review (owner 2026-10-14)
+- opus: all logic, architecture, tooling, independent review, and all UI/UX and screenshot reviews (owner 2026-10-14: "for IMP things and design UI UX dont use sonnet use opus")
 - fable (Fable 5.1): ALL UI/UX design and the visual UI build (load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first). Always tell the owner. Owner, 2026-10-13: "use FABLE 5.1 not opus for designs".
 
 Design direction (owner standing rule, 2026-10-13): icons, animations and motion must be cool and futuristic, and the UI modern, on every screen. Motion is state-driven, stays under ~300ms, reuses `motion.ts` and the tokens, and honours reduced motion. Real data only. The full rule is in CLAUDE.md under "Design direction"; the D2 delight pass is the bar.
@@ -22,7 +22,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2, C2 222/224 (2 timeouts; their re-run 56/56); pushed `d3b25da` |
 | D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | Built and pushed `fc87b33` (1033 passed / 3 skipped, check, build; demo tour 4/4). Opus review fixes done and pushed (1035 passed / 3 skipped). Open: #4 owner decision, #9 in useTaskDnd |
-| D3 | Tasks board drag (@dnd-kit approved) | Logic layer pushed `65be9e0`. UI blocked on the @dnd-kit install (node_modules junction; owner approval needed) |
+| D3 | Tasks board drag (@dnd-kit approved) | Logic layer pushed `65be9e0`. 2026-10-14: install fixed (`cc6ef95`). D3a running: Fable 5.1 builds the List UI, detail sheet and Sheet side variant; opus does #4, the Someday badge and occurrence callers. Next: integrate TaskWorkspace + Home, harness, verify, push. Then D3b, D3c |
 | D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
 | D3.5.2 | Browser verification slice (owner 2026-10-13), after D3.5 and its MD updates. Test the work with Playwright (+ CDP for animation timings, perf traces, CPU throttling), playwright-cli and agent-browser/agent-reach, on the demo preview at 1440/390, light/dark, with reduced motion. The owner helps verify animations. Installed: playwright-python 1.60, playwright-cli, agent-browser, agent-reach, Chrome. Missing: browser-use (pip + LLM key), Chrome DevTools MCP (not configured), Claude in Chrome (not connected). Owner APPROVED (2026-10-13) installing all three at the start of D3.5.2 and using whichever tool is most effective per check | Not started |
 | D4 | "Why it matters" reasons from existing facts | Not started |
@@ -66,6 +66,11 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - Owner decisions to record in DECISIONS.md with D0: Roadmap in Plan + Goals & Projects + compact Home strip; Today drops weekly overview and links to the week; Insights becomes Analytics under Reflect; grey backdrop on Dashboard only.
 
 ## Checkpoint log
+
+- 2026-10-14, session start (autonomous `/loop` until D7, at the owner's request):
+  - **Owner approved:** the worktree's own install (done, `cc6ef95`), #4 next-occurrence bucketing, and the three D3 assumptions.
+  - **Owner testing:** the owner tests the frozen snapshot of `6b3b7cf` on :3200 (job tmp `owner-snap`, own Vite cache). Agents use :3100.
+  - **D3a in progress:** a Fable UI agent and an opus logic agent run in parallel on separate files.
 
 - 2026-10-13, D2.5 pushed:
   - **Pushed:** `fc87b33` to `dev/personal-calendar-premium-v2`.

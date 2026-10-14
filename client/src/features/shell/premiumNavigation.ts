@@ -1,6 +1,7 @@
 // Premium D1 navigation model: grouped sidebar, Home view tabs and badge counts.
 // Spec: docs/superpowers/specs/2026-10-13-premium-redesign-d1-shell.md
 import type { PlannerLocationTarget } from "@shared/phase4Navigation";
+import { isInboxTask, isOverdueTask } from "@shared/taskBuckets";
 
 export type NavBadgeKey = "todayLeft" | "inbox" | "overdue" | "habitsDue";
 export type NavBadgeCounts = Partial<Record<NavBadgeKey, number>>;
@@ -88,18 +89,29 @@ export function homeTabForLocation(location: PlannerLocationTarget): HomeTabId |
   return homeTabs.find(tab => sameTarget(tab.target, location))?.value ?? null;
 }
 
-type BadgeTask = { state: string; dueLocalDate?: string | null; scheduledLocalDate?: string | null; plannedStartAt?: unknown; plannedEndAt?: unknown };
+type BadgeTask = {
+  state: string;
+  horizon?: string | null;
+  dueLocalDate?: string | null;
+  scheduledLocalDate?: string | null;
+  plannedStartAt?: unknown;
+  plannedEndAt?: unknown;
+  recurrenceRule?: unknown;
+};
 
+/**
+ * Inbox and overdue use the same shared rules as the Tasks page (`isInboxTask`, `isOverdueTask`), so the rail
+ * badges always equal the Inbox tab count and the Past due "N overdue" sub-count.
+ */
 export function navBadgeCounts(input: {
   today: string;
   tasks: readonly BadgeTask[];
   todayTaskCount: number | null;
   dueHabitCount: number | null;
 }): NavBadgeCounts {
-  const open = input.tasks.filter(task => task.state !== "completed" && task.state !== "archived");
   return {
-    inbox: open.filter(task => !task.scheduledLocalDate && !task.plannedStartAt && !task.plannedEndAt).length,
-    overdue: open.filter(task => task.dueLocalDate != null && task.dueLocalDate < input.today).length,
+    inbox: input.tasks.filter(isInboxTask).length,
+    overdue: input.tasks.filter(task => isOverdueTask(task, input.today)).length,
     todayLeft: input.todayTaskCount ?? undefined,
     habitsDue: input.dueHabitCount ?? undefined,
   };

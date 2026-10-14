@@ -1,221 +1,181 @@
-.task-detail-inspector {
-  gap: 14px;
-  max-width: 68rem;
-  margin: 0 auto;
-  padding-bottom: 4px;
+/* D3 task detail (spec 4.7). Presentation only: the draft, conflict and discard logic lives in
+   TaskDetailSheet.tsx. Renders inside the premium Sheet (side panel on desktop, bottom sheet on phones).
+   Tokens only (--pc-*). `html`-prefixed selectors beat the legacy .task-detail-form global rules in
+   task-workspace.css (44px minimums and bordered inputs). */
+
+.tk-d-form { display: grid; gap: 12px; min-width: 0; }
+.tk-d-fields { display: grid; gap: 0; min-width: 0; margin: 0; padding: 0; border: 0; }
+.tk-d-fields:disabled { opacity: .75; }
+
+/* ---------- status messages above the fields ---------- */
+.tk-d-form .task-detail-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--pc-r-control);
+  background: var(--pc-card-2);
+  color: var(--ink);
+  font-size: var(--pc-text-label);
+  line-height: var(--pc-lh-label);
+  font-weight: var(--pc-w-semibold);
 }
-
-.task-detail-editor-fields { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.task-detail-editor-fields:disabled { opacity: 0.75; }
-
-.task-detail-inspector .task-detail-section {
-  gap: 12px;
-  padding: 18px;
-  border-color: var(--border);
-  border-radius: 14px;
-  background: var(--card);
-}
-
-.task-detail-inspector .task-detail-section h3 {
-  color: var(--foreground);
-  font-size: 17px;
-  font-weight: 760;
-  letter-spacing: -0.02em;
-}
-
-.task-detail-inspector .task-detail-section label {
-  color: var(--muted-foreground);
-  font-size: 14px;
-}
-
-.task-detail-inspector .task-detail-section :is(input, select, textarea) {
-  color: var(--foreground);
-  border-color: var(--border);
-  background: var(--card);
-  font-size: 16px;
-}
-
-.task-detail-inspector .task-detail-section :is(input, select, textarea):focus-visible,
-.task-detail-inspector .task-detail-more > summary:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.task-detail-inspector .task-detail-grid { gap: 12px; }
-.task-detail-inspector .task-detail-fact { border-radius: 10px; background: var(--muted); }
-.task-detail-inspector .task-detail-ledger div { background: var(--muted); }
-
-.task-detail-more {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--card);
-}
-
-.task-detail-more > summary {
-  display: grid;
-  gap: 3px;
-  min-height: 56px;
-  padding: 11px 18px;
-  color: var(--foreground);
-  cursor: pointer;
-}
-
-.task-detail-more > summary > span { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 750; }
-.task-detail-more > summary svg { color: var(--primary); transition: transform 160ms var(--ease-out); }
-.task-detail-more[open] > summary svg { transform: rotate(180deg); }
-.task-detail-more > summary > small { color: var(--muted-foreground); font-size: 14px; line-height: 1.35; }
-.task-detail-more[open] > summary { border-bottom: 1px solid var(--border); }
-.task-detail-more-content { display: grid; gap: 12px; padding: 12px; }
-.task-detail-more-content > .task-detail-section { border-radius: 10px; }
-
-.task-detail-stale {
+.tk-d-form .task-detail-state > svg { flex: none; }
+.tk-d-form .task-detail-state.is-conflict { background: var(--pc-risk-soft); color: var(--pc-risk); }
+.tk-d-form .task-detail-stale {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px;
-  color: var(--foreground);
-  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--warning) 10%, var(--card));
-}
-
-.task-detail-stale strong { display: block; font-size: 14px; }
-.task-detail-stale p { margin: 3px 0 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.4; }
-.task-detail-stale button { flex: none; min-height: 44px; }
-
-.task-detail-draft-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted-foreground); font-size: 14px; }
-.task-detail-draft-controls button { min-height: 44px; color: var(--destructive); }
-
-.task-detail-footer.task-detail-inspector-footer {
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.task-detail-footer-message {
-  flex: 1 0 100%;
   margin: 0;
-  color: var(--muted-foreground);
-  font-size: 14px;
-  line-height: 1.4;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--pc-risk) 35%, var(--pc-line));
+  border-radius: var(--pc-r-control);
+  background: var(--pc-risk-soft);
+  color: var(--ink);
 }
+.tk-d-form .task-detail-stale strong { display: block; font-size: var(--pc-text-body-sm); }
+.tk-d-form .task-detail-stale p { margin: 3px 0 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.tk-d-form .task-detail-stale button { flex: none; }
+.tk-d-form .task-detail-draft-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
 
-.task-detail-footer-message.is-error { color: var(--destructive); }
+/* ---------- header: status, pills, large title ---------- */
+.tk-d-head { display: grid; gap: 8px; padding: 4px 0 16px; }
+.tk-d-head-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.tk-d-pills { flex: 1 1 auto; }
+html .tk-d-title {
+  width: 100%;
+  min-height: 0;
+  margin: 0 -9px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--pc-r-control);
+  background: transparent;
+  color: var(--ink);
+  font: var(--pc-w-display) 22px/28px var(--pc-font);
+  letter-spacing: var(--pc-tracking-tight);
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  transition: border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-d-title::placeholder { color: var(--ink-muted); opacity: 1; }
+html .tk-d-title:focus-visible { border-color: var(--accent); background: var(--pc-card); outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 0; }
+
+/* ---------- sections ---------- */
+.tk-d-section { display: grid; gap: 12px; min-width: 0; padding: 18px 0; border-top: 1px solid var(--pc-line); }
+html .tk-d-h { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); letter-spacing: var(--pc-tracking-tight); }
+.tk-d-count { min-width: 22px; padding: 1px 8px; border-radius: var(--pc-r-pill); background: var(--pc-card-2); color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); text-align: center; font-variant-numeric: tabular-nums; }
+.tk-d-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 12px; min-width: 0; }
+.tk-d-field { display: grid; align-content: start; gap: 6px; min-width: 0; }
+html .tk-d-label { color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+.tk-d-hint { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.tk-d-error { margin: 0; color: var(--pc-off); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); font-weight: var(--pc-w-semibold); }
+
+html .tk-d-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-control);
+  background: var(--pc-card);
+  color: var(--ink);
+  font: var(--pc-w-medium) 16px/24px var(--pc-font);
+  transition: border-color var(--pc-dur-fast) var(--pc-ease);
+}
+html textarea.tk-d-input { min-height: 96px; padding: 10px 12px; resize: vertical; }
+html .tk-d-input::placeholder { color: var(--ink-muted); opacity: 1; }
+html .tk-d-input:focus-visible { border-color: var(--accent); outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 0; }
+html .tk-d-form .tk-d-seg { width: 100%; }
+html .tk-d-form .tk-d-seg .pc-seg-tab { flex: 1 1 0; }
+
+.tk-d-inline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; }
+.tk-d-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tk-d-list > li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 6px 6px 6px 12px; border-radius: var(--pc-r-control); background: var(--pc-card-2); color: var(--ink); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.tk-d-list-text { min-width: 0; overflow-wrap: anywhere; }
+.tk-d-list-meta { flex: none; color: var(--ink-muted); font-size: var(--pc-text-label); }
+
+html .tk-d-form .task-detail-fact { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--pc-r-control); background: var(--pc-card-2); align-self: end; }
+.tk-d-form .task-detail-fact span { color: var(--ink-muted); font-size: var(--pc-text-label); }
+.tk-d-form .task-detail-fact strong { font-variant-numeric: tabular-nums; }
+
+/* ---------- weekdays as toggle pills (the checkbox stays real and focusable) ---------- */
+html .tk-d-form .task-recurrence-weekdays { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; border: 0; }
+html .tk-d-form .task-recurrence-weekdays legend { width: 100%; margin-bottom: 6px; padding: 0; color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+html .tk-d-form .task-recurrence-weekdays label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink-muted);
+  font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font);
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease);
+}
+html .tk-d-form .task-recurrence-weekdays label:active { transform: scale(.96); }
+html .tk-d-form .task-recurrence-weekdays input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+html .tk-d-form .task-recurrence-weekdays label:has(input:checked) { border-color: color-mix(in srgb, var(--pc-accent-strong) 38%, var(--pc-line)); background: var(--selection); color: var(--pc-accent-strong); }
+html .tk-d-form .task-recurrence-weekdays label:has(input:focus-visible) { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
+
+/* ---------- record facts disclosure ---------- */
+.tk-d-facts { padding: 6px 0 4px; border-top: 1px solid var(--pc-line); }
+.tk-d-facts > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); letter-spacing: var(--pc-tracking-tight); list-style: none; cursor: pointer; }
+.tk-d-facts > summary::-webkit-details-marker { display: none; }
+.tk-d-facts > summary:focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); border-radius: var(--pc-r-control); }
+.tk-d-facts-caret { margin-left: auto; color: var(--ink-muted); transition: transform var(--pc-dur-base) var(--pc-ease); }
+.tk-d-facts[open] .tk-d-facts-caret { transform: rotate(180deg); }
+.tk-d-facts .task-detail-ledger { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0 0 8px; }
+.tk-d-facts .task-detail-ledger > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 40px; padding: 4px 0; border-bottom: 1px solid var(--pc-line); border-radius: 0; background: transparent; }
+.tk-d-facts .task-detail-ledger > div:last-child { border-bottom: 0; }
+.tk-d-facts .task-detail-ledger dt { color: var(--ink-muted); font-size: var(--pc-text-label); }
+.tk-d-facts .task-detail-ledger dd { margin: 0; font-size: var(--pc-text-body-sm); overflow-wrap: anywhere; }
+
+/* ---------- sticky footer (inside the sheet body so it scrolls with the form) ---------- */
+.tk-d-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--pc-z-raised);
+  display: grid;
+  gap: 8px;
+  margin: 8px -24px 0;
+  padding: 12px 24px;
+  border-top: 1px solid var(--pc-line);
+  background: color-mix(in srgb, var(--pc-card) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+html .pc-sheet.is-sheet .tk-d-footer { margin-inline: -16px; padding-inline: 16px; }
+.tk-d-footer .task-detail-footer-message { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.tk-d-footer .task-detail-footer-message.is-error { color: var(--pc-off); font-weight: var(--pc-w-semibold); }
+.tk-d-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* The quiet button variant (Close, Discard, Remove) is shared with the Tasks surface. */
+
+/* A confirm dialog opened from the sheet must sit above the premium layers. */
+body:has(.pc-sheet) [data-slot="alert-dialog-overlay"] { z-index: calc(var(--pc-z-overlay) + 30); }
+body:has(.pc-sheet) [data-slot="alert-dialog-content"] { z-index: calc(var(--pc-z-overlay) + 31); border-radius: var(--pc-r-feature); font-family: var(--pc-font); }
 
 @media (max-width: 520px) {
-  .task-detail-inspector .task-detail-section { padding: 14px; }
-  .task-detail-stale { align-items: stretch; flex-direction: column; }
-  .task-detail-stale button { width: 100%; }
-  .task-detail-footer.task-detail-inspector-footer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; }
-  .task-detail-footer-message { grid-column: 1 / -1; }
-  .task-detail-inspector-footer button { width: 100%; }
-  .task-detail-inspector-footer button:first-of-type:nth-last-of-type(3) { grid-column: 1 / -1; }
+  .tk-d-inline { grid-template-columns: minmax(0, 1fr); }
+  .tk-d-inline > .tk-btn { width: 100%; }
+  .tk-d-form .task-detail-stale { align-items: stretch; flex-direction: column; }
+  .tk-d-form .task-detail-stale button { width: 100%; }
+  .tk-d-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tk-d-actions > .tk-btn { width: 100%; }
+  .tk-d-actions > .tk-btn.is-accent { grid-column: 1 / -1; }
+  .tk-d-facts .task-detail-ledger > div { grid-template-columns: 98px minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .task-detail-inspector :is(button, summary) { transition: none; }
-}
-
-/* The task inspector is a continuation of the canvas, not a stack of forms. */
-@media (min-width: 768px) {
-  .planner-sheet-content:has(> .planner-sheet-body > .task-detail-inspector) {
-    width: min(30rem, 100vw);
-    border-left: 1px solid var(--border);
-  }
-}
-.planner-sheet-content:has(> .planner-sheet-body > .task-detail-inspector) .planner-sheet-header {
-  padding-block: 18px 16px;
-}
-.planner-sheet-content:has(> .planner-sheet-body > .task-detail-inspector) .planner-sheet-title {
-  font-size: 21px;
-  font-weight: 750;
-  letter-spacing: -.035em;
-}
-.planner-sheet-content:has(> .planner-sheet-body > .task-detail-inspector) .planner-sheet-body {
-  padding: 0 22px 24px;
-  scrollbar-gutter: stable;
-}
-.task-detail-inspector { display: block; max-width: none; margin: 0; padding: 0 0 12px; }
-.task-detail-editor-fields { display: block; }
-.task-detail-inspector .task-detail-section {
-  display: grid;
-  gap: 12px;
-  padding: 22px 0;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-}
-.task-detail-inspector .task-detail-section h3 {
-  margin: 0 0 3px;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 750;
-  letter-spacing: -.02em;
-}
-.task-detail-section-count { margin-left: 5px; color: var(--ink-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.task-detail-inspector .task-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.task-detail-inspector .task-detail-section label {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  color: var(--ink-muted);
-  font-size: 13px;
-  font-weight: 650;
-}
-.task-detail-inspector .task-detail-section label:has(textarea) { align-items: start; }
-.task-detail-inspector .task-detail-section :is(input, select, textarea) {
-  width: 100%;
-  min-width: 0;
-  min-height: 42px;
-  border-radius: 8px;
-  background: var(--surface-elevated);
-  color: var(--ink);
-  font-size: 14px;
-}
-.task-detail-inspector .task-detail-section textarea { min-height: 82px; }
-.task-detail-inspector .task-detail-section label:first-of-type:has(input:not([type])) input { font-size: 16px; font-weight: 650; }
-.task-detail-inspector .task-detail-section li { padding-inline: 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; font-size: 13px; }
-.task-detail-inspector .task-detail-section li:last-child { border-bottom: 0; }
-.task-detail-inspector .task-detail-inline-create { grid-template-columns: minmax(0, 1fr) auto; }
-.task-detail-inspector .task-detail-inline-create button { min-height: 42px; border-radius: 8px; }
-.task-detail-more { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; }
-.task-detail-more > summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
-  min-height: 64px;
-  padding: 14px 0;
-  color: var(--ink);
-}
-.task-detail-more > summary > span { font-size: 14px; font-weight: 750; }
-.task-detail-more > summary > small { max-width: 100%; color: var(--ink-muted); font-size: 12px; text-align: right; }
-.task-detail-more[open] > summary { border-bottom: 0; }
-.task-detail-more-content { gap: 0; padding: 0 0 12px 12px; border-left: 2px solid color-mix(in srgb, var(--accent) 25%, var(--border)); }
-.task-detail-more-content > .task-detail-section { padding: 16px 0; border-radius: 0; }
-.task-detail-more-content > .task-detail-section:last-child { border-bottom: 0; }
-.task-detail-inspector .task-detail-fact { grid-template-columns: 112px minmax(0, 1fr); align-items: center; min-height: 42px; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.task-detail-inspector .task-detail-ledger { grid-template-columns: 1fr; gap: 0; }
-.task-detail-inspector .task-detail-ledger div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 38px; padding: 4px 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; }
-.task-detail-inspector .task-detail-ledger div:last-child { border-bottom: 0; }
-.task-detail-inspector .task-detail-ledger dd { margin: 0; }
-.task-detail-inspector .task-recurrence-weekdays { padding: 0; border: 0; }
-.task-detail-inspector .task-recurrence-weekdays label { display: inline-flex; width: auto; min-width: 44px; padding: 4px; }
-.task-detail-inspector .task-detail-state,
-.task-detail-inspector .task-detail-stale,
-.task-detail-inspector .task-detail-draft-controls { margin-top: 14px; }
-.planner-sheet-content:has(> .planner-sheet-body > .task-detail-inspector) .planner-sheet-footer { padding-inline: 22px; }
-
-@media (max-width: 430px) {
-  .planner-sheet-content:has(> .planner-sheet-body > .task-detail-inspector) .planner-sheet-body { padding-inline: max(16px, env(safe-area-inset-left)); }
-  .task-detail-inspector .task-detail-section label { grid-template-columns: minmax(0, 1fr); gap: 5px; }
-  .task-detail-inspector .task-detail-inline-create { grid-template-columns: minmax(0, 1fr); }
-  .task-detail-more > summary > small { text-align: left; }
-  .task-detail-inspector .task-detail-fact,
-  .task-detail-inspector .task-detail-ledger div { grid-template-columns: 98px minmax(0, 1fr); }
+  .tk-d-facts-caret { transition: none; }
+  html .tk-d-title, html .tk-d-input { transition: none; }
+  html .tk-d-form .task-recurrence-weekdays label { transition: none; transform: none !important; }
 }

@@ -6,6 +6,7 @@ import { confirmedActiveSeconds } from "@shared/focusClock";
 import { habitPeriodConsistency } from "@shared/habitConsistency";
 import { isHabitScheduledOnLocalDate, type CalendarHabit } from "@shared/habitSchedule";
 import type { RoadmapItem } from "@shared/roadmap";
+import { isOverdueTask } from "@shared/taskBuckets";
 import type { TodayProjection } from "@shared/todayProjection";
 import type {
   DashboardCommitments,
@@ -30,6 +31,8 @@ export type DashboardTask = {
   categoryId?: string | null;
   projectId?: string | null;
   dueLocalDate?: string | null;
+  scheduledLocalDate?: string | null;
+  recurrenceRule?: unknown;
   estimateMinutes?: number | null;
   plannedStartAt?: DateValue | null;
   plannedEndAt?: DateValue | null;
@@ -145,7 +148,8 @@ function commitmentsFor(input: DashboardInput, taskById: Map<string, DashboardTa
     left: openIds.length,
     segments: [...Array<"done">(done.size).fill("done"), ...Array<"open">(openIds.length).fill("open")],
     dueToday: open.filter(task => task.dueLocalDate === input.localDate).length,
-    overdue: open.filter(task => task.dueLocalDate != null && task.dueLocalDate < input.localDate).length,
+    // Same rule as the rail "N overdue" badge: a recurring series' anchor deadline is never overdue.
+    overdue: open.filter(task => isOverdueTask(task, input.localDate)).length,
     openPlannedMinutes: estimates.length ? estimates.reduce((sum, value) => sum + value, 0) : null,
   };
 }

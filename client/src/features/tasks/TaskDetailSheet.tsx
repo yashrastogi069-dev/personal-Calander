@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,18 +9,44 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PlannerSheet } from "@/features/shell/PlannerSheet";
-import { ChevronDown } from "lucide-react";
+import { ChipSelect, type ChipSelectOption } from "@/components/premium/ChipSelect";
+import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
+import { Sheet } from "@/components/premium/Sheet";
+import { restorePlannerSheetFocus } from "@/features/shell/PlannerSheet";
+import { cn } from "@/lib/utils";
+import {
+  AlertTriangle,
+  Archive,
+  Ban,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  CircleDashed,
+  Clock,
+  CloudUpload,
+  FileText,
+  History,
+  Link2,
+  ListChecks,
+  Lock,
+  Play,
+  Plus,
+  Repeat,
+  SlidersHorizontal,
+  type LucideIcon,
+} from "lucide-react";
 import {
   localDateForReservation,
   taskSchedulingLanguage,
   validateTimeReservation,
 } from "@shared/planningLanguage";
 import { taskEditorSourceKey } from "@shared/taskEditor";
-import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { toast } from "sonner";
+import type { TaskCardModel } from "./taskCardModel";
+import { TaskMetaPills } from "./TaskMetaPills";
+import "./tasks-premium.css";
 import "./task-detail-inspector.css";
 
 export type TaskMutationResult = {
@@ -43,6 +68,10 @@ export type TaskDetailSheetProps = {
   draftScopeKey?: string;
   onOpenChange: (open: boolean) => void;
   onStartFocus?: (task: any) => void;
+  /** Presentation model for the header pills and the Complete guard (spec 5.1). Omit to hide both. */
+  cardModel?: TaskCardModel | null;
+  /** Shows a Complete button; it obeys `cardModel.completionBlock` and never writes around the R1-R3 guards. */
+  onComplete?: (task: any) => void;
   onUpdate: (task: any, patch: Record<string, unknown>) => Promise<TaskMutationResult>;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
@@ -229,6 +258,8 @@ export function TaskDetailSheet({
   draftScopeKey,
   onOpenChange,
   onStartFocus,
+  cardModel,
+  onComplete,
   onUpdate,
   onCreateSubtask,
   onAddDependency,
@@ -406,44 +437,59 @@ export function TaskDetailSheet({
     updateEditor(task, current => ({ ...current, dependencyPending: null }));
   };
 
+  const projectChoices: ChipSelectOption[] = [
+    { value: "none", label: "No project" },
+    ...(draft.projectId !== "none" && !projectOptions.some(item => item.id === draft.projectId) ? [{ value: String(draft.projectId), label: "Linked project unavailable" }] : []),
+    ...projectOptions.map(item => ({ value: item.id as string, label: `${item.title}${item.state === "archived" ? " (archived)" : ""}` })),
+  ];
+  const goalChoices: ChipSelectOption[] = [
+    { value: "none", label: "No goal" },
+    ...(draft.goalId !== "none" && !goalOptions.some(item => item.id === draft.goalId) ? [{ value: String(draft.goalId), label: "Linked goal unavailable" }] : []),
+    ...goalOptions.map(item => ({ value: item.id as string, label: `${item.title}${item.state === "archived" ? " (archived)" : ""}` })),
+  ];
+  const categoryChoices: ChipSelectOption[] = [
+    { value: "none", label: "No category" },
+    ...(draft.categoryId !== "none" && !categories.some(item => item.id === draft.categoryId) ? [{ value: String(draft.categoryId), label: "Linked category unavailable" }] : []),
+    ...categories.map(item => ({ value: item.id as string, label: item.name as string })),
+  ];
+  const dependencyChoices: ChipSelectOption[] = [
+    { value: "none", label: "Choose a task" },
+    ...dependencyCandidates.map(candidate => ({ value: candidate.id as string, label: candidate.title as string })),
+  ];
+  const open_ = task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do";
+  const completeBlocked = cardModel?.completionBlock?.reason ?? null;
+  const completeReasonId = `task-complete-reason-${task.id}`;
+  const guardDraft = (message: string) => {
+    updateEditor(task, current => ({ ...current, error: message }));
+  };
+
   return (
-    <PlannerSheet
+    <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      returnFocusRef={returnFocusRef}
+      variant="side"
       title={task.title}
+      hideTitle
       description={`${String(draft.state ?? "not_started").replaceAll("_", " ")} · ${draft.scheduledLocalDate ? `Plan for ${draft.scheduledLocalDate}` : "Not planned"}${draft.dueLocalDate ? ` · Deadline ${draft.dueLocalDate}` : ""}`}
-      footer={
-        <div className="task-detail-footer task-detail-inspector-footer">
-          {error ? <p className="task-detail-footer-message is-error" role="alert">{error}</p>
-            : draftChanged || pendingSecondaryInput ? <p className="task-detail-footer-message" role="status">Unsaved draft kept in this tab when you close.</p> : null}
-          {onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do" ? (
-            <Button type="button" variant="outline" onClick={() => {
-              if (draftChanged || pendingSecondaryInput) { updateEditor(task, current => ({ ...current, error: "Save or finish this task draft before opening Focus. Your input is still here." })); return; }
-              onOpenChange(false);
-              onStartFocus(task);
-            }} disabled={saving}>Focus on task</Button>
-          ) : null}
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
-            Close
-          </Button>
-          <Button type="submit" form={`task-detail-${task.id}`} disabled={saving || staleDraft}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
-      }
+      className="tk-d-sheet"
+      onOpenAutoFocus={event => {
+        // Like the old sheet: land on Close, so opening a task never raises the phone keyboard.
+        event.preventDefault();
+        document.querySelector<HTMLElement>(".tk-d-sheet .pc-sheet-close")?.focus();
+      }}
+      onCloseAutoFocus={event => { restorePlannerSheetFocus(event, returnFocusRef.current); }}
     >
-      <form id={`task-detail-${task.id}`} className="task-detail-form task-detail-inspector" onSubmit={save} noValidate>
+      <form id={`task-detail-${task.id}`} className="task-detail-form task-detail-inspector tk-d-form" onSubmit={save} noValidate>
         {String(task.id).startsWith("offline:") ? (
-          <p className="task-detail-state is-pending" role="status">Saved on this device · waiting to sync</p>
+          <p className="task-detail-state is-pending" role="status"><CloudUpload size={15} strokeWidth={2.25} aria-hidden="true" />Saved on this device · waiting to sync</p>
         ) : null}
         {conflictCount ? (
-          <p className="task-detail-state is-conflict" role="status">{conflictCount} field conflict{conflictCount === 1 ? "" : "s"} retained for review</p>
+          <p className="task-detail-state is-conflict" role="status"><AlertTriangle size={15} strokeWidth={2.25} aria-hidden="true" />{conflictCount} field conflict{conflictCount === 1 ? "" : "s"} retained for review</p>
         ) : null}
         {staleDraft ? <div className="task-detail-stale" role="alert">
           <div><strong>Task changed since this draft began.</strong><p>Your edits are kept, but saving is paused so newer record values are not overwritten.</p></div>
           <AlertDialog>
-            <AlertDialogTrigger asChild><Button type="button" variant="outline">Reload latest task</Button></AlertDialogTrigger>
+            <AlertDialogTrigger asChild><button type="button" className="tk-btn pc-focusable">Reload latest task</button></AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader><AlertDialogTitle>Discard this unsaved draft?</AlertDialogTitle><AlertDialogDescription>The latest saved task will replace your local edits. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
               <AlertDialogFooter><AlertDialogCancel>Keep draft</AlertDialogCancel><AlertDialogAction onClick={discardDraft}>Discard draft and reload</AlertDialogAction></AlertDialogFooter>
@@ -453,7 +499,7 @@ export function TaskDetailSheet({
         {!staleDraft && (draftChanged || pendingSecondaryInput) ? <div className="task-detail-draft-controls">
           <span>Unsaved for this task</span>
           <AlertDialog>
-            <AlertDialogTrigger asChild><Button type="button" variant="ghost">Discard draft</Button></AlertDialogTrigger>
+            <AlertDialogTrigger asChild><button type="button" className="tk-btn is-quiet pc-focusable">Discard draft</button></AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader><AlertDialogTitle>Discard unsaved task input?</AlertDialogTitle><AlertDialogDescription>Your task fields and any pending subtask or dependency selection will return to the latest saved record.</AlertDialogDescription></AlertDialogHeader>
               <AlertDialogFooter><AlertDialogCancel>Keep draft</AlertDialogCancel><AlertDialogAction onClick={discardDraft}>Discard draft</AlertDialogAction></AlertDialogFooter>
@@ -461,103 +507,243 @@ export function TaskDetailSheet({
           </AlertDialog>
         </div> : null}
 
-        <fieldset className="task-detail-editor-fields" disabled={saving}>
+        <fieldset className="task-detail-editor-fields tk-d-fields" disabled={saving}>
+          <header className="tk-d-head">
+            <div className="tk-d-head-row">
+              <ChipSelect
+                label="Status"
+                options={STATE_OPTIONS}
+                value={String(draft.state ?? "not_started")}
+                onValueChange={value => setField("state", value)}
+              />
+              {cardModel ? <TaskMetaPills model={cardModel} className="tk-d-pills" omit={["state", "pending", "conflict"]} /> : null}
+            </div>
+            <textarea
+              className="tk-d-title"
+              aria-label="Task title"
+              rows={2}
+              value={draft.title ?? ""}
+              placeholder="Name this task"
+              onChange={event => setField("title", event.target.value.replace(/\s*\n+\s*/g, " "))}
+              onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }}
+            />
+          </header>
 
-        <section className="task-detail-section" aria-labelledby="task-detail-core">
-          <h3 id="task-detail-core">Task</h3>
-          <label>Task title<Input value={draft.title ?? ""} onChange={event => setField("title", event.target.value)} /></label>
-          <label>Description<textarea value={draft.description ?? ""} onChange={event => setField("description", event.target.value)} maxLength={10000} /></label>
-          <div className="task-detail-grid">
-            <label>Status<select value={draft.state ?? "not_started"} onChange={event => setField("state", event.target.value)}>{["not_started", "in_progress", "blocked", "completed", "archived"].map(value => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
-            <label>Project<select value={draft.projectId ?? "none"} onChange={event => setField("projectId", event.target.value)}><option value="none">No project</option>{draft.projectId !== "none" && !projectOptions.some(item => item.id === draft.projectId) ? <option value={draft.projectId}>Linked project unavailable</option> : null}{projectOptions.map(item => <option key={item.id} value={item.id}>{item.title}{item.state === "archived" ? " (archived)" : ""}</option>)}</select></label>
-          </div>
-        </section>
+          <Section id="task-detail-core" icon={FileText} tone="pc-tone-accent" title="Details">
+            <Field label="Description" htmlFor={`task-description-${task.id}`}>
+              <textarea id={`task-description-${task.id}`} className="tk-d-input tk-d-textarea" value={draft.description ?? ""} onChange={event => setField("description", event.target.value)} maxLength={10000} placeholder="What does done look like?" />
+            </Field>
+            <div className="tk-d-grid">
+              <Field label="Project" htmlFor={`task-project-${task.id}`}>
+                <ChipSelect id={`task-project-${task.id}`} variant="field" label="Project" options={projectChoices} value={String(draft.projectId ?? "none")} onValueChange={value => setField("projectId", value)} />
+              </Field>
+              <Field label="Category" htmlFor={`task-category-${task.id}`}>
+                <ChipSelect id={`task-category-${task.id}`} variant="field" label="Category" options={categoryChoices} value={String(draft.categoryId ?? "none")} onValueChange={value => setField("categoryId", value)} />
+              </Field>
+            </div>
+          </Section>
 
-        <section className="task-detail-section" aria-labelledby="task-detail-time">
-          <h3 id="task-detail-time">Plan</h3>
-          <div className="task-detail-grid">
-            <label>{taskSchedulingLanguage.deadline.label}<Input type="date" value={draft.dueLocalDate ?? ""} onChange={event => setField("dueLocalDate", event.target.value)} /></label>
-            <label>{taskSchedulingLanguage.planFor.label}<Input type="date" value={draft.scheduledLocalDate ?? ""} onChange={event => setField("scheduledLocalDate", event.target.value)} /></label>
-            <label>{taskSchedulingLanguage.focusTime.label}<Input type="number" min="0" max="1440" value={draft.estimateMinutes ?? ""} onChange={event => setField("estimateMinutes", event.target.value)} /></label>
-          </div>
-        </section>
+          <Section id="task-detail-time" icon={CalendarClock} tone="pc-tone-work" title="Plan">
+            <div className="tk-d-grid">
+              <Field label={taskSchedulingLanguage.deadline.label} htmlFor={`task-deadline-${task.id}`}>
+                <input id={`task-deadline-${task.id}`} className="tk-d-input" type="date" value={draft.dueLocalDate ?? ""} onChange={event => setField("dueLocalDate", event.target.value)} />
+              </Field>
+              <Field label={taskSchedulingLanguage.planFor.label} htmlFor={`task-planfor-${task.id}`}>
+                <input id={`task-planfor-${task.id}`} className="tk-d-input" type="date" value={draft.scheduledLocalDate ?? ""} onChange={event => setField("scheduledLocalDate", event.target.value)} />
+              </Field>
+              <Field label={taskSchedulingLanguage.focusTime.label} htmlFor={`task-estimate-${task.id}`}>
+                <input id={`task-estimate-${task.id}`} className="tk-d-input" type="number" inputMode="numeric" min="0" max="1440" value={draft.estimateMinutes ?? ""} onChange={event => setField("estimateMinutes", event.target.value)} />
+              </Field>
+            </div>
+          </Section>
 
-        <section className="task-detail-section" aria-labelledby="task-detail-subtasks">
-          <h3 id="task-detail-subtasks">Subtasks <span className="task-detail-section-count">{childTasks.length}</span></h3>
-          {childTasks.length ? <ul>{childTasks.map(child => <li key={child.id}>{child.title}<span>{child.state.replaceAll("_", " ")}</span></li>)}</ul> : <p>No subtasks yet.</p>}
-          <Label htmlFor={`task-subtask-${task.id}`}>New subtask</Label>
-          <div className="task-detail-inline-create"><Input id={`task-subtask-${task.id}`} value={subtaskTitle} onChange={event => updateEditor(task, current => ({ ...current, subtaskTitle: event.target.value }))} placeholder="Add a concrete subtask" /><Button type="button" variant="outline" onClick={() => void addSubtask()} disabled={saving || !subtaskTitle.trim()}>Add subtask</Button></div>
-        </section>
+          <Section id="task-detail-reservation" icon={Clock} tone="pc-tone-health" title="Reserved time">
+            <div className="tk-d-grid">
+              <Field label="Reserved start" htmlFor={`task-reserve-start-${task.id}`}>
+                <input id={`task-reserve-start-${task.id}`} className="tk-d-input" type="datetime-local" value={draft.plannedStartAt ?? ""} onChange={event => setField("plannedStartAt", event.target.value)} />
+              </Field>
+              <Field label="Reserved end" htmlFor={`task-reserve-end-${task.id}`}>
+                <input id={`task-reserve-end-${task.id}`} className="tk-d-input" type="datetime-local" value={draft.plannedEndAt ?? ""} onChange={event => setField("plannedEndAt", event.target.value)} />
+              </Field>
+            </div>
+          </Section>
 
-        <details className="task-detail-more">
-          <summary><span>Schedule <ChevronDown aria-hidden="true" size={18} /></span><small>{draft.plannedStartAt && draft.plannedEndAt ? "Reserved time set" : "No reserved time"} · {taskInspectorRecurrenceSummary(draft)}</small></summary>
-          <div className="task-detail-more-content">
-        <section className="task-detail-section" aria-labelledby="task-detail-reservation">
-          <h3 id="task-detail-reservation">Reserved time</h3>
-          <div className="task-detail-grid">
-            <label>Reserved start<Input type="datetime-local" value={draft.plannedStartAt ?? ""} onChange={event => setField("plannedStartAt", event.target.value)} /></label>
-            <label>Reserved end<Input type="datetime-local" value={draft.plannedEndAt ?? ""} onChange={event => setField("plannedEndAt", event.target.value)} /></label>
-          </div>
-        </section>
-        <section className="task-detail-section" aria-labelledby="task-detail-repeat">
-          <h3 id="task-detail-repeat">Recurrence</h3>
-          <div className="task-detail-grid">
-            <label>Repeats<select value={draft.recurrenceFrequency ?? "none"} onChange={event => setField("recurrenceFrequency", event.target.value)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
-            {draft.recurrenceFrequency !== "none" ? <label>Every<Input type="number" min="1" max="365" value={draft.recurrenceInterval ?? "1"} onChange={event => setField("recurrenceInterval", event.target.value)} /></label> : null}
-            {draft.recurrenceFrequency !== "none" ? <label>Stop after<Input type="date" value={draft.recurrenceUntilLocalDate ?? ""} onChange={event => setField("recurrenceUntilLocalDate", event.target.value)} /></label> : null}
-          </div>
-          {draft.recurrenceFrequency === "weekly" ? <fieldset className="task-recurrence-weekdays"><legend>Repeat on</legend>{["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((label, weekday) => <label key={label}><input type="checkbox" checked={(draft.recurrenceWeekdays ?? []).includes(weekday)} onChange={event => setField("recurrenceWeekdays", event.target.checked ? [...(draft.recurrenceWeekdays ?? []), weekday] : (draft.recurrenceWeekdays ?? []).filter((value: number) => value !== weekday))} /><span>{label.slice(0, 3)}</span></label>)}</fieldset> : null}
-          <p>Occurrence decisions remain in occurrence history; editing this form does not rewrite past occurrences.</p>
-        </section>
+          <Section id="task-detail-repeat" icon={Repeat} tone="pc-tone-personal" title="Recurrence">
+            <SegmentedTabs
+              label="Repeats"
+              value={String(draft.recurrenceFrequency ?? "none")}
+              onValueChange={value => setField("recurrenceFrequency", value)}
+              items={[{ value: "none", label: "Never" }, { value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }, { value: "monthly", label: "Monthly" }]}
+              className="tk-d-seg"
+            />
+            {draft.recurrenceFrequency !== "none" ? (
+              <div className="tk-d-grid">
+                <Field label="Every" htmlFor={`task-interval-${task.id}`}>
+                  <input id={`task-interval-${task.id}`} className="tk-d-input" type="number" inputMode="numeric" min="1" max="365" value={draft.recurrenceInterval ?? "1"} onChange={event => setField("recurrenceInterval", event.target.value)} />
+                </Field>
+                <Field label="Stop after" htmlFor={`task-until-${task.id}`}>
+                  <input id={`task-until-${task.id}`} className="tk-d-input" type="date" value={draft.recurrenceUntilLocalDate ?? ""} onChange={event => setField("recurrenceUntilLocalDate", event.target.value)} />
+                </Field>
+              </div>
+            ) : null}
+            {draft.recurrenceFrequency === "weekly" ? (
+              <fieldset className="task-recurrence-weekdays">
+                <legend>Repeat on</legend>
+                {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((label, weekday) => (
+                  <label key={label}>
+                    <input type="checkbox" checked={(draft.recurrenceWeekdays ?? []).includes(weekday)} onChange={event => setField("recurrenceWeekdays", event.target.checked ? [...(draft.recurrenceWeekdays ?? []), weekday] : (draft.recurrenceWeekdays ?? []).filter((value: number) => value !== weekday))} />
+                    <span aria-hidden="true">{label.slice(0, 3)}</span>
+                    <span className="pc-sr-only">{label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+            <p className="tk-d-hint">{taskInspectorRecurrenceSummary(draft)}. Occurrence decisions remain in occurrence history; editing this form does not rewrite past occurrences.</p>
+          </Section>
 
-          </div>
-        </details>
+          <Section id="task-detail-subtasks" icon={ListChecks} tone="pc-tone-learning" title="Subtasks" count={childTasks.length}>
+            {childTasks.length ? (
+              <ul className="tk-d-list">{childTasks.map(child => <li key={child.id}><span className="tk-d-list-text">{child.title}</span><span className="tk-d-list-meta">{String(child.state).replaceAll("_", " ")}</span></li>)}</ul>
+            ) : <p className="tk-d-hint">No subtasks yet.</p>}
+            <label className="tk-d-label" htmlFor={`task-subtask-${task.id}`}>New subtask</label>
+            <div className="tk-d-inline">
+              <input id={`task-subtask-${task.id}`} className="tk-d-input" value={subtaskTitle} onChange={event => updateEditor(task, current => ({ ...current, subtaskTitle: event.target.value }))} placeholder="Add a concrete subtask" />
+              <button type="button" className="tk-btn pc-focusable" onClick={() => void addSubtask()} disabled={saving || !subtaskTitle.trim()}><Plus size={16} strokeWidth={2.25} aria-hidden="true" />Add subtask</button>
+            </div>
+          </Section>
 
-        <details className="task-detail-more">
-          <summary><span>Relationships <ChevronDown aria-hidden="true" size={18} /></span><small>{draft.goalId && draft.goalId !== "none" ? "Goal linked" : "No goal"} · {draft.categoryId && draft.categoryId !== "none" ? "Category linked" : "No category"} · {dependencySummary}</small></summary>
-          <div className="task-detail-more-content">
-        <section className="task-detail-section" aria-labelledby="task-detail-links">
-          <h3 id="task-detail-links">Linked work</h3>
-          <div className="task-detail-grid">
-            <label>Goal<select value={draft.goalId ?? "none"} onChange={event => setField("goalId", event.target.value)}><option value="none">No goal</option>{draft.goalId !== "none" && !goalOptions.some(item => item.id === draft.goalId) ? <option value={draft.goalId}>Linked goal unavailable</option> : null}{goalOptions.map(item => <option key={item.id} value={item.id}>{item.title}{item.state === "archived" ? " (archived)" : ""}</option>)}</select></label>
-            <label>Category<select value={draft.categoryId ?? "none"} onChange={event => setField("categoryId", event.target.value)}><option value="none">No category</option>{draft.categoryId !== "none" && !categories.some(item => item.id === draft.categoryId) ? <option value={draft.categoryId}>Linked category unavailable</option> : null}{categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          </div>
-        </section>
+          <Section id="task-detail-links" icon={Link2} tone="pc-tone-social" title="Linked work">
+            <Field label="Goal" htmlFor={`task-goal-${task.id}`}>
+              <ChipSelect id={`task-goal-${task.id}`} variant="field" label="Goal" options={goalChoices} value={String(draft.goalId ?? "none")} onValueChange={value => setField("goalId", value)} />
+            </Field>
+          </Section>
 
-        <section className="task-detail-section" aria-labelledby="task-detail-dependencies">
-          <h3 id="task-detail-dependencies">Dependencies</h3>
-          {taskDependencies.length ? <ul>{taskDependencies.map(edge => { const dependency = tasks.find(candidate => candidate.id === edge.dependsOnTaskId); return <li key={edge.id}><span>{dependency?.title ?? "Unavailable task"} · {edge.dependencyType}</span>{onRemoveDependency ? <button type="button" disabled={!isOnline || dependencyPending !== null} onClick={() => void removeDependency(edge)}>{dependencyPending === edge.id ? "Removing…" : "Remove"}</button> : null}</li>; })}</ul> : <p>No dependencies recorded.</p>}
-          {onAddDependency ? <><Label htmlFor={`task-dependency-${task.id}`}>Task this work depends on</Label><div className="task-detail-inline-create"><select id={`task-dependency-${task.id}`} value={dependencyTaskId} onChange={event => updateEditor(task, current => ({ ...current, dependencyTaskId: event.target.value, dependencyError: null }))}><option value="none">Choose a task</option>{dependencyCandidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}</select><Button type="button" variant="outline" disabled={!isOnline || dependencyTaskId === "none" || dependencyPending !== null} onClick={() => void addDependency()}>{dependencyPending === "add" ? "Adding…" : "Add dependency"}</Button></div></> : null}
-          {!isOnline ? <p>Reconnect to change dependencies. Your task draft remains here.</p> : null}
-          {dependencyError ? <p className="form-error" role="alert">{dependencyError} Your selection is still available; review it and retry.</p> : null}
-        </section>
-          </div>
-        </details>
+          <Section id="task-detail-dependencies" icon={Lock} tone="pc-tone-neutral" title="Dependencies" count={taskDependencies.length}>
+            {taskDependencies.length ? (
+              <ul className="tk-d-list">{taskDependencies.map(edge => {
+                const dependency = tasks.find(candidate => candidate.id === edge.dependsOnTaskId);
+                return (
+                  <li key={edge.id}>
+                    <span className="tk-d-list-text">{dependency?.title ?? "Unavailable task"}<span className="tk-d-list-meta"> · {edge.dependencyType}</span></span>
+                    {onRemoveDependency ? <button type="button" className="tk-btn is-quiet pc-focusable" disabled={!isOnline || dependencyPending !== null} onClick={() => void removeDependency(edge)}>{dependencyPending === edge.id ? "Removing…" : "Remove"}</button> : null}
+                  </li>
+                );
+              })}</ul>
+            ) : <p className="tk-d-hint">No dependencies recorded. {dependencySummary}.</p>}
+            {onAddDependency ? (
+              <>
+                <label className="tk-d-label" htmlFor={`task-dependency-${task.id}`}>Task this work depends on</label>
+                <div className="tk-d-inline">
+                  <ChipSelect id={`task-dependency-${task.id}`} variant="field" label="Task this work depends on" options={dependencyChoices} value={dependencyTaskId} onValueChange={value => updateEditor(task, current => ({ ...current, dependencyTaskId: value, dependencyError: null }))} />
+                  <button type="button" className="tk-btn pc-focusable" disabled={!isOnline || dependencyTaskId === "none" || dependencyPending !== null} onClick={() => void addDependency()}><Plus size={16} strokeWidth={2.25} aria-hidden="true" />{dependencyPending === "add" ? "Adding…" : "Add dependency"}</button>
+                </div>
+              </>
+            ) : null}
+            {!isOnline ? <p className="tk-d-hint">Reconnect to change dependencies. Your task draft remains here.</p> : null}
+            {dependencyError ? <p className="form-error tk-d-error" role="alert">{dependencyError} Your selection is still available; review it and retry.</p> : null}
+          </Section>
 
-        <details className="task-detail-more">
-          <summary><span>More properties <ChevronDown aria-hidden="true" size={18} /></span><small>{draft.priority ?? "medium"} priority · {draft.horizon ?? "weekly"} horizon · {draft.scheduleMode ?? "manual"} schedule</small></summary>
-          <div className="task-detail-more-content">
-        <section className="task-detail-section" aria-labelledby="task-detail-properties">
-          <h3 id="task-detail-properties">Planning properties</h3>
-          <div className="task-detail-grid">
-            <label>Priority<select value={draft.priority ?? "medium"} onChange={event => setField("priority", event.target.value)}>{["none", "low", "medium", "high", "critical"].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-            <label>Horizon<select value={draft.horizon ?? "weekly"} onChange={event => setField("horizon", event.target.value)}>{["daily", "weekly", "monthly", "quarterly", "yearly", "someday"].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-            <label>Scheduling mode<select value={draft.scheduleMode ?? "manual"} onChange={event => setField("scheduleMode", event.target.value)}><option value="manual">Manual</option><option value="flexible">Flexible</option><option value="pinned">Pinned</option></select></label>
-            <div className="task-detail-fact"><span>Order</span><strong>{task.sortOrder ?? 0}</strong></div>
-          </div>
-        </section>
-        <section className="task-detail-section" aria-labelledby="task-detail-record">
-          <h3 id="task-detail-record">Record facts</h3>
-          <dl className="task-detail-ledger">
-            <div><dt>Parent task</dt><dd>{parentTask?.title ?? "None"}</dd></div>
-            <div><dt>Outcome</dt><dd>{task.outcome === "wont_do" ? "Intentional noncompletion" : "None recorded"}</dd></div>
-            <div><dt>Version</dt><dd>{task.version}</dd></div>
-          </dl>
-        </section>
-          </div>
-        </details>
+          <Section id="task-detail-properties" icon={SlidersHorizontal} tone="pc-tone-work" title="Planning properties">
+            <div className="tk-d-grid">
+              <Field label="Priority" htmlFor={`task-priority-${task.id}`}>
+                <ChipSelect id={`task-priority-${task.id}`} variant="field" label="Priority" options={PRIORITY_OPTIONS} value={String(draft.priority ?? "medium")} onValueChange={value => setField("priority", value)} />
+              </Field>
+              <Field label="Horizon" htmlFor={`task-horizon-${task.id}`}>
+                <ChipSelect id={`task-horizon-${task.id}`} variant="field" label="Horizon" options={HORIZON_OPTIONS} value={String(draft.horizon ?? "weekly")} onValueChange={value => setField("horizon", value)} />
+              </Field>
+              <Field label="Scheduling mode" htmlFor={`task-mode-${task.id}`}>
+                <ChipSelect id={`task-mode-${task.id}`} variant="field" label="Scheduling mode" options={MODE_OPTIONS} value={String(draft.scheduleMode ?? "manual")} onValueChange={value => setField("scheduleMode", value)} />
+              </Field>
+              <div className="task-detail-fact"><span>Order</span><strong>{task.sortOrder ?? 0}</strong></div>
+            </div>
+          </Section>
+
+          <details className="tk-d-facts">
+            <summary><span className="pc-icon-tile pc-tone-neutral" aria-hidden="true"><History size={16} strokeWidth={2} /></span>Record facts<ChevronDown aria-hidden="true" size={16} className="tk-d-facts-caret" /></summary>
+            <dl className="task-detail-ledger">
+              <div><dt>Parent task</dt><dd>{parentTask?.title ?? "None"}</dd></div>
+              <div><dt>Outcome</dt><dd>{task.outcome === "wont_do" ? "Intentional noncompletion" : "None recorded"}</dd></div>
+              <div><dt>Version</dt><dd>{task.version}</dd></div>
+            </dl>
+          </details>
         </fieldset>
       </form>
-    </PlannerSheet>
+
+      <div className="tk-d-footer task-detail-footer task-detail-inspector-footer">
+        {error ? <p className="task-detail-footer-message is-error" role="alert">{error}</p>
+          : draftChanged || pendingSecondaryInput ? <p className="task-detail-footer-message" role="status">Unsaved draft kept in this tab when you close.</p> : null}
+        {onComplete && cardModel && open_ && completeBlocked ? <p className="task-detail-footer-message" id={completeReasonId}>{completeBlocked}</p> : null}
+        <div className="tk-d-actions">
+          <button type="button" className="tk-btn is-quiet pc-focusable" onClick={() => onOpenChange(false)} disabled={saving}>Close</button>
+          {onStartFocus && open_ ? (
+            <button type="button" className="tk-btn pc-focusable" disabled={saving} onClick={() => {
+              if (draftChanged || pendingSecondaryInput) { guardDraft("Save or finish this task draft before opening Focus. Your input is still here."); return; }
+              onOpenChange(false);
+              onStartFocus(task);
+            }}><Play size={15} strokeWidth={2.25} aria-hidden="true" />Focus on task</button>
+          ) : null}
+          {onComplete && cardModel && open_ ? (
+            <button
+              type="button"
+              className="tk-btn pc-focusable"
+              disabled={saving}
+              aria-disabled={completeBlocked ? true : undefined}
+              aria-describedby={completeBlocked ? completeReasonId : undefined}
+              onClick={() => {
+                if (completeBlocked) return;
+                if (draftChanged || pendingSecondaryInput) { guardDraft("Save or finish this task draft before completing it. Your input is still here."); return; }
+                onComplete(task);
+              }}
+            ><CheckCircle2 size={16} strokeWidth={2.25} aria-hidden="true" />Complete</button>
+          ) : null}
+          <button type="submit" form={`task-detail-${task.id}`} className="tk-btn is-accent pc-focusable" disabled={saving || staleDraft}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+const STATE_OPTIONS: ChipSelectOption[] = [
+  { value: "not_started", label: "To do", icon: Circle },
+  { value: "in_progress", label: "In progress", icon: CircleDashed },
+  { value: "blocked", label: "Blocked", icon: Ban },
+  { value: "completed", label: "Completed", icon: CheckCircle2 },
+  { value: "archived", label: "Archived", icon: Archive },
+];
+const PRIORITY_OPTIONS: ChipSelectOption[] = [
+  { value: "none", label: "No priority" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" },
+];
+const HORIZON_OPTIONS: ChipSelectOption[] = ["daily", "weekly", "monthly", "quarterly", "yearly", "someday"].map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) }));
+const MODE_OPTIONS: ChipSelectOption[] = [
+  { value: "manual", label: "Manual" },
+  { value: "flexible", label: "Flexible" },
+  { value: "pinned", label: "Pinned" },
+];
+
+function Section({ id, icon: Icon, tone, title, count, children }: { id: string; icon: LucideIcon; tone: string; title: string; count?: number; children: ReactNode }) {
+  return (
+    <section className="tk-d-section" aria-labelledby={id}>
+      <h3 id={id} className="tk-d-h">
+        <span className={cn("pc-icon-tile", tone)} aria-hidden="true"><Icon size={16} strokeWidth={2} /></span>
+        {title}
+        {count != null ? <span className="tk-d-count">{count}</span> : null}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
+  return (
+    <div className="tk-d-field">
+      <label className="tk-d-label" htmlFor={htmlFor}>{label}</label>
+      {children}
+    </div>
   );
 }

@@ -34,6 +34,23 @@ describe("premium navigation model", () => {
     expect(counts).toEqual({ inbox: 1, overdue: 1, todayLeft: 3, habitsDue: undefined });
   });
 
+  it("leaves Someday out of the Inbox badge and never counts a recurring anchor deadline as overdue", () => {
+    const counts = navBadgeCounts({
+      today: "2026-10-13",
+      tasks: [
+        { state: "not_started", horizon: "someday" },
+        { state: "not_started", horizon: "weekly" },
+        { state: "not_started", recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" },
+        { state: "not_started", recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-20", dueLocalDate: "2026-10-01" },
+      ],
+      todayTaskCount: null,
+      dueHabitCount: null,
+    });
+    // Inbox: the weekly task and the unplanned series; Someday has been decided. Overdue: only the planned
+    // series, whose deadline is a real one (its Plan for date is the anchor).
+    expect(counts).toMatchObject({ inbox: 2, overdue: 1 });
+  });
+
   it("formats badges and hides zero counts", () => {
     expect(badgeText("todayLeft", 2)).toBe("2 left");
     expect(badgeText("overdue", 1)).toBe("1 overdue");

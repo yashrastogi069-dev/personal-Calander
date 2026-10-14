@@ -25,6 +25,8 @@ export type SheetProps = {
   contentClassName?: string;
   /** Focus target on open; defaults to Radix (first focusable). */
   onOpenAutoFocus?: (event: Event) => void;
+  /** Focus target on close; call event.preventDefault() and focus your own element (Radix otherwise has no trigger to return to). */
+  onCloseAutoFocus?: (event: Event) => void;
   /** Escape handler; call event.preventDefault() to keep the sheet open. */
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
   closeLabel?: string;
@@ -62,6 +64,7 @@ export function Sheet({
   className,
   contentClassName,
   onOpenAutoFocus,
+  onCloseAutoFocus,
   onEscapeKeyDown,
   closeLabel = "Close",
   children,
@@ -95,6 +98,7 @@ export function Sheet({
               asChild
               forceMount
               onOpenAutoFocus={onOpenAutoFocus}
+              onCloseAutoFocus={onCloseAutoFocus}
               onEscapeKeyDown={onEscapeKeyDown}
               {...(description ? {} : { "aria-describedby": undefined })}
             >

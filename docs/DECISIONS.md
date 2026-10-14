@@ -135,3 +135,11 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
   - Inbox "Someday" takes a task out of the Inbox and its badge. It then lives under No date with a Someday pill.
   - Desktop task detail opens in a right-side panel (`Sheet variant="side"`).
 - Build order inside D3: D3a (contract, recurring-date fix, List, row, header, detail), D3b (Board, dnd, dock, When lens), D3c (Inbox triage, Views, Select mode, remove the triage stub).
+
+## 2026-10-14: owner answers (session start)
+
+- **Install fix APPROVED:** the worktree gets its own `node_modules`. Done: the Vite servers on :3100 and :3117 were stopped, only the junction was removed (the main checkout's `node_modules` is untouched), `pnpm install --frozen-lockfile` ran, and then `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` and `@use-gesture/react` were added (`cc6ef95`). The wouter patch is still applied.
+- **Review #4 DECIDED:** recurring tasks anchored only on a deadline (no Plan-for date) are bucketed by their **next occurrence**, not "Past due" forever. The sidebar badge changes to match. Update the test that locked the old behaviour.
+- **D3 assumptions CONFIRMED** (all three above): Status lens is the Board default with When one toggle away; Inbox "Someday" leaves the Inbox for No date with a Someday pill; desktop detail opens in a right-side panel.
+- **Run mode:** the owner asked for autonomous loops through to the end of the plan (D3 → D3.5 → D3.5.2 → D4 → D5 → D6 → D7), with subagents and model routing. The owner tests the demo in parallel and reports issues. Gates G1/G3, Vercel checks, live DB writes and migrations stay closed.
+- **Owner test server:** a frozen source snapshot of the pushed commit runs on :3200 (job tmp folder, own Vite cache), so agent edits on :3100 don't reload the owner's page.

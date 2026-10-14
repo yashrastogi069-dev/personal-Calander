@@ -1,0 +1,412 @@
+/* D3 Tasks presentation layer (spec 2026-10-13-premium-redesign-d3-tasks.md: 1, 4.3, 4.5, 5, 6, 8, 12).
+   Tokens only (--pc-*). Selectors are prefixed with `html` where a legacy global button/input rule
+   (index.css, task-workspace.css) would otherwise win. Motion reuses the pc-* keyframes; the one new
+   keyframe is the single-run skeleton sweep. Every animation has an opt-out in the reduced-motion block. */
+
+/* ---------- tones the category palette does not cover ---------- */
+.tk-tone-off { --pc-k: var(--pc-off); --pc-k-soft: var(--pc-off-soft); --pc-k-ink: var(--pc-off); }
+.tk-tone-ok { --pc-k: var(--pc-ok); --pc-k-soft: var(--pc-ok-soft); --pc-k-ink: var(--pc-ok); }
+
+/* ---------- buttons ---------- */
+html .tk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink);
+  font: var(--pc-w-semibold) var(--pc-text-body-sm)/1 var(--pc-font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-btn:active:not(:disabled) { transform: scale(.97); }
+html .tk-btn:disabled, html .tk-btn[aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
+html .tk-btn.is-quiet { border-color: transparent; background: transparent; color: var(--ink-muted); }
+html .tk-btn.is-accent { border-color: transparent; background: var(--accent); color: var(--accent-foreground); }
+html .tk-btn.is-on { border-color: color-mix(in srgb, var(--pc-accent-strong) 38%, var(--pc-line)); background: var(--selection); color: var(--pc-accent-strong); }
+
+html .tk-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink);
+  font: var(--pc-w-semibold) var(--pc-text-caption)/1 var(--pc-font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-ghost-btn:active { transform: scale(.97); }
+
+html .tk-icon-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pc-r-pill);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-icon-btn:active { transform: scale(.92); }
+html .tk-icon-btn[data-state="open"] { background: var(--pc-card-2); color: var(--ink); }
+
+/* ---------- menu (More actions, overflow) ---------- */
+html .tk-menu {
+  z-index: calc(var(--pc-z-overlay) + 20);
+  min-width: 208px;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 6px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-panel);
+  background: var(--pc-card);
+  color: var(--ink);
+  box-shadow: var(--pc-e3);
+  font-family: var(--pc-font);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation: pc-pop 160ms var(--pc-ease) both;
+}
+html .tk-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: var(--pc-r-control);
+  color: var(--ink);
+  font-size: var(--pc-text-body-sm);
+  line-height: var(--pc-lh-body-sm);
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+}
+html .tk-menu-item > svg { flex: none; color: var(--ink-muted); }
+html .tk-menu-item[data-highlighted] { background: var(--pc-card-2); }
+html .tk-menu-item[data-disabled] { opacity: .55; cursor: not-allowed; }
+html .tk-menu-item.is-danger, html .tk-menu-item.is-danger > svg { color: var(--pc-off); }
+.tk-menu-text { display: grid; min-width: 0; }
+.tk-menu-text small { color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+
+/* ---------- check button (spring check-off) ---------- */
+.tk-check-wrap { position: relative; z-index: 1; display: grid; place-items: center; flex: none; width: 28px; height: 28px; }
+html .tk-check {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid var(--pc-k);
+  border-radius: var(--pc-r-pill);
+  background: transparent;
+  color: var(--pc-k-soft);
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease);
+}
+/* A 44px touch target around a 28px ring. */
+html .tk-check::after { content: ""; position: absolute; inset: -8px; border-radius: var(--pc-r-pill); }
+html .tk-check:active:not([aria-disabled="true"]) { transform: scale(.92); }
+html .tk-check.is-checked { background: var(--pc-k); }
+html .tk-check.is-blocked { border-style: dashed; border-color: var(--pc-faint); cursor: not-allowed; opacity: .8; }
+html .tk-check[aria-disabled="true"]:not(.is-blocked) { cursor: default; opacity: .6; }
+.tk-check-mark { opacity: 0; transform: scale(.6); transition: opacity var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-base) var(--pc-ease); }
+.tk-check.is-checked .tk-check-mark { opacity: 1; transform: none; }
+.tk-check-burst { position: absolute; z-index: 0; inset: -14px; border-radius: var(--pc-r-pill); pointer-events: none; }
+.tk-check-burst::before,
+.tk-check-burst::after { content: ""; position: absolute; border-radius: inherit; opacity: 0; }
+.tk-check-burst::before { inset: 14px; border: 2px solid var(--pc-k); }
+.tk-check-burst::after {
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 6%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 94% 50%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 50% 94%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 6% 50%, var(--pc-k) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 82% 18%, var(--pc-k) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 82% 82%, var(--pc-k) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 18% 82%, var(--pc-k) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 18% 18%, var(--pc-k) 0 2px, transparent 2.5px);
+}
+.tk-check-wrap.is-celebrating .tk-check-mark path { stroke-dasharray: 24; animation: pc-check-draw var(--pc-dur-draw) var(--pc-ease) 60ms both; }
+html .tk-check-wrap.is-celebrating .tk-check { animation: pc-spring-pop 420ms var(--pc-ease); }
+.tk-check-wrap.is-celebrating .tk-check-burst::before { animation: pc-burst-ring var(--pc-dur-celebrate) var(--pc-ease) both; }
+.tk-check-wrap.is-celebrating .tk-check-burst::after { animation: pc-burst-dots var(--pc-dur-celebrate) var(--pc-ease) 40ms both; }
+
+/* ---------- meta pills ---------- */
+.tk-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.tk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card-2);
+  color: var(--ink-muted);
+  font-size: var(--pc-text-caption);
+  line-height: var(--pc-lh-caption);
+  font-weight: var(--pc-w-semibold);
+  white-space: nowrap;
+}
+.tk-pill > svg { flex: none; }
+.tk-pill-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.tk-pill.is-accent { background: var(--selection); color: var(--pc-accent-strong); }
+.tk-pill.is-risk { background: var(--pc-risk-soft); color: var(--pc-risk); }
+.tk-pill.is-off { background: var(--pc-off-soft); color: var(--pc-off); }
+.tk-pill.is-ok { background: var(--pc-ok-soft); color: var(--pc-ok); }
+.tk-pill.is-cat { background: var(--pc-k-soft); color: var(--pc-k-ink); }
+.tk-pill .pc-dot { background: var(--pc-k); }
+.tk-mini-bar { position: relative; flex: none; width: 28px; height: 4px; overflow: hidden; border-radius: var(--pc-r-pill); background: var(--pc-track); }
+.tk-mini-bar > i { position: absolute; inset: 0; border-radius: inherit; background: currentColor; transform-origin: left; transition: transform var(--pc-dur-data) var(--pc-ease-data); }
+
+/* ---------- row ---------- */
+.tk-rows { container: tk-rows / inline-size; display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tk-row {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "check title pills actions";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 0;
+  min-height: 56px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-control);
+  background: var(--pc-card);
+  box-shadow: var(--pc-e1);
+  transition: transform var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
+}
+.tk-row > .tk-check-wrap { grid-area: check; }
+html .tk-row-title {
+  grid-area: title;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: var(--pc-w-medium) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font);
+  letter-spacing: var(--pc-tracking-tight);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: line-through transparent;
+  transition: color var(--pc-dur-base) var(--pc-ease), text-decoration-color var(--pc-dur-base) var(--pc-ease);
+}
+/* The whole row opens the task; check, pills-as-text and actions sit above or below this layer. */
+html .tk-row-title::after { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+html .tk-row-title:focus-visible { outline: none; }
+.tk-row:has(.tk-row-title:focus-visible) { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
+.tk-row .tk-row-pills { grid-area: pills; justify-content: flex-end; flex-wrap: nowrap; max-width: 48cqw; overflow: hidden; }
+.tk-row-actions { grid-area: actions; position: relative; z-index: 1; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 36px; }
+.tk-row.is-complete { background: color-mix(in srgb, var(--pc-card) 70%, var(--pc-page)); box-shadow: none; }
+html .tk-row.is-complete .tk-row-title { color: var(--ink-muted); text-decoration-color: color-mix(in srgb, currentColor 60%, transparent); }
+.tk-row.is-pending { border-style: dashed; }
+.task-row-swipe { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.task-row-swipe > span { position: absolute; inset-block: 0; width: 50%; opacity: 0; }
+.task-row-swipe > [data-swipe="complete"] { left: 0; }
+.task-row-swipe > [data-swipe="reschedule"] { right: 0; }
+
+/* Narrow lists (the container, not the viewport): pills drop under the title. */
+@container tk-rows (max-width: 719px) {
+  .tk-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check title actions"
+      ".     pills pills";
+  }
+  .tk-row .tk-row-pills { margin-top: 6px; max-width: none; justify-content: flex-start; flex-wrap: wrap; overflow: visible; }
+  html .tk-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+}
+
+/* Hover-capable pointers reveal the actions; touch always shows More. */
+@media (hover: hover) and (pointer: fine) {
+  .tk-row-actions { opacity: 0; transition: opacity var(--pc-dur-fast) var(--pc-ease); }
+  .tk-row:hover .tk-row-actions, .tk-row:focus-within .tk-row-actions, .tk-row-actions:has([data-state="open"]) { opacity: 1; }
+  .tk-row:not(.is-complete):hover { transform: translateY(-1px); box-shadow: var(--pc-e2); border-color: color-mix(in srgb, var(--pc-k, var(--accent)) 35%, var(--pc-line)); }
+  html .tk-btn:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
+  html .tk-btn.is-accent:not(:disabled):hover { border-color: transparent; background: var(--pc-accent-strong); }
+  html .tk-ghost-btn:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
+  html .tk-icon-btn:hover { background: var(--pc-card-2); color: var(--ink); }
+  html .tk-check:not([aria-disabled="true"]):not(.is-checked):hover { background: var(--pc-k-soft); }
+  .tk-section-toggle:hover .tk-section-caret { color: var(--ink); }
+  .tk-section-toggle:hover { background: color-mix(in srgb, var(--pc-card-2) 70%, transparent); }
+}
+@media (hover: none), (pointer: coarse) {
+  .tk-row-actions .tk-ghost-btn { display: none; }
+  html .tk-icon-btn { width: 44px; height: 44px; }
+  html .tk-btn { min-height: 44px; }
+  .tk-kbd { display: none; }
+}
+
+/* ---------- sections ---------- */
+.tk-sections { display: grid; gap: 18px; min-width: 0; }
+.tk-section { display: grid; min-width: 0; }
+html .tk-section-head { position: sticky; top: var(--tk-sticky-top, 0); z-index: var(--pc-z-raised); margin: 0; padding: 4px 0; background: color-mix(in srgb, var(--pc-page) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: inherit; }
+html .tk-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px 6px 4px;
+  border: 0;
+  border-radius: var(--pc-r-control);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease);
+}
+.tk-section-title { font: var(--pc-w-semibold) var(--pc-text-body)/var(--pc-lh-body) var(--pc-font); letter-spacing: var(--pc-tracking-tight); }
+html .tk-section-toggle .tk-section-count { min-width: 24px; padding: 2px 8px; border-radius: var(--pc-r-pill); background: var(--pc-card-2); color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); text-align: center; }
+.tk-section-facts { min-width: 0; overflow: hidden; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); text-overflow: ellipsis; white-space: nowrap; }
+.tk-section[data-section="past_due"] .tk-section-facts { color: var(--pc-off); font-weight: var(--pc-w-semibold); }
+.tk-section-hint { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.tk-section-caret { flex: none; transition: transform var(--pc-dur-base) var(--pc-ease); }
+.tk-section.is-collapsed .tk-section-caret { transform: rotate(-90deg); }
+.tk-section-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--pc-dur-base) var(--pc-ease); }
+.tk-section.is-collapsed .tk-section-body { grid-template-rows: 0fr; }
+/* The padding keeps focus rings and hover shadows from being clipped by the collapse. */
+.tk-section-clip { min-height: 0; overflow: hidden; padding: 4px; margin: -4px; }
+.tk-section.is-collapsed .tk-section-clip { padding-block: 0; margin-block: 0; }
+
+/* ---------- empty states ---------- */
+.tk-empty { display: grid; gap: 16px; padding: 24px; border: 1px dashed var(--pc-line); border-radius: var(--pc-r-feature); background: var(--pc-card); }
+.tk-definitions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tk-definitions .tk-pill { min-height: 28px; padding: 0 12px; }
+
+/* ---------- skeleton: one sweep, then still ---------- */
+.tk-skel {
+  display: block;
+  border-radius: var(--pc-r-chip);
+  background: linear-gradient(100deg, var(--pc-track) 30%, color-mix(in srgb, var(--pc-card) 70%, var(--pc-track)) 50%, var(--pc-track) 70%);
+  background-size: 250% 100%;
+  background-position: 120% 0;
+  animation: pc-skel-sweep 1200ms var(--pc-ease-data) calc(var(--tk-i, 0) * 60ms) 1 both;
+}
+@keyframes pc-skel-sweep { from { background-position: 120% 0; } to { background-position: -20% 0; } }
+.tk-skel-rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tk-skel-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-control); background: var(--pc-card); }
+.tk-skel-check { flex: none; width: 28px; height: 28px; border-radius: var(--pc-r-pill); }
+.tk-skel-title { flex: 1 1 auto; height: 14px; max-width: 70%; }
+.tk-skel-pill { flex: none; width: 72px; height: 22px; border-radius: var(--pc-r-pill); }
+.tk-skel-pill.is-short { width: 44px; }
+.tk-skel-lanes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow: hidden; }
+.tk-skel-lane { display: grid; align-content: start; gap: 10px; padding: 10px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-panel); background: var(--pc-card-2); }
+.tk-skel-lane-head { width: 45%; height: 18px; }
+.tk-skel-cards { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tk-skel-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-control); background: var(--pc-card); }
+.tk-skel-line { height: 12px; }
+.tk-skel-line.is-short { width: 60%; }
+
+/* ---------- header ---------- */
+.tk-header { display: grid; gap: 14px; min-width: 0; }
+html .tk-header .pc-page-header { flex-wrap: wrap; gap: 12px; }
+html .tk-header .pc-page-header > .pc-icon-tile { width: 44px; height: 44px; border-radius: var(--pc-r-control); }
+html .tk-header .pc-page-header > .pc-icon-tile svg { width: 20px; height: 20px; }
+html .tk-header .pc-page-header .pc-page-header-title { font: var(--pc-w-display) var(--pc-text-h1)/var(--pc-lh-h1) var(--pc-font); letter-spacing: var(--pc-tracking-display); }
+html .tk-header .pc-page-header .pc-page-header-subtitle { font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.tk-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.tk-summary { font-variant-numeric: tabular-nums; }
+.tk-summary-part.is-off { color: var(--pc-off); font-weight: var(--pc-w-semibold); }
+.tk-summary-dot { color: var(--pc-faint); }
+.tk-tab-icon { flex: none; margin-right: 6px; vertical-align: -3px; }
+.tk-offline { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: var(--pc-r-pill); background: var(--pc-risk-soft); color: var(--pc-risk); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); }
+.tk-saved-copy { margin: 0; padding: 8px 12px; border-radius: var(--pc-r-control); background: var(--pc-risk-soft); color: var(--pc-risk); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); font-weight: var(--pc-w-semibold); }
+
+/* ---------- toolbar ---------- */
+.tk-toolbar { display: grid; gap: 10px; min-width: 0; }
+.tk-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.tk-toolbar-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+html .tk-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 340px;
+  min-height: 40px;
+  padding: 0 8px 0 14px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink-muted);
+  transition: border-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-search:focus-within { border-color: var(--accent); outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
+html .tk-search input { flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: var(--pc-w-medium) 16px/24px var(--pc-font); }
+html .tk-search input:focus-visible { outline: none; }
+html .tk-search input::placeholder { color: var(--ink-muted); opacity: 1; }
+html .tk-search input::-webkit-search-cancel-button { display: none; }
+.tk-kbd { display: grid; place-items: center; flex: none; min-width: 22px; height: 22px; padding: 0 6px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-chip); color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-caption)/1 var(--pc-font); }
+html .tk-search-clear { display: grid; place-items: center; flex: none; width: 28px; height: 28px; min-height: 0; padding: 0; border: 0; border-radius: var(--pc-r-pill); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.tk-quick { min-width: 0; }
+html .tk-filter-btn.has-active { border-color: color-mix(in srgb, var(--pc-accent-strong) 38%, var(--pc-line)); background: var(--selection); color: var(--pc-accent-strong); }
+html .tk-filter-btn.has-active .pc-cselect-icon { color: inherit; }
+html .tk-filter-badge { min-width: 20px; padding: 2px 6px; border-radius: var(--pc-r-pill); background: var(--accent); color: var(--accent-foreground); font-size: var(--pc-text-caption); line-height: 16px; font-weight: var(--pc-w-semibold); text-align: center; }
+html .tk-filter-panel { width: min(380px, calc(100vw - 24px)); max-width: none; padding: 14px; }
+.tk-filter-groups { display: grid; gap: 16px; }
+.tk-filter-groups > section { display: grid; gap: 8px; }
+html .tk-filter-title { margin: 0; color: var(--ink-muted); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+.tk-filter-none { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.tk-filter-panel .pc-chips.is-scroll-y { max-height: 136px; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }
+html .tk-filter-reset { margin-top: 14px; width: 100%; }
+.tk-lens { display: flex; align-items: center; gap: 10px; }
+.tk-lens-label { color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); font-weight: var(--pc-w-semibold); }
+.tk-applied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ---------- phone ---------- */
+@media (max-width: 680px) {
+  html .tk-header .pc-page-header .pc-page-header-title { font-size: 24px; line-height: 30px; }
+  html .tk-header .pc-page-header .pc-page-header-actions { flex: 1 1 100%; }
+  .tk-header-actions { justify-content: flex-start; width: 100%; }
+  html .tk-search { flex: 1 1 100%; max-width: none; }
+  .tk-toolbar-tools { margin-left: 0; width: 100%; }
+  .tk-kbd { display: none; }
+  .tk-section-facts { display: none; }
+  html .tk-filter-panel { width: calc(100vw - 24px); }
+}
+@media (max-width: 420px) {
+  .tk-tab-icon { display: none; }
+}
+
+/* ---------- reduced motion: state changes still read, nothing travels ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .tk-check-wrap.is-celebrating .tk-check-mark path,
+  html .tk-check-wrap.is-celebrating .tk-check,
+  .tk-check-wrap.is-celebrating .tk-check-burst::before,
+  .tk-check-wrap.is-celebrating .tk-check-burst::after,
+  .tk-skel,
+  html .tk-menu { animation: none !important; }
+  .tk-check-mark { transform: none; transition: opacity var(--pc-dur-fast) linear; }
+  html :is(.tk-btn, .tk-ghost-btn, .tk-icon-btn, .tk-check) { transform: none !important; }
+  .tk-row, .tk-row:not(.is-complete):hover { transform: none !important; }
+  .tk-section-body { transition: none; }
+  .tk-section-caret { transition: none; }
+  .tk-mini-bar > i { transition: none; }
+  html .tk-row-title { transition: none; }
+  .tk-skel { background-position: 50% 0; }
+}

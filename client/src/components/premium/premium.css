@@ -160,12 +160,128 @@ html .pc-review-chip {
 html button.pc-review-chip { cursor: pointer; }
 html button.pc-review-chip:active { transform: scale(.97); }
 
+/* ---------- D3: filter chips, rolling count, ChipSelect ---------- */
+.pc-count { display: inline-block; font-variant-numeric: tabular-nums; }
+.pc-count-digits { display: inline-block; }
+.pc-count-roll { animation: pc-tick var(--pc-dur-base) var(--pc-ease) both; }
+
+.pc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+html .pc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink-muted);
+  font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .pc-chip:active { transform: scale(.97); }
+html .pc-chip.is-pressed { border-color: color-mix(in srgb, var(--pc-accent-strong) 38%, var(--pc-line)); background: var(--selection); color: var(--pc-accent-strong); }
+html .pc-chip .pc-count { min-width: 20px; padding: 2px 6px; border-radius: var(--pc-r-pill); background: var(--pc-card-2); color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: 16px; font-weight: var(--pc-w-semibold); text-align: center; }
+html .pc-chip.is-pressed .pc-count { background: var(--pc-card); color: var(--pc-accent-strong); }
+.pc-chip-check { flex: none; animation: pc-pop 200ms var(--pc-ease) both; }
+html .pc-chip.is-applied { gap: 4px; padding-right: 4px; background: var(--pc-k-soft, var(--selection)); border-color: transparent; color: var(--pc-k-ink, var(--pc-accent-strong)); cursor: default; }
+html .pc-chip.is-applied:active { transform: none; }
+html .pc-chip-remove { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--pc-r-pill); background: transparent; color: inherit; cursor: pointer; transition: background-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-press) var(--pc-ease); }
+html .pc-chip-remove:active { transform: scale(.9); }
+
+html .pc-cselect {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-pill);
+  background: var(--pc-card);
+  color: var(--ink);
+  font: var(--pc-w-semibold) var(--pc-text-label)/1 var(--pc-font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--pc-dur-press) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .pc-cselect:active:not(:disabled) { transform: scale(.98); }
+html .pc-cselect:disabled { cursor: not-allowed; opacity: .6; }
+html .pc-cselect.is-field { display: flex; width: 100%; min-height: 44px; border-radius: var(--pc-r-control); padding: 0 12px; font-size: var(--pc-text-body-sm); font-weight: var(--pc-w-medium); }
+html .pc-cselect.is-open { border-color: var(--accent); }
+.pc-cselect-icon { flex: none; color: var(--ink-muted); }
+.pc-cselect-key { color: var(--ink-muted); font-weight: var(--pc-w-medium); }
+.pc-cselect-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pc-cselect-value.is-placeholder { color: var(--ink-muted); }
+.pc-cselect.is-field .pc-cselect-value { flex: 1 1 auto; text-align: left; }
+.pc-cselect-caret { flex: none; margin-left: auto; color: var(--ink-muted); transition: transform var(--pc-dur-fast) var(--pc-ease); }
+.pc-cselect.is-open .pc-cselect-caret { transform: rotate(180deg); }
+
+html .pc-cselect-panel {
+  z-index: calc(var(--pc-z-overlay) + 20);
+  min-width: max(var(--radix-popover-trigger-width), 200px);
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 6px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-panel);
+  background: var(--pc-card);
+  color: var(--ink);
+  box-shadow: var(--pc-e3);
+  font-family: var(--pc-font);
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: pc-pop 160ms var(--pc-ease) both;
+}
+.pc-cselect-list { display: grid; gap: 2px; max-height: min(320px, 50dvh); overflow-y: auto; overscroll-behavior: contain; outline: none; }
+.pc-cselect-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: var(--pc-r-control);
+  color: var(--ink);
+  font-size: var(--pc-text-body-sm);
+  line-height: var(--pc-lh-body-sm);
+  cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-cselect-list:focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--pc-r-control); }
+.pc-cselect-option[data-active] { background: var(--pc-card-2); }
+.pc-cselect-option.is-selected { font-weight: var(--pc-w-semibold); }
+.pc-cselect-option[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.pc-cselect-option-icon { flex: none; color: var(--ink-muted); }
+.pc-cselect-option-text { display: grid; flex: 1; min-width: 0; }
+.pc-cselect-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-cselect-option-desc { color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.pc-cselect-option-check { flex: none; color: var(--pc-accent-strong); }
+.pc-cselect-empty { margin: 0; padding: 10px; color: var(--ink-muted); font-size: var(--pc-text-label); }
+
+@media (max-width: 680px) {
+  /* Quick chips scroll sideways with snap; the page never does. */
+  .pc-chips.is-scroll { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .pc-chips.is-scroll::-webkit-scrollbar { display: none; }
+  .pc-chips.is-scroll > .pc-chip { flex: none; scroll-snap-align: start; scroll-margin-inline: 16px; }
+}
+@media (pointer: coarse) {
+  html .pc-chip, html .pc-cselect { min-height: 44px; }
+  .pc-cselect-option { min-height: 44px; }
+}
+
 @media (hover: hover) and (pointer: fine) {
   html .pc-sheet .pc-sheet-close:hover { color: var(--ink); background: var(--pc-card-2); }
+  html .pc-chip:not(.is-pressed):not(.is-applied):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); color: var(--ink); }
+  html .pc-cselect:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
+  html .pc-chip-remove:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
   .pc-choice:not(.is-selected):not(.is-disabled):hover { border-color: color-mix(in srgb, var(--pc-k, var(--accent)) 45%, var(--pc-line)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pc-choice-reveal, .pc-choice.is-selected .pc-choice-radio > span { animation: none !important; }
   html .pc-sheet .pc-sheet-close, html .pc-choice .pc-choice-button, html .pc-review-chip { transform: none !important; }
+  .pc-count-roll, .pc-chip-check, html .pc-cselect-panel { animation: none !important; }
+  html .pc-chip, html .pc-cselect { transform: none !important; }
+  .pc-cselect-caret { transition: none; }
 }

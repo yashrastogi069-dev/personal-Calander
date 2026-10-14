@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CategoryChip, Pill, StatusPill, TimeChip } from "@/components/premium/Pills";
 import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
 import { resolveCategoryTones } from "@/design/categoryTone";
+import PremiumGalleryTasks from "./PremiumGalleryTasks";
 
 const SAMPLE_CATEGORIES = [
   { id: "sample-work", name: "Work", color: "#2f6fe4", sortOrder: 0 },
@@ -62,6 +63,7 @@ export default function PremiumGallery() {
             <span className="pc-grow-x" style={{ width: "15%", background: "var(--pc-cat-learning)", ["--pc-i" as string]: 2 }} />
           </div>
         </section>
+        <PremiumGalleryTasks />
       </div>
     </main>
   );

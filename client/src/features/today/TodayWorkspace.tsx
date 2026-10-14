@@ -553,7 +553,7 @@ export function TodayWorkspace({
       <div className="today-execution-grid">
         <div className="today-work-column" data-today-section="work">
           <TodayFlexibleWork
-            rows={projection.flexible} tasks={tasks} localDate={projection.localDate} timezone={timezone}
+            rows={projection.flexible} tasks={tasks} localDate={projection.localDate} timezone={timezone} occurrences={taskOccurrences}
             projectTitles={projectTitles} goalTitles={goalTitles} categoryNames={categoryNames}
             pendingTaskIds={pendingTaskIds} linkedResolutionByTaskId={linkedResolutionByTaskId}
             linkedPlanContextByTaskId={linkedPlanContextByTaskId} onOpenLinkedResolution={openLinkedResolution}
@@ -582,7 +582,7 @@ export function TodayWorkspace({
             </div>
           </details>
           <TodayTimeline
-            rows={projection.timeline} tasks={tasks} timezone={timezone} projectTitles={projectTitles}
+            rows={projection.timeline} tasks={tasks} timezone={timezone} localDate={projection.localDate} occurrences={taskOccurrences} projectTitles={projectTitles}
             goalTitles={goalTitles} categoryNames={categoryNames} pendingTaskIds={pendingTaskIds}
             linkedResolutionByTaskId={linkedResolutionByTaskId} linkedPlanContextByTaskId={linkedPlanContextByTaskId}
             onOpenLinkedResolution={openLinkedResolution} onToggleTask={toggleTask} onArchiveTask={onArchiveTask}

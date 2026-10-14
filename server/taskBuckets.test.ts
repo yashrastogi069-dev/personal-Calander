@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { navBadgeCounts } from "../client/src/features/shell/premiumNavigation";
+import { inboxTasks, taskHeaderSummary } from "../client/src/features/tasks/taskWorkspaceModel";
 import {
   completedOnLocalDay,
+  deadlineIsSeriesAnchor,
   groupTasksByWhen,
+  isInboxTask,
+  isOverdueTask,
   overdueDays,
   reservedLocalDate,
   taskListSection,
@@ -87,6 +91,68 @@ describe("taskWhenBucket", () => {
     it("has no date once the series ended", () => {
       expect(taskWhenBucket({ ...daily, recurrenceUntilLocalDate: "2026-10-01" }, ctx)).toBe("no_date");
     });
+
+    describe("anchored on a deadline only (no Plan for date)", () => {
+      // The deadline is the series start (`recurrenceSeriesStart`), so it is never a missed deadline.
+      it("places a past anchor by the next occurrence, never in Past due", () => {
+        expect(taskWhenPlacement(task({ recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" }), ctx))
+          .toMatchObject({ bucket: "today", keyDate: "2026-10-14", pastDue: null });
+        // 24 Sep 2026 is a Thursday, so the next one is Thu 15 Oct.
+        expect(taskWhenPlacement(task({ recurrenceRule: { frequency: "weekly" }, dueLocalDate: "2026-09-24" }), ctx))
+          .toMatchObject({ bucket: "next_7_days", keyDate: "2026-10-15", pastDue: null });
+        expect(taskWhenPlacement(task({ recurrenceRule: { frequency: "monthly" }, dueLocalDate: "2026-09-30" }), ctx))
+          .toMatchObject({ bucket: "later", keyDate: "2026-10-30", pastDue: null });
+      });
+
+      it("uses a pending materialized occurrence before the computed date", () => {
+        const monthly = task({ recurrenceRule: { frequency: "monthly" }, dueLocalDate: "2026-09-30" });
+        const occurrences = [{ id: "o", taskId: "t1", localDate: "2026-10-20", state: "pending" }];
+        expect(taskWhenPlacement(monthly, { ...ctx, occurrences })).toMatchObject({ bucket: "next_7_days", keyDate: "2026-10-20", pastDue: null });
+      });
+
+      it("stays in Today once today's occurrence is resolved", () => {
+        const daily = task({ recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" });
+        expect(taskWhenBucket(daily, { ...ctx, occurrences: [{ id: "o", taskId: "t1", localDate: "2026-10-14", state: "skipped" }] })).toBe("today");
+      });
+
+      it("has no date once the series ended, or when it repeats after completion with nothing materialized", () => {
+        expect(taskWhenPlacement(task({ recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20", recurrenceUntilLocalDate: "2026-10-01" }), ctx))
+          .toMatchObject({ bucket: "no_date", pastDue: null, recurring: { kind: "ended" } });
+        const afterCompletion = task({ recurrenceRule: { frequency: "weekly" }, recurrenceAnchor: "completion", dueLocalDate: "2026-09-20" });
+        expect(taskWhenPlacement(afterCompletion, ctx)).toMatchObject({ bucket: "no_date", pastDue: null, recurring: { kind: "after_completion" } });
+        expect(taskWhenBucket(afterCompletion, { ...ctx, occurrences: [{ id: "o", taskId: "t1", localDate: "2026-10-18", state: "pending" }] })).toBe("next_7_days");
+      });
+
+      it("places a future anchor on its first occurrence", () => {
+        expect(taskWhenPlacement(task({ recurrenceRule: { frequency: "weekly" }, dueLocalDate: "2026-11-05" }), ctx)).toMatchObject({ bucket: "later", keyDate: "2026-11-05" });
+      });
+    });
+
+    it("still treats a past deadline as overdue when a Plan for date anchors the series", () => {
+      expect(taskWhenPlacement(task({ recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-24", dueLocalDate: "2026-10-01" }), ctx))
+        .toMatchObject({ bucket: "past_due", pastDue: "deadline", keyDate: "2026-10-01" });
+    });
+  });
+});
+
+describe("shared overdue and Inbox rules", () => {
+  it("never calls a recurring series' anchor deadline missed", () => {
+    expect(deadlineIsSeriesAnchor(task({ recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" }))).toBe(true);
+    expect(deadlineIsSeriesAnchor(task({ recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-20", dueLocalDate: "2026-09-20" }))).toBe(false);
+    expect(deadlineIsSeriesAnchor(task({ dueLocalDate: "2026-09-20" }))).toBe(false);
+    expect(isOverdueTask(task({ dueLocalDate: "2026-10-13" }), ctx.today)).toBe(true);
+    expect(isOverdueTask(task({ dueLocalDate: "2026-10-14" }), ctx.today)).toBe(false);
+    expect(isOverdueTask(task({ state: "completed", dueLocalDate: "2026-10-01" }), ctx.today)).toBe(false);
+    expect(isOverdueTask(task({ recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" }), ctx.today)).toBe(false);
+  });
+
+  it("keeps Someday out of the Inbox", () => {
+    expect(isInboxTask(task())).toBe(true);
+    expect(isInboxTask(task({ dueLocalDate: "2026-10-20" }))).toBe(true);
+    expect(isInboxTask(task({ horizon: "someday" }))).toBe(false);
+    expect(isInboxTask(task({ scheduledLocalDate: "2026-10-20" }))).toBe(false);
+    expect(isInboxTask(task({ plannedStartAt: "2026-10-15T20:00:00.000Z", plannedEndAt: "2026-10-15T21:00:00.000Z" }))).toBe(false);
+    expect(isInboxTask(task({ state: "archived" }))).toBe(false);
   });
 });
 
@@ -100,15 +166,49 @@ describe("taskWhenBucketCounts", () => {
     task({ id: "f" }),
     task({ id: "g", state: "completed", dueLocalDate: "2026-10-01" }),
     task({ id: "h", state: "archived", dueLocalDate: "2026-10-01" }),
+    // A daily series anchored on a past deadline: placed by today's occurrence, not Past due (owner 2026-10-14).
     task({ id: "i", recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" }),
+    // A series anchored on its Plan for date keeps a real deadline, which it has missed.
+    task({ id: "j", recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-24", dueLocalDate: "2026-10-01" }),
+    task({ id: "k", recurrenceRule: { frequency: "weekly" }, dueLocalDate: "2026-09-20", recurrenceUntilLocalDate: "2026-10-01" }),
   ];
 
   it("counts open tasks per bucket with overdue and someday sub-counts", () => {
-    expect(taskWhenBucketCounts(tasks, ctx)).toEqual({ past_due: 4, today: 1, next_7_days: 0, later: 0, no_date: 2, overdue: 3, someday: 1 });
+    expect(taskWhenBucketCounts(tasks, ctx)).toEqual({ past_due: 4, today: 2, next_7_days: 0, later: 0, no_date: 3, overdue: 3, someday: 1 });
   });
 
   it("matches the D1 rail overdue badge exactly", () => {
-    expect(taskWhenBucketCounts(tasks, ctx).overdue).toBe(navBadgeCounts({ today: ctx.today, tasks, todayTaskCount: null, dueHabitCount: null }).overdue);
+    const badges = navBadgeCounts({ today: ctx.today, tasks, todayTaskCount: null, dueHabitCount: null });
+    expect(badges.overdue).toBe(3);
+    expect(taskWhenBucketCounts(tasks, ctx).overdue).toBe(badges.overdue);
+  });
+
+  it("keeps the badge, the Past due overdue sub-count and the Tasks header in parity on any mix", () => {
+    const occurrences = [
+      { id: "o1", taskId: "i", localDate: "2026-10-14", state: "completed" },
+      { id: "o2", taskId: "m", localDate: "2026-10-16", state: "pending" },
+    ];
+    const mixed = [
+      ...tasks,
+      task({ id: "m", recurrenceRule: { frequency: "weekly" }, recurrenceAnchor: "completion", dueLocalDate: "2026-08-01" }),
+      task({ id: "n", recurrenceRule: { frequency: "monthly" }, dueLocalDate: "2026-11-02" }),
+      task({ id: "o", state: "in_progress", dueLocalDate: "2026-10-13", plannedStartAt: "2026-10-15T20:00:00.000Z", plannedEndAt: "2026-10-15T21:00:00.000Z" }),
+      task({ id: "p", state: "blocked", horizon: "someday", dueLocalDate: "2026-10-02" }),
+    ];
+    const withOccurrences = { ...ctx, occurrences };
+    const badges = navBadgeCounts({ today: ctx.today, tasks: mixed, todayTaskCount: null, dueHabitCount: null });
+    const counts = taskWhenBucketCounts(mixed, withOccurrences);
+    const pastDueDeadline = mixed.filter(item => item.state !== "completed" && item.state !== "archived"
+      && taskWhenPlacement(item, withOccurrences).pastDue === "deadline");
+    expect(badges.overdue).toBe(5);
+    expect(counts.overdue).toBe(badges.overdue);
+    expect(pastDueDeadline).toHaveLength(badges.overdue!);
+    const rows = mixed.map(item => ({ ...item, title: item.id, createdAt: undefined }));
+    expect(taskHeaderSummary(rows, withOccurrences).overdue).toBe(badges.overdue);
+    // Inbox badge equals the Inbox tab and the header: Someday ("e", "p") and dated work leave it.
+    expect(inboxTasks(rows).map(item => item.id)).toEqual(["a", "f", "i", "k", "m", "n"]);
+    expect(badges.inbox).toBe(inboxTasks(rows).length);
+    expect(taskHeaderSummary(rows, withOccurrences).inbox).toBe(badges.inbox);
   });
 });
 

@@ -1,6 +1,7 @@
 import { CanonicalTaskRow } from "@/features/tasks/CanonicalTaskRow";
 import type { CanonicalTask } from "@shared/canonicalTask";
 import type { TodayProjection } from "@shared/todayProjection";
+import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
 import { Layers3 } from "lucide-react";
 
 export type TodayFlexibleWorkProps = {
@@ -8,6 +9,8 @@ export type TodayFlexibleWorkProps = {
   tasks: CanonicalTask[];
   localDate: string;
   timezone: string;
+  /** `snapshot.taskOccurrences`, so a recurring row shows its occurrence, never its anchor date (D3 §7). */
+  occurrences?: readonly TaskOccurrenceLike[];
   projectTitles: ReadonlyMap<string, string>;
   goalTitles: ReadonlyMap<string, string>;
   categoryNames: ReadonlyMap<string, string>;
@@ -34,6 +37,7 @@ export function TodayFlexibleWork({
   tasks,
   localDate,
   timezone,
+  occurrences,
   projectTitles,
   goalTitles,
   categoryNames,
@@ -93,6 +97,7 @@ export function TodayFlexibleWork({
                   surface: "today",
                   localDate,
                   timezone,
+                  occurrences,
                   projectTitle: task.projectId ? projectTitles.get(task.projectId) : null,
                   goalTitle: task.goalId ? goalTitles.get(task.goalId) : null,
                   categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,

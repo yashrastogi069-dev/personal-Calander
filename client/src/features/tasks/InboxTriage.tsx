@@ -1,4 +1,5 @@
 import type { CanonicalTask } from "@shared/canonicalTask";
+import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
 import { CalendarPlus, Inbox } from "lucide-react";
 import { CanonicalTaskRow } from "./CanonicalTaskRow";
 
@@ -13,6 +14,8 @@ export type InboxTriageProps = {
   goals: any[];
   allTasks: CanonicalTask[];
   pendingTaskIds?: ReadonlySet<string>;
+  /** `snapshot.taskOccurrences`, so a recurring row shows its occurrence, never its anchor date (D3 §7). */
+  occurrences?: readonly TaskOccurrenceLike[];
   onToggle: (task: CanonicalTask) => void | Promise<unknown>;
   onPlanToday: (task: CanonicalTask) => void | Promise<unknown>;
   onArchive: (task: CanonicalTask) => void | Promise<unknown>;
@@ -32,6 +35,7 @@ export function InboxTriage({
   goals,
   allTasks,
   pendingTaskIds = new Set(),
+  occurrences,
   onToggle,
   onPlanToday,
   onArchive,
@@ -70,6 +74,7 @@ export function InboxTriage({
                 surface: "tasks",
                 localDate: today,
                 timezone,
+                occurrences,
                 categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
                 projectTitle: task.projectId ? projectTitles.get(task.projectId) : null,
                 goalTitle: task.goalId ? goalTitles.get(task.goalId) : null,

@@ -7,6 +7,7 @@ import type { CanonicalTask } from "@shared/canonicalTask";
 import { dailyCapacityForecast, deadlineRiskForTask } from "@shared/planningForecast";
 import {
   completedOnLocalDay,
+  isInboxTask,
   taskListSection,
   taskWhenBucketCounts,
   taskWhenBuckets,
@@ -64,10 +65,10 @@ function isOpen(task: { state: string }) {
 
 /**
  * Inbox = undecided work: open, with no Plan for date and no reserved time. Someday tasks have been decided
- * ("not now"), so they leave the Inbox and its badge (owner assumption, DECISIONS 2026-10-13).
+ * ("not now"), so they leave the Inbox and its badge (owner decision 2026-10-14). Same rule as the rail badge.
  */
 export function inboxTasks<TTask extends WorkspaceTask>(tasks: readonly TTask[]): TTask[] {
-  return tasks.filter(task => isOpen(task) && !task.scheduledLocalDate && !task.plannedStartAt && !task.plannedEndAt && task.horizon !== "someday");
+  return tasks.filter(isInboxTask);
 }
 
 export function tasksForWorkspaceView<TTask extends WorkspaceTask>(tasks: readonly TTask[], view: TaskWorkspaceView): TTask[] {

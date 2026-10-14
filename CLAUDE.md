@@ -12,8 +12,8 @@ Use subagents wherever they help: independent review, screenshot/visual review, 
 | Model | Use for |
 | --- | --- |
 | haiku | Mechanical edits, greps, renames, log/file digests |
-| sonnet | Read-only exploration and routine screenshot checks |
-| opus | All logic (data/projection, state), architecture, risky integration, test and preview tooling, independent code review |
+| sonnet | Trivial read-only lookups only. Never for anything important, and never for UI/UX design or visual/screenshot review (owner, 2026-10-14) |
+| opus | All logic (data/projection, state), architecture, risky integration, test and preview tooling, independent code review, plus every UI/UX review, screenshot/visual check and important exploration that used to go to sonnet (owner, 2026-10-14: "for IMP things and design UI UX dont use sonnet use opus") |
 | fable (Fable 5.1) | ALL UI/UX design: specs, layout, icons, motion, and building the visual UI layer. Load `impeccable:impeccable`, `design-taste-frontend`, `emilkowal-animations` first. Always tell the owner when Fable runs. |
 
 Owner update 2026-10-13 (latest, supersedes earlier): "use FABLE 5.1 not opus for designs". Fable does all design work. Opus keeps logic and review.

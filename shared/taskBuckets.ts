@@ -3,7 +3,7 @@
 // workspace timezone, never by slicing a UTC ISO string (that is a day early or late east/west of UTC).
 
 import { localDateForInstant, localDaysBetween } from "./taskDateLabels";
-import { recurringTaskKeyDate, recurringTaskStatus, shiftLocalDate, type RecurringTaskStatus, type TaskOccurrenceLike } from "./taskRecurrence";
+import { isRecurrenceRule, recurringTaskKeyDate, recurringTaskStatus, shiftLocalDate, type RecurringTaskStatus, type TaskOccurrenceLike } from "./taskRecurrence";
 
 export const taskWhenBuckets = [
   { id: "past_due", label: "Past due" },
@@ -52,6 +52,48 @@ export type TaskWhenPlacement = {
 
 const NEXT_DAYS = 7;
 
+type DeadlineTask = { dueLocalDate?: string | null; scheduledLocalDate?: string | null; recurrenceRule?: unknown };
+
+/**
+ * True for a recurring series with no Plan for date: its deadline is the series start (see
+ * `recurrenceSeriesStart`), not a deadline the work can miss, so the series is placed by its next occurrence.
+ */
+export function deadlineIsSeriesAnchor(task: DeadlineTask) {
+  return isRecurrenceRule(task.recurrenceRule) && !task.scheduledLocalDate;
+}
+
+/** A deadline before today that the work can still miss (never a recurring series' anchor date). */
+export function hasMissedDeadline(task: DeadlineTask, today: string) {
+  return Boolean(task.dueLocalDate && task.dueLocalDate < today) && !deadlineIsSeriesAnchor(task);
+}
+
+/**
+ * Open work with a missed deadline. The one rule behind the D1 rail "N overdue" badge, the Tasks header and
+ * the Past due "N overdue" sub-count, so the three numbers always agree.
+ */
+export function isOverdueTask(task: DeadlineTask & { state: string }, today: string) {
+  return task.state !== "completed" && task.state !== "archived" && hasMissedDeadline(task, today);
+}
+
+type InboxCandidate = {
+  state: string;
+  horizon?: string | null;
+  scheduledLocalDate?: string | null;
+  plannedStartAt?: unknown;
+  plannedEndAt?: unknown;
+};
+
+/**
+ * Inbox = undecided work: open, with no Plan for date and no reserved time. A deadline alone keeps it in the
+ * Inbox. Someday (`horizon = "someday"`) is a decision ("not now"), so it leaves the Inbox and its badge and
+ * lives under No date with a Someday pill (owner decision 2026-10-14).
+ */
+export function isInboxTask(task: InboxCandidate) {
+  return task.state !== "completed" && task.state !== "archived"
+    && !task.scheduledLocalDate && !task.plannedStartAt && !task.plannedEndAt
+    && task.horizon !== "someday";
+}
+
 /** The workspace-local day of a task's reservation, or null when it has no complete reservation. */
 export function reservedLocalDate(task: Pick<BucketTask, "plannedStartAt" | "plannedEndAt">, timezone: string) {
   if (!task.plannedStartAt || !task.plannedEndAt) return null;
@@ -66,19 +108,22 @@ function bucketForFutureDate(keyDate: string, today: string): TaskWhenBucket {
 /**
  * Places a task by date, ignoring its lifecycle state. Rules, first match wins:
  * 1. Past due: a deadline before today, or a plan/reservation before today with no reservation today or later
- *    and no open occurrence today. A recurring series never slips on its anchor date.
+ *    and no open occurrence today. A recurring series never slips on its anchor date, whether that anchor
+ *    is its Plan for date or (with no Plan for) its deadline.
  * 2. Today / Next 7 days / Later: by the earliest of reservation, plan and deadline on or after today; for a
- *    recurring series, by its next occurrence.
- * 3. No date: nothing dated (Inbox and Someday tasks live here).
+ *    recurring series, by its next occurrence (a pending materialized occurrence first, else the computed
+ *    cadence day). Today's occurrence already resolved keeps the series in Today until tomorrow.
+ * 3. No date: nothing dated (Inbox and Someday tasks live here), a series that ended, and a
+ *    completion-anchored series with no materialized next occurrence.
  */
 export function taskWhenPlacement(task: BucketTask, ctx: TaskBucketContext): TaskWhenPlacement {
   const { today } = ctx;
   const recurring = recurringTaskStatus(task, today, ctx.occurrences);
   const reserved = reservedLocalDate(task, ctx.timezone);
 
-  if (task.dueLocalDate && task.dueLocalDate < today) {
-    // Same rule as the D1 rail badge "N overdue", so the two numbers always agree.
-    return { bucket: "past_due", keyDate: task.dueLocalDate, pastDue: "deadline", recurring };
+  if (hasMissedDeadline(task, today)) {
+    // Same rule as the D1 rail badge "N overdue" (`isOverdueTask`), so the two numbers always agree.
+    return { bucket: "past_due", keyDate: task.dueLocalDate!, pastDue: "deadline", recurring };
   }
 
   if (recurring) {
@@ -123,7 +168,7 @@ export function taskListSection(task: BucketTask, ctx: TaskBucketContext): TaskL
 }
 
 export type TaskWhenBucketCounts = Record<TaskWhenBucket, number> & {
-  /** Open tasks with a deadline before today: equals the D1 rail "N overdue" badge. */
+  /** Open tasks with a missed deadline (`isOverdueTask`): equals the D1 rail "N overdue" badge. */
   overdue: number;
   /** Open Someday tasks; they sit in No date. */
   someday: number;

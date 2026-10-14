@@ -1,6 +1,7 @@
 import { CanonicalTaskRow } from "@/features/tasks/CanonicalTaskRow";
 import type { CanonicalTask } from "@shared/canonicalTask";
 import type { TodayProjection } from "@shared/todayProjection";
+import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
 import { CalendarClock, LockKeyhole } from "lucide-react";
 
 type TimelineRow = TodayProjection["timeline"][number];
@@ -9,6 +10,10 @@ export type TodayTimelineProps = {
   rows: TimelineRow[];
   tasks: CanonicalTask[];
   timezone: string;
+  /** Workspace-local today; recurring rows read their occurrence for this day (D3 §7). */
+  localDate?: string;
+  /** `snapshot.taskOccurrences`, so a recurring row shows its occurrence, never its anchor date. */
+  occurrences?: readonly TaskOccurrenceLike[];
   projectTitles: ReadonlyMap<string, string>;
   goalTitles: ReadonlyMap<string, string>;
   categoryNames: ReadonlyMap<string, string>;
@@ -38,6 +43,8 @@ export function TodayTimeline({
   rows,
   tasks,
   timezone,
+  localDate,
+  occurrences,
   projectTitles,
   goalTitles,
   categoryNames,
@@ -112,13 +119,14 @@ export function TodayTimeline({
                   task={task}
                   context={{
                     surface: "today",
-                    localDate: row.startsAt ? new Intl.DateTimeFormat("en-CA", {
+                    localDate: localDate ?? (row.startsAt ? new Intl.DateTimeFormat("en-CA", {
                       timeZone: timezone,
                       year: "numeric",
                       month: "2-digit",
                       day: "2-digit",
-                    }).format(new Date(row.startsAt)) : "",
+                    }).format(new Date(row.startsAt)) : ""),
                     timezone,
+                    occurrences,
                     projectTitle: task.projectId ? projectTitles.get(task.projectId) : null,
                     goalTitle: task.goalId ? goalTitles.get(task.goalId) : null,
                     categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,

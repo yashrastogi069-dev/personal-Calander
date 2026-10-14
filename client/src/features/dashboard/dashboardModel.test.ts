@@ -80,6 +80,17 @@ describe("dashboard model", () => {
     expect(model.commitments).toMatchObject({ total: 3, done: 1, left: 2, segments: ["done", "open", "open"], dueToday: 1, overdue: 1, openPlannedMinutes: 90 });
   });
 
+  it("never counts a recurring series' anchor deadline as overdue (same rule as the rail badge)", () => {
+    const model = projectDashboard(input({
+      tasks: [
+        task("series", { recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" }),
+        task("planned-series", { recurrenceRule: { frequency: "daily" }, scheduledLocalDate: "2026-09-20", dueLocalDate: "2026-10-01" }),
+        task("missed", { dueLocalDate: "2026-10-01" }),
+      ],
+    }));
+    expect(model.commitments.overdue).toBe(2);
+  });
+
   it("treats today's completed occurrence of a recurring task as done everywhere, not only in the count", () => {
     // projectToday keeps a committed recurring task in its lists even after today's occurrence is completed.
     const model = projectDashboard(input({

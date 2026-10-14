@@ -1,9 +1,15 @@
-# HANDOFF: premium redesign (updated 2026-10-13: D2.5 Focus + review fixes pushed, D3 logic pushed, D3 UI blocked on install)
+# HANDOFF: premium redesign (updated 2026-10-14: install blocker fixed, owner decisions in, D3 UI starting)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
-- **Goal:** keep going until D3.5 is done and pushed, then the owner checks (owner, 2026-10-13). The session runs as a self-paced `/loop`.
+- **2026-10-14 update (supersedes the blocker and pending questions below):**
+  - **Install fixed:** the worktree has its own `node_modules`, and `@dnd-kit/*` + `@use-gesture/react` are installed (`cc6ef95`, local).
+  - **Owner decided:** review #4 → bucket deadline-only recurring tasks by their next occurrence and change the badge to match. All three D3 assumptions are confirmed. See DECISIONS 2026-10-14.
+  - **Goal now:** autonomous self-paced loop through D3 → D3.5 → D3.5.2 → D4 → D5 → D6 → D7, with a checkpoint and push after each slice.
+  - **Owner testing:** the owner tests the demo on :3200, a frozen snapshot in the job tmp folder. Agents use :3100. Fix owner reports as they arrive.
+  - **Next step:** D3a (contract, recurring-date fix, #4, List, row, header, detail), then D3b (Board + `useTaskDnd`, respecting #9), then D3c.
+- **Goal (2026-10-13):** keep going until D3.5 is done and pushed, then the owner checks (owner, 2026-10-13). The session runs as a self-paced `/loop`.
 - **Pushed:** `dev/personal-calendar-premium-v2` = `fc87b33`. It holds D0, D1, D2, the habit start date fix, stopped-focus time counting, the NZ header date fix, the demo preview, D2.5 Focus (`91bb8d2` + `fc87b33`) and the D3 logic layer (`65be9e0`). Verified: full suite 131 files, 1033 passed / 3 skipped; `npm run check` clean; build passes.
 - **Demo tour (2026-10-13, after the harness fix):** 4/4 viewports (1440 and 390, light and dark). Focus starts, habit check-in works, 0 runtime or console errors, no unexpected calls, no horizontal overflow.
 - **Opus review of D2.5 + D3 logic (2026-10-13):** no high-severity issues; 4 medium and 5 low. Status of each:
@@ -173,8 +179,8 @@ Gated, do not touch: G1 stakes, G2 hard reminders, G3 Google two-way sync, Verce
 
 ## Subagent routing (owner instruction, updated 2026-10-13)
 - **haiku:** mechanical edits and greps.
-- **sonnet:** read-only exploration and routine screenshot checks.
-- **opus:** all logic, architecture, test and preview tooling, and independent review.
+- **sonnet:** trivial read-only lookups only. Never for important work, UI/UX or screenshot review (owner, 2026-10-14).
+- **opus:** all logic, architecture, test and preview tooling, independent review, and every UI/UX review or screenshot check that used to go to sonnet (owner, 2026-10-14: "for IMP things and design UI UX dont use sonnet use opus").
 - **fable (Fable 5.1):** ALL UI/UX design and the visual UI build. Load `impeccable:impeccable`, `design-taste-frontend` and `emilkowal-animations` first. Always tell the owner. Owner, 2026-10-13: "use FABLE 5.1 not opus for designs".
 - Give every subagent an objective, scope, file paths, a ≤450-word output and an explicit read-only or may-edit statement. Parallel editors must own separate files. Verify their claims before you accept them: the delight pass missed `server/phase4Shell.test.ts`, so always run the FULL suite.
 
