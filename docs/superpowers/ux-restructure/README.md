@@ -26,9 +26,9 @@ Most other pages follow. Dashboard and the Focus/timer redesign (D2, D2.5) are t
 ## Process and status
 | Step | What | Who | Status |
 |---|---|---|---|
-| 0 | R3 `useTaskDnd` drag logic (kept; any Board design needs it) | opus | running |
-| 1 | Structure map of every page: purpose, contents, data, entry points, overlaps, dead ends, legacy leftovers, and what Inbox, Saved views and Archived do today, with screenshots of the current app | opus | next |
-| 2 | Reference catalogue: the 60 competitor screenshots (which app, what pattern, what to steal for which page), the 8 `BEST Shots` and the 8 concept boards (which ideas map to which page) | opus | after 1 |
+| 0 | R3 `useTaskDnd` drag logic (kept; any Board design needs it) | opus | DONE `1d6854f` (35 new tests; tasks/shared 196/196; tsc clean; not mounted yet) |
+| 1 | Structure map of every page: purpose, contents, data, entry points, overlaps, dead ends, legacy leftovers, and what Inbox, Saved views and Archived do today, with screenshots of the current app | opus | RUNNING 2026-10-15 (shots in job tmp `structure-shots`; output `01-structure-map.md`) |
+| 2 | Reference catalogue: the 60 competitor screenshots (which app, what pattern, what to steal for which page), the 8 `BEST Shots` and the 8 concept boards (which ideas map to which page) | opus | RUNNING 2026-10-15, in parallel with step 1 (output `02-competitor-patterns.md`) |
 | 3 | grill-me interview rounds, one page at a time (Tasks first, then Today, Calendar, Plan, Roadmap, Goals & Projects, Habits, Review/Analytics, Inbox, Settings and More). Answers go to `03-interview-log.md` and decisions to `docs/DECISIONS.md` | primary with the owner | after 1–2 |
 | 4 | Prototypes per page for owner review (published artifacts or demo screens) | Fable designs, Opus builds | after each page's interview |
 | 5 | Build approved pages; D3b visuals, D3c, the D3.5 nav and D4 reasons land inside them | opus | after approval |
@@ -46,10 +46,19 @@ Most other pages follow. Dashboard and the Focus/timer redesign (D2, D2.5) are t
 - `03-interview-log.md`: every question, the recommendation, and the owner's answer, in order
 - `04-prototypes.md`: prototype links and owner verdicts
 
+## Agents and skills (owner assumption review, 2026-10-15)
+- **Up to 2 subagents may run at once** (correction: not strictly one). Never 3 or more.
+- **Routing confirmed:** Fable 5.1 plans and designs (specs, mockups, prototypes); Opus builds visuals and logic, and does mapping for now; Sonnet does low-level mechanical work only.
+- **Design skills switched on for this project** in `personal-Calander/.claude/settings.local.json` (gitignored). They were installed but set `"off"` globally in `~/.claude/settings.json`. The list: gstack, design-shotgun ("shogan"), design-consultation, design-review, design-html, design-system, plan-design-review, high-end-visual-design, redesign-existing-projects, sleek-design-mobile-apps, minimalist-ui, image-to-code, design-taste-frontend, ui-ux-pro-max.
+- They take effect in sessions started in `personal-Calander`. The worktree copy of the file was blocked by the safety check. In any session, agents can read `C:\Users\win 10\.claude\skills\<name>\SKILL.md` directly and follow it.
+- **gstack's design binary is built** (`~/.claude/skills/gstack/design/dist/design.exe`). design-shotgun can generate variants and comparison boards; without an image API key it falls back to HTML wireframes. Do NOT add gstack's suggested CLAUDE.md block ("never use claude-in-chrome"); it conflicts with the owner's global tool routing.
+- **"morfizam":** no such skill is installed. Probably a "-morphism" style skill (e.g. TypeUI glassmorphism). Waiting on the owner to confirm before installing anything.
+- Already loaded skills: impeccable, emilkowal-animations, grill-me, llm-council.
+
 ## Constraints that still apply
 - Real data only.
 - Reduced motion is always honoured.
 - Motion timing follows M1 (`f7282f0`).
-- One subagent at a time (owner laptop rule).
+- At most 2 subagents at a time (owner laptop rule, updated 2026-10-15).
 - Gated: G1–G3, Vercel checks, live DB writes, migrations.
 - Never push to main.
