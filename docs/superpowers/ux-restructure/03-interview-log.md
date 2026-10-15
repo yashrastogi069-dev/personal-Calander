@@ -150,4 +150,18 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
 - **Bulk:** a floating bar.
 - **Detail:** autosave, with Focus as the hero.
 - **Cut:** the legacy dark board, per-card Move-to dropdowns, the Views tab, the legacy SavedViewsPanel creation path, the "Task triage tools" stub and the unwired Select.
-- **Next for Tasks:** a Fable prototype for owner approval (step 4). Today's code also drops tasks with a deadline; confirm during the build.
+- **Next for Tasks:** a Fable prototype for owner approval (step 4).
+
+**Q12 [Today]**
+- **Question:** what's the difference between Dashboard and Today?
+- **Recommended:** Dashboard = look, Today = do.
+- **Owner (2026-10-15):** "Dashboard = look, Today = do".
+- **Locked decision:**
+  - Dashboard stays the overview: week rhythm, goals, focus, habits at a glance.
+  - Today becomes the ONE place to plan and do this day:
+    - a "Next up" hero with Focus
+    - the timeline
+    - today's tasks, tickable
+    - habits due
+    - a short "Plan my day" mode and a "Shut down day" mode
+  - Plan › Daily folds into Today. Calendar Day stays as the time grid only. Today's code also drops tasks with a deadline; confirm during the build.
