@@ -3,6 +3,23 @@
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
+- **LATEST (2026-10-15, usage limit hit mid-interview).** Read `docs/superpowers/ux-restructure/README.md`, then `03-interview-log.md` (Q1–Q13 locked; "RESUME HERE" names the next question, Q14).
+  - **Pushed today:**
+    - `f7282f0`: D3a + M1
+    - `1d6854f`: R3 useTaskDnd
+    - docs: restructure plan, structure map `01`, reference catalogue `02`, interview log, D4 spec
+    - last checkpoint: this commit
+  - **Two agents were RUNNING at the cutoff; their uncommitted files are on disk:**
+    1. **Opus, D3.5 hooks.** Owns `client/src/features/gestures/*`, `shared/phase4Preferences.ts` (phone bar default Home/Today/+/Calendar/More, plus a one-time migration of an exactly-default saved list) and shell tests.
+       - Verify: `npx vitest run client/src/features/gestures client/src/features/shell shared server/phase4Shell.test.ts`, then `npx tsc --noEmit`.
+       - If it passes, commit. If not, relaunch Opus with "continue from files on disk".
+    2. **Fable 5.1, Tasks prototype.** Owns `docs/superpowers/ux-restructure/prototypes/tasks.html` and `tasks-notes.md`; screenshots go to the job tmp `proto-tasks`.
+       - Check that it shows all Q1–Q11 decisions.
+       - Publish it as a private Artifact (load the artifact-design skill first) and show the owner for approval.
+  - **Next:**
+    1. Continue the grill-me interview at Q14, one question at a time, using AskUserQuestion with a recommended option first.
+    2. When a free agent slot opens, Opus builds the D4 engine from `docs/superpowers/specs/2026-10-15-premium-redesign-d4-why-it-matters.md`: `shared/whyItMatters.ts`, `server/whyItMatters.test.ts`, `shared/habitStreak.ts` and `client/src/features/why/whyFacts.ts`. It is pure logic; the UI waits for the approved pages.
+    3. Max 2 agents at once.
 - **2026-10-15 session (newest; supersedes the 2026-10-14 block below).** Goal from the owner: complete everything up to and including D4, autonomously, as a self-paced `/loop`, with **one subagent at a time** (laptop RAM).
   - **New routing (owner, 2026-10-15):** Fable 5.1 plans and designs (specs, design direction, visual audits); Opus builds the visuals and the logic; Sonnet only for low-level mechanical work.
   - **Pushed:** `f7282f0` = D3a List integration + Tasks harness + M1 motion timing. Verified: tsc clean; vitest 143 files, 1140 passed / 3 skipped; build; tasks harness 5/5; demo tour 4/4.

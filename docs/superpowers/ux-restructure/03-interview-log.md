@@ -164,4 +164,17 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
     - today's tasks, tickable
     - habits due
     - a short "Plan my day" mode and a "Shut down day" mode
-  - Plan › Daily folds into Today. Calendar Day stays as the time grid only. Today's code also drops tasks with a deadline; confirm during the build.
+  - Plan › Daily folds into Today. Calendar Day stays as the time grid only.
+
+**Q13 [Today › Plan my day]**
+- **Question:** how should planning the day work?
+- **Recommended:** one calm pass with 3 moves.
+- **Owner (2026-10-15):** "One calm pass, 3 moves".
+- **Locked decision:** a focused overlay on Today with three moves:
+  1. Yesterday's leftovers: keep / move / let go, one tap each.
+  2. Pick today's tasks from a tray (Overdue, Due soon, This week) with a live capacity bar ("planned 4h10 of 6h free").
+  3. Optionally drag them onto the timeline.
+
+  Finishing fills Today with a staggered entrance. It replaces the 5 numbered steps.
+
+**RESUME HERE (usage limit, 2026-10-15):** next is Q14 [Today]: should recurring and committed tasks be tickable on Today? Recommended: yes, with the app resolving the occurrence or plan record behind the scenes. Then Today Q15 (habit heatmap → a "habits due" row only), Q16 (shutdown at the end of Today), Q17 (energy/mood: optional one tap, or cut). Then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
