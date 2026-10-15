@@ -3,6 +3,32 @@
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
+- **2026-10-15 session (newest; supersedes the 2026-10-14 block below).** Goal from the owner: complete everything up to and including D4, autonomously, as a self-paced `/loop`, with **one subagent at a time** (laptop RAM).
+  - **New routing (owner, 2026-10-15):** Fable 5.1 plans and designs (specs, design direction, visual audits); Opus builds the visuals and the logic; Sonnet only for low-level mechanical work.
+  - **Pushed:** `f7282f0` = D3a List integration + Tasks harness + M1 motion timing. Verified: tsc clean; vitest 143 files, 1140 passed / 3 skipped; build; tasks harness 5/5; demo tour 4/4.
+  - **Tasks visual problems found (Opus + primary screenshot review), to fix in the D3b visual run:**
+    1. pills crushed to "W.", "H." on busy rows (needs a priority cap and a "+N" pill)
+    2. hover-only row actions still reserve ~130px
+    3. two headers and two Capture buttons (shell bar + TaskHeader)
+    4. the detail sheet footer wraps at 390, with two Close buttons
+    5. the "Task triage tools" stub (D3c) and quick-filter chips cut off at 390
+  - **Now:** R3 `useTaskDnd` (opus). Keep it: drag mechanics are needed whatever the design.
+  - **RE-PLAN (owner, 2026-10-15):** "the DASHBOARD looks great but not other pages". The owner wants a **total UX restructure** of Tasks (Board drag, List, Inbox and its purpose, Saved, Archived), then most other pages, to a very premium, modern, classy look with motion and great icons. The owner chose: grill-me with big interview rounds, competitor references (Asana, Sunsama, monday and others), and prototypes the owner approves before any build. Dashboard and Focus/timer are the quality bar and stay.
+    - **Decision (primary, owner asked me to choose the timing):** V is promoted and expanded into **"UX restructure"**, which runs NOW. It goes before the D3b visuals (R4), D3c, the D3.5 build and D4.
+      1. Fable maps the structure: every page and what it is for, overlaps and dead ends, and what Inbox, Saved views and Archived do today, plus a competitor read.
+      2. grill-me interviews, Tasks first, one question at a time, each with a recommendation.
+      3. Fable prototypes for the owner.
+      4. On approval, Opus builds page by page. This absorbs D3b visuals and D3c, and D3.5 nav and D4 "why it matters" land inside the redesigned pages.
+    - **Owner update (2026-10-15, later):** **Opus** does the structure mapping for now, not Fable, and it covers EVERY page. Interviews cover ALL pages, not just Tasks. The owner asked whether to do this now or after D3.5/D4. My recommendation: now, because the D3.5 phone-bar/More contents and D4's placement depend on the restructured pages. Meanwhile Opus builds the layout-independent logic in the interview gaps:
+      - the D4 reason engine (pure)
+      - the D3.5 hooks (useSwipeRow, usePullToRefresh, useScrollShrink)
+      - R3 drag logic
+      The page UIs get built after the prototypes are approved.
+    - **Paused:** R4 Board visuals and D3c. Do not build them from the old D3 spec.
+    - **Competitor screenshots:** `C:\Users\win 10\Desktop\personal-Calander\Screenshots of competition` (60 PNGs). The owner confirmed "lets do this now".
+    - **FULL DETAIL AND STATUS:** `docs/superpowers/ux-restructure/README.md` (process table, owner decisions, file index). Interview answers go in `docs/superpowers/ux-restructure/03-interview-log.md`.
+  - **Working assumptions (owner to confirm):** the D3.5 spec's three owner questions take their recommended answers; V runs after D3.5.2 and before D4.
+  - The owner's :3200 snapshot was not refreshed this session (the old job folder belongs to a previous session).
 - **RESUME FROM HERE (2026-10-14, limit cutoff).** Open `docs/superpowers/plans/2026-10-14-agent-runs.md`. It lists every agent run: done, or running at the cutoff with uncommitted edits. Each entry has the model, the files it owns, a brief and a verify command.
   - **Slice status:**
     - D3a pieces are done and committed.

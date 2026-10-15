@@ -152,3 +152,22 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - **New standalone task "V: visual audit and redesign" (owner, later):** "lots of things need to be redesigned again and the UX and UI need big changes". A separate task where Fable 5.1 runs the visual checks, finds the problems, writes the plan and fixes them. Its timing within the run is for the owner to set.
 - **Routing (owner):** "for IMP things and design UI UX dont use sonnet use opus". Opus takes every UI/UX review and screenshot check that used to go to sonnet. Fable 5.1 stays the designer and builder (assumption logged).
 - **Owner test server:** a frozen source snapshot of the pushed commit runs on :3200 (job tmp folder, own Vite cache), so agent edits on :3100 don't reload the owner's page.
+
+## 2026-10-15: owner decisions (UX restructure)
+
+- **Routing (owner):** Fable 5.1 plans and designs. Opus builds both visuals and logic. Sonnet is for low-level mechanical work only. One subagent at a time (laptop RAM).
+- **Total UX restructure, NOW (owner):** "the DASHBOARD looks great but not other pages". The app must become very premium, modern, classy and aesthetic, with motion, great icons and animations. This is a rethink of structure and purpose, not a reskin:
+  - Tasks first: Board and drag, List, Inbox (what is it for?), Saved views, Archived.
+  - Then most other pages.
+  - Dashboard and Focus/timer are the bar and stay.
+  - It runs before the D3b visuals, D3c, the D3.5 build and D4. Asked "now or after D3.5/D4", the owner chose now on my recommendation.
+- **Process (owner):**
+  1. **Opus** maps every page.
+  2. **grill-me** interviews cover ALL pages, in big rounds.
+  3. Prototypes go to the owner for approval before any build.
+  4. Competitor references are in `Screenshots of competition/` (Asana, Sunsama, monday and others).
+  5. Layout-independent logic (R3 drag, the D4 reason engine, the D3.5 hooks) is built in the interview gaps.
+  6. R4 Board visuals and D3c are paused.
+
+  Full detail: `docs/superpowers/ux-restructure/README.md`.
+- **Working assumptions (owner to confirm):** the three owner questions in the D3.5 spec take their recommended answers ("New time block" for + on Calendar; Today swipes Yesterday/Today/Tomorrow only; a one-time migration of an exactly-default saved shortcut list).

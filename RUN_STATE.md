@@ -22,10 +22,10 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D1 | Routed shell, grouped sidebar with badges, view tabs, command palette prefixes, phone pill nav | Done 2026-10-13: 808 tests, build; shell 16/16, plan 36/36, gallery 8/8, phase4 nav 2/2 |
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2, C2 222/224 (2 timeouts; their re-run 56/56); pushed `d3b25da` |
 | D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | Built and pushed `fc87b33` (1033 passed / 3 skipped, check, build; demo tour 4/4). Opus review fixes done and pushed (1035 passed / 3 skipped). Open: #4 owner decision, #9 in useTaskDnd |
-| D3 | Tasks board drag (@dnd-kit approved) | Logic layer pushed `65be9e0`. 2026-10-14: install fixed (`cc6ef95`). D3a running: Fable 5.1 builds the List UI, detail sheet and Sheet side variant; opus does #4, the Someday badge and occurrence callers. Next: integrate TaskWorkspace + Home, harness, verify, push. Then D3b, D3c |
+| D3 | Tasks board drag (@dnd-kit approved) | Logic layer pushed `65be9e0`. 2026-10-14: install fixed (`cc6ef95`). D3a done and pushed `f7282f0` (2026-10-15). D3b: R3 useTaskDnd running (opus), then the Board visuals. Then D3c |
 | D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
 | D3.5.2 | Browser verification slice (owner 2026-10-13), after D3.5 and its MD updates. Test the work with Playwright (+ CDP for animation timings, perf traces, CPU throttling), playwright-cli and agent-browser/agent-reach, on the demo preview at 1440/390, light/dark, with reduced motion. The owner helps verify animations. Installed: playwright-python 1.60, playwright-cli, agent-browser, agent-reach, Chrome. Missing: browser-use (pip + LLM key), Chrome DevTools MCP (not configured), Claude in Chrome (not connected). Owner APPROVED (2026-10-13) installing all three at the start of D3.5.2 and using whichever tool is most effective per check | Not started |
-| M1 | Owner report fix: realistic motion (slower data and entrance motion, crisp taps, visible hero drift) | Running (opus; owner said not Fable) 2026-10-14 |
+| M1 | Owner report fix: realistic motion (slower data and entrance motion, crisp taps, visible hero drift) | Done 2026-10-15, pushed `f7282f0` (opus) |
 | V | Standalone visual audit and redesign: Fable 5.1 does visual checks, finds problems, plans, fixes ("UX and UI need big changes") | Not started; owner sets timing (owner 2026-10-14) |
 | D4 | "Why it matters" reasons from existing facts | Not started |
 | D5 | Light Analytics | Not started |
@@ -68,6 +68,11 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - Owner decisions to record in DECISIONS.md with D0: Roadmap in Plan + Goals & Projects + compact Home strip; Today drops weekly overview and links to the week; Insights becomes Analytics under Reflect; grey backdrop on Dashboard only.
 
 ## Checkpoint log
+
+- 2026-10-15, resume session (autonomous `/loop` until D4; one agent at a time):
+  - R2 (M1 motion timing) and R1 (D3a integration and harness) were finished by opus and verified. Pushed `f7282f0`: tsc clean, 1140 passed / 3 skipped, build, tasks harness 5/5, demo tour 4/4.
+  - R5 D3.5 spec found complete. R3 and R4 had never started.
+  - Running: R3 `useTaskDnd` (opus). Next: the D3b Board visuals plus the five D3a visual fixes listed in HANDOFF.
 
 - 2026-10-14, session start (autonomous `/loop` until D7, at the owner's request):
   - **Owner approved:** the worktree's own install (done, `cc6ef95`), #4 next-occurrence bucketing, and the three D3 assumptions.
