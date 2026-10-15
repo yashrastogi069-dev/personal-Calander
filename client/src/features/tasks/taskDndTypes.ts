@@ -4,7 +4,7 @@
 import type { DndContextProps } from "@dnd-kit/core";
 import type { TaskStatusLaneId } from "@shared/taskBoard";
 import type { TaskWhenBucket } from "@shared/taskBuckets";
-import type { TaskDropRefusal } from "@shared/taskDrop";
+import type { TaskDropPatch, TaskDropRefusal } from "@shared/taskDrop";
 import type { TaskCardModel } from "./taskCardModel";
 
 export type TaskDropZoneId =
@@ -43,7 +43,14 @@ export type TaskDateRequest = {
   max: string | null;
   resolve(localDate: string): void;
   cancel(): void;
+  /** Additive (R3): the zone the card was dropped on, for anchoring the popover. */
+  zone?: TaskDropZoneId;
+  /** Additive (R3): why the last choice was refused (outside min/max); the popover stays open. */
+  error?: string | null;
 };
+
+/** Additive (R3): a polite live-region message that dnd-kit's own announcer cannot carry (post-write, Move to menu). */
+export type TaskDndAnnouncement = { id: number; text: string };
 
 export type TaskDndController = {
   /** Spread onto `<DndContext>` (sensors, collision detection, handlers, accessibility announcements). */
@@ -60,4 +67,11 @@ export type TaskDndController = {
   inlineErrors: ReadonlyMap<string, string>;
   /** Same write path as a drop; used by the card "Move to" menu and keyboard. */
   moveTo(taskId: string, zone: TaskDropZoneId): void;
+  /**
+   * Additive (R3): the optimistic patch per task id (state, sortOrder, scheduledLocalDate), including rebalanced
+   * siblings. Merge it into the records before building lanes so the card also keeps its new position.
+   */
+  optimisticPatches?: ReadonlyMap<string, TaskDropPatch>;
+  /** Additive (R3): "Saved." / "Saved on this device." / "Could not move. …" and Move-to results; render in a polite live region. */
+  announcement?: TaskDndAnnouncement | null;
 };
