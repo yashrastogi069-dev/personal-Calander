@@ -31,7 +31,7 @@ import {
 import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
 import { StatusPill, TimeChip } from "@/components/premium/Pills";
 import { toneClassName, type ToneOrNeutral } from "@/design/categoryTone";
-import { easeOutQuart, prefersReducedMotion as prefersStill, useBecameTrue, useChangeCount } from "@/design/motion";
+import { dataStartMs, easeOutCubic, MOTION_MS, prefersReducedMotion as prefersStill, useBecameTrue, useChangeCount } from "@/design/motion";
 import { formatMinutes } from "@/design/timeFormat";
 import { cn } from "@/lib/utils";
 import { FocusDial, FocusDigits } from "@/features/focus/FocusDial";
@@ -69,8 +69,10 @@ const plural = (count: number, one: string, many = `${one}s`) => `${count} ${cou
 /**
  * Counts up to `target` once, on first mount. Returns the final value immediately when
  * matchMedia is unavailable (SSR, tests) or the user prefers reduced motion. Later changes jump.
+ * Duration, curve and start delay match the CSS ring/bar draw (--pc-dur-data, --pc-ease-data,
+ * --pc-data-start), so a figure and the ring beside it arrive together.
  */
-export function useCountUp(target: number, durationMs = 600): number {
+export function useCountUp(target: number, durationMs: number = MOTION_MS.data, delayMs = 0): number {
   const [value, setValue] = useState(() => (prefersStill() ? target : 0));
   const settled = useRef(false);
   useEffect(() => {
@@ -82,21 +84,21 @@ export function useCountUp(target: number, durationMs = 600): number {
     let frame = 0;
     const startedAt = performance.now();
     const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / durationMs);
-      setValue(target * easeOutQuart(progress));
+      const progress = Math.min(1, Math.max(0, now - startedAt - delayMs) / durationMs);
+      setValue(target * easeOutCubic(progress));
       if (progress < 1) frame = requestAnimationFrame(tick);
       else settled.current = true;
     };
     frame = requestAnimationFrame(tick);
     // A cancelled run (StrictMode remount, target change) restarts rather than jumping.
     return () => cancelAnimationFrame(frame);
-  }, [target, durationMs]);
+  }, [target, durationMs, delayMs]);
   return value;
 }
 
 /** Animated number; screen readers get the final text only. */
-function CountUp({ value, format = n => String(Math.round(n)) }: { value: number; format?: (n: number) => string }) {
-  const shown = useCountUp(value);
+function CountUp({ value, card, format = n => String(Math.round(n)) }: { value: number; card: number; format?: (n: number) => string }) {
+  const shown = useCountUp(value, MOTION_MS.data, dataStartMs(card));
   return (
     <>
       <span aria-hidden="true">{format(shown)}</span>
@@ -346,7 +348,7 @@ function HeroCard({ model, actions }: { model: DashboardModel; actions: Dashboar
           <div className="pc-dash-hero-main">
             <p className="pc-dash-hero-count pc-num">
               <span key={doneChanges} className={cn("pc-dash-hero-done", doneChanges > 0 && "pc-dash-tick")}>
-                {doneChanges > 0 ? done : <CountUp value={done} />}
+                {doneChanges > 0 ? done : <CountUp value={done} card={0} />}
               </span>
               <span className="pc-dash-hero-of"> / {total} done</span>
             </p>
@@ -405,7 +407,7 @@ function HabitConsistencyCard({ data }: { data: DashboardHabitConsistency }) {
           <div className="pc-dash-kpi-metric">
             <Ring value={data.percent / 100} size={60} stroke={8} className="pc-dash-ring-done pc-dash-kpi-detail" />
             <p className="pc-dash-kpi-figure">
-              <b className="pc-num"><CountUp value={data.percent} format={n => `${Math.round(n)}%`} /></b>
+              <b className="pc-num"><CountUp value={data.percent} card={1} format={n => `${Math.round(n)}%`} /></b>
               <span className="pc-dash-kpi-sub pc-dash-kpi-detail pc-num">{data.completed} of {data.scheduled} check-ins</span>
             </p>
           </div>
@@ -500,7 +502,7 @@ function FocusIdle({
       ) : (
         <>
           <p className="pc-dash-kpi-figure is-inline">
-            <b className="pc-num"><CountUp value={data.actualMinutes} format={formatMinutes} /></b>
+            <b className="pc-num"><CountUp value={data.actualMinutes} card={2} format={formatMinutes} /></b>
             <span className="pc-dash-kpi-sub pc-dash-kpi-detail pc-num">
               {data.plannedMinutes ? `of ${formatMinutes(data.plannedMinutes)} planned` : "tracked"}
             </span>
@@ -638,7 +640,7 @@ function DueCard({ model, actions }: { model: DashboardModel; actions: Dashboard
       ) : (
         <>
           <p className="pc-dash-kpi-figure">
-            <b className="pc-num"><CountUp value={dueToday} /></b>
+            <b className="pc-num"><CountUp value={dueToday} card={3} /></b>
             <span className="pc-dash-kpi-sub pc-num">
               today{overdue > 0 ? ` · ${overdue} overdue` : ""}
             </span>

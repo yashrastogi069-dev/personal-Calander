@@ -1,9 +1,42 @@
-# HANDOFF: premium redesign (updated 2026-10-14: install blocker fixed, owner decisions in, D3 UI starting)
+# HANDOFF: premium redesign (updated 2026-10-14 ~13:20 NZ: five agents running when the owner's usage limit ran out)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
-- **2026-10-14 update (supersedes the blocker and pending questions below):**
+- **RESUME FROM HERE (2026-10-14, limit cutoff).** Open `docs/superpowers/plans/2026-10-14-agent-runs.md`. It lists every agent run: done, or running at the cutoff with uncommitted edits. Each entry has the model, the files it owns, a brief and a verify command.
+  - **Slice status:**
+    - D3a pieces are done and committed.
+    - Running at the cutoff:
+      - R1: D3a integration + Tasks harness (opus)
+      - R2: motion retune (opus, timing only, not Fable)
+      - R3: D3b `useTaskDnd` (opus)
+      - R4: D3b Board visuals (fable)
+      - R5: D3.5 spec (fable, docs only)
+    - Not started: D3c, D3.5 build, D3.5.2, V, D4–D7.
+  - **First steps next session:**
+    1. Run `git status --short` and match the files to R1–R5.
+    2. Run each run's verify command.
+    3. Re-launch unfinished runs with the same model and brief ("continue from files on disk").
+    4. Then follow "After the runs" in that ledger.
+  - **Commits:** `cc6ef95` (deps) and `82a3b10` (D3a pieces), plus this docs checkpoint. Check `git log origin/dev/personal-calendar-premium-v2..HEAD` for what is unpushed.
+  - **Servers:**
+    - :3100 is the agents' Vite (`npx vite --port 3100 --strictPort --host 127.0.0.1` in the worktree).
+    - :3200 is the owner's frozen snapshot of `6b3b7cf`, in the job tmp folder `C:\Users\win 10\.claude\jobs\1213955a\tmp\owner-snap`. It has its own `cacheDir` and a `node_modules` junction to the worktree. Start it with `npx vite --port 3200 --strictPort --host 127.0.0.1` from that folder.
+    - The owner opens the demo with `python scripts/open-demo-preview.py --url http://127.0.0.1:3200/`.
+    - If the job folder is gone, recreate it: `git archive <commit> | tar -x -C <dir>`, add `cacheDir` to its vite.config.ts, and junction `node_modules`.
+  - **Owner decisions today (DECISIONS 2026-10-14):**
+    - install fix approved
+    - #4 → next occurrence
+    - the three D3 assumptions confirmed
+    - motion "realistic, not too fast", timing only
+    - hero drift more visible
+    - not Fable for the motion fix
+    - no sonnet for important work or any UI/UX work, use opus
+    - new standalone task **V**: a Fable visual audit and redesign. The owner sets its timing; assumed after D3.5.2.
+  - **Pending for the owner:**
+    - Where should V go (currently after D3.5.2)?
+    - Should Fable stay the designer, with opus only replacing sonnet (assumed yes)?
+- **2026-10-14 earlier update (supersedes the blocker and pending questions below):**
   - **Install fixed:** the worktree has its own `node_modules`, and `@dnd-kit/*` + `@use-gesture/react` are installed (`cc6ef95`, local).
   - **Owner decided:** review #4 → bucket deadline-only recurring tasks by their next occurrence and change the badge to match. All three D3 assumptions are confirmed. See DECISIONS 2026-10-14.
   - **Goal now:** autonomous self-paced loop through D3 → D3.5 → D3.5.2 → D4 → D5 → D6 → D7, with a checkpoint and push after each slice.

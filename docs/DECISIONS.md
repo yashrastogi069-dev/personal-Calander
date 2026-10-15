@@ -142,4 +142,13 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - **Review #4 DECIDED:** recurring tasks anchored only on a deadline (no Plan-for date) are bucketed by their **next occurrence**, not "Past due" forever. The sidebar badge changes to match. Update the test that locked the old behaviour.
 - **D3 assumptions CONFIRMED** (all three above): Status lens is the Board default with When one toggle away; Inbox "Someday" leaves the Inbox for No date with a Someday pill; desktop detail opens in a right-side panel.
 - **Run mode:** the owner asked for autonomous loops through to the end of the plan (D3 → D3.5 → D3.5.2 → D4 → D5 → D6 → D7), with subagents and model routing. The owner tests the demo in parallel and reports issues. Gates G1/G3, Vercel checks, live DB writes and migrations stay closed.
+- **Owner test report 1 (Dashboard demo):** the numbers roll and the animations run, but they are **far too fast**. Make them realistic, not too fast. **New motion direction (replaces "under ~300ms" for non-interaction motion):**
+  - Interactions stay crisp: about 120–220ms.
+  - Entrances are slower and visible: about 380–600ms, with a 60–90ms stagger.
+  - Data motion (count-ups, ring fills, bars) is clearly visible: about 1.1–1.6s, on a gentler curve.
+  - Reduced motion stays instant.
+  - The hero colour drift was too subtle to notice. Make it clearly visible but calm.
+  - **Opus (not Fable) does this retune.** Owner: "do not use FABLE for this". The stopped Fable agent's partial edits were reverted.
+- **New standalone task "V: visual audit and redesign" (owner, later):** "lots of things need to be redesigned again and the UX and UI need big changes". A separate task where Fable 5.1 runs the visual checks, finds the problems, writes the plan and fixes them. Its timing within the run is for the owner to set.
+- **Routing (owner):** "for IMP things and design UI UX dont use sonnet use opus". Opus takes every UI/UX review and screenshot check that used to go to sonnet. Fable 5.1 stays the designer and builder (assumption logged).
 - **Owner test server:** a frozen source snapshot of the pushed commit runs on :3200 (job tmp folder, own Vite cache), so agent edits on :3100 don't reload the owner's page.

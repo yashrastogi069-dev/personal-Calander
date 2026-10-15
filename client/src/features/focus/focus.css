@@ -20,7 +20,8 @@
 /* Idle: the plan, not progress. Short radial dashes read as the D2 hatch on a ring. */
 .pc-dial-hatch { fill: none; stroke: var(--pc-planned); stroke-width: 10; stroke-dasharray: 1.6 4.4; opacity: .55; transition: opacity var(--pc-dur-base) var(--pc-ease); }
 .pc-dial-arc { fill: none; stroke: var(--pc-k); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset var(--pc-dur-base) var(--pc-ease), opacity var(--pc-dur-base) var(--pc-ease), stroke-width var(--pc-dur-fast) var(--pc-ease); }
-.pc-dial.is-settling .pc-dial-arc { transition-duration: var(--pc-dur-data); transition-timing-function: var(--pc-ease-data); }
+/* Half the data duration so the settle lands inside the dial's 700ms settle window (FocusDial useMountSweep). */
+.pc-dial.is-settling .pc-dial-arc { transition-duration: calc(var(--pc-dur-data) / 2); transition-timing-function: var(--pc-ease-data); }
 .pc-dial-lap { fill: none; stroke: var(--pc-k); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 0 9; }
 .pc-dial-lap-reveal { transition: stroke-dashoffset var(--pc-dur-base) var(--pc-ease); }
 
@@ -69,7 +70,7 @@
 /* Digits: tabular cells; only changed digits roll. */
 .pc-focus-digits { display: inline-flex; align-items: baseline; color: var(--ink); font-family: var(--pc-font); font-weight: var(--pc-w-display); letter-spacing: -.02em; line-height: 1; white-space: nowrap; }
 .pc-focus-digits-prefix { margin-right: .08em; color: var(--ink-muted); font-weight: var(--pc-w-semibold); }
-.pc-digit-roll { animation: pc-tick var(--pc-dur-fast) var(--pc-ease) both; }
+.pc-digit-roll { animation: pc-tick var(--pc-dur-tick) var(--pc-ease) both; }
 .pc-dial-lg .pc-focus-digits-dial { font-size: var(--pc-text-timer); }
 .pc-dial-lg .pc-focus-digits-dial.is-long { font-size: calc(var(--pc-text-timer) * .74); }
 .pc-dial-md .pc-focus-digits-dial { font-size: 34px; }

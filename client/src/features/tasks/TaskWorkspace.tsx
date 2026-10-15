@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/premium/Surfaces";
 import { cn } from "@/lib/utils";
 import type { CanonicalTask } from "@shared/canonicalTask";
-import { deadlineRiskForTask } from "@shared/planningForecast";
+import { isInboxTask } from "@shared/taskBuckets";
 import {
   laneForTaskState,
   stateForTaskLane,
@@ -11,20 +12,47 @@ import {
   type TaskBoardLaneId,
 } from "@shared/taskBoard";
 import type { TaskBoardFilter } from "@shared/taskBoardUrl";
-import { ArchiveRestore, GripVertical, Inbox, List, Search, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { committedTaskPlans, taskArchiveCheck } from "@shared/taskDrop";
+import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
+import { Archive, ArchiveRestore, CalendarCheck, GripVertical, Inbox, ListChecks, PanelRight, Play, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CanonicalTaskRow } from "./CanonicalTaskRow";
 import { InboxTriage } from "./InboxTriage";
 import { TaskDetailSheet, type TaskMutationResult } from "./TaskDetailSheet";
+import { TaskHeader } from "./TaskHeader";
+import { TaskListSections, type TaskListEmpty } from "./TaskListSections";
+import type { TaskRowAction } from "./TaskRow";
+import { TaskSkeleton } from "./TaskSkeleton";
+import { TaskToolbar } from "./TaskToolbar";
+import { createTaskCardContext, taskCardModel, type TaskCardModel } from "./taskCardModel";
+import {
+  adaptSavedTaskView as adaptSavedTaskViewV2,
+  clearedTaskFilters,
+  emptyTaskFacets,
+  hasActiveTaskFilters,
+  quickFilterCounts,
+  searchWithTaskBoardLensAndFacets,
+  taskBoardLensAndFacetsFromSearch,
+  taskHeaderSummary,
+  taskListSections,
+  taskQuickFilters,
+  taskRowsForWorkspace as workspaceRows,
+  type TaskFacetFilters,
+  type TaskWorkspaceSort,
+  type TaskWorkspaceView,
+} from "./taskWorkspaceModel";
 import "./task-workspace.css";
+import "./tasks-premium.css";
 
-export type TaskWorkspaceView = "inbox" | "list" | "board" | "saved" | "archive";
+export type { TaskWorkspaceSort, TaskWorkspaceView };
 
 type TaskLike = {
   state: string;
   id: string;
   title: string;
+  description?: string | null;
+  horizon?: string | null;
   priority?: string | null;
   sortOrder?: number;
   dueLocalDate?: string | null;
@@ -34,8 +62,6 @@ type TaskLike = {
   createdAt?: Date | string | null;
   completedAt?: Date | string | null;
 };
-
-export type TaskWorkspaceSort = "manual" | "priority" | "due" | "scheduled" | "created";
 
 export const TASK_REORDER_GUIDANCE = "Move up and down use Manual order. Switch Order to Manual to rearrange this lane.";
 
@@ -53,15 +79,9 @@ export type TaskWorkspaceState = {
   today: string;
 };
 
+/** Inbox = undecided open work (shared rule, so Someday leaves the Inbox and the rail badge agrees). */
 export function inboxTasks<TTask extends TaskLike>(tasks: readonly TTask[]): TTask[] {
-  return tasks.filter(
-    task =>
-      task.state !== "archived" &&
-      task.state !== "completed" &&
-      !task.scheduledLocalDate &&
-      !task.plannedStartAt &&
-      !task.plannedEndAt,
-  );
+  return tasks.filter(isInboxTask);
 }
 
 export function tasksForWorkspaceView<TTask extends TaskLike>(
@@ -82,55 +102,76 @@ export function taskUndoPatch(
   return { state: taskBeforeAction.state };
 }
 
-const priorityRank: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
-
-function taskTieBreak(left: TaskLike, right: TaskLike) {
-  return (Number(left.sortOrder) || 0) - (Number(right.sortOrder) || 0) ||
-    String(left.title ?? "").localeCompare(String(right.title ?? "")) ||
-    String(left.id ?? "").localeCompare(String(right.id ?? ""));
-}
-
+/** v1 signature kept for callers that pass `today` in the state; facets are empty and dates use UTC. */
 export function taskRowsForWorkspace<TTask extends TaskLike>(
   tasks: readonly TTask[],
   state: TaskWorkspaceState,
 ): TTask[] {
-  const normalizedQuery = state.query.trim().toLowerCase();
-  const filterApplies = state.view === "list" || state.view === "board";
-  return tasksForWorkspaceView(tasks, state.view)
-    .filter(task => {
-      if (normalizedQuery && !String(task.title ?? "").toLowerCase().includes(normalizedQuery)) return false;
-      if (!filterApplies) return true;
-      if (state.filter === "open") return task.state !== "completed" && task.state !== "archived";
-      if (state.filter === "today") return task.scheduledLocalDate === state.today || task.dueLocalDate === state.today;
-      if (state.filter === "deadline_risk") return deadlineRiskForTask(task as unknown as CanonicalTask, state.today) !== null;
-      return true;
-    })
-    .sort((left, right) => {
-      if (state.sort === "priority") return (priorityRank[left.priority ?? ""] ?? 5) - (priorityRank[right.priority ?? ""] ?? 5) || taskTieBreak(left, right);
-      if (state.sort === "due") return (left.dueLocalDate ?? "9999-12-31").localeCompare(right.dueLocalDate ?? "9999-12-31") || taskTieBreak(left, right);
-      if (state.sort === "scheduled") return (left.scheduledLocalDate ?? "9999-12-31").localeCompare(right.scheduledLocalDate ?? "9999-12-31") || taskTieBreak(left, right);
-      if (state.sort === "created") return new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime() || taskTieBreak(left, right);
-      return taskTieBreak(left, right);
-    });
+  return workspaceRows(tasks as unknown as CanonicalTask[], { ...state, ...emptyTaskFacets }, { today: state.today, timezone: "UTC" }) as unknown as TTask[];
 }
 
+/** v1 shape ({query, filter, sort}) of a saved view; the container reads the full v2 config. */
 export function adaptSavedTaskView(configuration: Record<string, unknown>) {
-  const requestedFilter = configuration.filter;
-  const filter: TaskBoardFilter = requestedFilter === "risk"
-    ? "deadline_risk"
-    : requestedFilter === "open" || requestedFilter === "today" || requestedFilter === "deadline_risk" || requestedFilter === "all"
-      ? requestedFilter
-      : "all";
-  const requestedSort = configuration.sort;
-  const sort: TaskWorkspaceSort = requestedSort === "priority" || requestedSort === "due" || requestedSort === "scheduled" || requestedSort === "created" || requestedSort === "manual"
-    ? requestedSort
-    : "manual";
-  return { query: typeof configuration.query === "string" ? configuration.query : "", filter, sort };
+  const { query, filter, sort } = adaptSavedTaskViewV2(configuration);
+  return { query, filter, sort };
+}
+
+export type TaskCheckDispatch =
+  | { kind: "complete" }
+  | { kind: "reopen" }
+  | { kind: "resolve_occurrence"; occurrence: { id: string; expectedVersion: number } }
+  | { kind: "refuse"; reason: string; action?: "open_plan" | "open_detail" }
+  | { kind: "none" };
+
+/**
+ * What a check press does, from the card model only. A recurring series resolves today's occurrence (never
+ * `state: completed`, which R1 rejects); a guarded task (R1-R3) is refused with its reason and writes nothing.
+ */
+export function taskCheckDispatch(model: Pick<TaskCardModel, "check" | "completionBlock">): TaskCheckDispatch {
+  const action = model.check.action;
+  if (action.kind === "reopen") return { kind: "reopen" };
+  if (action.kind === "resolve_occurrence") return { kind: "resolve_occurrence", occurrence: { id: action.occurrenceId, expectedVersion: action.expectedVersion } };
+  if (action.kind === "complete") return { kind: "complete" };
+  if (model.completionBlock) return { kind: "refuse", reason: model.completionBlock.reason, ...(model.completionBlock.action ? { action: model.completionBlock.action } : {}) };
+  return { kind: "none" };
 }
 
 export function resetTaskWorkspaceState() {
   return { query: "", filter: "all" as TaskBoardFilter };
 }
+
+function readFacetsFromUrl(): TaskFacetFilters {
+  if (typeof window === "undefined") return emptyTaskFacets;
+  const { categoryIds, projectIds, priorities } = taskBoardLensAndFacetsFromSearch(window.location.search);
+  return { categoryIds, projectIds, priorities };
+}
+
+function writeFacetsToUrl(facets: TaskFacetFilters) {
+  if (typeof window === "undefined") return;
+  try {
+    const url = new URL(window.location.href);
+    const current = taskBoardLensAndFacetsFromSearch(url.search);
+    url.search = searchWithTaskBoardLensAndFacets(url.search, { lens: current.lens, ...facets });
+    window.history.replaceState(window.history.state, "", url);
+  } catch {
+    // The filter still applies for this session when the URL cannot be written.
+  }
+}
+
+/** First paint before the snapshot: the header text stays, rows are skeleton shapes (D3 §6). */
+export function TaskWorkspaceLoading() {
+  return (
+    <section className="task-workspace tk-workspace" aria-label="Task workspace" aria-busy="true">
+      <div className="tk-header">
+        <PageHeader icon={ListChecks} tone="pc-tone-accent" title="Tasks" subtitle="Loading your tasks" />
+      </div>
+      <TaskSkeleton variant="list" />
+    </section>
+  );
+}
+
+type PlanRecord = { id: string; localDate: string; state: string };
+type PlanItemRecord = { dailyPlanId: string; taskId: string; state: string };
 
 export type TaskWorkspaceProps = {
   taskDraftScopeKey?: string;
@@ -141,6 +182,11 @@ export type TaskWorkspaceProps = {
   goals: any[];
   savedViews: any[];
   dependencies?: any[];
+  /** `snapshot.taskOccurrences`: recurring rows show their occurrence, and checking one resolves it. */
+  occurrences?: readonly TaskOccurrenceLike[];
+  /** `snapshot.dailyPlans` and `snapshot.dailyPlanItems`, for the R3 "committed in a plan" check. */
+  dailyPlans?: readonly PlanRecord[];
+  dailyPlanItems?: readonly PlanItemRecord[];
   today: string;
   timezone: string;
   query: string;
@@ -156,12 +202,19 @@ export type TaskWorkspaceProps = {
   onCapture: () => void;
   onStartFocus?: (task: CanonicalTask) => void;
   onUpdate: (task: any, patch: Record<string, unknown>) => Promise<TaskMutationResult>;
+  /** `planner.occurrence.resolve(..., "completed")` for today's occurrence of a recurring task. */
+  onResolveOccurrence?: (task: CanonicalTask, occurrence: { id: string; expectedVersion: number }) => Promise<unknown>;
+  /** Opens Plan, where R3 commitments are resolved. */
+  onOpenPlan?: () => void;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
   onReorder: (task: any, direction: -1 | 1, laneTasks: any[]) => Promise<string | null>;
   onArchiveCompleted: (tasks: any[]) => Promise<boolean>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
   onRemoveDependency?: (dependency: any) => Promise<void>;
 };
+
+const EMPTY_SET: ReadonlySet<string> = new Set();
+const EMPTY_MAP: ReadonlyMap<string, number> = new Map();
 
 export function TaskWorkspace({
   taskDraftScopeKey,
@@ -172,14 +225,17 @@ export function TaskWorkspace({
   goals,
   savedViews,
   dependencies = [],
+  occurrences,
+  dailyPlans,
+  dailyPlanItems,
   today,
   timezone,
   query,
   filter,
   sort,
   selectedRecordId,
-  pendingTaskIds = new Set(),
-  conflictCountByTask = new Map(),
+  pendingTaskIds = EMPTY_SET,
+  conflictCountByTask = EMPTY_MAP,
   isOnline = true,
   onViewChange,
   onViewStateChange,
@@ -187,6 +243,8 @@ export function TaskWorkspace({
   onCapture,
   onStartFocus,
   onUpdate,
+  onResolveOccurrence,
+  onOpenPlan,
   onCreateSubtask,
   onReorder,
   onArchiveCompleted,
@@ -198,8 +256,22 @@ export function TaskWorkspace({
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dropLane, setDropLane] = useState<TaskBoardLaneId | null>(null);
   const [undo, setUndo] = useState<{ label: string; task: any; patch: Record<string, unknown> } | null>(null);
+  const [facets, setFacetsState] = useState<TaskFacetFilters>(readFacetsFromUrl);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const setFacets = useCallback((next: TaskFacetFilters) => {
+    setFacetsState(next);
+    writeFacetsToUrl(next);
+  }, []);
+  // Back/forward restores the facets that the URL carries.
+  useEffect(() => {
+    const onPop = () => setFacetsState(readFacetsFromUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   const selectedTask = tasks.find(task => task.id === selectedRecordId) ?? null;
+  const taskById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
   const categoryNames = useMemo(() => new Map(categories.map(item => [item.id, item.name])), [categories]);
   const projectTitles = useMemo(() => new Map(projects.map(item => [item.id, item.title])), [projects]);
   const goalTitles = useMemo(() => new Map(goals.map(item => [item.id, item.title])), [goals]);
@@ -211,23 +283,71 @@ export function TaskWorkspace({
     }, new Map<string, number>()),
     [tasks],
   );
-  const filtered = useMemo(
-    () => taskRowsForWorkspace(tasks, { view, query, filter, sort, today }),
-    [filter, query, sort, tasks, today, view],
+  const bucketCtx = useMemo(() => ({ today, timezone, occurrences }), [occurrences, timezone, today]);
+  const committedTasks = useMemo(() => committedTaskPlans(dailyPlans ?? [], dailyPlanItems ?? []), [dailyPlanItems, dailyPlans]);
+  const cardCtx = useMemo(
+    () => createTaskCardContext({
+      today,
+      timezone,
+      tasks,
+      categories,
+      projects,
+      goals,
+      dependencies,
+      occurrences,
+      committedTasks,
+      pendingTaskIds,
+      conflictCountByTask,
+      sort,
+    }),
+    [categories, committedTasks, conflictCountByTask, dependencies, goals, occurrences, pendingTaskIds, projects, sort, tasks, timezone, today],
   );
+  const filterState = useMemo(() => ({ view, query, filter, sort, ...facets }), [facets, filter, query, sort, view]);
+  const filtered = useMemo(() => workspaceRows(tasks, filterState, bucketCtx), [bucketCtx, filterState, tasks]);
+  const summary = useMemo(() => taskHeaderSummary(tasks, bucketCtx), [bucketCtx, tasks]);
+  const counts = useMemo(() => quickFilterCounts(tasks, { query, ...facets }, bucketCtx), [bucketCtx, facets, query, tasks]);
+  const listSections = useMemo(
+    () => view === "list"
+      ? taskListSections(filtered, tasks, bucketCtx).map(section => ({ ...section, tasks: section.tasks.map(task => taskCardModel(task, cardCtx)) }))
+      : [],
+    [bucketCtx, cardCtx, filtered, tasks, view],
+  );
+  const categoryOptions = useMemo(
+    () => categories.map(item => ({ value: String(item.id), label: String(item.name), tone: cardCtx.categoryTones.get(item.id) ?? "neutral" })),
+    [cardCtx, categories],
+  );
+  const projectOptions = useMemo(
+    () => projects.filter(item => item.state !== "archived").map(item => ({ value: String(item.id), label: String(item.title) })),
+    [projects],
+  );
+  const conflictedTaskIds = useMemo(
+    () => tasks.filter(task => (conflictCountByTask.get(task.id) ?? 0) > 0).map(task => task.id),
+    [conflictCountByTask, tasks],
+  );
+  const filtersActive = hasActiveTaskFilters({ query, filter, ...facets });
+  const viewState = (patch: Partial<{ query: string; filter: TaskBoardFilter; sort: TaskWorkspaceSort }>) =>
+    onViewStateChange({ query, filter, sort, ...patch });
+  const clearFilters = () => {
+    const cleared = clearedTaskFilters();
+    setFacets({ categoryIds: cleared.categoryIds, projectIds: cleared.projectIds, priorities: cleared.priorities });
+    onViewStateChange({ query: cleared.query, filter: cleared.filter, sort });
+  };
 
   const contextFor = (task: CanonicalTask) => ({
     surface: "tasks" as const,
     localDate: today,
     timezone,
+    occurrences,
     categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
     projectTitle: task.projectId ? projectTitles.get(task.projectId) : null,
     goalTitle: task.goalId ? goalTitles.get(task.goalId) : null,
   });
-  const openDetail = (task: CanonicalTask, trigger: HTMLElement) => {
+  const openDetail = (task: Pick<CanonicalTask, "id">, trigger: HTMLElement | null) => {
     returnFocusRef.current = trigger;
     onSelectedRecordChange(task.id);
   };
+  const rowTrigger = (taskId: string) =>
+    document.querySelector<HTMLElement>(`[data-task-record-id="${CSS.escape(taskId)}"] .tk-row-title, [data-task-record-id="${CSS.escape(taskId)}"] .canonical-task-title`);
   const reversible = async (
     task: CanonicalTask,
     action: "complete" | "archive",
@@ -246,11 +366,7 @@ export function TaskWorkspace({
       toast.error(caught instanceof Error ? caught.message : "The task was left unchanged.");
     }
   };
-  const toggle = async (task: CanonicalTask) => {
-    if (task.state !== "completed") {
-      await reversible(task, "complete", { state: "completed" });
-      return;
-    }
+  const reopen = async (task: CanonicalTask) => {
     try {
       const result = await onUpdate(task, { state: "not_started" });
       setUndo(null);
@@ -259,7 +375,46 @@ export function TaskWorkspace({
       toast.error(caught instanceof Error ? caught.message : "The completed task was left unchanged.");
     }
   };
-  const archive = (task: CanonicalTask) => reversible(task, "archive", { state: "archived" });
+  /** A guarded check (R1-R3) never writes: it says why, and offers the place where it can be fixed. */
+  const explainBlockedCheck = (task: CanonicalTask, model: TaskCardModel) => {
+    const block = model.completionBlock;
+    if (!block) return;
+    const action = block.action === "open_plan" && onOpenPlan
+      ? { label: "Open Plan", onClick: () => onOpenPlan() }
+      : block.action === "open_detail"
+        ? { label: "Open details", onClick: () => openDetail(task, rowTrigger(task.id)) }
+        : undefined;
+    toast.info(block.reason, action ? { action } : undefined);
+  };
+  const resolveTodayOccurrence = async (task: CanonicalTask, occurrence: { id: string; expectedVersion: number }) => {
+    if (!onResolveOccurrence) {
+      toast.error("Today's repeat can only be resolved from Plan here. Nothing was saved.");
+      return;
+    }
+    try {
+      await onResolveOccurrence(task, occurrence);
+      toast.success("Today's repeat is done.");
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Today's repeat was left unchanged.");
+    }
+  };
+  /** The one check-off path for every Tasks view: the card model decides update, occurrence resolve or refusal. */
+  const checkTask = async (task: CanonicalTask, model: TaskCardModel = taskCardModel(task, cardCtx)) => {
+    const dispatch = taskCheckDispatch(model);
+    if (dispatch.kind === "reopen") return reopen(task);
+    if (dispatch.kind === "resolve_occurrence") return resolveTodayOccurrence(task, dispatch.occurrence);
+    if (dispatch.kind === "complete") return reversible(task, "complete", { state: "completed" });
+    if (dispatch.kind === "refuse") explainBlockedCheck(task, model);
+  };
+  const toggle = (task: CanonicalTask) => checkTask(task);
+  const archive = async (task: CanonicalTask) => {
+    const allowed = taskArchiveCheck(task, cardCtx);
+    if (!allowed.ok) {
+      toast.info(allowed.reason);
+      return;
+    }
+    await reversible(task, "archive", { state: "archived" });
+  };
   const planToday = async (task: CanonicalTask) => {
     try {
       const result = await onUpdate(task, { scheduledLocalDate: today });
@@ -304,6 +459,36 @@ export function TaskWorkspace({
       toast.error(caught instanceof Error ? caught.message : "Undo could not be saved.");
     }
   };
+  const canFocusOn = (task: CanonicalTask) => Boolean(onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
+  const rowActions = (model: TaskCardModel): TaskRowAction[] => {
+    const task = taskById.get(model.id);
+    if (!task) return [];
+    const actions: TaskRowAction[] = [
+      { id: "open", label: "Open details", icon: PanelRight, onSelect: () => openDetail(task, rowTrigger(task.id)) },
+    ];
+    if (canFocusOn(task)) actions.push({ id: "focus", label: "Start focus", icon: Play, onSelect: () => onStartFocus?.(task) });
+    const open = task.state !== "completed" && task.state !== "archived";
+    if (open && !model.recurring && task.scheduledLocalDate !== today) {
+      actions.push({ id: "plan-today", label: "Plan for today", icon: CalendarCheck, onSelect: () => void planToday(task) });
+    }
+    if (task.state !== "archived") {
+      const allowed = taskArchiveCheck(task, cardCtx);
+      actions.push({
+        id: "archive",
+        label: "Archive",
+        icon: Archive,
+        danger: true,
+        disabled: !allowed.ok,
+        reason: allowed.ok ? undefined : allowed.reason,
+        onSelect: () => void archive(task),
+      });
+    }
+    return actions;
+  };
+  const withTask = (handler: (task: CanonicalTask, model: TaskCardModel) => void) => (model: TaskCardModel) => {
+    const task = taskById.get(model.id);
+    if (task) handler(task, model);
+  };
   const renderRow = (task: CanonicalTask) => (
     <CanonicalTaskRow
       key={task.id}
@@ -314,44 +499,58 @@ export function TaskWorkspace({
       pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
       workspaceMenu
       onStartFocus={onStartFocus}
-      contextualActionLabel={onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do" ? "Focus" : undefined}
-      onPrimaryAction={onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do" ? () => onStartFocus(task) : undefined}
+      contextualActionLabel={canFocusOn(task) ? "Focus" : undefined}
+      onPrimaryAction={canFocusOn(task) ? () => onStartFocus?.(task) : undefined}
       onToggle={toggle}
       onArchive={archive}
       onOpenDetail={openDetail}
     />
   );
+  const listEmpty: TaskListEmpty = !tasks.length || (!filtersActive && !filtered.length)
+    ? { kind: "first-run", onCapture }
+    : {
+      kind: "filtered",
+      scope: taskQuickFilters.find(item => item.id === filter)?.label ?? "All",
+      query: query.trim() || undefined,
+      onClear: clearFilters,
+    };
+  const selectedModel = selectedTask ? taskCardModel(selectedTask, cardCtx) : null;
 
   return (
-    <section className="task-workspace" aria-label="Task workspace">
-      <header className="task-workspace-heading">
-        <p className="task-workspace-count">{filtered.length} {view === "archive" ? "archived" : view === "inbox" ? "in Inbox" : "in this view"}</p>
-      </header>
+    <section className="task-workspace tk-workspace" aria-label="Task workspace">
+      <TaskHeader
+        summary={summary}
+        view={view}
+        onViewChange={next => onViewChange(next)}
+        onCapture={onCapture}
+        onOpenArchive={() => onViewChange("archive")}
+        onCloseArchive={() => onViewChange("list")}
+        reviewCount={conflictedTaskIds.length}
+        onReview={conflictedTaskIds.length ? () => openDetail({ id: conflictedTaskIds[0] }, rowTrigger(conflictedTaskIds[0])) : undefined}
+        offline={!isOnline}
+      />
 
-      <nav className="task-workspace-tabs" aria-label="Task views">
-        {(["inbox", "list", "board", "saved"] as TaskWorkspaceView[]).map(item => (
-          <button key={item} type="button" aria-current={view === item ? "page" : undefined} className={cn(view === item && "is-active")} onClick={() => onViewChange(item)}>
-            {item === "inbox" ? "Inbox" : item.charAt(0).toUpperCase() + item.slice(1)}
-          </button>
-        ))}
-        <button type="button" className={cn("task-archive-switch", view === "archive" && "is-active")} aria-current={view === "archive" ? "page" : undefined} onClick={() => onViewChange("archive")}><ArchiveRestore aria-hidden="true" size={16} /> Archive</button>
-      </nav>
-
-      {view !== "saved" ? (
+      {view === "list" || view === "board" ? (
+        <TaskToolbar
+          view={view}
+          query={query}
+          onQueryChange={next => viewState({ query: next })}
+          searchRef={searchRef}
+          filter={filter}
+          counts={counts}
+          onFilterChange={next => viewState({ filter: next })}
+          facets={facets}
+          onFacetsChange={setFacets}
+          categoryOptions={categoryOptions}
+          projectOptions={projectOptions}
+          sort={sort}
+          onSortChange={next => viewState({ sort: next })}
+        />
+      ) : view === "inbox" || view === "archive" ? (
         <div className="task-workspace-toolbar">
-          <label className="task-search"><Search aria-hidden="true" size={18} /><Input data-task-search value={query} onChange={event => onViewStateChange({ query: event.target.value, filter, sort })} placeholder="Search tasks" aria-label="Search tasks" /></label>
-          {view !== "archive" && view !== "inbox" ? (
-            <><div className="filter-group" aria-label="Task filters">
-              {(["all", "open", "today", "deadline_risk"] as TaskBoardFilter[]).map(item => <button key={item} type="button" className={cn(filter === item && "is-active")} onClick={() => onViewStateChange({ query, filter: item, sort })}>{item === "deadline_risk" ? "Deadline risk" : item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
-            </div><label className="task-filter-mobile">Filter<select value={filter} onChange={event => onViewStateChange({ query, filter: event.target.value as TaskBoardFilter, sort })} aria-label="Filter tasks"><option value="all">All</option><option value="open">Open</option><option value="today">Today</option><option value="deadline_risk">Deadline risk</option></select></label><label className="task-sort">Order<select value={sort} onChange={event => onViewStateChange({ query, filter, sort: event.target.value as TaskWorkspaceSort })}><option value="manual">Manual</option><option value="priority">Priority</option><option value="due">Due date</option><option value="scheduled">Planned date</option><option value="created">Newest</option></select></label></>
-          ) : null}
+          <label className="task-search"><Search aria-hidden="true" size={18} /><Input data-task-search value={query} onChange={event => viewState({ query: event.target.value })} placeholder="Search tasks" aria-label="Search tasks" /></label>
         </div>
       ) : null}
-
-      {(query.trim() || (view === "list" || view === "board") && filter !== "all") ? <div className="task-active-filters" aria-label="Active task filters">
-        {query.trim() ? <button type="button" onClick={() => onViewStateChange({ query: "", filter, sort })}>Search: {query.trim()} <X aria-hidden="true" size={14} /><span className="sr-only">Remove search filter</span></button> : null}
-        {(view === "list" || view === "board") && filter !== "all" ? <button type="button" onClick={() => onViewStateChange({ query, filter: "all", sort })}>{filter === "deadline_risk" ? "Deadline risk" : filter === "today" ? "Today" : "Open"} <X aria-hidden="true" size={14} /><span className="sr-only">Remove task filter</span></button> : null}
-      </div> : null}
 
       {undo ? <div className="task-undo" role="status"><span>{undo.label}</span><button type="button" onClick={() => void undoLast()}>Undo</button><button type="button" aria-label="Dismiss undo" onClick={() => setUndo(null)}>×</button></div> : null}
 
@@ -365,6 +564,7 @@ export function TaskWorkspace({
           today={today}
           timezone={timezone}
           pendingTaskIds={pendingTaskIds}
+          occurrences={occurrences}
           onToggle={toggle}
           onPlanToday={planToday}
           onArchive={archive}
@@ -372,12 +572,20 @@ export function TaskWorkspace({
           onCapture={onCapture}
           onStartFocus={onStartFocus}
           queryActive={Boolean(query.trim())}
-          onResetQuery={() => onViewStateChange({ query: "", filter, sort })}
+          onResetQuery={() => viewState({ query: "" })}
         />
       ) : null}
 
       {view === "list" ? (
-        filtered.length ? <div className="canonical-task-list" role="list">{filtered.map(renderRow)}</div> : <div className="task-workspace-empty"><List aria-hidden="true" size={24} /><h3>No task matches this view</h3><p>Reset the search or filter to return to the complete list.</p>{query || filter !== "all" ? <button type="button" onClick={() => onViewStateChange({ ...resetTaskWorkspaceState(), sort })}>Reset task filters</button> : <button type="button" onClick={onCapture}>Capture a task</button>}</div>
+        <TaskListSections
+          sections={listSections}
+          onOpen={(model, trigger) => openDetail(model, trigger)}
+          onToggle={withTask((task, model) => void checkTask(task, model))}
+          onBlockedCheck={withTask(explainBlockedCheck)}
+          onStartFocus={onStartFocus ? withTask(task => onStartFocus(task)) : undefined}
+          actionsFor={rowActions}
+          empty={listEmpty}
+        />
       ) : null}
 
       {view === "board" ? (
@@ -454,11 +662,11 @@ export function TaskWorkspace({
       ) : null}
 
       {view === "saved" ? (
-        <section className="task-saved-views" aria-labelledby="task-saved-heading"><header><h3 id="task-saved-heading">Saved views</h3><p>Saved filters point to the same task records; they never copy task state.</p></header>{savedViews.filter(saved => saved.viewType === "tasks").length ? <div>{savedViews.filter(saved => saved.viewType === "tasks").map(saved => <button type="button" key={saved.id} onClick={() => { const adapted = adaptSavedTaskView(saved.configuration ?? {}); onViewStateChange(adapted); onViewChange("list"); }}><strong>{saved.name}</strong><span>{saved.isPinned ? "Pinned" : "Saved"}</span></button>)}</div> : <div className="task-workspace-empty"><Inbox aria-hidden="true" size={24} /><h3>No task views saved yet</h3><p>Your current task filters remain available in List and Board.</p></div>}</section>
+        <section className="task-saved-views" aria-labelledby="task-saved-heading"><header><h3 id="task-saved-heading">Saved views</h3><p>Saved filters point to the same task records; they never copy task state.</p></header>{savedViews.filter(saved => saved.viewType === "tasks").length ? <div>{savedViews.filter(saved => saved.viewType === "tasks").map(saved => <button type="button" key={saved.id} onClick={() => { const adapted = adaptSavedTaskViewV2(saved.configuration ?? {}); setFacets({ categoryIds: adapted.categoryIds, projectIds: adapted.projectIds, priorities: adapted.priorities }); onViewStateChange({ query: adapted.query, filter: adapted.filter, sort: adapted.sort }); onViewChange(adapted.view); }}><strong>{saved.name}</strong><span>{saved.isPinned ? "Pinned" : "Saved"}</span></button>)}</div> : <div className="task-workspace-empty"><Inbox aria-hidden="true" size={24} /><h3>No task views saved yet</h3><p>Your current task filters remain available in List and Board.</p></div>}</section>
       ) : null}
 
       {view === "archive" ? (
-        <section className="task-archive-panel" aria-labelledby="archived-task-heading"><div><h3 id="archived-task-heading">Archived work</h3><p>Archive retains identity and history. Restore returns the same record to To do.</p></div><span>{filtered.length} stored</span>{filtered.length ? <ul>{filtered.map(task => <li key={task.id}><div><strong>{task.title}</strong><small>{task.completedAt ? "Completed before archive" : "Archived without completion"}</small></div><Button type="button" variant="ghost" onClick={() => void restore(task)}><ArchiveRestore size={16} /> Restore</Button></li>)}</ul> : <div className="task-workspace-empty"><p>{query ? "No archived task matches this search." : "No archived tasks yet."}</p>{query ? <button type="button" onClick={() => onViewStateChange({ query: "", filter, sort })}>Reset task search</button> : null}</div>}</section>
+        <section className="task-archive-panel" aria-labelledby="archived-task-heading"><div><h3 id="archived-task-heading">Archived work</h3><p>Archive retains identity and history. Restore returns the same record to To do.</p></div><span>{filtered.length} stored</span>{filtered.length ? <ul>{filtered.map(task => <li key={task.id}><div><strong>{task.title}</strong><small>{task.completedAt ? "Completed before archive" : "Archived without completion"}</small></div><Button type="button" variant="ghost" onClick={() => void restore(task)}><ArchiveRestore size={16} /> Restore</Button></li>)}</ul> : <div className="task-workspace-empty"><p>{query ? "No archived task matches this search." : "No archived tasks yet."}</p>{query ? <button type="button" onClick={() => viewState({ query: "" })}>Reset task search</button> : null}</div>}</section>
       ) : null}
 
       <TaskDetailSheet
@@ -473,6 +681,8 @@ export function TaskWorkspace({
         dependencies={dependencies}
         conflictCount={selectedTask ? conflictCountByTask.get(selectedTask.id) ?? 0 : 0}
         isOnline={isOnline}
+        cardModel={selectedModel}
+        onComplete={task => { if (selectedModel) void checkTask(task, selectedModel); }}
         onOpenChange={open => { if (!open) onSelectedRecordChange(null); }}
         onStartFocus={onStartFocus}
         onUpdate={onUpdate}

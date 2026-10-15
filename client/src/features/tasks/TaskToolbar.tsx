@@ -124,6 +124,7 @@ export function TaskToolbar({
           <span className="pc-sr-only">Search tasks</span>
           <input
             ref={inputRef}
+            data-task-search
             type="search"
             value={query}
             placeholder="Search tasks"

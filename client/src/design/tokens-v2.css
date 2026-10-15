@@ -64,18 +64,31 @@ html:root {
   --pc-risk: #8a560b; --pc-risk-soft: #fff3dc;
   --pc-off: #a3353a; --pc-off-soft: #ffecec;
 
+  /* Motion scale (retuned 2026-10-14 after the owner's "too fast" report). Three tiers:
+     taps stay crisp (press/fast/base), entrances are visibly slower (enter/pop/glide/sheet),
+     data motion is long and gentle (data + ease-data). Mirrored in design/motion.ts (MOTION). */
   --pc-ease: cubic-bezier(.23, 1, .32, 1);
-  --pc-ease-data: cubic-bezier(.16, 1, .3, 1);
-  --pc-dur-press: 80ms;
-  --pc-dur-fast: 140ms;
-  --pc-dur-base: 240ms;
-  --pc-dur-exit: 160ms;
-  --pc-dur-data: 600ms;
-  --pc-stagger: 40ms;
+  /* easeOutCubic: gentler than the strong ease-out, so a count-up or ring fill reads as travel. */
+  --pc-ease-data: cubic-bezier(.33, 1, .68, 1);
+  --pc-dur-press: 120ms;
+  --pc-dur-fast: 160ms;
+  --pc-dur-base: 220ms;
+  --pc-dur-exit: 200ms;
+  --pc-dur-enter: 480ms;
+  --pc-dur-pop: 380ms;
+  --pc-dur-glide: 380ms;
+  --pc-dur-tick: 360ms;
+  --pc-dur-data: 1300ms;
+  /* Data motion waits for its card to rise, then cards follow one another by --pc-stagger. */
+  --pc-data-delay: 260ms;
+  --pc-stagger: 70ms;
+  --pc-stagger-data: 60ms;
+  --pc-stagger-tight: 40ms;
   /* Delight pass (additive): stroke draws, completion moments, the hero's ambient drift. */
   --pc-dur-draw: 280ms;
   --pc-dur-celebrate: 520ms;
-  --pc-dur-ambient: 22s;
+  /* One leg of an alternate drift: a full there-and-back colour cycle is 2x (10s; the hero tint layer 12s). */
+  --pc-dur-ambient: 5s;
   /* D2.5 Focus (additive): the timer instrument and phone sheets. */
   --pc-text-timer: clamp(56px, 15vw, 80px);
   --pc-dial-lg: clamp(260px, 72vw, 360px);
@@ -83,7 +96,7 @@ html:root {
   --pc-dial-sm: 96px;
   --pc-dial-xs: 24px;
   --pc-ease-sheet: cubic-bezier(.32, .72, 0, 1);
-  --pc-dur-sheet: 300ms;
+  --pc-dur-sheet: 500ms;
 }
 
 html:root.dark {
@@ -158,11 +171,13 @@ html:root.dark {
 html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
 .pc-num { font-variant-numeric: tabular-nums; }
 
-/* Motion utilities. Pulse is reserved for the calendar now-line (calm rule). Stagger index comes from style="--pc-i: n" (capped at 8 items). */
-.pc-rise { animation: pc-rise var(--pc-dur-base) var(--pc-ease) both; animation-delay: calc(min(var(--pc-i, 0), 8) * var(--pc-stagger)); }
-.pc-pop { animation: pc-pop 320ms var(--pc-ease) both; animation-delay: calc(min(var(--pc-i, 0), 8) * 30ms); }
-.pc-grow-x { transform-origin: left; animation: pc-grow-x var(--pc-dur-data) var(--pc-ease-data) both; animation-delay: calc(200ms + min(var(--pc-i, 0), 8) * 60ms); }
-.pc-grow-y { transform-origin: bottom; animation: pc-grow-y var(--pc-dur-data) var(--pc-ease-data) both; animation-delay: calc(200ms + min(var(--pc-i, 0), 8) * var(--pc-stagger)); }
+/* Motion utilities. Pulse is reserved for the calendar now-line (calm rule). Stagger index comes from style="--pc-i: n" (capped at 8 items).
+   Data bars start at --pc-data-start when a container sets it (the Dashboard sets it per card), else at --pc-data-delay. */
+.pc-rise { animation: pc-rise var(--pc-dur-enter) var(--pc-ease) both; animation-delay: calc(min(var(--pc-i, 0), 8) * var(--pc-stagger)); }
+.pc-pop { animation: pc-pop var(--pc-dur-pop) var(--pc-ease) both; animation-delay: calc(min(var(--pc-i, 0), 8) * var(--pc-stagger-tight)); }
+.pc-blur-in { animation: pc-blur-in var(--pc-dur-enter) var(--pc-ease) both; }
+.pc-grow-x { transform-origin: left; animation: pc-grow-x var(--pc-dur-data) var(--pc-ease-data) both; animation-delay: calc(var(--pc-data-start, var(--pc-data-delay)) + min(var(--pc-i, 0), 8) * var(--pc-stagger-data)); }
+.pc-grow-y { transform-origin: bottom; animation: pc-grow-y var(--pc-dur-data) var(--pc-ease-data) both; animation-delay: calc(var(--pc-data-start, var(--pc-data-delay)) + min(var(--pc-i, 0), 8) * var(--pc-stagger-data)); }
 .pc-pulse { animation: pc-pulse 2.4s cubic-bezier(.4, 0, .6, 1) infinite; }
 
 @keyframes pc-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -192,13 +207,20 @@ html :is(.pc-seg-tab, .pc-focusable):focus-visible { outline: var(--pc-focus-wid
     --pc-dur-press: 0ms;
     --pc-dur-base: 0ms;
     --pc-dur-exit: 0ms;
+    --pc-dur-enter: 0ms;
+    --pc-dur-pop: 0ms;
+    --pc-dur-glide: 0ms;
+    --pc-dur-tick: 0ms;
     --pc-dur-data: 0ms;
+    --pc-data-delay: 0ms;
     --pc-stagger: 0ms;
+    --pc-stagger-data: 0ms;
+    --pc-stagger-tight: 0ms;
     --pc-dur-draw: 0ms;
     --pc-dur-celebrate: 0ms;
     --pc-dur-sheet: 0ms;
   }
-  :is(.pc-rise, .pc-pop, .pc-grow-x, .pc-grow-y, .pc-pulse) { animation: none !important; }
+  :is(.pc-rise, .pc-pop, .pc-blur-in, .pc-grow-x, .pc-grow-y, .pc-pulse) { animation: none !important; }
   .pc-live::after, .pc-icon-pop { animation: none !important; }
   .pc-comet, .pc-burst-ring, .pc-burst-dots, .pc-digit-roll { animation: none !important; }
   .pc-comet { display: none; }

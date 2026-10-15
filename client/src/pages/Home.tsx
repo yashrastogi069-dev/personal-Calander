@@ -119,6 +119,7 @@ import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
 import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
 import {
   TaskWorkspace,
+  TaskWorkspaceLoading,
   type TaskWorkspaceSort,
   type TaskWorkspaceView,
 } from "@/features/tasks/TaskWorkspace";
@@ -6995,6 +6996,12 @@ export default function Home() {
   const addTaskDependency = trpc.planner.task.addDependency.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
+  const resolveTaskOccurrence = trpc.planner.occurrence.resolve.useMutation({
+    onSuccess: () => {
+      utils.planner.workspace.snapshot.invalidate();
+      utils.planner.dashboard.invalidate();
+    },
+  });
   const removeTaskDependency = trpc.planner.task.removeDependency.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
@@ -8517,7 +8524,7 @@ export default function Home() {
           onRetry={() => void snapshotQuery.refetch()}
         >
           {snapshotQuery.isLoading ? (
-            <DestinationLoading label={surfaceTitle} />
+            surface === "tasks" ? <TaskWorkspaceLoading /> : <DestinationLoading label={surfaceTitle} />
           ) : (
             <section className="destination-unavailable" aria-live="polite">
               <p>Your planner data has not been changed.</p>
@@ -8880,6 +8887,9 @@ export default function Home() {
             goals={snapshot.goals}
             savedViews={snapshot.savedViews}
             dependencies={snapshot.taskDependencies}
+            occurrences={snapshot.taskOccurrences}
+            dailyPlans={snapshot.dailyPlans}
+            dailyPlanItems={snapshot.dailyPlanItems}
             today={today}
             timezone={scope.timezone}
             query={taskSearch}
@@ -8910,6 +8920,11 @@ export default function Home() {
             onCapture={() => openComposer("task")}
             onStartFocus={task => { setFocusEntryTaskId(task.id); selectSurface("focus"); }}
             onUpdate={persistTaskPatch}
+            onResolveOccurrence={async (_task, occurrence) => {
+              if (!isOnline) throw new Error("Reconnect to mark today's repeat done. Nothing was saved.");
+              return resolveTaskOccurrence.mutateAsync({ ...scope, id: occurrence.id, expectedVersion: occurrence.expectedVersion, state: "completed" });
+            }}
+            onOpenPlan={() => navigatePlanner({ destination: "plan", view: "daily" })}
             onCreateSubtask={createSubtaskSafely}
             onReorder={reorderTaskInLane}
             onArchiveCompleted={archiveCompletedTasks}

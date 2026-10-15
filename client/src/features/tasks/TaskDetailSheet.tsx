@@ -470,7 +470,11 @@ export function TaskDetailSheet({
       variant="side"
       title={task.title}
       hideTitle
-      description={`${String(draft.state ?? "not_started").replaceAll("_", " ")} · ${draft.scheduledLocalDate ? `Plan for ${draft.scheduledLocalDate}` : "Not planned"}${draft.dueLocalDate ? ` · Deadline ${draft.dueLocalDate}` : ""}`}
+      description={cardModel
+        // The state pill and date pills replace the visible line (D3 §4.7); screen readers still get it, with the
+        // recurring fix (§7) applied, so a series never reads as "Plan for {anchor}".
+        ? <span className="pc-sr-only">{[String(draft.state ?? "not_started").replaceAll("_", " "), ...(cardModel.dates.length ? cardModel.dates.map(pill => pill.accessibleLabel ?? pill.label) : ["Not planned"])].join(" · ")}</span>
+        : `${String(draft.state ?? "not_started").replaceAll("_", " ")} · ${draft.scheduledLocalDate ? `Plan for ${draft.scheduledLocalDate}` : "Not planned"}${draft.dueLocalDate ? ` · Deadline ${draft.dueLocalDate}` : ""}`}
       className="tk-d-sheet"
       onOpenAutoFocus={event => {
         // Like the old sheet: land on Close, so opening a task never raises the phone keyboard.

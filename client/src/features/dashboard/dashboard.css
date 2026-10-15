@@ -50,6 +50,9 @@ html body .pc-dash :is(ol, ul) { list-style: none; }
 html body .pc-dash button { font: inherit; letter-spacing: inherit; }
 
 .pc-dash-card {
+  /* When this card's data motion starts: resolved here with the card's own --pc-i, then inherited by
+     its rings, bars and bubbles. Mirrors dataStartMs() in design/motion.ts. */
+  --pc-data-start: calc(var(--pc-data-delay) + min(var(--pc-i, 0), 8) * var(--pc-stagger));
   position: relative;
   display: flex;
   flex-direction: column;
@@ -131,10 +134,12 @@ html body .pc-dash :is(.pc-dash-hero, .pc-dash-night) button:focus-visible { out
 /* Rings */
 .pc-dash-ring { flex: none; display: block; }
 .pc-dash-ring-track { stroke: var(--pc-track); }
+/* The arc draws on the same duration, curve and start as the card's count-up (DashboardView CountUp),
+   so figure and ring arrive together. */
 .pc-dash-ring-arc {
   stroke: var(--accent);
-  transition: stroke-dashoffset var(--pc-dur-base) var(--pc-ease-data);
-  animation: pc-dash-ring-draw var(--pc-dur-data) var(--pc-ease-data) 120ms backwards;
+  transition: stroke-dashoffset var(--pc-dur-data) var(--pc-ease-data);
+  animation: pc-dash-ring-draw var(--pc-dur-data) var(--pc-ease-data) var(--pc-data-start, var(--pc-data-delay)) backwards;
 }
 .pc-dash-ring-done .pc-dash-ring-arc { stroke: var(--pc-done); }
 .pc-dash-ring-tone .pc-dash-ring-arc { stroke: var(--pc-k); }
@@ -212,33 +217,49 @@ html body .pc-dash .pc-dash-hero-open:active { transform: scale(.94); }
 .pc-dash-hero-empty p { font-size: 24px; line-height: 30px; font-weight: var(--pc-w-bold); letter-spacing: var(--pc-tracking-tight); }
 .pc-dash-hero-empty-icon { margin-bottom: -6px; opacity: .85; }
 
-/* Ambient light: two soft blooms drift behind the content. One composited layer, paused under reduced motion. */
+/* Ambient light: coloured blooms drift behind the content so the hero's colour visibly shifts on a
+   10-12s there-and-back cycle (owner 2026-10-14: the old drift was too subtle). Two composited layers, transform + opacity only,
+   on different cycle lengths so the mix never repeats mechanically. The blooms are mid-tone (violet,
+   teal, a soft white), never pale, so white text keeps its contrast. Both stop under reduced motion. */
 .pc-dash-hero { isolation: isolate; }
-.pc-dash-hero::before {
+.pc-dash-hero::before,
+.pc-dash-hero::after {
   content: "";
   position: absolute;
   z-index: -1;
-  inset: -35%;
+  inset: -40%;
   pointer-events: none;
+  will-change: transform, opacity;
+}
+.pc-dash-hero::before {
   background:
-    radial-gradient(30% 36% at 28% 30%, rgb(255 255 255 / .16), transparent 70%),
-    radial-gradient(28% 32% at 74% 72%, color-mix(in srgb, var(--pc-night-accent) 30%, transparent), transparent 70%);
+    radial-gradient(32% 38% at 26% 28%, rgb(255 255 255 / .2), transparent 70%),
+    radial-gradient(34% 40% at 76% 74%, rgb(24 186 214 / .55), transparent 70%);
   animation: pc-dash-aurora var(--pc-dur-ambient) ease-in-out infinite alternate;
-  will-change: transform;
+}
+.pc-dash-hero::after {
+  background:
+    radial-gradient(38% 44% at 72% 24%, rgb(124 92 255 / .62), transparent 70%),
+    radial-gradient(30% 36% at 20% 78%, rgb(54 92 230 / .5), transparent 70%);
+  animation: pc-dash-aurora-tint calc(var(--pc-dur-ambient) * 1.2) ease-in-out infinite alternate;
 }
 @keyframes pc-dash-aurora {
-  from { transform: translate3d(-5%, -3%, 0) rotate(-4deg); }
-  to { transform: translate3d(6%, 4%, 0) rotate(8deg); }
+  from { transform: translate3d(-12%, -8%, 0) rotate(-8deg); }
+  to { transform: translate3d(12%, 9%, 0) rotate(14deg); }
+}
+@keyframes pc-dash-aurora-tint {
+  from { opacity: .1; transform: translate3d(10%, -6%, 0) scale(.9); }
+  to { opacity: 1; transform: translate3d(-12%, 8%, 0) scale(1.1); }
 }
 .pc-dash-hero-ring { position: relative; display: grid; flex: none; place-items: center; }
 .pc-dash-hero-ring > .pc-dash-ring { grid-area: 1 / 1; }
 /* Every commitment done: the arc glows and a check settles in once the ring has drawn. */
-.pc-dash-hero-check { grid-area: 1 / 1; color: #fff; animation: pc-dash-check-in 360ms var(--pc-ease) 700ms both; }
+.pc-dash-hero-check { grid-area: 1 / 1; color: #fff; animation: pc-dash-check-in var(--pc-dur-pop) var(--pc-ease) calc(var(--pc-data-start, var(--pc-data-delay)) + var(--pc-dur-data) * .8) both; }
 .pc-dash-hero.is-complete .pc-dash-ring-arc { filter: drop-shadow(0 0 6px rgb(255 255 255 / .55)); }
 @keyframes pc-dash-check-in { from { opacity: 0; transform: scale(.7); } 60% { opacity: 1; transform: scale(1.08); } to { opacity: 1; transform: none; } }
 
 /* A changed figure rolls in (keyed in React, so the first paint stays still). */
-.pc-dash-tick { display: inline-block; animation: pc-tick var(--pc-dur-base) var(--pc-ease) both; }
+.pc-dash-tick { display: inline-block; animation: pc-tick var(--pc-dur-tick) var(--pc-ease) both; }
 
 /* ---------- Titles, notes, link icons ---------------------------------------------------------------------------- */
 html body .pc-shell .pc-dash .pc-dash-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -270,8 +291,9 @@ html body .pc-dash .pc-dash-unscheduled > svg { transition: transform var(--pc-d
   pointer-events: none;
   transition: opacity var(--pc-dur-base) var(--pc-ease);
 }
-/* The hero clips its own ambient layer (overflow: hidden), so it keeps its static e2 and skips this. */
-.pc-dash-hero::after { content: none; }
+/* The hero clips its own ambient layers (overflow: hidden) and keeps its static e2, so its ::after is the
+   tint bloom above, not the hover shadow. Opacity here is the still state (reduced motion); the drift animates it. */
+html body .pc-dash .pc-dash-card.pc-dash-hero::after { inset: -40%; border-radius: 0; box-shadow: none; opacity: .55; transition: none; }
 .pc-dash-night::after { box-shadow: var(--pc-e3); }
 
 /* ---------- KPI cards ---------------------------------------------------------------------------- */
@@ -942,7 +964,7 @@ html.dark .pc-dash-now-time { color: var(--pc-night); }
   html body .pc-dash :is(.pc-dash-btn, .pc-dash-check, .pc-dash-hero-open, .pc-dash-ev, .pc-dash-weekday, .pc-dash-habit, .pc-dash-project) { transform: none !important; }
   /* Delight pass: ambient drift, live ping, check-in celebration, figure ticks and pop-ins all stop.
      State still reads: the check mark cross-fades, the hero check and bubble simply appear. */
-  .pc-dash-hero::before, .pc-dash-live::after, .pc-dash-tick, .pc-dash-bar-bubble, .pc-dash-hero-check { animation: none !important; }
+  .pc-dash-hero::before, .pc-dash-hero::after, .pc-dash-live::after, .pc-dash-tick, .pc-dash-bar-bubble, .pc-dash-hero-check { animation: none !important; }
   .pc-dash-habit.is-celebrating :is(.pc-dash-check, .pc-dash-check-mark path) { animation: none !important; }
   .pc-dash-habit.is-celebrating .pc-dash-burst::before, .pc-dash-habit.is-celebrating .pc-dash-burst::after { animation: none !important; }
   .pc-dash-focus, .pc-dash-strip-marker, .pc-dash-strip-list li, .pc-dash-day-scroll, .pc-dash-habit-row { transition: none !important; }

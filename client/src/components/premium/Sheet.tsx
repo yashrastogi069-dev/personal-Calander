@@ -6,7 +6,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo, type TargetAndTransition, type Transition } from "framer-motion";
 import { X } from "lucide-react";
 import { useRef, type ReactNode } from "react";
-import { EASE_OUT, SHEET, shouldDismissSheet } from "@/design/motion";
+import { ENTER, EXIT, SHEET, shouldDismissSheet } from "@/design/motion";
 import { cn } from "@/lib/utils";
 import { useIsPhone } from "./useMediaQuery";
 import "./premium.css";
@@ -49,9 +49,9 @@ const INSTANT: Transition = { duration: 0 };
  */
 export function sheetMotion(kind: SheetKind, reduced: boolean): { initial: TargetAndTransition; animate: TargetAndTransition; exit: TargetAndTransition; transition: Transition } {
   if (reduced) return { initial: { opacity: 1 }, animate: { opacity: 1, x: 0, y: 0, scale: 1 }, exit: { opacity: 0, transition: INSTANT }, transition: INSTANT };
-  if (kind === "sheet") return { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%", transition: { duration: 0.2, ease: EASE_OUT } }, transition: SHEET };
-  if (kind === "side") return { initial: { x: "100%" }, animate: { x: 0 }, exit: { x: "100%", transition: { duration: 0.2, ease: EASE_OUT } }, transition: SHEET };
-  return { initial: { opacity: 0, scale: 0.96, y: 8 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.98, transition: { duration: 0.16, ease: EASE_OUT } }, transition: { duration: 0.24, ease: EASE_OUT } };
+  if (kind === "sheet") return { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%", transition: EXIT }, transition: SHEET };
+  if (kind === "side") return { initial: { x: "100%" }, animate: { x: 0 }, exit: { x: "100%", transition: EXIT }, transition: SHEET };
+  return { initial: { opacity: 0, scale: 0.96, y: 8 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.98, transition: EXIT }, transition: ENTER };
 }
 
 export function Sheet({
@@ -90,8 +90,8 @@ export function Sheet({
                 className={cn("pc-sheet-overlay", kind === "side" && "is-side")}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.16, ease: EASE_OUT } }}
-                transition={reduced ? INSTANT : asSheet || kind === "side" ? SHEET : { duration: 0.24, ease: EASE_OUT }}
+                exit={{ opacity: 0, transition: EXIT }}
+                transition={reduced ? INSTANT : asSheet || kind === "side" ? SHEET : ENTER}
               />
             </DialogPrimitive.Overlay>
             <DialogPrimitive.Content

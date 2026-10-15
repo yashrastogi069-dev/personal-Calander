@@ -16,8 +16,9 @@ export type TaskHeaderProps = {
   summary: TaskHeaderSummary;
   view: TaskWorkspaceView;
   onViewChange: (view: TaskTabView) => void;
-  selectMode: boolean;
-  onSelectModeChange: (next: boolean) => void;
+  selectMode?: boolean;
+  /** Select mode (D3c). The Select button is hidden until a handler is wired. */
+  onSelectModeChange?: (next: boolean) => void;
   onCapture: () => void;
   onOpenArchive: () => void;
   /** Leave the archive view (the back button shows only while it is open). */
@@ -43,7 +44,7 @@ export function TaskHeader({
   summary,
   view,
   onViewChange,
-  selectMode,
+  selectMode = false,
   onSelectModeChange,
   onCapture,
   onOpenArchive,
@@ -90,9 +91,11 @@ export function TaskHeader({
               <button type="button" className="tk-btn is-ghost pc-focusable" onClick={onCloseArchive}><ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />Back to tasks</button>
             ) : (
               <>
-                <button type="button" className={cn("tk-btn is-ghost pc-focusable", selectMode && "is-on")} aria-pressed={selectMode} onClick={() => onSelectModeChange(!selectMode)}>
-                  <CheckSquare size={16} strokeWidth={2} aria-hidden="true" />Select
-                </button>
+                {onSelectModeChange ? (
+                  <button type="button" className={cn("tk-btn is-ghost pc-focusable", selectMode && "is-on")} aria-pressed={selectMode} onClick={() => onSelectModeChange(!selectMode)}>
+                    <CheckSquare size={16} strokeWidth={2} aria-hidden="true" />Select
+                  </button>
+                ) : null}
                 <button type="button" className="tk-btn is-accent pc-focusable" onClick={onCapture}><Plus size={16} strokeWidth={2.5} aria-hidden="true" />Capture</button>
                 <TaskActionsMenu title="Tasks" label="More task options" actions={[{ id: "archive", label: "Archived tasks", icon: Archive, onSelect: onOpenArchive }]} />
               </>

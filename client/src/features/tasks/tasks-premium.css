@@ -333,7 +333,7 @@ html .tk-header .pc-page-header .pc-page-header-subtitle { font-size: var(--pc-t
 .tk-summary { font-variant-numeric: tabular-nums; }
 .tk-summary-part.is-off { color: var(--pc-off); font-weight: var(--pc-w-semibold); }
 .tk-summary-dot { color: var(--pc-faint); }
-.tk-tab-icon { flex: none; margin-right: 6px; vertical-align: -3px; }
+.tk-tab-icon { display: inline-block; flex: none; margin-right: 6px; vertical-align: -3px; }
 .tk-offline { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: var(--pc-r-pill); background: var(--pc-risk-soft); color: var(--pc-risk); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); }
 .tk-saved-copy { margin: 0; padding: 8px 12px; border-radius: var(--pc-r-control); background: var(--pc-risk-soft); color: var(--pc-risk); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); font-weight: var(--pc-w-semibold); }
 
