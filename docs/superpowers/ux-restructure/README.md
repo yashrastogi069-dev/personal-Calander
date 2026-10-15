@@ -16,7 +16,11 @@ Most other pages follow. Dashboard and the Focus/timer redesign (D2, D2.5) are t
 2. **Mapping: Opus, for every page** ("use opus for the mapping, for now"). Fable is not used for the map.
 3. **Interviews: ALL pages, not only Tasks.** Method: the `grill-me` skill. One question at a time, each with a recommended answer. Resolve whatever the codebase can answer before asking. Go depth-first, one page or branch at a time.
 4. **Prototypes before building.** The owner reviews prototypes and approves them before any page UI is built.
-5. **Competitor references:** `C:\Users\win 10\Desktop\personal-Calander\Screenshots of competition` (60 PNGs from 2026-10-03; Asana, Sunsama, monday and others; filenames are timestamps only). `BEST Shots/` holds the 8 visual references used for the Dashboard.
+5. **Competitor references:** `C:\Users\win 10\Desktop\personal-Calander\Screenshots of competition` (60 PNGs from 2026-10-03; Asana, Sunsama, monday and others; filenames are timestamps only). More references the owner pointed to (2026-10-15):
+   - `C:\Users\win 10\Desktop\personal-Calander\BEST Shots` (8 images; the visual bar used for the Dashboard and Focus, e.g. the Coterie time tracker)
+   - `C:\Users\win 10\Desktop\personal-Calander\design-system\personal-calander\concepts` (8 earlier concept boards from 2026-10-03/04: beyond-tasks, beyond-timeline, beyond-today, blue-workspace-preview, focus-studio, habit-rhythm, overview, week-studio)
+
+   All three folders feed step 2.
 6. **Overall goal unchanged:** complete everything up to and including D4.
 
 ## Process and status
@@ -24,7 +28,7 @@ Most other pages follow. Dashboard and the Focus/timer redesign (D2, D2.5) are t
 |---|---|---|---|
 | 0 | R3 `useTaskDnd` drag logic (kept; any Board design needs it) | opus | running |
 | 1 | Structure map of every page: purpose, contents, data, entry points, overlaps, dead ends, legacy leftovers, and what Inbox, Saved views and Archived do today, with screenshots of the current app | opus | next |
-| 2 | Competitor pattern catalogue from the 60 screenshots: which app, what pattern, what to steal for which page | opus | after 1 |
+| 2 | Reference catalogue: the 60 competitor screenshots (which app, what pattern, what to steal for which page), the 8 `BEST Shots` and the 8 concept boards (which ideas map to which page) | opus | after 1 |
 | 3 | grill-me interview rounds, one page at a time (Tasks first, then Today, Calendar, Plan, Roadmap, Goals & Projects, Habits, Review/Analytics, Inbox, Settings and More). Answers go to `03-interview-log.md` and decisions to `docs/DECISIONS.md` | primary with the owner | after 1–2 |
 | 4 | Prototypes per page for owner review (published artifacts or demo screens) | Fable designs, Opus builds | after each page's interview |
 | 5 | Build approved pages; D3b visuals, D3c, the D3.5 nav and D4 reasons land inside them | opus | after approval |
