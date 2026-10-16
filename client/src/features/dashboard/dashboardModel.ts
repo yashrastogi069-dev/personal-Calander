@@ -6,6 +6,7 @@ import { confirmedActiveSeconds } from "@shared/focusClock";
 import { habitPeriodConsistency } from "@shared/habitConsistency";
 import { isHabitScheduledOnLocalDate, type CalendarHabit } from "@shared/habitSchedule";
 import type { RoadmapItem } from "@shared/roadmap";
+import { habitStreak } from "@shared/habitStreak";
 import { isOverdueTask } from "@shared/taskBuckets";
 import type { TodayProjection } from "@shared/todayProjection";
 import type {
@@ -405,21 +406,8 @@ function milestonesFor(input: DashboardInput): DashboardMilestone[] {
     }));
 }
 
-/** Consecutive completed days ending today, or yesterday while today is still open. Skipped days neither break nor extend it. */
-export function habitStreak(habit: DashboardHabitRecord, checkIns: readonly DashboardCheckIn[], localDate: string, earliest: string): number {
-  const states = new Map(checkIns.filter(item => item.habitId === habit.id).map(item => [item.localDate, item.state]));
-  let day = states.get(localDate) === "completed" ? localDate : shiftLocalDate(localDate, -1);
-  let streak = 0;
-  while (day >= earliest) {
-    const state = states.get(day);
-    if (state === "completed") streak += 1;
-    else if (state === "skipped" || !isHabitScheduledOnLocalDate(habit, day)) {
-      // Not a due day: carry on without counting.
-    } else break;
-    day = shiftLocalDate(day, -1);
-  }
-  return streak;
-}
+// Moved to shared/ for the D4 "Why it matters" engine; re-exported so callers and tests are unchanged.
+export { habitStreak };
 
 function habitsTodayFor(input: DashboardInput, habitById: Map<string, DashboardHabitRecord>, toneFor: ToneLookup): DashboardHabit[] {
   const earliest = shiftLocalDate(input.localDate, -27);
