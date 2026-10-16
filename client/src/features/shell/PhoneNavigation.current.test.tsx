@@ -5,7 +5,8 @@ import { PhoneNavigation } from "./PhoneNavigation";
 
 describe("exact phone navigation announcements", () => {
   it("highlights a parent but does not announce it as the exact child page", () => {
-    const html = renderToStaticMarkup(<PhoneNavigation location={{ destination: "home", view: "overview" }} preferences={phase4DefaultPreferences} moreOpen={false} onMoreOpenChange={vi.fn()} onNavigate={vi.fn()} />);
+    // Pinned explicitly: the D3.5 default pins home/overview itself, so it no longer exercises the parent fallback.
+    const html = renderToStaticMarkup(<PhoneNavigation location={{ destination: "home", view: "overview" }} preferences={{ ...phase4DefaultPreferences, primary: [{ destination: "home", view: "today" }, { destination: "tasks", view: "list" }] }} moreOpen={false} onMoreOpenChange={vi.fn()} onNavigate={vi.fn()} />);
     expect(html).toContain('class="is-active"');
     expect(html).not.toContain('aria-current="page"');
   });

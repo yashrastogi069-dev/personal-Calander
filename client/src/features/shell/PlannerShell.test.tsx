@@ -33,7 +33,7 @@ describe("shared planner shell", () => {
     expect(markup).toContain('class="pc-phone-capture" aria-label="Capture a task"');
     const nav = markup.slice(markup.indexOf('aria-label="Phone planning destinations"'));
     const order = Array.from(nav.matchAll(/<span>([^<]+)<\/span>|aria-label="Capture a task"/g)).slice(0, 5).map(match => match[1] ?? "+");
-    expect(order).toEqual(["Today", "Tasks", "+", "Daily plan", "More"]);
+    expect(order).toEqual(["Dashboard", "Today", "+", "Calendar", "More"]);
   });
 
   it("announces account settings only when that exact view is selected", () => {

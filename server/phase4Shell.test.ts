@@ -210,9 +210,11 @@ describe("Phase 4 stable planner shell", () => {
         moreOpen: false,
         onMoreOpenChange: vi.fn(),
         onNavigate: vi.fn(),
+        onCapture: vi.fn(),
       })
     );
 
+    // D3.5 default: three pins + centre Capture + More.
     expect((html.match(/<button/g) ?? []).length).toBe(5);
     expect(html).toContain("More");
     expect(html).toContain('aria-controls="phase4-phone-more"');

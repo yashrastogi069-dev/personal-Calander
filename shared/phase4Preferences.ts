@@ -26,6 +26,11 @@ export type Phase4Preferences = {
   density: "comfortable" | "compact";
   railCollapsed: boolean;
   overview: Phase4OverviewPreferences;
+  /**
+   * Which code default the phone bar pins were last checked against. Absent on lists saved
+   * before D3.5; see migratePreviousDefaultPrimary.
+   */
+  primaryRevision?: typeof phase4PrimaryDefaultRevision;
 };
 
 export type Phase4PreferenceMigration = {
@@ -54,8 +59,15 @@ export const phase4SecondaryShortcutTargets = [
   { destination: "settings", view: "device" },
 ] as const satisfies readonly PlannerPreferenceShortcut[];
 
-const defaultShortcutTargets: PlannerPreferenceShortcut[] = [
+/** Bar destinations (D3.5 2.1): Home (Dashboard), Today, Calendar; the centre `+` and More are fixed. */
+const defaultPrimaryTargets: PlannerPreferenceShortcut[] = [
+  { destination: "home", view: "overview" },
   { destination: "home", view: "today" },
+  { destination: "plan", view: "calendar" },
+];
+
+const defaultShortcutTargets: PlannerPreferenceShortcut[] = uniqueTargets([
+  ...defaultPrimaryTargets,
   { destination: "tasks", view: "list" },
   { destination: "plan", view: "daily" },
   { destination: "intentions", view: "projects" },
@@ -64,16 +76,56 @@ const defaultShortcutTargets: PlannerPreferenceShortcut[] = [
   { destination: "home", view: "focus", action: "focus", legacyId: "focus" },
   { destination: "settings", view: "account", legacyId: "settings" },
   ...phase4SecondaryShortcutTargets,
-];
+]);
+
+/** Bumped when the code default for `primary` changes in a way saved lists should follow once. */
+export const phase4PrimaryDefaultRevision = 2 as const;
+
+/** The pre-D3.5 code default for `primary` (Today, Tasks, Daily plan, Projects), as destination/view keys. */
+export const phase4PreviousDefaultPrimaryKeys = [
+  "home/today",
+  "tasks/list",
+  "plan/daily",
+  "intentions/projects",
+] as const;
 
 export const phase4DefaultPreferences: Phase4Preferences = {
   version: 1,
   order: defaultShortcutTargets,
-  primary: defaultShortcutTargets.slice(0, 4),
+  primary: defaultPrimaryTargets,
   density: "comfortable",
   railCollapsed: false,
   overview: { order: [], hidden: [] },
+  primaryRevision: phase4PrimaryDefaultRevision,
 };
+
+/**
+ * One-time move from the old bar default to the new one (D3.5 owner question 3, a working
+ * assumption the owner may revise). A saved list is replaced only when it is exactly the old
+ * default in the same order and has never been checked at this revision; any other list, or a
+ * list the owner re-picked after the move (revision already stamped), is returned unchanged.
+ */
+export function migratePreviousDefaultPrimary(
+  primary: readonly PlannerPreferenceShortcut[],
+  storedRevision: unknown
+): { primary: PlannerPreferenceShortcut[]; replaced: boolean } {
+  const copy = primary.map(target => ({ ...target }));
+  if (storedRevision === phase4PrimaryDefaultRevision) {
+    return { primary: copy, replaced: false };
+  }
+  const matchesOldDefault =
+    primary.length === phase4PreviousDefaultPrimaryKeys.length &&
+    primary.every(
+      (target, index) =>
+        targetKey(target) === phase4PreviousDefaultPrimaryKeys[index] &&
+        !target.action
+    );
+  if (!matchesOldDefault) return { primary: copy, replaced: false };
+  return {
+    primary: defaultPrimaryTargets.map(target => ({ ...target })),
+    replaced: true,
+  };
+}
 
 function cloneShortcut(
   shortcut: PlannerPreferenceShortcut
@@ -163,19 +215,23 @@ function railCollapsedFrom(
 function migrateCurrent(
   value: Record<string, unknown>,
   options: Phase4PreferenceMigrationOptions
-): Phase4Preferences {
+): { preferences: Phase4Preferences; primaryReplaced: boolean } {
   const defaults = cloneDefaults();
   const storedOrder = shortcutArray(value.order);
   const order = uniqueTargets([
     ...(storedOrder.length ? storedOrder : defaults.order),
     ...phase4SecondaryShortcutTargets,
   ]);
-  const primary = shortcutArray(value.primary);
+  const stored = migratePreviousDefaultPrimary(
+    shortcutArray(value.primary),
+    value.primaryRevision
+  );
+  const primary = stored.primary;
   const overviewValue =
     value.overview && typeof value.overview === "object"
       ? (value.overview as Record<string, unknown>)
       : null;
-  return {
+  const preferences: Phase4Preferences = {
     version: 1,
     order,
     primary: primary.length ? primary : defaults.primary,
@@ -190,7 +246,9 @@ function migrateCurrent(
           hidden: stringArray(overviewValue.hidden),
         }
       : defaults.overview,
+    primaryRevision: phase4PrimaryDefaultRevision,
   };
+  return { preferences, primaryReplaced: stored.replaced };
 }
 
 function migrateLegacy(
@@ -200,7 +258,10 @@ function migrateLegacy(
   const defaults = cloneDefaults();
   const legacyOrder = shortcutArray(value.order);
   const order = uniqueTargets([...legacyOrder, ...defaults.order]);
-  const primary = shortcutArray(value.primary);
+  const primary = migratePreviousDefaultPrimary(
+    shortcutArray(value.primary),
+    undefined
+  ).primary;
   return {
     version: 1,
     order,
@@ -208,6 +269,7 @@ function migrateLegacy(
     density: value.density === "compact" ? "compact" : "comfortable",
     railCollapsed: railCollapsedFrom(undefined, options.railCollapsedRaw),
     overview: defaults.overview,
+    primaryRevision: phase4PrimaryDefaultRevision,
   };
 }
 
@@ -238,9 +300,12 @@ export function migratePhase4Preferences(
 
   const record = value as Record<string, unknown>;
   if (record.version === 1) {
+    const current = migrateCurrent(record, options);
+    // "migrated" makes migrateStoredPlannerPreferences keep the raw value in the existing
+    // backup key (if none exists yet) and persist the move once.
     return {
-      status: "current",
-      preferences: migrateCurrent(record, options),
+      status: current.primaryReplaced ? "migrated" : "current",
+      preferences: current.preferences,
     };
   }
 
