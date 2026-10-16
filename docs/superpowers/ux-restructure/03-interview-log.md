@@ -177,4 +177,40 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
 
   Finishing fills Today with a staggered entrance. It replaces the 5 numbered steps.
 
-**RESUME HERE (usage limit, 2026-10-15):** next is Q14 [Today]: should recurring and committed tasks be tickable on Today? Recommended: yes, with the app resolving the occurrence or plan record behind the scenes. Then Today Q15 (habit heatmap → a "habits due" row only), Q16 (shutdown at the end of Today), Q17 (energy/mood: optional one tap, or cut). Then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
+**Q14 [Today › ticking]**
+- **Question:** recurring and committed (planned) tasks on Today have no tick. `TodayFlexibleWork.tsx` sends them to "Resolve in Plan / Recovery". Should every Today task be tickable in place?
+- **Recommended:** yes, tick in place.
+- **Owner (2026-10-16):** "Yes, tick in place".
+- **Locked decision:**
+  - Every Today row has ONE check circle.
+  - Ticking a recurring task completes only today's occurrence. Ticking a committed or carried task closes its plan record. The app resolves which record behind the scenes.
+  - Every tick gives an Undo toast.
+  - The "Resolve in Plan / Recovery" copy leaves Today. Leftovers are handled by Plan my day, move 1 (Q13).
+  - Build impact: the Today row needs one `completeTodayItem(row)` that dispatches by `row.source` (task / occurrence / daily_commitment / carried_commitment) to the existing mutations. No schema change expected; confirm during the build.
+
+**Q15 [Today › habits]**
+- **Question:** Today shows a habit list with 7-day traces AND a full heatmap with a key (`TodayHabits.tsx`). What belongs on Today?
+- **Recommended:** a "habits due" row only.
+- **Owner (2026-10-16):** "keep the one compact row of habit chips due today in TODAY, but keep the heat maps and other things inside the Habits tab. What do you think?" Primary agreed: same do-vs-look split as Q12.
+- **Locked decision:**
+  - Today shows one compact row of chips for the habits due today. Tap = done (the ring fills). Long-press or the menu = skip.
+  - Done chips fade. The row hides when nothing is due.
+  - Heatmap, 7-day traces, streaks, history and the colour key move to the **Habits** tab (and its Dashboard glance).
+  - Build impact: split `TodayHabits.tsx`. The activity grid and traces go to the Habits page; Today keeps a chip row.
+
+**Q16 [Today › Shut down day]**
+- **Question:** the shutdown lives in Plan › Daily (`PlanWorkspace.tsx` ~1444). It blocks closing until every commitment is resolved and has a one-line reflection. Plan Daily folds into Today (Q12), so how should "Shut down day" work?
+- **Recommended:** a calm 3-step overlay that never blocks.
+- **Owner (2026-10-16):** "Calm 3-step overlay but add some strictness as well in the end or anywhere".
+- **Locked decision (primary's design of the strictness; check it in the Today prototype):**
+  - Today offers "Shut down day" from the owner's preferred shutdown time (the existing `preferredShutdownAt` setting), and it is also always in Today's menu.
+  - **Step 1, Wins:** done count, focus time and habits done, with a soft count-up animation.
+  - **Step 2, Open items:** each gets Tomorrow / Pick day / Let go, one tap each. "Move all to tomorrow" is allowed, but it is an explicit tap.
+  - **Step 3, Reflection:** one line, optional. Then "Close day".
+  - **Strictness:**
+    - "Close day" stays disabled until every open item has an explicit decision. Nothing carries over silently, which is the spirit of today's rule.
+    - Any item carried over **3+ times** cannot use "Move all"; it must be scheduled on a specific day, broken down, or let go.
+    - Closed days can be reopened (the existing `reopenPlan`).
+  - Build impact: reuse the Plan close/resolve/move mutations; the carry count comes from the existing carry/recovery data (confirm the field during the build).
+
+**RESUME HERE (usage limit, 2026-10-15):** Q14 LOCKED 2026-10-16. Q15 LOCKED 2026-10-16. Q16 LOCKED 2026-10-16. Next is Q17 (energy/mood: optional one tap, or cut). Then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.

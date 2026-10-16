@@ -3,7 +3,18 @@
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
-- **LATEST (2026-10-15, usage limit hit mid-interview).** Read `docs/superpowers/ux-restructure/README.md`, then `03-interview-log.md` (Q1–Q13 locked; "RESUME HERE" names the next question, Q14).
+- **LATEST (2026-10-16).** Read `docs/superpowers/ux-restructure/README.md`, then `03-interview-log.md` (Q1–Q16 locked; "RESUME HERE" names the next question, Q17).
+  - **Done 2026-10-16:**
+    - `0aef6b7` D3.5 gesture hooks + phone bar default (Opus): 14 files / 153 tests in the lane, tsc clean. Not mounted.
+    - Interview Q14 (every Today row tickable in place), Q15 (Today = "habits due" chips; heatmap and traces → Habits tab), Q16 (calm 3-step shutdown with strictness: Close day needs an explicit decision per open item; 3+ carries must be scheduled, broken down or let go).
+    - Tasks prototype v1 (Fable, relaunched after the rate limit): `docs/superpowers/ux-restructure/prototypes/tasks.html` + `tasks-notes.md`. Primary checked screenshots (List, Board, Inbox, phone 390: no h-scroll, no console errors). Added phone auto-mode at ≤600px. Published privately: https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR (publish copy = the file minus the doctype/html/head/body wrapper). **Awaiting the owner's verdict** and their answers to Fable's 5 open questions (in `tasks-notes.md`).
+  - **New standing rule (owner 2026-10-16):** ask the owner for a one-line confirmation before EVERY Fable run (confirmation only, not a ban). Opus/Sonnet runs need no confirmation.
+  - **Next:**
+    1. Owner verdict on the Tasks prototype → record it in `04-prototypes.md`.
+    2. Interview Q17 (energy/mood), then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks, plus the 8 D4 owner questions (D4 spec §6).
+    3. D4 engine (Opus, pure logic) can run in the interview gaps.
+    4. Today prototype (Fable, after confirmation) once the Today questions are done.
+- **Previous (2026-10-15, usage limit hit mid-interview).** Read `docs/superpowers/ux-restructure/README.md`, then `03-interview-log.md` (Q1–Q13 locked; "RESUME HERE" names the next question, Q14).
   - **Pushed today:**
     - `f7282f0`: D3a + M1
     - `1d6854f`: R3 useTaskDnd

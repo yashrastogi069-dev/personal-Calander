@@ -153,6 +153,13 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - **Routing (owner):** "for IMP things and design UI UX dont use sonnet use opus". Opus takes every UI/UX review and screenshot check that used to go to sonnet. Fable 5.1 stays the designer and builder (assumption logged).
 - **Owner test server:** a frozen source snapshot of the pushed commit runs on :3200 (job tmp folder, own Vite cache), so agent edits on :3100 don't reload the owner's page.
 
+## 2026-10-16: owner decisions (UX restructure, Today)
+- **Q14:** every Today row is tickable in place. Recurring = today's occurrence only; committed/carried = closes the plan record. Undo toast. No "Resolve in Plan/Recovery" copy on Today.
+- **Q15:** Today shows only a compact "habits due" chip row. Heatmap, 7-day traces, streaks and history live in the Habits tab.
+- **Q16:** "Shut down day" is a calm 3-step overlay (wins → open items → one-line reflection) with strictness. Close day needs an explicit decision per open item ("Move all to tomorrow" is one explicit tap). Items carried 3+ times must be scheduled, broken down or let go.
+- **Process:** confirm with the owner before every Fable run (confirmation only).
+- Full log: `docs/superpowers/ux-restructure/03-interview-log.md`.
+
 ## 2026-10-15: owner decisions (UX restructure)
 
 - **Routing (owner):** Fable 5.1 plans and designs. Opus builds both visuals and logic. Sonnet is for low-level mechanical work only. One subagent at a time (laptop RAM).

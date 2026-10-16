@@ -27,16 +27,16 @@ Most other pages follow. Dashboard and the Focus/timer redesign (D2, D2.5) are t
 | Step | What | Who | Status |
 |---|---|---|---|
 | 0 | R3 `useTaskDnd` drag logic (kept; any Board design needs it) | opus | DONE `1d6854f` (35 new tests; tasks/shared 196/196; tsc clean; not mounted yet) |
-| 1 | Structure map of every page: purpose, contents, data, entry points, overlaps, dead ends, legacy leftovers, and what Inbox, Saved views and Archived do today, with screenshots of the current app | opus | RUNNING 2026-10-15 (shots in job tmp `structure-shots`; output `01-structure-map.md`) |
-| 2 | Reference catalogue: the 60 competitor screenshots (which app, what pattern, what to steal for which page), the 8 `BEST Shots` and the 8 concept boards (which ideas map to which page) | opus | RUNNING 2026-10-15, in parallel with step 1 (output `02-competitor-patterns.md`) |
-| 3 | grill-me interview rounds, one page at a time (Tasks first, then Today, Calendar, Plan, Roadmap, Goals & Projects, Habits, Review/Analytics, Inbox, Settings and More). Answers go to `03-interview-log.md` and decisions to `docs/DECISIONS.md` | primary with the owner | after 1–2 |
-| 4 | Prototypes per page for owner review (published artifacts or demo screens) | Fable designs, Opus builds | after each page's interview |
+| 1 | Structure map of every page: purpose, contents, data, entry points, overlaps, dead ends, legacy leftovers, and what Inbox, Saved views and Archived do today, with screenshots of the current app | opus | DONE `ad28ca9` (40 surfaces, question bank) |
+| 2 | Reference catalogue: the 60 competitor screenshots (which app, what pattern, what to steal for which page), the 8 `BEST Shots` and the 8 concept boards (which ideas map to which page) | opus | DONE `a20a1bb` (76 images catalogued, visual rules) |
+| 3 | grill-me interview rounds, one page at a time (Tasks first, then Today, Calendar, Plan, Roadmap, Goals & Projects, Habits, Review/Analytics, Inbox, Settings and More). Answers go to `03-interview-log.md` and decisions to `docs/DECISIONS.md` | primary with the owner | IN PROGRESS: Tasks Q1–Q11 locked; Today Q12–Q16 locked; Q17 next (see `03-interview-log.md`) |
+| 4 | Prototypes per page for owner review (published artifacts or demo screens) | Fable designs, Opus builds | Tasks prototype: first Fable run hit the rate limit (no files); v1 DONE 2026-10-16 (`prototypes/tasks.html`, published privately https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR); awaiting owner verdict (see `04-prototypes.md`) |
 | 5 | Build approved pages; D3b visuals, D3c, the D3.5 nav and D4 reasons land inside them | opus | after approval |
 
 **Done in the interview gaps** (layout-independent logic, so no rework):
 - R3 drag logic
 - D4 reason engine (pure)
-- D3.5 hooks: `useSwipeRow`, `usePullToRefresh`, `useScrollShrink`
+- D3.5 hooks DONE `0aef6b7`: `useSwipeRow`, `usePullToRefresh`, `useScrollShrink`, `useLongPress`, `useDaySwipe` + `swipeMath`/`gestureOwner`; phone bar default Home/Today/+/Calendar/More (14 files / 153 tests, tsc clean; NOT mounted yet; usePinchZoom, useRouteSlide, phoneNavModel not built)
 
 **Paused:** R4 Board visuals and D3c. Do not build them from the old D3 spec; the interviews may change them.
 
@@ -47,6 +47,7 @@ Most other pages follow. Dashboard and the Focus/timer redesign (D2, D2.5) are t
 - `04-prototypes.md`: prototype links and owner verdicts
 
 ## Agents and skills (owner assumption review, 2026-10-15)
+- **Fable needs a one-line owner confirmation before every run** (owner 2026-10-16; confirmation only, not a ban).
 - **Up to 2 subagents may run at once** (correction: not strictly one). Never 3 or more.
 - **Routing confirmed:** Fable 5.1 plans and designs (specs, mockups, prototypes); Opus builds visuals and logic, and does mapping for now; Sonnet does low-level mechanical work only.
 - **Design skills switched on for this project** in `personal-Calander/.claude/settings.local.json` (gitignored). They were installed but set `"off"` globally in `~/.claude/settings.json`. The list: gstack, design-shotgun ("shogan"), design-consultation, design-review, design-html, design-system, plan-design-review, high-end-visual-design, redesign-existing-projects, sleek-design-mobile-apps, minimalist-ui, image-to-code, design-taste-frontend, ui-ux-pro-max.

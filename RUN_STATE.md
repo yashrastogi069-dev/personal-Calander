@@ -23,7 +23,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D2 | Dashboard home + one-click Today switch, Schedule card lens | Built locally 2026-10-13, plus the opus delight pass (icons and motion). Typecheck and build pass. Final: full suite 859 passed / 3 skipped (122 files); shell 20/20, plan 36/36, gallery 8/8, phase4 2/2, C2 222/224 (2 timeouts; their re-run 56/56); pushed `d3b25da` |
 | D2.5 | Focus redesign: FocusDial, dark live Dashboard card, Focus screen, mini capsule, Finish panel, shared premium pieces (Fable spec + build) | Built and pushed `fc87b33` (1033 passed / 3 skipped, check, build; demo tour 4/4). Opus review fixes done and pushed (1035 passed / 3 skipped). Open: #4 owner decision, #9 in useTaskDnd |
 | D3 | Tasks board drag (@dnd-kit approved) | Logic layer pushed `65be9e0`. 2026-10-14: install fixed (`cc6ef95`). D3a done and pushed `f7282f0` (2026-10-15). D3b: R3 useTaskDnd running (opus), then the Board visuals. Then D3c |
-| D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Not started (owner 2026-10-13) |
+| D3.5 | iPhone nav & gestures: glass bar Home/Today/+/Calendar/More, context "+", swipe/long-press/pinch (@use-gesture/react approved), directional slide, launcher More, pull to refresh. Fable designs first | Hooks done `0aef6b7` (2026-10-16: swipe row, pull-to-refresh, scroll shrink, long press, day swipe; phone bar default; 153 tests lane, tsc clean). Mounting waits for the approved page prototypes. Not built: usePinchZoom, useRouteSlide, phoneNavModel |
 | D3.5.2 | Browser verification slice (owner 2026-10-13), after D3.5 and its MD updates. Test the work with Playwright (+ CDP for animation timings, perf traces, CPU throttling), playwright-cli and agent-browser/agent-reach, on the demo preview at 1440/390, light/dark, with reduced motion. The owner helps verify animations. Installed: playwright-python 1.60, playwright-cli, agent-browser, agent-reach, Chrome. Missing: browser-use (pip + LLM key), Chrome DevTools MCP (not configured), Claude in Chrome (not connected). Owner APPROVED (2026-10-13) installing all three at the start of D3.5.2 and using whichever tool is most effective per check | Not started |
 | M1 | Owner report fix: realistic motion (slower data and entrance motion, crisp taps, visible hero drift) | Done 2026-10-15, pushed `f7282f0` (opus) |
 | V | Standalone visual audit and redesign: Fable 5.1 does visual checks, finds problems, plans, fixes ("UX and UI need big changes") | Not started; owner sets timing (owner 2026-10-14) |
@@ -136,3 +136,9 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - All 10 opus findings fixed (aria-controls noted) plus the sonnet CSS fixes. 808 tests pass, check and build pass.
 - Pending: re-run `preview-premium-shell.py`, `preview-premium-plan.py`, `preview-premium-gallery.py` and `preview-phase4-product.py` once Vite is back (`npx vite --port 3100 --strictPort --host 127.0.0.1`).
 - Next: D2 Dashboard.
+
+## 2026-10-16 checkpoint: UX restructure interview + Tasks prototype
+- D3.5 hooks committed `0aef6b7` (lane 14 files / 153 tests, tsc clean).
+- Interview Q14–Q16 locked (Today: tick in place; habits-due chips only; calm-but-strict shutdown). Next: Q17.
+- Tasks prototype v1 published privately (see HANDOFF LATEST); waiting on the owner's verdict.
+- Owner rule: confirm before every Fable run.

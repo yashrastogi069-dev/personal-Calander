@@ -112,6 +112,11 @@ Routing (owner, 2026-10-14):
   - owner questions, each with a recommended answer
 - **Verify:** the file exists and covers the list above.
 
+## 2026-10-16 runs
+- **Opus, D3.5 hooks:** finished; committed `0aef6b7` after the primary re-ran the lane (14 files / 153 tests) and tsc (clean).
+- **Fable, Tasks prototype:** the first run hit the API rate limit before writing files. Relaunched; finished: `prototypes/tasks.html` + `tasks-notes.md`. Primary verified it visually and published it privately (see `ux-restructure/04-prototypes.md`).
+- From now on, every Fable run needs a one-line owner confirmation first.
+
 ## After the runs: integration order
 1. R1 + R2 verified → commit, then the full suite, build and demo tour. Push D3a + M1. Refresh the owner's :3200 snapshot (see HANDOFF "Owner test server") and tell the owner to reload.
 2. R3 + R4 → mount the Board in TaskWorkspace (opus), run the harness drag checks (spec §15), verify, push D3b.
