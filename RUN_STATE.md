@@ -142,3 +142,9 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - Interview Q14–Q16 locked (Today: tick in place; habits-due chips only; calm-but-strict shutdown). Next: Q17.
 - Tasks prototype v1 published privately (see HANDOFF LATEST); waiting on the owner's verdict.
 - Owner rule: confirm before every Fable run.
+
+## 2026-10-16 checkpoint: product direction + T1
+- `ba4aa6b` docs: `05-product-direction.md` (usefulness, connectors, timeline A–G).
+- Owner answers P1–P4: core loop first; Inbox API + Shortcut + n8n (+ explore more n8n); nudges x3; AI later, drafts only.
+- `8b01c2e` Tasks T1 logic (156 files / 1385 tests, tsc clean). Next: Tasks T2 UI (Opus) from the approved prototype; a Fable Today+Focus prototype once the owner confirms.
+- Gated, awaiting owner: the `tasks.plannedWeekStartLocalDate` migration (This-week flag).

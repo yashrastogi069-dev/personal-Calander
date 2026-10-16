@@ -84,3 +84,33 @@ Dates are targets, not promises.
 - **P2:** add the Universal Inbox API + iOS Shortcut + n8n recipe?
 - **P3:** add push nudges (morning plan, evening shutdown, meeting alerts)?
 - **P4:** AI assist later (drafts only)?
+
+## 8. Owner answers (2026-10-16)
+- **P1 Build order:** core loop first. Order: Tasks → Today/Plan/Shutdown → Focus → Nav + Settings, then Calendar/Week, then Goals/Habits/Insights.
+- **P2 Capture:** yes, all three (Inbox API, iOS Shortcut/Siri, n8n). The owner also wants to think about **using n8n more widely** ("connect more if possible or needed"). See §9.
+- **P3 Nudges:** yes, all three: morning plan, evening shutdown, meeting in N min with Join.
+- **P4 AI assist:** later (phase F), drafts only.
+
+## 9. n8n: what else it can connect (ideas, to design in phase C)
+n8n is the owner's automation hub, so the planner exposes a **small personal API** and n8n does the wiring. That keeps every third-party credential out of our app.
+
+**API surface needed (one personal token, scoped, revocable, rate-limited):**
+- `POST /inbox`: create an Inbox task (title, notes, link, source, optional deadline/category)
+- `POST /habits/:id/check`: tick a habit for a date
+- `GET /today` / `GET /week-summary`: read-only digests
+- An **outbound webhook** (optional): task completed or habit ticked → n8n
+
+Token storage may need a migration, which is **gated** (owner approval).
+
+| Idea | Flow | Value |
+|---|---|---|
+| Gmail label → task | Label an email "Planner" → Inbox task with a link back to the email | Email becomes actionable without Gmail scopes in our app |
+| Job-scorer follow-ups | Application logged → "Follow up with X" task in 7 days; interview invite email → task + deadline | Ties the job hunt into the daily plan |
+| Job alert digest | Seek/LinkedIn alert emails → one "Review N new jobs" task, not N tasks | Less Inbox noise |
+| Telegram bot capture | Message the bot (text or voice; voice is transcribed) → Inbox task | Capture from any device, including Windows |
+| Morning/weekly digest out | n8n reads `GET /today` → Telegram/email at 7:45; Sunday week summary | A second pull-back channel besides push |
+| Habit auto-ticks | Google Fit/Strava workout → tick "Exercise"; a GitHub commit → tick "Code" | Habits that track themselves |
+| Bills and renewals | Receipt or renewal emails → task with a deadline | Nothing important lives only in email |
+| Done → log | Task done in project "Job hunt" → append a row to the applications sheet | Two-way with existing trackers |
+
+The design pass (phase C) picks the first 3 to ship. The rest are recipes the owner can add in n8n later without app changes.

@@ -1,5 +1,13 @@
 # Current decisions
 
+## 2026-10-16: product direction (P1–P4) + Tasks T1 logic
+- **P1:** build the core daily loop first (Tasks → Today/Plan/Shutdown → Focus → Nav+Settings), then Calendar/Week, then Goals/Habits/Insights.
+- **P2:** capture from everywhere: a personal Inbox API + iOS Shortcut/Siri + n8n recipes; also explore wider n8n use (ideas in `05-product-direction.md` §9).
+- **P3:** push nudges: morning plan, evening shutdown, meeting in N min with Join.
+- **P4:** AI assist later (phase F), drafts only.
+- Settings: designed by the primary inside prototype #7 (owner OK).
+- **Tasks T1 logic committed `8b01c2e`:** Inbox = undecided only; Week board columns + late-drop confirm; When/project/category grouping; archive selectors; row pills. Finding: a **"This week, no day" flag needs a migration** (`tasks.plannedWeekStartLocalDate`, gated). Until the owner approves, triage "This week" opens a day picker limited to this week. Saved views need no migration (jsonb `configuration`; new `group` key).
+
 ## 2026-10-13: BEST Shots redesign programme approved
 
 Owner approved (interview 2026-10-13): Dashboard becomes the home with a one-click switch to Today; white/blue + slate-dark identity kept and upgraded with BEST Shots treatment (filled hero card, dark accent card, hatched future bars, tinted tiles); motion "rich but calm" (<=300ms UI, reduced motion honoured); grouped sidebar, per-page view tabs (max 4), command palette; desktop and phone equal. Build order D0 tokens/motion/primitives, D1 routed shell/nav, D2 Dashboard, D3 Tasks drag, D4 "why it matters" from existing facts, D5 light Analytics, D6 polish. Gated separately: G1 stakes fields (migration), G2 hard reminders (migration + live push), G3 two-way Google sync (OAuth verification, token storage, privacy review). Approved: `@dnd-kit` for D3 drag; `pill` (999px) radius added to the design system; Fable used for key design specs with owner told each time. New code does not go into `Home.tsx`; pages move to routes one at a time behind smoke tests. Source: owner interview + Fable structural review, recorded in `RUN_STATE.md`.
