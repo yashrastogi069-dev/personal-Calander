@@ -213,4 +213,78 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
     - Closed days can be reopened (the existing `reopenPlan`).
   - Build impact: reuse the Plan close/resolve/move mutations; the carry count comes from the existing carry/recovery data (confirm the field during the build).
 
-**RESUME HERE (usage limit, 2026-10-15):** Q14 LOCKED 2026-10-16. Q15 LOCKED 2026-10-16. Q16 LOCKED 2026-10-16. Next is Q17 (energy/mood: optional one tap, or cut). Then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
+**Q17 [Today › energy & mood]**
+- **Question:** a hidden DailyCompass form (energy, mood and a second "intention" field) sits in Plan's tools panel, and the server stores it. Keep it?
+- **Recommended:** optional, one tap.
+- **Owner (2026-10-16):** "Optional one tap".
+- **Locked decision:**
+  - Plan my day (and the shutdown recap) shows one skippable row of 5 energy levels; one tap records it.
+  - Mood folds into the shutdown reflection line.
+  - Review/Analytics may later chart energy against focus time.
+  - The hidden DailyCompass form and its duplicate intention field go. Stored data stays untouched; no migration.
+
+### Today: locked summary (Q12–Q17)
+- **Today = do**, Dashboard = look.
+- **Contents:** Next-up hero with Focus · timeline · tickable tasks (all kinds, Q14) · "habits due" chips (Q15).
+- **Plan my day:** a calm 3-move overlay (Q13), with an optional energy tap (Q17).
+- **Shut down day:** a calm-but-strict 3-step overlay (Q16).
+- **Moves out:** Plan › Daily folds in; the habit heatmap and traces go to Habits; Recovery copy and DailyCompass go.
+- **Next for Today:** a Fable prototype, after owner confirmation.
+
+**Calendar: scope note (owner, 2026-10-16):** "we are going to change the calendar right? Because right now it's too messed up, needs major changes of UI UX, total design." **Yes: Calendar gets a total UI/UX redesign.** Q18 onward set its structure; a Fable prototype follows (owner confirms before the run), and the Opus build comes after approval.
+
+**Q18 [Calendar › default view]**
+- **Recommended:** Week on desktop, Day on the phone.
+- **Owner (2026-10-16):** "Week desktop, Day phone".
+- **Locked decision:**
+  - Desktop opens on the week grid.
+  - Phone opens on Day, with swipe between days (D3.5 `useDaySwipe`).
+  - The last view used is remembered per device.
+
+**Q19 [Calendar › hours]**
+- **Recommended:** the whole day, scrolled to now.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The grid runs 00–24 and auto-scrolls so "now" sits about a third of the way down.
+  - Hours outside the work window are softly tinted, not hidden.
+
+**Q20 [Calendar › Quarter/Year]**
+- **Recommended:** Roadmap only.
+- **Owner (2026-10-16):** same.
+- **Locked decision:** Calendar is Day / Week / Month. Quarter and Year live in Roadmap; the legacy Calendar Quarter/Year view goes.
+
+**Q21 [Calendar › side list]**
+- **Recommended:** an "Unscheduled" tray.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The tray beside the grid is renamed from "Inbox" to **Unscheduled**.
+  - It holds tasks planned for the shown day or week that have no time slot, grouped Overdue / Today / This week.
+  - Drag a task onto the grid to time-block it. The tray collapses.
+
+**Q23 [Plan › weekly objectives]** (asked alongside Q22)
+- **Recommended:** yes, 1–3, kept light.
+- **Owner (2026-10-16):** "Yes, 1–3, light".
+- **Locked decision:**
+  - 1–3 objectives are set during the weekly planning moment.
+  - They show as a slim strip (on the weekly surface chosen in Q22, and on Dashboard), can be ticked off, and unfinished ones offer carry-forward (the existing `weeklyObjective.carryForward`).
+  - An objective can optionally link to a Goal.
+
+**Q22 [Plan › Weekly]: first ask unclear.** The owner leans to "keep a lean weekly page" but found the question confusing. The primary explained it in plain words (three places show "your week") and re-asked.
+
+**Q22 [Plan › Week], re-asked in plain words**
+- **Explanation given:** three places show "your week". Tasks Board decides *which day*, Calendar Week decides *what time*, and Plan › Weekly is a second board plus forms. Its only unique parts are the objectives and the weekly planning moment.
+- **Recommended:** a lean "Week" page.
+- **Owner (2026-10-16):** "Lean 'Week' page. We can do this but make sure the user flow is right, or something else, whichever is best for the flow, UX, planning and the user's understanding."
+- **Locked decision (the primary owns the flow; check it in the prototype):**
+  - **One pattern, daily and weekly.** Plan my day (Q13) and Plan my week both run *look back → choose → place*.
+  - **Entry:** on the owner's weekly planning day (Sunday evening / Monday morning; the setting defaults to Monday), Dashboard and Today show a quiet "Plan your week" card until it is done. Plan › Week can always be opened from nav.
+  - **Page, top to bottom:**
+    1. **Look back:** last week's done count, focus time, objective results, and leftovers with keep / move / let go (one tap; the same pattern as shutdown).
+    2. **Objectives:** 1–3 (Q23), optionally linked to a Goal.
+    3. **Place:** a 7-day capacity strip (planned vs free hours per day, from the work window minus calendar busy time) above the **same Week board component as Tasks** (one component, two doors).
+  - Finish with "Week planned" (soft celebration), which returns to Today.
+  - **After planning,** the page becomes a calm "This week" overview: objective progress, capacity, the board. It is safe to revisit; nothing re-runs.
+  - **Roles stay distinct:** Week = the planning ritual + overview; Tasks Board = everyday drag-to-day; Calendar = time grid; Today = do.
+  - **Cut:** the 5,100px forms, the duplicate board, and the planning-history block (history lives in Review).
+
+**RESUME HERE (usage limit, 2026-10-15):** Q14 LOCKED 2026-10-16. Q15 LOCKED 2026-10-16. Q16 LOCKED 2026-10-16. Q17 LOCKED 2026-10-16; Today branch DONE. Calendar Q18–Q21 LOCKED 2026-10-16; Plan Q22–Q23 LOCKED 2026-10-16. Next: Roadmap Q24+. Then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
