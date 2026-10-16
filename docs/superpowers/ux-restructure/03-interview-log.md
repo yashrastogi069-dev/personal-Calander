@@ -526,4 +526,50 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
 6. Insights
 7. Nav (rail, phone More) + Settings
 
-**RESUME HERE (2026-10-16):** the interview is COMPLETE (Q1–Q49). Next: the owner verdict on Tasks v1; owner confirmation for each Fable prototype run (order above); the D4 engine build (Opus).
+## After the interview (2026-10-16)
+
+**Tasks prototype v1: APPROVED** by the owner (2026-10-16). Fable's 5 open questions take their recommended answers (see `04-prototypes.md`).
+
+**Motion and "morfizam" (owner, 2026-10-16):** "different types of morphisms and morphing animations, you can choose and add; also will we add more animations/motions?" The primary chose:
+- **Glassmorphism** only on floating layers: bars, sheets, palette, toasts, the phone nav.
+- **Morphing / shared-element transitions** with framer-motion (already a dependency):
+  - task row → detail pane or sheet
+  - + / Capture → capture sheet
+  - tab ink and saved-view pill → "Save view"
+  - selection → bulk bar
+  - Focus hero → immersive full-screen
+  - habit chip → filled ring
+  - Calendar block drag and resize
+- **No neumorphism:** its low contrast fails readability.
+- **More motion: yes.** Every prototype shows its motions, and a **motion pass (M2)** runs after the pages are built. All motion follows M1 timings and reduced motion.
+
+**Q50 [Integrations › how calendars connect]**
+- **Explained first:**
+  - Phase 3 web push and reminders are deployed (the physical-iPhone check is still the owner's).
+  - The Apple bridge is standards-based (outbound subscription feed, read-only ICS overlay, .ics export). Apple Reminders cannot be read by any web app.
+  - The Google ICS overlay parser exists, but activation is deferred.
+  - Supabase "Sign in with Google" exists (`SupabaseAuthGate.tsx`), and the Connections page reads a Google status. Calendar API access is NOT built.
+- **Recommended:** overlay first, OAuth later.
+- **Owner (2026-10-16):** "Go straight to Google OAuth".
+- **Locked decision:** build Google Calendar OAuth (Calendar API):
+  - near-real-time sync (push channel or frequent incremental sync)
+  - two-way: the app's time blocks can appear in Google Calendar
+  - Meet / conference links read natively
+- **GATED, owner authorisation needed before each step:**
+  - a Google Cloud project, OAuth consent screen and app verification (sensitive scope `calendar.events`)
+  - client ID and secret as server env vars (never committed or printed)
+  - token storage, which is likely a **schema migration** (gated); prefer Supabase Vault or an existing secure store if one fits
+  - live activation
+- The design and prototype can proceed now. The build of the parts that need no secrets (sync engine as pure logic, UI states) can follow approval.
+- Apple stays standards-based (no OAuth exists for iCloud). Apple Reminders: not possible on the web; use the app's own reminders.
+
+**Q51 [Integrations › where meetings show]**
+- **Recommended:** everywhere time matters.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Outside meetings show on the Calendar grid, Today's timeline and the Next-up hero ("Standup in 12 min · Join").
+  - A push reminder fires 10 min before (adjustable per calendar).
+  - Meetings count in capacity (Plan my day / week).
+  - They never appear in Tasks lists.
+
+**RESUME HERE (2026-10-16):** the interview is COMPLETE (Q1–Q51, incl. integrations). Tasks v1 APPROVED. Next: owner confirmation for each Fable prototype run (Today+Focus was 'not now' on 2026-10-16); the D4 engine (Opus, running); the Google OAuth design (gated steps need the owner).

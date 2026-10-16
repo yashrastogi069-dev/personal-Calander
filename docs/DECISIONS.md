@@ -171,7 +171,11 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
   - Dashboard is home everywhere
   - **Focus upgrades:** immersive mode, presets and breaks, Web Audio ambient sounds, session notes and stats
   - D4 §9 answered (the owner checks the timezone personally)
-- Full log: `docs/superpowers/ux-restructure/03-interview-log.md` ("INTERVIEW COMPLETE").
+- **Tasks prototype v1 APPROVED** (2026-10-16).
+- **Motion:** glassmorphism on floating layers only; framer-motion shared-element morphs (row→pane, +→capture, Focus→immersive, chip→ring); no neumorphism; an M2 motion pass after the build.
+- **Q50 Integrations:** go straight to **Google Calendar OAuth** (two-way, near-real-time, Meet links). GATED: Google Cloud/OAuth app setup, env secrets, token storage (likely a migration) and live activation each need owner authorisation. Apple stays standards-based; Apple Reminders is impossible on the web.
+- **Q51:** outside meetings show on Calendar, the Today timeline and the Next-up hero with Join, a 10-min push reminder, and they count in capacity; never in Tasks.
+- Full log: `docs/superpowers/ux-restructure/03-interview-log.md` ("INTERVIEW COMPLETE" + "After the interview").
 
 ## 2026-10-15: owner decisions (UX restructure)
 

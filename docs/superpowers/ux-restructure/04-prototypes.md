@@ -2,7 +2,7 @@
 
 | Page | Version | File | Link (private) | Built by | Primary check | Owner verdict |
 |---|---|---|---|---|---|---|
-| Tasks | v1 (2026-10-16) | `prototypes/tasks.html` (+ `tasks-notes.md`) | https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR | Fable 5.1 | Screens: List, Board (Week), Inbox, Archive, phone 390. No horizontal scroll, no console errors. Shows Q1–Q11. Primary added an auto phone mode at ≤600px and moved the prototype toolbar above the bottom nav on phones. | PENDING |
+| Tasks | v1 (2026-10-16) | `prototypes/tasks.html` (+ `tasks-notes.md`) | https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR | Fable 5.1 | Screens: List, Board (Week), Inbox, Archive, phone 390. No horizontal scroll, no console errors. Shows Q1–Q11. Primary added an auto phone mode at ≤600px and moved the prototype toolbar above the bottom nav on phones. | **APPROVED 2026-10-16**; Fable's 5 open questions take their recommended answers |
 
 ## Tasks v1: notes
 - Publish copy = `tasks.html` minus the doctype/html/head/body wrapper (the artifact host adds its own). To update, edit `tasks.html`, regenerate the copy, and publish to the same URL.
