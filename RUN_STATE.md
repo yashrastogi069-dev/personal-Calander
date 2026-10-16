@@ -27,7 +27,7 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 | D3.5.2 | Browser verification slice (owner 2026-10-13), after D3.5 and its MD updates. Test the work with Playwright (+ CDP for animation timings, perf traces, CPU throttling), playwright-cli and agent-browser/agent-reach, on the demo preview at 1440/390, light/dark, with reduced motion. The owner helps verify animations. Installed: playwright-python 1.60, playwright-cli, agent-browser, agent-reach, Chrome. Missing: browser-use (pip + LLM key), Chrome DevTools MCP (not configured), Claude in Chrome (not connected). Owner APPROVED (2026-10-13) installing all three at the start of D3.5.2 and using whichever tool is most effective per check | Not started |
 | M1 | Owner report fix: realistic motion (slower data and entrance motion, crisp taps, visible hero drift) | Done 2026-10-15, pushed `f7282f0` (opus) |
 | V | Standalone visual audit and redesign: Fable 5.1 does visual checks, finds problems, plans, fixes ("UX and UI need big changes") | Not started; owner sets timing (owner 2026-10-14) |
-| D4 | "Why it matters" reasons from existing facts | Not started |
+| D4 | "Why it matters" reasons from existing facts | Engine done `3c7544a` (2026-10-16, Opus): shared/whyItMatters.ts + habitStreak + whyFacts adapter; 71 engine tests, shared+server 789 pass, tsc clean. Owner §9 answered (Q42–Q49). UI mounting happens inside the approved page builds |
 | D5 | Light Analytics | Not started |
 | D6 | Polish, empty/first-run states | Not started |
 | D7 | Glance & reminders: Calendar feed alerts/categories, app icon badge, lock-screen push (unlocks G2) | Not started (owner 2026-10-13) |

@@ -117,7 +117,7 @@ Routing (owner, 2026-10-14):
 - **Fable, Tasks prototype:** the first run hit the API rate limit before writing files. Relaunched; finished: `prototypes/tasks.html` + `tasks-notes.md`. Primary verified it visually and published it privately (see `ux-restructure/04-prototypes.md`).
 - From now on, every Fable run needs a one-line owner confirmation first.
 - **RUNNING (launched 2026-10-16, uncommitted files may be on disk):**
-  1. **Opus, D4 engine:** shared/whyItMatters.ts, shared/habitStreak.ts, client/src/features/why/*, server/whyItMatters.test.ts, server/habitStreak.test.ts, and an edit to client/src/features/dashboard/dashboardModel.ts. Verify: npx vitest run server/whyItMatters.test.ts server/habitStreak.test.ts shared server, then npx tsc --noEmit.
+  1. ✅ DONE `3c7544a` (primary re-verified: 128 tests in the why/habit/dashboard lanes, tsc clean). **Opus, D4 engine:** shared/whyItMatters.ts, shared/habitStreak.ts, client/src/features/why/*, server/whyItMatters.test.ts, server/habitStreak.test.ts, and an edit to client/src/features/dashboard/dashboardModel.ts. Verify: npx vitest run server/whyItMatters.test.ts server/habitStreak.test.ts shared server, then npx tsc --noEmit.
   2. **Opus, Tasks logic T1:** the isInboxTask rule (Q2); taskDrop confirm outcome (Q4); the useTaskDnd day-column lens (Q3); groupTasksByWhen (Q7); rowPills (Q6); archive selectors (Q9); plus report-only checks on the This-week flag storage and the savedViews fields. Verify: npx vitest run shared client/src/features/tasks server, then npx tsc --noEmit.
   - If the session dies, re-run the verify commands; if they pass, commit; otherwise relaunch Opus with "continue from files on disk".
 

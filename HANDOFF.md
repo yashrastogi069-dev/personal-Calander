@@ -16,7 +16,8 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
     - **Q50: Google Calendar OAuth chosen** (gated setup steps need the owner).
     - Q51: meetings show on Calendar, Today and the hero, with Join and a 10-min reminder.
     - The owner said **"Not now"** to the Fable Today+Focus prototype run. Ask again before running it.
-    - D4 engine: an Opus agent was launched 2026-10-16 (uncommitted files may be on disk; verify with `npx vitest run server/whyItMatters.test.ts shared server` + `npx tsc --noEmit`).
+    - **D4 engine DONE `3c7544a`** (surfaces task_row, inbox_triage, task_detail, today_row, dashboard_up_next, habit_row; `whyDetailSection` gives the Q43 empty state; build notes appended to the D4 spec). Open owner judgment: "Supports a goal" still shows on **habit_row**, since Q42 covered task rows only.
+    - (was: D4 engine: an Opus agent was launched 2026-10-16 (uncommitted files may be on disk; verify with `npx vitest run server/whyItMatters.test.ts shared server` + `npx tsc --noEmit`).
   - **Next (current):**
     1. ~~Owner verdict on the Tasks prototype~~ DONE: approved.
     2. Prototypes, one Fable run per page, **each confirmed by the owner first**: Today+Focus → Calendar → Week → Goals → Habits → Insights → Nav+Settings.
