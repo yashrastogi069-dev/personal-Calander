@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChipSelect, type ChipSelectOption } from "@/components/premium/ChipSelect";
 import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
-import { Sheet } from "@/components/premium/Sheet";
+import { Sheet, type SheetMorphOrigin } from "@/components/premium/Sheet";
 import { restorePlannerSheetFocus } from "@/features/shell/PlannerSheet";
 import { cn } from "@/lib/utils";
 import {
@@ -29,24 +29,32 @@ import {
   History,
   Link2,
   ListChecks,
+  Loader2,
   Lock,
   Play,
   Plus,
   Repeat,
   SlidersHorizontal,
+  Sparkles,
+  Target,
   type LucideIcon,
 } from "lucide-react";
+import type { WhyDetailSection } from "@shared/whyItMatters";
+import { formatMinutes } from "@/design/timeFormat";
+import { CheckButton } from "./CheckButton";
+import { WHY_ICONS } from "./TaskRowPills";
 import {
   localDateForReservation,
   taskSchedulingLanguage,
   validateTimeReservation,
 } from "@shared/planningLanguage";
 import { taskEditorSourceKey } from "@shared/taskEditor";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { toast } from "sonner";
 import type { TaskCardModel } from "./taskCardModel";
 import { TaskMetaPills } from "./TaskMetaPills";
 import "./tasks-premium.css";
+import "./tasks-t2b2.css";
 import "./task-detail-inspector.css";
 
 export type TaskMutationResult = {
@@ -76,7 +84,32 @@ export type TaskDetailSheetProps = {
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
   onRemoveDependency?: (dependency: any) => Promise<void>;
+  /** The row the pane grows from (T2b-2 detail morph). Null opens with the plain slide. */
+  morphFrom?: SheetMorphOrigin | null;
+  /** D4 "Why it matters" for the `task_detail` surface (whyDetailSection); the block shows up to 2 lines. */
+  why?: WhyDetailSection | null;
 };
+
+/** The autosave state shown at the top of the pane (prototype: "Saving" then "Saved"). */
+export type TaskDetailSaveState = "idle" | "pending" | "saving" | "saved" | "queued" | "error";
+
+export function taskDetailSaveLabel(state: TaskDetailSaveState): string | null {
+  if (state === "pending" || state === "saving") return "Saving";
+  if (state === "saved") return "Saved";
+  if (state === "queued") return "Saved on this device";
+  if (state === "error") return "Not saved";
+  return null;
+}
+
+/** Autosave waits this long after the last edit, so typing a title is one write, not one per key. */
+export const TASK_DETAIL_AUTOSAVE_MS = 700;
+
+/** The Why block: up to 2 reason lines (prototype), or the Q43 empty line with "Link to a goal". */
+export function taskDetailWhyLines(section: WhyDetailSection | null | undefined) {
+  if (!section || section.kind === "hidden") return null;
+  if (section.kind === "empty") return { kind: "empty" as const, message: section.message };
+  return { kind: "reasons" as const, reasons: section.reasons.slice(0, 2) };
+}
 
 function dateTimeLocalValue(value: Date | string | null | undefined) {
   if (!value) return "";
@@ -244,6 +277,77 @@ export async function runDependencyAction(
   }
 }
 
+/** The `planner.task.update` patch for a draft (every editable field), as the old Save button sent it. */
+export function taskPatchFromDraft(draft: Record<string, any>, task: { recurrenceRule?: unknown }) {
+  const recurrenceRule = recurrenceRuleFromDraft(task.recurrenceRule as Record<string, unknown> | null, {
+    recurrenceFrequency: draft.recurrenceFrequency,
+    recurrenceInterval: draft.recurrenceInterval,
+    recurrenceWeekdays: draft.recurrenceWeekdays ?? [],
+  });
+  return {
+    title: String(draft.title ?? "").trim(),
+    description: String(draft.description ?? "").trim() || null,
+    state: draft.state,
+    priority: draft.priority,
+    horizon: draft.horizon,
+    categoryId: draft.categoryId === "none" ? null : draft.categoryId,
+    goalId: draft.goalId === "none" ? null : draft.goalId,
+    projectId: draft.projectId === "none" ? null : draft.projectId,
+    dueLocalDate: draft.dueLocalDate || null,
+    scheduledLocalDate: localDateForReservation(draft.plannedStartAt) ?? (draft.scheduledLocalDate || null),
+    plannedStartAt: draft.plannedStartAt ? new Date(draft.plannedStartAt) : null,
+    plannedEndAt: draft.plannedEndAt ? new Date(draft.plannedEndAt) : null,
+    estimateMinutes: draft.estimateMinutes ? Number(draft.estimateMinutes) : null,
+    scheduleMode: draft.scheduleMode,
+    recurrenceRule,
+    recurrenceAnchor: recurrenceRule ? "scheduled" : null,
+    recurrenceUntilLocalDate: recurrenceRule ? draft.recurrenceUntilLocalDate || null : null,
+  } as Record<string, unknown>;
+}
+
+function comparable(value: unknown) {
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.toISOString() : null;
+  if (value === undefined) return null;
+  return JSON.stringify(value);
+}
+
+/**
+ * Autosave sends only the fields this draft changed against the saved record (the record re-seeded through
+ * the same draft maths), so an edit never rewrites a field it did not touch.
+ */
+export function changedTaskPatch(draft: Record<string, any>, task: any) {
+  const next = taskPatchFromDraft(draft, task);
+  const saved = taskPatchFromDraft(seedTaskInspectorDraft(task).fields, task);
+  const patch: Record<string, unknown> = {};
+  for (const key of Object.keys(next)) {
+    if (comparable(next[key]) !== comparable(saved[key])) patch[key] = next[key];
+  }
+  return patch;
+}
+
+export type TaskAutosaveDecision =
+  | { kind: "none" }
+  | { kind: "stale" }
+  | { kind: "invalid"; message: string }
+  | { kind: "save"; patch: Record<string, unknown> };
+
+/** What an autosave tick does with the current draft. A stale or invalid draft never writes. */
+export function taskAutosaveDecision(editor: TaskInspectorDraft, task: any): TaskAutosaveDecision {
+  if (!editor.changed) return { kind: "none" };
+  if (isTaskInspectorDraftStale(editor, task)) return { kind: "stale" };
+  const draft = editor.fields;
+  if (!String(draft.title ?? "").trim()) return { kind: "invalid", message: "Name this task to save it. Your other edits are kept." };
+  const reservationError = validateTimeReservation(draft.plannedStartAt || null, draft.plannedEndAt || null);
+  if (reservationError) return { kind: "invalid", message: reservationError };
+  const patch = changedTaskPatch(draft, task);
+  if (!Object.keys(patch).length) return { kind: "none" };
+  return { kind: "save", patch };
+}
+
+function sameFields(left: Record<string, any>, right: Record<string, any>) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export function TaskDetailSheet({
   task,
   open,
@@ -264,8 +368,19 @@ export function TaskDetailSheet({
   onCreateSubtask,
   onAddDependency,
   onRemoveDependency,
+  morphFrom = null,
+  why = null,
 }: TaskDetailSheetProps) {
   const [editors, setEditors] = useState<Record<string, TaskInspectorDraft>>({});
+  const [saveStates, setSaveStates] = useState<Record<string, TaskDetailSaveState>>({});
+  const editorsRef = useRef(editors);
+  editorsRef.current = editors;
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+  const autosaveTimer = useRef<{ key: string; task: any; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const inFlight = useRef<Set<string>>(new Set());
   const activeKeyRef = useRef<string | null>(null);
   const editorKey = task ? taskInspectorDraftKey(task, draftScopeKey) : null;
   activeKeyRef.current = editorKey;
@@ -292,6 +407,96 @@ export function TaskDetailSheet({
       [key]: update(resolveTaskInspectorDraft(current[key] ?? readStoredTaskInspectorDraft(key), record)),
     }));
   };
+
+  const setSaveState = useCallback((key: string, state: TaskDetailSaveState) => {
+    setSaveStates(current => (current[key] === state ? current : { ...current, [key]: state }));
+  }, []);
+
+  /** One autosave tick for a task: reads the newest draft and record, writes the changed fields once. */
+  const runAutosave = useCallback(async (key: string, fallbackTask: any): Promise<void> => {
+    if (inFlight.current.has(key)) {
+      // A write for this task is still out; try again once it settles so the draft never races itself.
+      autosaveTimer.current = { key, task: fallbackTask, timer: setTimeout(() => { autosaveTimer.current = null; void runAutosave(key, fallbackTask); }, TASK_DETAIL_AUTOSAVE_MS) };
+      return;
+    }
+    const record = tasksRef.current.find(candidate => candidate.id === fallbackTask.id) ?? fallbackTask;
+    const current = resolveTaskInspectorDraft(editorsRef.current[key] ?? readStoredTaskInspectorDraft(key), record);
+    const decision = taskAutosaveDecision(current, record);
+    if (decision.kind === "none") {
+      setSaveState(key, "idle");
+      return;
+    }
+    if (decision.kind === "stale") {
+      setSaveState(key, "error");
+      return;
+    }
+    if (decision.kind === "invalid") {
+      setEditors(all => ({ ...all, [key]: { ...current, error: decision.message } }));
+      setSaveState(key, "error");
+      return;
+    }
+    const sent = current.fields;
+    inFlight.current.add(key);
+    setSaveState(key, "saving");
+    try {
+      const result = await onUpdateRef.current(record, decision.patch);
+      inFlight.current.delete(key);
+      const fresh = { ...record, ...(result?.record ?? {}) };
+      setEditors(all => {
+        const latest = all[key] ?? current;
+        if (sameFields(latest.fields, sent)) {
+          const next = { ...all };
+          delete next[key];
+          try { window.sessionStorage.removeItem(key); } catch { /* storage unavailable */ }
+          return next;
+        }
+        // Edited again while saving: keep the newer draft against the fresh record version.
+        return { ...all, [key]: { ...latest, sourceKey: taskEditorSourceKey(fresh as any), error: null } };
+      });
+      setSaveState(key, result?.queued ? "queued" : "saved");
+    } catch (caught) {
+      inFlight.current.delete(key);
+      setEditors(all => ({ ...all, [key]: { ...(all[key] ?? current), error: caught instanceof Error ? caught.message : "The task could not be saved. Your edits are kept." } }));
+      setSaveState(key, "error");
+    }
+  }, [setSaveState]);
+
+  const flushAutosave = useCallback(async () => {
+    const pending = autosaveTimer.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    autosaveTimer.current = null;
+    await runAutosave(pending.key, pending.task);
+  }, [runAutosave]);
+
+  function scheduleAutosave(record: any) {
+    const key = taskInspectorDraftKey(record, draftScopeKey);
+    const pending = autosaveTimer.current;
+    if (pending) {
+      clearTimeout(pending.timer);
+      // Switching tasks mid-edit saves the previous task first.
+      if (pending.key !== key) void runAutosave(pending.key, pending.task);
+    }
+    setSaveState(key, "pending");
+    autosaveTimer.current = {
+      key,
+      task: record,
+      timer: setTimeout(() => { autosaveTimer.current = null; void runAutosave(key, record); }, TASK_DETAIL_AUTOSAVE_MS),
+    };
+  }
+
+  // Closing the pane (or unmounting) saves what is waiting instead of dropping it.
+  useEffect(() => {
+    if (!open) void flushAutosave();
+  }, [open, flushAutosave]);
+  useEffect(() => () => {
+    const pending = autosaveTimer.current;
+    if (pending) {
+      clearTimeout(pending.timer);
+      autosaveTimer.current = null;
+      void runAutosave(pending.key, pending.task);
+    }
+  }, [runAutosave]);
 
   if (!task) return null;
 
@@ -326,6 +531,7 @@ export function TaskDetailSheet({
   const goalOptions = goals.filter(item => item.state !== "archived" || item.id === draft.goalId);
   const setField = (field: string, value: unknown) => {
     updateEditor(task, current => ({ ...current, fields: { ...current.fields, [field]: value }, changed: true, error: null }));
+    scheduleAutosave(task);
   };
   const discardDraft = () => {
     updateEditor(task, () => seedTaskInspectorDraft(task));
@@ -334,76 +540,14 @@ export function TaskDetailSheet({
     }
   };
 
-  const save = async (event: FormEvent) => {
+  /** Enter in a field (form submit) saves now instead of waiting for the autosave tick. */
+  const save = (event: FormEvent) => {
     event.preventDefault();
-    if (saving) return;
-    if (pendingSecondaryInput) {
-      updateEditor(task, current => ({ ...current, error: "Add or clear the pending subtask or dependency before saving. That input is still kept." }));
-      return;
-    }
     if (staleDraft) {
-      updateEditor(task, current => ({ ...current, error: "This task changed while you were editing. Review the latest record before saving; your draft is still kept." }));
+      updateEditor(task, current => ({ ...current, error: "This task changed while you were editing. Review the latest record; your draft is still kept." }));
       return;
     }
-    const title = String(draft.title ?? "").trim();
-    if (!title) {
-      updateEditor(task, current => ({ ...current, error: "Name this task before saving it." }));
-      return;
-    }
-    const reservationError = validateTimeReservation(
-      draft.plannedStartAt || null,
-      draft.plannedEndAt || null,
-    );
-    if (reservationError) {
-      updateEditor(task, current => ({ ...current, error: reservationError }));
-      return;
-    }
-    const recurrenceRule = recurrenceRuleFromDraft(task.recurrenceRule, {
-      recurrenceFrequency: draft.recurrenceFrequency,
-      recurrenceInterval: draft.recurrenceInterval,
-      recurrenceWeekdays: draft.recurrenceWeekdays ?? [],
-    });
-    const savingKey = editorKey;
-    updateEditor(task, current => ({ ...current, saving: true, error: null }));
-    try {
-      const result = await onUpdate(task, {
-        title,
-        description: String(draft.description ?? "").trim() || null,
-        state: draft.state,
-        priority: draft.priority,
-        horizon: draft.horizon,
-        categoryId: draft.categoryId === "none" ? null : draft.categoryId,
-        goalId: draft.goalId === "none" ? null : draft.goalId,
-        projectId: draft.projectId === "none" ? null : draft.projectId,
-        dueLocalDate: draft.dueLocalDate || null,
-        scheduledLocalDate:
-          localDateForReservation(draft.plannedStartAt) ??
-          (draft.scheduledLocalDate || null),
-        plannedStartAt: draft.plannedStartAt ? new Date(draft.plannedStartAt) : null,
-        plannedEndAt: draft.plannedEndAt ? new Date(draft.plannedEndAt) : null,
-        estimateMinutes: draft.estimateMinutes ? Number(draft.estimateMinutes) : null,
-        scheduleMode: draft.scheduleMode,
-        recurrenceRule,
-        recurrenceAnchor: recurrenceRule ? "scheduled" : null,
-        recurrenceUntilLocalDate: recurrenceRule
-          ? draft.recurrenceUntilLocalDate || null
-          : null,
-      });
-      toast.success(result.queued ? "Saved on this device · waiting to sync." : "Task changes saved.");
-      if (savingKey) {
-        setEditors(current => {
-          const next = { ...current };
-          delete next[savingKey];
-          return next;
-        });
-        try { window.sessionStorage.removeItem(savingKey); } catch { /* storage unavailable */ }
-      }
-      if (shouldCloseTaskInspectorAfterSave(savingKey, activeKeyRef.current)) onOpenChange(false);
-    } catch (caught) {
-      updateEditor(task, current => ({ ...current, error: caught instanceof Error ? caught.message : "The task could not be saved." }));
-    } finally {
-      updateEditor(task, current => ({ ...current, saving: false }));
-    }
+    void flushAutosave();
   };
 
   const addSubtask = async () => {
@@ -462,6 +606,12 @@ export function TaskDetailSheet({
   const guardDraft = (message: string) => {
     updateEditor(task, current => ({ ...current, error: message }));
   };
+  const savedState: TaskDetailSaveState = (editorKey ? saveStates[editorKey] : undefined) ?? (draftChanged ? "pending" : "idle");
+  const shownState = staleDraft ? "paused" : error && savedState !== "saving" ? "error" : savedState;
+  const saveLabel = shownState === "paused" ? "Paused" : taskDetailSaveLabel(shownState);
+  const whyLines = taskDetailWhyLines(why);
+  const estimateMinutes = Number(draft.estimateMinutes) > 0 ? Number(draft.estimateMinutes) : null;
+  const canCheck = Boolean(onComplete && cardModel && task.state !== "archived");
 
   return (
     <Sheet
@@ -476,6 +626,7 @@ export function TaskDetailSheet({
         ? <span className="pc-sr-only">{[String(draft.state ?? "not_started").replaceAll("_", " "), ...(cardModel.dates.length ? cardModel.dates.map(pill => pill.accessibleLabel ?? pill.label) : ["Not planned"])].join(" · ")}</span>
         : `${String(draft.state ?? "not_started").replaceAll("_", " ")} · ${draft.scheduledLocalDate ? `Plan for ${draft.scheduledLocalDate}` : "Not planned"}${draft.dueLocalDate ? ` · Deadline ${draft.dueLocalDate}` : ""}`}
       className="tk-d-sheet"
+      morphFrom={morphFrom}
       onOpenAutoFocus={event => {
         // Like the old sheet: land on Close, so opening a task never raises the phone keyboard.
         event.preventDefault();
@@ -483,6 +634,16 @@ export function TaskDetailSheet({
       }}
       onCloseAutoFocus={event => { restorePlannerSheetFocus(event, returnFocusRef.current); }}
     >
+      <p className={cn("tk-d-saved", `is-${shownState}`)} aria-live="polite" data-save-state={shownState}>
+        {saveLabel ? (
+          <>
+            {shownState === "saving" || shownState === "pending" ? <Loader2 size={14} strokeWidth={2.25} aria-hidden="true" className="tk-d-spin" />
+              : shownState === "saved" || shownState === "queued" ? <CheckCircle2 size={14} strokeWidth={2.25} aria-hidden="true" />
+                : <AlertTriangle size={14} strokeWidth={2.25} aria-hidden="true" />}
+            <span>{saveLabel}{shownState === "saved" ? " \u2713" : ""}</span>
+          </>
+        ) : <span className="tk-d-saved-idle">Changes save as you go</span>}
+      </p>
       <form id={`task-detail-${task.id}`} className="task-detail-form task-detail-inspector tk-d-form" onSubmit={save} noValidate>
         {String(task.id).startsWith("offline:") ? (
           <p className="task-detail-state is-pending" role="status"><CloudUpload size={15} strokeWidth={2.25} aria-hidden="true" />Saved on this device · waiting to sync</p>
@@ -500,8 +661,8 @@ export function TaskDetailSheet({
             </AlertDialogContent>
           </AlertDialog>
         </div> : null}
-        {!staleDraft && (draftChanged || pendingSecondaryInput) ? <div className="task-detail-draft-controls">
-          <span>Unsaved for this task</span>
+        {!staleDraft && ((draftChanged && error) || pendingSecondaryInput) ? <div className="task-detail-draft-controls">
+          <span>{draftChanged && error ? "Edits kept on this device until they save" : "Pending input for this task"}</span>
           <AlertDialog>
             <AlertDialogTrigger asChild><button type="button" className="tk-btn is-quiet pc-focusable">Discard draft</button></AlertDialogTrigger>
             <AlertDialogContent>
@@ -511,7 +672,7 @@ export function TaskDetailSheet({
           </AlertDialog>
         </div> : null}
 
-        <fieldset className="task-detail-editor-fields tk-d-fields" disabled={saving}>
+        <fieldset className="task-detail-editor-fields tk-d-fields">
           <header className="tk-d-head">
             <div className="tk-d-head-row">
               <ChipSelect
@@ -522,6 +683,22 @@ export function TaskDetailSheet({
               />
               {cardModel ? <TaskMetaPills model={cardModel} className="tk-d-pills" omit={["state", "pending", "conflict"]} /> : null}
             </div>
+            <div className="tk-d-title-row">
+            {canCheck && cardModel ? (
+              <CheckButton
+                title={task.title}
+                checked={cardModel.check.checked}
+                tone={cardModel.tone}
+                blockedReason={completeBlocked}
+                inert={cardModel.check.action.kind === "none" && !completeBlocked}
+                className="tk-d-check"
+                onToggle={() => {
+                  if (staleDraft) { guardDraft("Review the newer record before completing this task. Your input is still here."); return; }
+                  void flushAutosave().then(() => onComplete?.(task));
+                }}
+                onBlockedPress={() => guardDraft(completeBlocked ?? "This task can't be completed here.")}
+              />
+            ) : null}
             <textarea
               className="tk-d-title"
               aria-label="Task title"
@@ -529,9 +706,35 @@ export function TaskDetailSheet({
               value={draft.title ?? ""}
               placeholder="Name this task"
               onChange={event => setField("title", event.target.value.replace(/\s*\n+\s*/g, " "))}
-              onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }}
+              onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void flushAutosave(); } }}
             />
+            </div>
           </header>
+
+          {whyLines ? (
+            <section className="tk-d-why" aria-labelledby={`task-why-${task.id}`}>
+              <h3 id={`task-why-${task.id}`} className="tk-d-why-h">Why it matters</h3>
+              {whyLines.kind === "reasons" ? (
+                <ul className="tk-d-why-list">
+                  {whyLines.reasons.map(reason => {
+                    const Icon = WHY_ICONS[reason.icon] ?? Target;
+                    return (
+                      <li key={reason.kind} className={cn("tk-d-why-line", `is-${reason.tone}`)} title={reason.accessible}>
+                        <Icon size={15} strokeWidth={2} aria-hidden="true" />
+                        <span>{reason.long}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="tk-d-why-line is-empty">
+                  <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>{whyLines.message}</span>
+                  <button type="button" className="tk-link-btn pc-focusable" onClick={() => document.getElementById(`task-goal-${task.id}`)?.focus()}>Link to a goal</button>
+                </p>
+              )}
+            </section>
+          ) : null}
 
           <Section id="task-detail-core" icon={FileText} tone="pc-tone-accent" title="Details">
             <Field label="Description" htmlFor={`task-description-${task.id}`}>
@@ -674,35 +877,19 @@ export function TaskDetailSheet({
       </form>
 
       <div className="tk-d-footer task-detail-footer task-detail-inspector-footer">
-        {error ? <p className="task-detail-footer-message is-error" role="alert">{error}</p>
-          : draftChanged || pendingSecondaryInput ? <p className="task-detail-footer-message" role="status">Unsaved draft kept in this tab when you close.</p> : null}
-        {onComplete && cardModel && open_ && completeBlocked ? <p className="task-detail-footer-message" id={completeReasonId}>{completeBlocked}</p> : null}
+        {error ? <p className="task-detail-footer-message is-error" role="alert">{error}</p> : null}
+        {canCheck && open_ && completeBlocked ? <p className="task-detail-footer-message" id={completeReasonId}>{completeBlocked}</p> : null}
         <div className="tk-d-actions">
-          <button type="button" className="tk-btn is-quiet pc-focusable" onClick={() => onOpenChange(false)} disabled={saving}>Close</button>
+          {estimateMinutes ? <span className="tk-d-est">{formatMinutes(estimateMinutes)} planned</span> : null}
           {onStartFocus && open_ ? (
-            <button type="button" className="tk-btn pc-focusable" disabled={saving} onClick={() => {
-              if (draftChanged || pendingSecondaryInput) { guardDraft("Save or finish this task draft before opening Focus. Your input is still here."); return; }
-              onOpenChange(false);
-              onStartFocus(task);
-            }}><Play size={15} strokeWidth={2.25} aria-hidden="true" />Focus on task</button>
+            <button type="button" className="tk-btn is-accent tk-d-focus pc-focusable" onClick={() => {
+              if (staleDraft || pendingSecondaryInput) { guardDraft("Finish or clear this task's pending input before opening Focus. Your input is still here."); return; }
+              void flushAutosave().then(() => {
+                onOpenChange(false);
+                onStartFocus(task);
+              });
+            }}><Play size={15} strokeWidth={2.25} aria-hidden="true" />Start focus</button>
           ) : null}
-          {onComplete && cardModel && open_ ? (
-            <button
-              type="button"
-              className="tk-btn pc-focusable"
-              disabled={saving}
-              aria-disabled={completeBlocked ? true : undefined}
-              aria-describedby={completeBlocked ? completeReasonId : undefined}
-              onClick={() => {
-                if (completeBlocked) return;
-                if (draftChanged || pendingSecondaryInput) { guardDraft("Save or finish this task draft before completing it. Your input is still here."); return; }
-                onComplete(task);
-              }}
-            ><CheckCircle2 size={16} strokeWidth={2.25} aria-hidden="true" />Complete</button>
-          ) : null}
-          <button type="submit" form={`task-detail-${task.id}`} className="tk-btn is-accent pc-focusable" disabled={saving || staleDraft}>
-            {saving ? "Saving…" : "Save changes"}
-          </button>
         </div>
       </div>
     </Sheet>

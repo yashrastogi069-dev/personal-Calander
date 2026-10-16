@@ -13,7 +13,9 @@ describe("premium navigation model", () => {
 
   it("resolves exact and parent rail items", () => {
     expect(activeNavState({ destination: "review", view: "insights" })).toEqual({ exactId: "analytics", parentId: null });
-    expect(activeNavState({ destination: "tasks", view: "board" })).toEqual({ exactId: null, parentId: "inbox" });
+    expect(activeNavState({ destination: "tasks", view: "board" })).toEqual({ exactId: null, parentId: "tasks" });
+    expect(activeNavState({ destination: "tasks", view: "archive" })).toEqual({ exactId: null, parentId: "tasks" });
+    expect(activeNavState({ destination: "tasks", view: "inbox" })).toEqual({ exactId: "inbox", parentId: null });
     expect(activeNavState({ destination: "settings", view: "connections" })).toEqual({ exactId: "connections", parentId: null });
     expect(activeNavState({ destination: "home", view: "search" })).toEqual({ exactId: null, parentId: "dashboard" });
   });
@@ -75,5 +77,13 @@ describe("command palette helpers", () => {
     ];
     expect(matchPaletteTasks(tasks, "report").map(task => task.id)).toEqual(["1"]);
     expect(matchPaletteTasks(tasks, "").map(task => task.id)).toEqual(["1", "3"]);
+  });
+});
+
+describe("Tasks page title (T2b-2)", () => {
+  it("reads Tasks on every Tasks view; other places keep their view label", async () => {
+    const { shellPageTitle } = await import("./premiumNavigation");
+    for (const view of ["inbox", "list", "board", "archive"] as const) expect(shellPageTitle({ destination: "tasks", view })).toBe("Tasks");
+    expect(shellPageTitle({ destination: "plan", view: "weekly" })).toBe("Weekly plan");
   });
 });

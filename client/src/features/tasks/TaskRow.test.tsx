@@ -19,11 +19,29 @@ describe("TaskRow", () => {
     expect(html).toMatch(/<button[^>]*class="tk-row-title[^"]*"[^>]*>Book flights<\/button>/);
   });
 
-  it("reserves the swipe underlay with both hooks for D3.5", () => {
-    const html = renderToStaticMarkup(<TaskRow model={fixtureTaskCard()} onOpen={noop} onToggle={noop} />);
-    expect(html).toContain("task-row-swipe");
-    expect(html).toContain('data-swipe="complete"');
-    expect(html).toContain('data-swipe="reschedule"');
+  it("mounts the swipe underlay (G1 complete, G3 tomorrow) only when gestures are on (T2b-2)", () => {
+    const off = renderToStaticMarkup(<TaskRow model={fixtureTaskCard()} onOpen={noop} onToggle={noop} />);
+    expect(off).toContain("tk-swipe-host");
+    expect(off).not.toContain("tk-swipe-under");
+    const swipe = { enabled: true, canCommit: () => null, onCommit: noop, onPickDate: noop };
+    const on = renderToStaticMarkup(<TaskRow model={fixtureTaskCard()} onOpen={noop} onToggle={noop} swipe={swipe} />);
+    expect(on).toContain('data-swipe-host="on"');
+    expect(on).toContain("tk-swipe-side is-complete");
+    expect(on).toContain("tk-swipe-side is-reschedule");
+    // The underlay is decoration until it rests open: hidden from assistive tech and inert.
+    expect(on).toMatch(/class="tk-swipe-under"[^>]*aria-hidden="true"/);
+  });
+
+  it("draws a labelled select box and the selected state", () => {
+    const selection = { selected: true, selectMode: true, onSelect: noop };
+    const html = renderToStaticMarkup(<TaskRow model={fixtureTaskCard({ title: "Pay rent" })} onOpen={noop} onToggle={noop} selection={selection} />);
+    expect(html).toContain('role="checkbox"');
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('aria-label="Select Pay rent"');
+    expect(html).toContain("is-select-mode");
+    expect(html).toContain("is-sel");
+    const none = renderToStaticMarkup(<TaskRow model={fixtureTaskCard()} onOpen={noop} onToggle={noop} />);
+    expect(none).not.toContain('role="checkbox"');
   });
 
   it("offers Focus only on open work and only when a handler is given", () => {

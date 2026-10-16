@@ -1,6 +1,6 @@
 // Premium D1 navigation model: grouped sidebar, Home view tabs and badge counts.
 // Spec: docs/superpowers/specs/2026-10-13-premium-redesign-d1-shell.md
-import type { PlannerLocationTarget } from "@shared/phase4Navigation";
+import { plannerViewLabel, type PlannerLocationTarget } from "@shared/phase4Navigation";
 import { isInboxTask, isOverdueTask } from "@shared/taskBuckets";
 
 export type NavBadgeKey = "todayLeft" | "inbox" | "overdue" | "habitsDue";
@@ -69,12 +69,22 @@ function sameTarget(a: PlannerLocationTarget, b: PlannerLocationTarget) {
   return a.destination === b.destination && a.view === b.view;
 }
 
-/** Exact item for the location, else the first item of the same destination (parent highlight). */
+/**
+ * Exact item for the location, else the parent highlight: the item named after the destination (Tasks for
+ * tasks/board, not the Inbox shortcut that happens to come first, T2b-2), else the first item of that destination.
+ */
 export function activeNavState(location: PlannerLocationTarget): { exactId: string | null; parentId: string | null } {
   const exact = allPremiumNavItems.find(item => sameTarget(item.target, location));
   if (exact) return { exactId: exact.id, parentId: null };
-  const parent = premiumNavGroups.flatMap(group => group.items).find(item => item.target.destination === location.destination);
+  const sameDestination = premiumNavGroups.flatMap(group => group.items).filter(item => item.target.destination === location.destination);
+  const parent = sameDestination.find(item => item.id === location.destination) ?? sameDestination[0];
   return { exactId: null, parentId: parent?.id ?? null };
+}
+
+/** The shell page title: every Tasks view (Inbox, List, Board, Archive) reads "Tasks" (T2b-2); the tabs name the view. */
+export function shellPageTitle(location: PlannerLocationTarget): string {
+  if (location.destination === "tasks") return "Tasks";
+  return plannerViewLabel(location);
 }
 
 export type HomeTabId = "dashboard" | "today" | "calendar";

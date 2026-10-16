@@ -82,7 +82,11 @@ html .tk-wcard-title {
 }
 .tk-wcard-face.is-done .tk-wcard-title { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 60%, transparent); }
 /* Grip and ⋯ float over the card's top-right corner and take no width from the title (prototype .mini). */
-.tk-wcard-tools { position: absolute; top: 4px; right: 4px; z-index: 1; display: inline-flex; align-items: center; gap: 0; padding: 2px; border-radius: var(--pc-r-chip); background: var(--pc-card); box-shadow: 0 0 0 1px var(--pc-line); }
+/* The ⋯ and grip float over the title's end on a fade (T2b-2 fix): no solid chip cutting through the words. */
+.tk-wcard-tools { position: absolute; top: 4px; right: 4px; z-index: 1; display: inline-flex; align-items: center; gap: 0; padding: 2px 2px 2px 26px; border-radius: 0 var(--pc-r-chip) var(--pc-r-chip) 0; background: linear-gradient(to right, transparent, var(--tk-wcard-bg, var(--pc-card)) 22px); }
+.tk-wcard-face { --tk-wcard-bg: var(--pc-card); }
+.tk-wcard-face.is-done { --tk-wcard-bg: color-mix(in srgb, var(--pc-card) 70%, var(--pc-page)); }
+.tk-wcard.is-sel .tk-wcard-face { --tk-wcard-bg: color-mix(in srgb, var(--accent) 9%, var(--pc-card)); }
 html .tk-wcard-grip, html .tk-wcard-tools .tk-icon-btn { display: grid; place-items: center; width: 28px; height: 28px; min-height: 0; padding: 0; border: 0; border-radius: var(--pc-r-chip); background: transparent; color: var(--ink-muted); cursor: grab; }
 html .tk-wcard-tools .tk-icon-btn { cursor: pointer; }
 .tk-wcard-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; min-width: 0; }

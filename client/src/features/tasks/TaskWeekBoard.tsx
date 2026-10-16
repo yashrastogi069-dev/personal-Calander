@@ -27,6 +27,7 @@ import {
   MousePointer2,
   PanelRight,
   ArrowRightLeft,
+  SquareCheck,
   Sun,
   TriangleAlert,
 } from "lucide-react";
@@ -53,6 +54,8 @@ import type { TaskCardModel } from "./taskCardModel";
 import type { TaskBoardLaneView, TaskDropZoneId, TaskLateDropRequest } from "./taskDndTypes";
 import { TaskActionsMenu, type TaskRowAction } from "./TaskRow";
 import { TaskRowPills } from "./TaskRowPills";
+import { useLongPress } from "@/features/gestures/useLongPress";
+import { mergeHandlers } from "./TaskSwipe";
 import { dayZone, TASK_DRAG_HANDLE_ATTRIBUTE, UNSCHEDULED_ZONE, useTaskDnd, type UseTaskDndResult } from "./useTaskDnd";
 import "./task-week-board.css";
 
@@ -254,7 +257,14 @@ export type TaskWeekBoardProps = {
   onOpen: (task: CanonicalTask, trigger: HTMLElement | null) => void;
   onToggle: (task: CanonicalTask, model: TaskCardModel) => void;
   onBlockedCheck: (task: CanonicalTask, model: TaskCardModel) => void;
+  /** Bulk select (T2b-2): the ⋯ menu's Select, Shift-click, X and long-press (phone). No swipe on cards. */
+  selectedIds?: ReadonlySet<string>;
+  onSelect?: (task: CanonicalTask, options: { range: boolean }) => void;
+  /** Long-press selects (phone only). */
+  longPressSelect?: boolean;
 };
+
+const NO_SELECTION: ReadonlySet<string> = new Set();
 
 export function TaskWeekBoard({
   lens,
@@ -274,6 +284,9 @@ export function TaskWeekBoard({
   onOpen,
   onToggle,
   onBlockedCheck,
+  selectedIds = NO_SELECTION,
+  onSelect,
+  longPressSelect = false,
 }: TaskWeekBoardProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [reducedMotion] = useState(() => prefersReducedMotion());
@@ -362,14 +375,21 @@ export function TaskWeekBoard({
     }).join(" ")
     : undefined;
 
-  const menuFor = (card: BoardCardView, column: BoardColumnView) => boardMenuActions({
-    task: card.task,
-    column,
-    lens,
-    today,
-    moveTo: controller.moveTo,
-    onOpen: () => onOpen(card.task, document.querySelector<HTMLElement>(`[data-task-record-id="${CSS.escape(card.task.id)}"] .tk-wcard-title`)),
-  });
+  const menuFor = (card: BoardCardView, column: BoardColumnView) => {
+    const actions = boardMenuActions({
+      task: card.task,
+      column,
+      lens,
+      today,
+      moveTo: controller.moveTo,
+      onOpen: () => onOpen(card.task, document.querySelector<HTMLElement>(`[data-task-record-id="${CSS.escape(card.task.id)}"] .tk-wcard-title`)),
+    });
+    if (onSelect) {
+      const on = selectedIds.has(card.task.id);
+      actions.push({ id: "select", label: on ? "Deselect" : "Select", icon: SquareCheck, onSelect: () => onSelect(card.task, { range: false }) });
+    }
+    return actions;
+  };
 
   return (
     <section className="tk-board" aria-label="Task board" data-lens={lens}>
@@ -436,6 +456,10 @@ export function TaskWeekBoard({
                     onOpen={onOpen}
                     onToggle={onToggle}
                     onBlockedCheck={onBlockedCheck}
+                    selected={selectedIds.has(card.task.id)}
+                    selectMode={selectedIds.size > 0}
+                    onSelect={onSelect}
+                    longPressSelect={longPressSelect}
                   />
                 ))}
               </BoardColumn>
@@ -585,7 +609,15 @@ function DraggableCard({
   onOpen,
   onToggle,
   onBlockedCheck,
+  selected = false,
+  selectMode = false,
+  onSelect,
+  longPressSelect = false,
 }: {
+  selected?: boolean;
+  selectMode?: boolean;
+  onSelect?: TaskWeekBoardProps["onSelect"];
+  longPressSelect?: boolean;
   card: BoardCardView;
   lens: BoardLens;
   categoryTones?: ReadonlyMap<string, ToneOrNeutral>;
@@ -610,14 +642,19 @@ function DraggableCard({
   const guarded = model.completionBlock?.reason ?? null;
   const error = controller.inlineErrors.get(task.id);
   const handle = { [TASK_DRAG_HANDLE_ATTRIBUTE]: "" };
+  const press = useLongPress({ enabled: Boolean(longPressSelect && onSelect), onLongPress: () => onSelect?.(task, { range: false }) });
+  const pressHandlers = longPressSelect && onSelect
+    ? { onPointerDown: press.onPointerDown, onPointerMove: press.onPointerMove, onPointerUp: press.onPointerUp, onPointerCancel: press.onPointerCancel, onContextMenu: press.onContextMenu, onClickCapture: press.onClickCapture }
+    : {};
+  const cardHandlers = mergeHandlers(pointerListeners as Record<string, unknown>, pressHandlers);
   return (
     <li
       ref={setRef}
-      className={cn("tk-wcard", isDragging && "is-ghost", model.pending && "is-pending", lateDrop && "is-asking")}
+      className={cn("tk-wcard", isDragging && "is-ghost", model.pending && "is-pending", lateDrop && "is-asking", selected && "is-sel", press.pressing && "is-pressing")}
       data-task-record-id={task.id}
       data-task-version={model.version}
       aria-busy={model.pending || undefined}
-      {...pointerListeners}
+      {...(cardHandlers as Record<string, never>)}
     >
       <CardFace
         card={card}
@@ -637,7 +674,10 @@ function DraggableCard({
           />
         )}
         title={(
-          <button type="button" className="tk-wcard-title pc-focusable" title={model.title} {...handle} onClick={event => onOpen(task, event.currentTarget)}>
+          <button type="button" className="tk-wcard-title pc-focusable" title={model.title} aria-pressed={selectMode ? selected : undefined} {...handle} onClick={event => {
+            if (onSelect && (selectMode || event.shiftKey)) { onSelect(task, { range: event.shiftKey }); return; }
+            onOpen(task, event.currentTarget);
+          }}>
             {model.title}
           </button>
         )}

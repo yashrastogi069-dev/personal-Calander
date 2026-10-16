@@ -86,7 +86,6 @@ import {
   type GoalHealthTriageFilter,
 } from "@shared/goalHealthTriage";
 import { taskEditorSourceKey } from "@shared/taskEditor";
-import { nextTaskSortOrder } from "@shared/taskOrdering";
 import { resolveMobileTaskGesture } from "@shared/mobileTaskGesture";
 import { todayEntryStage } from "@shared/plannerEntryFlow";
 import { projectToday } from "@shared/todayProjection";
@@ -114,7 +113,7 @@ import {
 } from "@/features/shell/PhoneNavigation";
 import { labelForPlannerTarget } from "@/features/shell/PlannerRail";
 import { CommandPalette, useCommandPaletteShortcut } from "@/features/shell/CommandPalette";
-import { homeTabForLocation, homeTabs, navBadgeCounts, type HomeTabId } from "@/features/shell/premiumNavigation";
+import { homeTabForLocation, homeTabs, navBadgeCounts, shellPageTitle, type HomeTabId } from "@/features/shell/premiumNavigation";
 import { SegmentedTabs } from "@/components/premium/SegmentedTabs";
 import { usePlannerPreferences } from "@/features/shell/usePlannerPreferences";
 import {
@@ -7005,6 +7004,16 @@ export default function Home() {
   const removeTaskDependency = trpc.planner.task.removeDependency.useMutation({
     onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
   });
+  // Tasks saved-view pills (T2b-2): the existing savedView procedures.
+  const createTaskView = trpc.planner.savedView.create.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
+  });
+  const updateTaskView = trpc.planner.savedView.update.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
+  });
+  const deleteTaskView = trpc.planner.savedView.delete.useMutation({
+    onSuccess: () => utils.planner.workspace.snapshot.invalidate(),
+  });
   const rolloverDate = useMemo(() => shiftLocalDate(today, -1), [today]);
   const rolloverPreview = trpc.planner.task.rolloverPreview.useQuery(
     { ...scope, fromLocalDate: rolloverDate },
@@ -7964,31 +7973,6 @@ export default function Home() {
       );
     }
   };
-  const reorderTaskInLane = async (
-    task: any,
-    direction: -1 | 1,
-    laneTasks: any[]
-  ): Promise<string | null> => {
-    const index = laneTasks.findIndex(item => item.id === task.id);
-    const neighborIndex = index + direction;
-    if (index < 0 || neighborIndex < 0 || neighborIndex >= laneTasks.length)
-      return null;
-    const nextOrder = nextTaskSortOrder(laneTasks, task.id, direction);
-    if (nextOrder === null) return null;
-    try {
-      const result = await persistTaskPatch(task, { sortOrder: nextOrder });
-      toast.success(
-        result.queued
-          ? "Task order saved on this device."
-          : "Task order updated."
-      );
-      return null;
-    } catch (error) {
-      const message = taskActionRecoveryMessage(error);
-      toast.error(message);
-      return message;
-    }
-  };
   const archiveTaskFromPhone = (task: any) => {
     if (task.state === "archived") return;
     void persistTaskPatch(task, { state: "archived" })
@@ -8406,7 +8390,7 @@ export default function Home() {
     }
   };
 
-  const surfaceTitle = plannerViewLabel(plannerLocation);
+  const surfaceTitle = shellPageTitle(plannerLocation);
   const { switchable: themeSwitchable, toggleTheme } = useTheme();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
@@ -8888,6 +8872,20 @@ export default function Home() {
             projects={snapshot.projects}
             goals={snapshot.goals}
             savedViews={snapshot.savedViews}
+            onCreateSavedView={(name, configuration) =>
+              createTaskView.mutateAsync({ ...scope, name, viewType: "tasks", configuration })
+            }
+            onUpdateSavedView={(view, patch) =>
+              updateTaskView.mutateAsync({ ...scope, id: view.id, expectedVersion: view.version, ...patch })
+            }
+            onDeleteSavedView={view => deleteTaskView.mutateAsync({ ...scope, id: view.id })}
+            weekStartsOn={typeof snapshot.workspace?.weekStartsOn === "number" ? snapshot.workspace.weekStartsOn : 1}
+            onRefresh={async () => {
+              await Promise.all([
+                utils.planner.workspace.snapshot.invalidate(),
+                utils.planner.dashboard.invalidate(),
+              ]);
+            }}
             dependencies={snapshot.taskDependencies}
             milestones={snapshot.milestones}
             weeklyObjectives={snapshot.weeklyObjectives}
@@ -8930,7 +8928,6 @@ export default function Home() {
             }}
             onOpenPlan={() => navigatePlanner({ destination: "plan", view: "daily" })}
             onCreateSubtask={createSubtaskSafely}
-            onReorder={reorderTaskInLane}
             onAddDependency={addTaskDependencySafely}
             onRemoveDependency={removeTaskDependencySafely}
           />

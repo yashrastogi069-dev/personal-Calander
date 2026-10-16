@@ -76,8 +76,8 @@ describe("TaskToolbar markup", () => {
     expect(renderToStaticMarkup(<TaskToolbar {...props} view="list" lens="status" onLensChange={noop} />)).not.toContain("Board lens");
   });
 
-  it("offers Save view only when the view changed", () => {
-    expect(renderToStaticMarkup(<TaskToolbar {...props} canSaveView onSaveView={noop} />)).toContain("Save view");
-    expect(renderToStaticMarkup(<TaskToolbar {...props} />)).not.toContain("Save view");
+  it("no longer draws the legacy Save view button (saved views are pills under the tabs, T2b-2)", () => {
+    expect(renderToStaticMarkup(<TaskToolbar {...props} view="list" />)).not.toContain("Save view");
+    expect(renderToStaticMarkup(<TaskToolbar {...props} view="board" />)).not.toContain("Save view");
   });
 });

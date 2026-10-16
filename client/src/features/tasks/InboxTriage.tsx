@@ -20,7 +20,9 @@ import {
   type InboxDecision,
   type InboxPicker,
 } from "./inboxTriageModel";
+import { TaskSelectBox } from "./TaskRow";
 import { WhyChip } from "./TaskRowPills";
+import { TaskSwipeFrame, type TaskSwipeConfig } from "./TaskSwipe";
 import "./tasks-premium.css";
 
 export const INBOX_TRIAGE_GUIDANCE = "Give each one a home. It leaves the Inbox as soon as it has a day, a project, or Someday.";
@@ -39,6 +41,11 @@ export type InboxTriageProps = {
   onDecide: (task: CanonicalTask, decision: InboxDecision) => void | Promise<unknown>;
   onOpenDetail: (task: CanonicalTask, trigger: HTMLElement) => void;
   onCapture: () => void;
+  /** Bulk select (T2b-2): selected ids, select mode and the toggle. */
+  selectedIds?: ReadonlySet<string>;
+  onSelect?: (task: CanonicalTask, options: { range: boolean }) => void;
+  /** Phone gestures G1-G3 (T2b-2). */
+  swipeFor?: (task: CanonicalTask) => TaskSwipeConfig | undefined;
 };
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
@@ -55,7 +62,15 @@ function TriageCard({
   onPicker,
   onDecide,
   onOpenDetail,
+  selected = false,
+  selectMode = false,
+  onSelect,
+  swipe,
 }: {
+  selected?: boolean;
+  selectMode?: boolean;
+  onSelect?: (options: { range: boolean }) => void;
+  swipe?: TaskSwipeConfig;
   task: CanonicalTask;
   today: string;
   timezone: string;
@@ -87,15 +102,26 @@ function TriageCard({
   const pickerId = `tk-tri-more-${task.id}`;
   return (
     <motion.article
-      className={cn("tk-tri", pending && "is-pending")}
-      tabIndex={0}
-      aria-label={`${task.title}. Choose Today, This week, Pick date, Project, Someday or Delete.`}
-      data-task-record-id={task.id}
-      onKeyDown={onKeyDown}
+      className={cn("tk-tri-host", selected && "is-selected")}
       exit={{ opacity: 0, height: 0, marginBottom: 0, transition: EXIT }}
     >
+      <TaskSwipeFrame
+        as="div"
+        swipe={swipe}
+        faceClassName={cn("tk-tri", pending && "is-pending", selected && "is-sel")}
+        faceProps={{
+          tabIndex: 0,
+          "aria-label": `${task.title}. Choose Today, This week, Pick date, Project, Someday or Delete.`,
+          "data-task-record-id": task.id,
+          onKeyDown,
+        }}
+      >
       <div className="tk-tri-top">
-        <button type="button" className="tk-tri-title pc-focusable" onClick={event => onOpenDetail(task, event.currentTarget)}>{task.title}</button>
+        {onSelect ? <TaskSelectBox title={task.title} selected={selected} onSelect={onSelect} className="tk-tri-sel" /> : null}
+        <button type="button" className="tk-tri-title pc-focusable" onClick={event => {
+          if (onSelect && (selectMode || event.shiftKey)) { onSelect({ range: event.shiftKey }); return; }
+          onOpenDetail(task, event.currentTarget);
+        }}>{task.title}</button>
         <div className="tk-tri-meta">
           {captured ? <span className="tk-tri-cap"><Feather size={13} strokeWidth={2} aria-hidden="true" />{captured}</span> : null}
           {why ? <ul className="tk-pills" aria-label="Why it matters"><WhyChip reason={why} /></ul> : null}
@@ -135,11 +161,12 @@ function TriageCard({
           )}
         </div>
       ) : null}
+      </TaskSwipeFrame>
     </motion.article>
   );
 }
 
-export function InboxTriage({ tasks, today, timezone, weekStartsOn, projects, pendingTaskIds = EMPTY_SET, whyFor, onDecide, onOpenDetail, onCapture }: InboxTriageProps) {
+export function InboxTriage({ tasks, today, timezone, weekStartsOn, projects, pendingTaskIds = EMPTY_SET, whyFor, onDecide, onOpenDetail, onCapture, selectedIds = EMPTY_SET, onSelect, swipeFor }: InboxTriageProps) {
   const [picker, setPicker] = useState<{ id: string; kind: InboxPicker } | null>(null);
   const activeProjects = projects.filter(project => project.state !== "archived");
   const decide = (task: CanonicalTask, decision: InboxDecision) => {
@@ -182,6 +209,10 @@ export function InboxTriage({ tasks, today, timezone, weekStartsOn, projects, pe
               onPicker={kind => setPicker(kind ? { id: task.id, kind } : null)}
               onDecide={decision => decide(task, decision)}
               onOpenDetail={onOpenDetail}
+              selected={selectedIds.has(task.id)}
+              selectMode={selectedIds.size > 0}
+              onSelect={onSelect ? options => onSelect(task, options) : undefined}
+              swipe={swipeFor?.(task)}
             />
           ))}
         </AnimatePresence>

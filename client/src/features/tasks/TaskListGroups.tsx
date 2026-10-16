@@ -23,7 +23,8 @@ import { cn } from "@/lib/utils";
 import type { RowPill } from "@shared/taskRowPills";
 import type { TaskCardModel } from "./taskCardModel";
 import { TaskListEmptyState, type TaskListEmpty } from "./TaskListSections";
-import { TaskRow, type TaskRowAction, type TaskRowProps } from "./TaskRow";
+import { TaskRow, type TaskRowAction, type TaskRowProps, type TaskRowSelection } from "./TaskRow";
+import type { TaskSwipeConfig } from "./TaskSwipe";
 import { TaskRowPills } from "./TaskRowPills";
 import type { TaskListGroupBy } from "./taskWorkspaceModel";
 import "./tasks-premium.css";
@@ -71,6 +72,12 @@ export type TaskListGroupsProps = {
   onBlockedCheck?: TaskRowProps["onBlockedCheck"];
   onStartFocus?: TaskRowProps["onStartFocus"];
   actionsFor?: (model: TaskCardModel) => ReadonlyArray<TaskRowAction>;
+  /** Bulk select (T2b-2). */
+  selectionFor?: (model: TaskCardModel) => TaskRowSelection | undefined;
+  /** Phone gestures G1-G3 (T2b-2). */
+  swipeFor?: (model: TaskCardModel) => TaskSwipeConfig | undefined;
+  /** The task the detail pane shows. */
+  openId?: string | null;
   empty?: TaskListEmpty;
   className?: string;
 };
@@ -138,6 +145,9 @@ export function TaskListGroups({
   onBlockedCheck,
   onStartFocus,
   actionsFor,
+  selectionFor,
+  swipeFor,
+  openId,
   empty,
   className,
 }: TaskListGroupsProps) {
@@ -174,6 +184,9 @@ export function TaskListGroups({
                 onBlockedCheck={onBlockedCheck}
                 onStartFocus={onStartFocus}
                 actions={actionsFor?.(row.model)}
+                selection={selectionFor?.(row.model)}
+                swipe={swipeFor?.(row.model)}
+                isOpen={openId === row.model.id}
                 meta={<TaskRowPills pills={row.pills} why={row.model.why} repeat={row.model.recurring?.cadence} categoryTones={categoryTones} />}
                 estimate={row.estimateMinutes}
               />

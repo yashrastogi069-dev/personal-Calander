@@ -37,7 +37,7 @@ function props(overrides: Partial<TaskWorkspaceProps> = {}): TaskWorkspaceProps 
     view: "list", tasks: allTasks, categories: [], projects: [], goals: [], savedViews: [], dependencies, occurrences,
     today, timezone, query: "", filter: "all", sort: "manual",
     onViewChange: noop, onViewStateChange: noop, onSelectedRecordChange: noop, onCapture: noop,
-    onUpdate: write, onCreateSubtask: write, onReorder: async () => null,
+    onUpdate: write, onCreateSubtask: write,
     ...overrides,
   } as TaskWorkspaceProps;
 }

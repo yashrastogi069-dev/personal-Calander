@@ -3,9 +3,11 @@
 // Narrow lists (a container query, so it also covers the phone) stack the pills under the title.
 // The calm List (Tasks T2a, Q6) passes `meta` (at most 2 smart pills plus the reason chip) and `estimate`;
 // its Focus and More float in over the row end and reserve no width.
+// T2b-2: the row is a static host (the swipe underlay) around the moving face `.tk-row`, a gutter select box
+// for bulk select, and the phone gestures from TaskSwipe.tsx.
 // Presentation only: it takes a TaskCardModel and callbacks, never snapshot data.
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontal, Play, type LucideIcon } from "lucide-react";
+import { Check, MoreHorizontal, Play, type LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { toneClassName } from "@/design/categoryTone";
 import { formatMinutes } from "@/design/timeFormat";
@@ -13,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { CheckButton } from "./CheckButton";
 import type { TaskCardModel } from "./taskCardModel";
 import { TaskMetaPills } from "./TaskMetaPills";
+import { TaskSwipeFrame, type TaskSwipeConfig } from "./TaskSwipe";
 import "./tasks-premium.css";
 
 export type TaskRowAction = {
@@ -46,6 +49,12 @@ export type TaskRowProps = {
   meta?: ReactNode;
   /** Calm row: the time estimate on the right. Null or 0 keeps the column empty. */
   estimate?: number | null;
+  /** Bulk select (T2b-2). Omit to hide the select box. */
+  selection?: TaskRowSelection;
+  /** Phone row gestures G1-G3 (T2b-2). Omit or disable on desktop. */
+  swipe?: TaskSwipeConfig;
+  /** The detail pane shows this task. */
+  isOpen?: boolean;
   className?: string;
 };
 
@@ -83,24 +92,52 @@ export function TaskActionsMenu({ title, actions, label, className }: { title: s
   );
 }
 
-export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onBlockedCheck, onStartFocus, actions = [], dragHandle, meta, estimate, className }: TaskRowProps) {
+/** Bulk select (Q10): the gutter select box, plus select mode (any task selected: a tap toggles). */
+export type TaskRowSelection = {
+  selected: boolean;
+  /** At least one task is selected: tapping the row toggles it instead of opening details. */
+  selectMode: boolean;
+  onSelect: (model: TaskCardModel, options: { range: boolean }) => void;
+};
+
+/** The gutter select box shared by rows, Inbox cards and Board cards. */
+export function TaskSelectBox({ title, selected, onSelect, className }: { title: string; selected: boolean; onSelect: (options: { range: boolean }) => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={selected}
+      aria-label={`Select ${title}`}
+      title="Select (Shift-click for a range, X on a focused task)"
+      className={cn("tk-sel pc-focusable", selected && "is-on", className)}
+      data-no-gesture=""
+      onClick={event => { event.stopPropagation(); onSelect({ range: event.shiftKey }); }}
+    >
+      <Check size={12} strokeWidth={3.2} aria-hidden="true" />
+    </button>
+  );
+}
+
+export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onBlockedCheck, onStartFocus, actions = [], dragHandle, meta, estimate, selection, swipe, isOpen = false, className }: TaskRowProps) {
   const calm = meta !== undefined;
   const open = !model.isComplete && model.state !== "archived";
   const guarded = model.completionBlock?.reason ?? null;
   const inert = model.check.action.kind === "none" && !guarded;
+  const selected = Boolean(selection?.selected);
   return (
-    <li
-      className={cn("tk-row", calm && "is-calm", toneClassName(model.tone), model.isComplete && "is-complete", model.pending && "is-pending", enter && "pc-rise", className)}
-      style={enter ? ({ ["--pc-i" as string]: index } as CSSProperties) : undefined}
-      data-task-record-id={model.id}
-      data-task-version={model.version}
-      aria-busy={model.pending || undefined}
+    <TaskSwipeFrame
+      as="li"
+      hostClassName={cn("tk-row-host", selected && "is-selected", selection?.selectMode && "is-select-mode")}
+      faceClassName={cn("tk-row", calm && "is-calm", toneClassName(model.tone), model.isComplete && "is-complete", model.pending && "is-pending", selected && "is-sel", isOpen && "is-open", enter && "pc-rise", className)}
+      faceProps={{
+        style: enter ? ({ ["--pc-i" as string]: index } as CSSProperties) : undefined,
+        "data-task-record-id": model.id,
+        "data-task-version": model.version,
+        "aria-busy": model.pending || undefined,
+      }}
+      swipe={swipe}
     >
-      {/* Phone swipe is designed in D3.5; these empty hooks reserve the underlay. */}
-      <span className="task-row-swipe" aria-hidden="true">
-        <span data-swipe="complete" />
-        <span data-swipe="reschedule" />
-      </span>
+      {selection ? <TaskSelectBox title={model.title} selected={selected} onSelect={options => selection.onSelect(model, options)} /> : null}
       <CheckButton
         title={model.title}
         checked={model.check.checked}
@@ -110,7 +147,18 @@ export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onB
         onToggle={() => onToggle(model)}
         onBlockedPress={() => onBlockedCheck?.(model)}
       />
-      <button type="button" className="tk-row-title pc-focusable" title={model.title} onClick={event => onOpen(model, event.currentTarget)}>
+      <button
+        type="button"
+        className="tk-row-title pc-focusable"
+        title={model.title}
+        onClick={event => {
+          if (selection && (selection.selectMode || event.shiftKey)) {
+            selection.onSelect(model, { range: event.shiftKey });
+            return;
+          }
+          onOpen(model, event.currentTarget);
+        }}
+      >
         {model.title}
       </button>
       {calm ? <div className="tk-row-pills tk-row-meta">{meta}</div> : <TaskMetaPills model={model} className="tk-row-pills" />}
@@ -129,6 +177,6 @@ export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onB
         <TaskActionsMenu title={model.title} actions={actions} />
         {dragHandle}
       </div>
-    </li>
+    </TaskSwipeFrame>
   );
 }

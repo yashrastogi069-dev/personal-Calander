@@ -279,6 +279,8 @@ export type TaskSavedViewConfig = {
   categoryIds: string[];
   projectIds: string[];
   priorities: TaskPriority[];
+  /** Pill position (T2b-2) in the jsonb configuration; absent in older views (they sort after, by name). */
+  order?: number;
 };
 
 /** `group` is optional so callers that predate the List group switch keep compiling (read as "when"). */
@@ -313,6 +315,7 @@ export function adaptSavedTaskView(configuration: unknown): TaskSavedViewConfig 
     categoryIds: stringList(config.categoryIds),
     projectIds: stringList(config.projectIds),
     priorities: stringList(config.priorities).filter((item): item is TaskPriority => (taskPriorities as readonly string[]).includes(item)),
+    ...(typeof config.order === "number" && Number.isFinite(config.order) ? { order: config.order } : {}),
   };
 }
 
@@ -340,6 +343,47 @@ export function findSavedTaskViewByName<TView extends { name: string; viewType?:
   const wanted = name.trim().toLocaleLowerCase();
   if (!wanted) return null;
   return views.find(view => (view.viewType ?? "tasks") === "tasks" && view.name.trim().toLocaleLowerCase() === wanted) ?? null;
+}
+
+type OrderableView = { id: string; name: string; isPinned?: number | boolean | null; viewType?: string; configuration?: unknown };
+
+function viewOrder(view: OrderableView) {
+  const order = adaptSavedTaskView(view.configuration).order;
+  return order === undefined ? Number.POSITIVE_INFINITY : order;
+}
+
+/** Saved-view pills (T2b-2): the stored `order` first, then pinned, then by name (older views have no order). */
+export function orderSavedTaskViewPills<TView extends OrderableView>(views: readonly TView[]) {
+  return orderSavedTaskViews(views).sort((left, right) => {
+    const a = viewOrder(left);
+    const b = viewOrder(right);
+    if (a !== b) return a < b ? -1 : 1;
+    return 0;
+  });
+}
+
+/** The `order` a new pill gets: after every existing pill. */
+export function nextSavedTaskViewOrder(views: readonly OrderableView[]) {
+  const pills = orderSavedTaskViewPills(views);
+  return pills.length;
+}
+
+/**
+ * Moving a pill left or right rewrites the order of every pill whose position changed (older views without an
+ * order get one), so the configuration round-trips. Returns the `{id, configuration}` updates to send.
+ */
+export function savedTaskViewMoves<TView extends OrderableView>(views: readonly TView[], id: string, direction: -1 | 1) {
+  const pills = orderSavedTaskViewPills(views);
+  const index = pills.findIndex(view => view.id === id);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= pills.length) return [];
+  const next = pills.slice();
+  [next[index], next[target]] = [next[target], next[index]];
+  return next.flatMap((view, order) => {
+    const config = adaptSavedTaskView(view.configuration);
+    if (config.order === order) return [];
+    return [{ view, configuration: { ...config, order } }];
+  });
 }
 
 /** Pinned first, then by name, matching the server's `ORDER BY isPinned DESC, name`. */

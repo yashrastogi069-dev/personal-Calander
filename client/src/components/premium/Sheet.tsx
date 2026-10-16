@@ -3,9 +3,9 @@
 // 480px, slides in on x with the SHEET curve; it becomes the bottom sheet on phones). The labelled Close button is always present,
 // so the gesture is never the only way out. Radix Dialog owns focus trapping and focus return.
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo, type TargetAndTransition, type Transition } from "framer-motion";
+import { animate, AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo, type TargetAndTransition, type Transition } from "framer-motion";
 import { X } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { ENTER, EXIT, SHEET, shouldDismissSheet } from "@/design/motion";
 import { cn } from "@/lib/utils";
 import { useIsPhone } from "./useMediaQuery";
@@ -30,8 +30,26 @@ export type SheetProps = {
   /** Escape handler; call event.preventDefault() to keep the sheet open. */
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
   closeLabel?: string;
+  /**
+   * Shared-element open: the viewport rect of the element the panel grows from (a task row). The panel opens
+   * from that rect to its own place (FLIP on transform), then its content fades in. Ignored with reduced motion.
+   */
+  morphFrom?: SheetMorphOrigin | null;
   children: ReactNode;
 };
+
+export type SheetMorphOrigin = { left: number; top: number; width: number; height: number };
+
+/** FLIP start values: the transform (origin top-left) that lays the panel over the origin rect. */
+export function sheetMorphStart(origin: SheetMorphOrigin, panel: SheetMorphOrigin) {
+  const safe = (value: number) => (Number.isFinite(value) && value > 0 ? value : 1);
+  return {
+    x: origin.left - panel.left,
+    y: origin.top - panel.top,
+    scaleX: Math.min(1, safe(origin.width) / safe(panel.width)),
+    scaleY: Math.min(1, safe(origin.height) / safe(panel.height)),
+  };
+}
 
 export type SheetKind = "sheet" | "dialog" | "side";
 
@@ -67,18 +85,50 @@ export function Sheet({
   onCloseAutoFocus,
   onEscapeKeyDown,
   closeLabel = "Close",
+  morphFrom = null,
   children,
 }: SheetProps) {
   const phone = useIsPhone();
   const kind = sheetKind(variant, phone);
   const asSheet = kind === "sheet";
   const reduced = useReducedMotion() ?? false;
-  const panelMotion = sheetMotion(kind, reduced);
+  const morphing = Boolean(open && morphFrom && !reduced);
+  const baseMotion = sheetMotion(kind, reduced);
+  // The morph owns the entrance: the panel mounts in place (no slide) and the layout effect plays the FLIP.
+  const panelMotion = morphing ? { ...baseMotion, initial: { opacity: 1 }, animate: { opacity: 1 } } : baseMotion;
+  const morphRef = useRef<SheetMorphOrigin | null>(null);
+  morphRef.current = morphing ? morphFrom : null;
   const controls = useDragControls();
   const panel = useRef<HTMLDivElement | null>(null);
   const onDragEnd = (_: unknown, info: PanInfo) => {
     const height = panel.current?.offsetHeight ?? 400;
     if (shouldDismissSheet(info.offset.y, info.velocity.y, height)) onOpenChange(false);
+  };
+  // Radix mounts the portal a commit after `open`, so the FLIP starts from the panel's ref callback (still
+  // before paint) rather than from an effect here.
+  const played = useRef(false);
+  const stopMorph = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    if (!open) played.current = false;
+  }, [open]);
+  useLayoutEffect(() => () => stopMorph.current?.(), []);
+  const attachPanel = (element: HTMLDivElement | null) => {
+    panel.current = element;
+    const origin = morphRef.current;
+    if (!element || !origin || played.current) return;
+    played.current = true;
+    const rect = element.getBoundingClientRect();
+    const start = sheetMorphStart(origin, { left: rect.left, top: rect.top, width: rect.width, height: rect.height });
+    element.style.transformOrigin = "0 0";
+    const growth = animate(element, { x: [start.x, 0], y: [start.y, 0], scaleX: [start.scaleX, 1], scaleY: [start.scaleY, 1] }, SHEET);
+    const inner = Array.from(element.querySelectorAll<HTMLElement>(":scope > .pc-sheet-head, :scope > .pc-sheet-body, :scope > .pc-sheet-description"));
+    const fades = inner.map(node => animate(node, { opacity: [0, 1] }, { duration: 0.26, delay: 0.16, ease: [0.22, 1, 0.36, 1] }));
+    void growth.then(() => { element.style.transformOrigin = ""; });
+    stopMorph.current = () => {
+      growth.stop();
+      fades.forEach(fade => fade.stop());
+      inner.forEach(node => { node.style.opacity = ""; });
+    };
   };
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -103,9 +153,10 @@ export function Sheet({
               {...(description ? {} : { "aria-describedby": undefined })}
             >
               <motion.div
-                ref={panel}
+                ref={attachPanel}
                 className={cn("pc-sheet", `is-${kind}`, className, contentClassName)}
                 data-sheet-kind={kind}
+                data-morph={morphing ? "row" : undefined}
                 initial={panelMotion.initial}
                 animate={panelMotion.animate}
                 exit={panelMotion.exit}

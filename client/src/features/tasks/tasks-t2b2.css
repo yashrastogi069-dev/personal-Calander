@@ -1,0 +1,203 @@
+/* Tasks T2b-2: bulk select, saved-view pills, row gestures, pull to refresh, the detail Saved state and Why
+   block, and the Inbox triage cards. Motion uses the shared tokens; every movement has a reduced-motion rule. */
+
+/* ---------- swipe host / underlay (List rows, Inbox cards; never Board cards) ---------- */
+.tk-swipe-host { position: relative; list-style: none; min-width: 0; border-radius: var(--pc-r-control); }
+.tk-swipe-host > .tk-row, .tk-swipe-host > .tk-tri { position: relative; z-index: 1; }
+.tk-swipe-host[data-swipe-host="on"] > .tk-row, .tk-swipe-host[data-swipe-host="on"] > .tk-tri { touch-action: pan-y; }
+.tk-swipe-under { position: absolute; inset: 0; z-index: 0; display: flex; justify-content: space-between; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.tk-swipe-under.is-revealed { pointer-events: auto; }
+.tk-swipe-side { display: flex; align-items: center; gap: 8px; height: 100%; padding: 0 18px; font-size: var(--pc-text-label); line-height: var(--pc-lh-label); font-weight: var(--pc-w-semibold); opacity: 0; }
+.tk-swipe-side.is-complete { flex: 1; background: var(--pc-ok-soft); color: var(--pc-ok); }
+.tk-swipe-side.is-reschedule { flex: 1; justify-content: flex-end; background: color-mix(in srgb, var(--accent) 14%, var(--pc-card)); color: var(--accent); }
+.tk-swipe-side.is-armed.is-complete { background: var(--pc-ok); color: #fff; }
+.tk-swipe-side.is-armed.is-reschedule { background: var(--accent); color: #fff; }
+.tk-swipe-side.is-refused { background: var(--pc-card-2); color: var(--ink-muted); }
+.tk-swipe-under.is-revealed .tk-swipe-side.is-complete { visibility: hidden; }
+.tk-swipe-under.is-revealed .tk-swipe-side.is-reschedule { flex: none; width: 168px; margin-left: auto; gap: 0; padding: 0; }
+html .tk-swipe-btn { display: grid; flex: 1; place-items: center; align-content: center; gap: 2px; height: 100%; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--pc-text-caption); cursor: pointer; }
+html .tk-swipe-btn.is-pick { background: color-mix(in srgb, var(--accent) 24%, var(--pc-card)); }
+.tk-row.is-pressing, .tk-tri.is-pressing { scale: .985; transition: scale var(--pc-dur-press, 120ms) var(--pc-ease); }
+
+/* ---------- selection ---------- */
+html .tk-sel {
+  display: grid; place-items: center; width: 22px; height: 22px; padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--ink-muted) 55%, transparent); border-radius: var(--pc-r-chip);
+  background: var(--pc-card); color: transparent; cursor: pointer;
+  transition: opacity var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-sel.is-on { border-color: var(--accent); background: var(--accent); color: #fff; }
+/* List rows: the box lives in a left gutter, shown on hover/focus and always while selecting. */
+.tk-row > .tk-sel { position: absolute; top: 50%; left: -30px; z-index: 2; translate: 0 -50%; opacity: 0; }
+.tk-workspace .tk-rows { padding-left: 30px; }
+.tk-row-host:hover .tk-sel, .tk-row-host:focus-within .tk-sel, .tk-row-host.is-select-mode .tk-sel, .tk-sel.is-on { opacity: 1; }
+.tk-row.is-sel { border-color: color-mix(in srgb, var(--accent) 55%, var(--pc-line)); background: color-mix(in srgb, var(--accent) 7%, var(--pc-card)); }
+.tk-row.is-open { border-color: color-mix(in srgb, var(--accent) 45%, var(--pc-line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), var(--pc-e1); }
+@media (hover: none), (pointer: coarse), (max-width: 680px) {
+  .tk-workspace .tk-rows { padding-left: 0; }
+  /* Phone: no gutter. In select mode the box sits over the check (the check is not the action there). */
+  .tk-row > .tk-sel { left: 10px; width: 28px; height: 28px; display: none; }
+  .tk-row-host.is-select-mode .tk-sel { display: grid; opacity: 1; }
+}
+.tk-wcard.is-sel .tk-wcard-face { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--pc-e1); background: color-mix(in srgb, var(--accent) 9%, var(--pc-card)); }
+.tk-wcard.is-pressing .tk-wcard-face { scale: .985; transition: scale var(--pc-dur-press, 120ms) var(--pc-ease); }
+
+/* ---------- bulk bar (glass, floating) ---------- */
+.tk-bulk {
+  position: fixed; left: 0; right: 0; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: var(--pc-z-sticky, 30);
+  display: flex; align-items: center; gap: 4px; width: max-content; max-width: calc(100vw - 32px); margin-inline: auto; padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--pc-line) 70%, transparent); border-radius: var(--pc-r-pill);
+  background: color-mix(in srgb, var(--pc-card) 72%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: var(--pc-e3);
+}
+.tk-bulk-count { display: inline-flex; align-items: baseline; gap: 6px; padding: 0 10px 0 12px; font-size: var(--pc-text-label); color: var(--ink-muted); white-space: nowrap; }
+.tk-bulk-n { color: var(--ink); font-weight: var(--pc-w-bold); font-variant-numeric: tabular-nums; }
+.tk-bulk-vr { width: 1px; height: 22px; background: var(--pc-line); }
+html .tk-bulk-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--pc-r-pill);
+  background: transparent; color: var(--ink); font: inherit; font-size: var(--pc-text-label); font-weight: var(--pc-w-medium); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), scale var(--pc-dur-press, 120ms) var(--pc-ease);
+}
+html .tk-bulk-btn:active:not(:disabled) { scale: .96; }
+html .tk-bulk-btn:disabled { opacity: .5; cursor: default; }
+html .tk-bulk-btn.is-danger { color: var(--pc-off); }
+html .tk-bulk-btn.is-exit { padding: 0 10px; color: var(--ink-muted); }
+@media (hover: hover) and (pointer: fine) {
+  html .tk-bulk-btn:not(:disabled):hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+}
+.tk-bulk-menu { min-width: 200px; }
+.tk-bulk-date { position: relative; }
+.tk-bulk-date input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.tk-bulk-none { margin: 4px 10px; color: var(--ink-muted); font-size: var(--pc-text-caption); }
+@media (max-width: 680px) {
+  /* Above the floating bottom nav (≈64px + 12px). Icons only; names stay as accessible labels. */
+  .tk-bulk { bottom: calc(88px + env(safe-area-inset-bottom)); gap: 2px; }
+  .tk-bulk .tk-bulk-label { display: none; }
+  html .tk-bulk-btn { min-width: 44px; min-height: 44px; justify-content: center; padding: 0 10px; }
+  .tk-bulk-count { padding: 0 8px 0 10px; }
+}
+
+/* ---------- saved-view pills ---------- */
+.tk-vpills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 10px; min-width: 0; }
+.tk-vpill-slot { display: contents; }
+html .tk-vpill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-pill);
+  background: var(--pc-card); color: var(--ink); font: inherit; font-size: var(--pc-text-label); font-weight: var(--pc-w-medium); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), scale var(--pc-dur-press, 120ms) var(--pc-ease);
+}
+html .tk-vpill:active { scale: .97; }
+html .tk-vpill.is-on { border-color: color-mix(in srgb, var(--accent) 60%, var(--pc-line)); background: color-mix(in srgb, var(--accent) 12%, var(--pc-card)); color: var(--accent); }
+html .tk-vpill.is-save { border-style: dashed; color: var(--ink-muted); background: transparent; }
+html .tk-vpill.is-naming { padding-right: 4px; cursor: text; }
+.tk-vpill-name { max-width: 18ch; overflow: hidden; text-overflow: ellipsis; }
+.tk-vpill-count { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.tk-vpill.is-on .tk-vpill-count { color: inherit; }
+.tk-vpill-sep { width: 1px; height: 18px; background: var(--pc-line); }
+.tk-vpill-input { width: 14ch; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; }
+.tk-vpill-confirm { display: grid; gap: 10px; max-width: 260px; padding: 8px 10px; }
+.tk-vpill-confirm p { margin: 0; font-size: var(--pc-text-label); }
+.tk-vpill-confirm-actions { display: flex; justify-content: flex-end; gap: 6px; }
+@media (hover: hover) and (pointer: fine) {
+  html .tk-vpill:not(.is-on):not(.is-naming):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
+}
+@media (max-width: 680px) {
+  .tk-vpills { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding: 2px 16px; scrollbar-width: none; }
+  .tk-vpills::-webkit-scrollbar { display: none; }
+  html .tk-vpill { min-height: 36px; }
+}
+
+/* ---------- pull to refresh ---------- */
+.tk-pull { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 0; right: 0; z-index: var(--pc-z-overlay, 40); display: grid; justify-items: center; gap: 6px; pointer-events: none; }
+.tk-pull-ring { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--pc-card); box-shadow: var(--pc-e2); color: var(--accent); }
+.tk-pull-ring svg { position: absolute; rotate: -90deg; }
+.tk-pull-track { fill: none; stroke: var(--pc-track); stroke-width: 2; }
+.tk-pull-arc { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.tk-pull.is-refreshing .tk-pull-icon { animation: tk-spin .9s linear infinite; }
+.tk-pull.is-refused .tk-pull-ring { color: var(--ink-muted); }
+.tk-pull-msg { padding: 4px 10px; border-radius: var(--pc-r-pill); background: color-mix(in srgb, var(--pc-card) 80%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--pc-e1); font-size: var(--pc-text-caption); color: var(--ink); }
+@keyframes tk-spin { to { rotate: 360deg; } }
+
+/* ---------- detail: Saved state, title row, Why it matters, single primary ---------- */
+.tk-d-saved { display: flex; align-items: center; gap: 6px; min-height: 20px; margin: -4px 0 8px; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); }
+.tk-d-saved.is-saved, .tk-d-saved.is-queued { color: var(--pc-ok); }
+.tk-d-saved.is-error, .tk-d-saved.is-paused { color: var(--pc-risk); }
+.tk-d-spin { animation: tk-spin .9s linear infinite; }
+.tk-d-title-row { display: flex; align-items: flex-start; gap: 10px; }
+.tk-d-title-row .tk-d-check { margin-top: 6px; flex: none; }
+.tk-d-title-row .tk-d-title { flex: 1; min-width: 0; }
+.tk-d-why { display: grid; gap: 6px; margin: 4px 0 14px; padding: 12px 14px; border-radius: var(--pc-r-control); background: color-mix(in srgb, var(--accent) 6%, var(--pc-card)); border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--pc-line)); }
+.tk-d-why-h { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-caption); font-weight: var(--pc-w-semibold); letter-spacing: .04em; text-transform: uppercase; }
+.tk-d-why-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.tk-d-why-line { display: flex; align-items: center; gap: 8px; margin: 0; min-width: 0; color: var(--ink); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.tk-d-why-line > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-d-why-line > svg { flex: none; color: var(--accent); }
+.tk-d-why-line.is-risk > svg, .tk-d-why-line.is-off > svg { color: var(--pc-risk); }
+.tk-d-why-line.is-empty { color: var(--ink-muted); flex-wrap: wrap; }
+.tk-d-why-line.is-empty > svg { color: var(--ink-muted); }
+html .tk-link-btn { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: var(--pc-w-medium); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.tk-d-actions { align-items: center; }
+.tk-d-est { margin-right: auto; color: var(--ink-muted); font-size: var(--pc-text-caption); font-variant-numeric: tabular-nums; }
+html .tk-d-focus { min-width: 160px; justify-content: center; }
+.pc-sheet[data-morph="row"] { will-change: transform; }
+
+/* ---------- Inbox triage cards (T2a markup, styled here) ---------- */
+.tk-inbox { display: grid; gap: 12px; }
+.tk-inbox-intro h3 { margin: 0; font-size: var(--pc-text-h2); line-height: var(--pc-lh-h2); }
+.tk-inbox-count { font-variant-numeric: tabular-nums; }
+.tk-tri-list { display: grid; gap: 8px; }
+.tk-tri-host { position: relative; }
+.tk-tri { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-control); background: var(--pc-card); box-shadow: var(--pc-e1); }
+.tk-tri:focus-visible { outline: var(--pc-focus-width) solid var(--focus-ring); outline-offset: var(--pc-focus-offset); }
+.tk-tri.is-pending { border-style: dashed; }
+.tk-tri.is-sel { border-color: color-mix(in srgb, var(--accent) 55%, var(--pc-line)); background: color-mix(in srgb, var(--accent) 7%, var(--pc-card)); }
+.tk-tri-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-width: 0; }
+html .tk-tri-title { flex: 1 1 auto; min-width: 0; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--pc-text-body); font-weight: var(--pc-w-semibold); text-align: left; cursor: pointer; }
+.tk-tri-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink-muted); font-size: var(--pc-text-caption); }
+.tk-tri-cap { display: inline-flex; align-items: center; gap: 4px; }
+.tk-tri-sel { opacity: 0; }
+.tk-tri-host:hover .tk-tri-sel, .tk-tri-host:focus-within .tk-tri-sel, .tk-tri-sel.is-on, .tk-workspace.is-selecting .tk-tri-sel { opacity: 1; }
+@media (hover: none), (pointer: coarse) {
+  .tk-tri-sel { display: none; }
+  .tk-workspace.is-selecting .tk-tri-sel { display: grid; }
+}
+.tk-tri-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+html .tk-tri-act, html .tk-tri-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-pill);
+  background: var(--pc-card); color: var(--ink); font: inherit; font-size: var(--pc-text-label); cursor: pointer;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease);
+}
+html .tk-tri-act.is-primary { border-color: transparent; background: var(--accent); color: #fff; }
+html .tk-tri-act.is-on { border-color: var(--accent); color: var(--accent); }
+html .tk-tri-act.is-danger { color: var(--pc-off); }
+.tk-tri-more { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+html .tk-tri-chip.is-input { position: relative; }
+.tk-tri-none { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-caption); }
+.tk-inbox-keys { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 0; color: var(--ink-muted); font-size: var(--pc-text-caption); }
+.tk-inbox-keys > span { display: inline-flex; align-items: center; gap: 6px; }
+@media (hover: none), (pointer: coarse), (max-width: 680px) { .tk-inbox-keys { display: none; } }
+.tk-inbox.is-clear { place-items: center; padding: 40px 16px; text-align: center; }
+.tk-inbox-orb { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 8px; border-radius: 50%; background: var(--pc-ok-soft); color: var(--pc-ok); }
+@media (hover: hover) and (pointer: fine) {
+  html .tk-tri-act:not(.is-primary):hover, html .tk-tri-chip:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
+}
+@media (hover: none), (pointer: coarse) {
+  html .tk-tri-act, html .tk-tri-chip { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-row.is-pressing, .tk-tri.is-pressing, .tk-wcard.is-pressing .tk-wcard-face { scale: none; transition: none; }
+  html .tk-sel, html .tk-bulk-btn, html .tk-vpill, html .tk-tri-act, html .tk-tri-chip { transition: none; }
+  html .tk-bulk-btn:active, html .tk-vpill:active { scale: none; }
+  .tk-pull.is-refreshing .tk-pull-icon, .tk-d-spin { animation: none; }
+  .pc-sheet[data-morph="row"] { will-change: auto; }
+}
+
+/* The legacy `.task-detail-form button { min-height: 44px }` would stretch the ring and the text link. The ring keeps
+   its 44px target through its ::after. */
+.tk-d-form .tk-d-check .tk-check, .tk-d-form .tk-link-btn { min-height: 0; }
+@media (hover: none), (pointer: coarse), (max-width: 680px) {
+  /* Phone select mode: the box takes the check's place at the top-left of the row. */
+  .tk-row > .tk-sel { top: 10px; translate: none; }
+  .tk-row-host.is-select-mode .tk-row > .tk-check-wrap { visibility: hidden; }
+}

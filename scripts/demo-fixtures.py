@@ -573,6 +573,8 @@ class DemoBackend:
         self.requests: list[str] = []
         self.unexpected: list[str] = []
         self.mutations: list[str] = []
+        # (procedure, input without scope) per mutation, so harnesses can assert the exact writes.
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
     # ----- utilities -------------------------------------------------------
     def now(self) -> datetime:
@@ -837,6 +839,7 @@ class DemoBackend:
         if handler is not None:
             if not procedure.endswith(QUERY_SUFFIXES):
                 self.mutations.append(procedure)
+                self.calls.append((procedure, copy.deepcopy(self.strip(data))))
             return handler(data)
         if procedure in self.base:
             return self.base[procedure]
@@ -909,6 +912,19 @@ class DemoBackend:
                 results.append({"operationId": operation.get("operationId"), "status": "rejected", "code": "not_found"})
         return results
     def p_planner_sync_resolve(self, data): return {"conflictId": data.get("conflictId"), "resolved": True}
+    # saved views (Tasks pills, T2b-2): the same create/update/delete procedures as the server
+    def p_planner_savedView_create(self, data):
+        return self.create("savedViews", "view", {"name": data["name"], "viewType": data.get("viewType", "tasks"),
+                                                 "configuration": data.get("configuration") or {}, "isPinned": data.get("isPinned", 0)})
+    def p_planner_savedView_update(self, data):
+        row = self.find("savedViews", data["id"])
+        if int(row.get("version", 1)) != int(data.get("expectedVersion", 0)):
+            raise DemoError("This saved view changed in another place. Refresh and try again.", "CONFLICT", 409)
+        return self.bump(row, {key: data[key] for key in ("name", "configuration", "isPinned") if key in data})
+    def p_planner_savedView_delete(self, data):
+        self.find("savedViews", data["id"])
+        self.snapshot["savedViews"] = [row for row in self.rows("savedViews") if row["id"] != data["id"]]
+        return {"id": data["id"], "deleted": True}
     def p_planner_occurrence_materialize(self, data):
         return [row for row in self.rows("taskOccurrences") if data.get("start", "") <= row["localDate"] <= data.get("end", "9999")]
     def p_planner_occurrence_resolve(self, data):

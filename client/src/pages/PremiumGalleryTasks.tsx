@@ -86,8 +86,6 @@ export default function PremiumGalleryTasks() {
           projectOptions={[{ value: "q4", label: "Q4 planning" }, { value: "move", label: "Moving house" }]}
           sort={toolbar.sort}
           onSortChange={next => setToolbar(current => ({ ...current, sort: next }))}
-          canSaveView
-          onSaveView={noop}
         />
       </Frame>
       <Frame title="Toolbar (Board, 390px)" width={390}>

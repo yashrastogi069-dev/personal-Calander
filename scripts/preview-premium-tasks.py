@@ -11,14 +11,21 @@ and opening a row shows the side sheet. T2b-1 adds: one header (one "Tasks" titl
 aligned on one left edge, toolbar labels not truncated, and visits to Inbox, Archive and the Board (Week lens, the
 default, then the Status lens) with shots and the same overflow/error checks, plus one Board plan action (mouse
 drag at 1440, the card menu at 390 and in the reduced-motion run) that records exactly one planner.task.update.
+T2b-2 adds: bulk-select 2 List rows (hover select box at 1440, More > Select then tap at 390) and Plan for tomorrow
+sends exactly those 2 task updates, and the one Undo restores both; a saved-view pill created from the current filter
+shows a live count (planner.savedView.create with order 0); the detail opens with the row morph (none under reduced
+motion), autosaves one edited field as one update ("Saved"), and closes with the close button and with Esc; at 390 a
+touch swipe right on a List row records exactly one planner.task.update (state completed). Inbox and Board read
+"Tasks" as the page title and the sidebar marks Tasks (not Inbox) on the Board.
 
 Start Vite first: npx vite --port 3100 --strictPort --host 127.0.0.1
 
   python scripts/preview-premium-tasks.py --shots DIR [--url http://127.0.0.1:3100/]
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
+import re
 from pathlib import Path
 import runpy
 import sys
@@ -78,6 +85,8 @@ def run(browser, args, width, height, theme, reduced, shots: Path) -> dict:
     context = browser.new_context(
         viewport={"width": width, "height": height}, device_scale_factor=1, color_scheme=theme,
         reduced_motion="reduce" if reduced else "no-preference", timezone_id=args.tz, service_workers="block", locale="en-NZ",
+        # Phone runs emulate touch, so the swipe check sends real touch pointers (the engine ignores mice).
+        has_touch=width < 1024,
     )
     backend = DEMO["install_demo"](context, args.url, now=datetime.now(timezone.utc), tz=args.tz)
     page = context.new_page()
@@ -204,6 +213,178 @@ def run(browser, args, width, height, theme, reduced, shots: Path) -> dict:
     def no_overflow(name):
         assert not page.evaluate("document.documentElement.scrollWidth > window.innerWidth"), f"{name}: horizontal page overflow"
 
+    tomorrow = (date.fromisoformat(backend.today()) + timedelta(days=1)).isoformat()
+
+    def task_record(task_id):
+        return next(task for task in backend.snapshot["tasks"] if task["id"] == task_id)
+
+    def plain_rows(limit, exclude=()):
+        ids = page.locator(".tk-sections .tk-section:not(.is-collapsed) .tk-row:not(.is-complete)").evaluate_all(
+            "els => els.filter(e => e.offsetParent).map(e => e.dataset.taskRecordId)")
+        picks = []
+        for task_id in ids:
+            task = task_record(task_id)
+            if task_id in exclude or task.get("recurrenceRule") or task.get("plannedStartAt") or task.get("state") in ("completed", "archived"):
+                continue
+            if task.get("scheduledLocalDate") == tomorrow:
+                continue
+            picks.append(task_id)
+            if len(picks) == limit:
+                break
+        return picks
+
+    def updates_since(start):
+        return [data for name, data in backend.calls[start:] if name == "planner.task.update"]
+
+    def bulk_plan_undo():
+        picks = plain_rows(2)
+        assert len(picks) == 2, picks
+        before = {task_id: task_record(task_id).get("scheduledLocalDate") for task_id in picks}
+        start = len(backend.calls)
+        rows = [page.locator(f'.tk-row[data-task-record-id="{task_id}"]') for task_id in picks]
+        if width >= 1024:
+            method = "select box"
+            for row in rows:
+                row.scroll_into_view_if_needed()
+                row.hover()
+                row.locator(".tk-sel").click()
+        else:
+            method = "menu then tap"
+            rows[0].scroll_into_view_if_needed()
+            rows[0].locator('[aria-label^="More actions for"]').click()
+            page.locator(".tk-menu .tk-menu-item", has_text="Select").first.click()
+            page.wait_for_timeout(250)
+            rows[1].scroll_into_view_if_needed()
+            rows[1].locator(".tk-row-title").click()
+        bar = page.locator(".tk-bulk")
+        expect(bar).to_be_visible(timeout=4000)
+        page.wait_for_timeout(500)
+        selected = page.locator(".tk-row.is-sel").count()
+        assert selected == 2, selected
+        bar_box = bar.bounding_box()
+        assert bar_box and bar_box["x"] >= 0 and bar_box["x"] + bar_box["width"] <= width, bar_box
+        page.screenshot(path=str(shots / f"{tag}-tasks-bulk-bar.png"))
+        bar.locator('.tk-bulk-btn[aria-label^="Plan for"]').click()
+        page.locator(".tk-bulk-menu .tk-menu-item", has_text="Tomorrow").first.click()
+        page.wait_for_timeout(1500)
+        sent = updates_since(start)
+        assert sorted(item["id"] for item in sent) == sorted(picks), sent
+        assert all(item["patch"] == {"scheduledLocalDate": tomorrow} for item in sent), sent
+        assert len([name for name, _ in backend.calls[start:] if name not in BOOTSTRAP]) == 2, backend.calls[start:]
+        expect(bar).to_be_hidden(timeout=4000)
+        toast = page.locator("[data-sonner-toast]", has_text="Planned 2 tasks")
+        expect(toast.first).to_be_visible(timeout=4000)
+        undo_start = len(backend.calls)
+        toast.first.locator("button", has_text="Undo").click()
+        page.wait_for_timeout(1500)
+        undone = updates_since(undo_start)
+        assert len(undone) == 2, undone
+        assert all(item["patch"] == {"scheduledLocalDate": before[item["id"]]} for item in undone), (undone, before)
+        assert all(task_record(task_id).get("scheduledLocalDate") == before[task_id] for task_id in picks)
+        return {"method": method, "tasks": picks, "planned": len(sent), "undone": len(undone)}
+    check("bulkPlanTomorrowAndUndo", bulk_plan_undo)
+
+    def detail_morph_autosave():
+        picks = plain_rows(1)
+        assert picks, "no plain row"
+        row = page.locator(f'.tk-row[data-task-record-id="{picks[0]}"]')
+        row.scroll_into_view_if_needed()
+        row.locator(".tk-row-title").click()
+        sheet = page.locator(".tk-d-sheet")
+        expect(sheet).to_be_visible(timeout=5000)
+        morph = sheet.get_attribute("data-morph")
+        if reduced:
+            assert morph is None, morph
+        else:
+            assert morph == "row", morph
+            page.wait_for_timeout(90)
+            page.screenshot(path=str(shots / f"{tag}-tasks-detail-morph.png"))
+        page.wait_for_timeout(800)
+        assert sheet.locator(".pc-sheet-close").count() == 1, "expected one close button"
+        assert sheet.locator("button", has_text="Save changes").count() == 0, "explicit Save still shown"
+        focus = sheet.locator(".tk-d-focus")
+        assert focus.count() == 1 and "Start focus" in focus.inner_text(), "one Start focus"
+        why_lines = sheet.locator(".tk-d-why-line").count()
+        assert why_lines <= 2, why_lines
+        start = len(backend.calls)
+        sheet.locator("textarea[id^='task-description-']").fill("Harness note")
+        expect(sheet.locator(".tk-d-saved")).to_have_attribute("data-save-state", re.compile("saved|queued"), timeout=6000)
+        sent = updates_since(start)
+        assert len(sent) == 1 and sent[0]["id"] == picks[0] and sent[0]["patch"] == {"description": "Harness note"}, sent
+        assert "Saved" in sheet.locator(".tk-d-saved").inner_text()
+        page.screenshot(path=str(shots / f"{tag}-tasks-detail-saved.png"))
+        sheet.locator(".pc-sheet-close").click()
+        expect(sheet).to_be_hidden(timeout=5000)
+        row.locator(".tk-row-title").click()
+        expect(sheet).to_be_visible(timeout=5000)
+        page.wait_for_timeout(600)
+        page.keyboard.press("Escape")
+        expect(sheet).to_be_hidden(timeout=5000)
+        return {"task": picks[0], "morph": morph, "whyLines": why_lines, "writes": len(sent)}
+    check("detailMorphAutosaveAndClose", detail_morph_autosave)
+
+    if width < 1024:
+        def swipe_complete():
+            picks = plain_rows(1)
+            assert picks, "no plain row"
+            row = page.locator(f'.tk-row[data-task-record-id="{picks[0]}"]')
+            row.scroll_into_view_if_needed()
+            page.wait_for_timeout(300)
+            assert row.evaluate("el => el.closest('[data-swipe-host]')?.dataset.swipeHost") == "on", "swipe not enabled"
+            box = row.bounding_box()
+            y = box["y"] + box["height"] / 2
+            x0 = box["x"] + 50
+            cdp = context.new_cdp_session(page)
+            start = len(backend.mutations)
+            calls_start = len(backend.calls)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x0, "y": y}]})
+            for step in range(1, 15):
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x0 + step * 16, "y": y}]})
+                page.wait_for_timeout(16)
+            page.screenshot(path=str(shots / f"{tag}-tasks-swipe-armed.png"))
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            page.wait_for_timeout(1500)
+            cdp.detach()
+            sent = writes(backend, start)
+            assert sent == ["planner.task.update"], sent
+            patch = updates_since(calls_start)[0]
+            assert patch["id"] == picks[0] and patch["patch"] == {"state": "completed"}, patch
+            page.screenshot(path=str(shots / f"{tag}-tasks-swipe-done.png"))
+            return {"task": picks[0], "writes": sent}
+        check("swipeRightIsOneCompletion", swipe_complete)
+
+    def saved_view_pill():
+        page.goto(args.url.rstrip("/") + "/?destination=tasks&view=list", wait_until="domcontentloaded")
+        settle(page, 1500)
+        page.locator(".tk-quick .pc-chip", has_text="Today").first.click()
+        page.wait_for_timeout(500)
+        save = page.locator(".tk-vpill.is-save")
+        expect(save).to_be_visible(timeout=4000)
+        start = len(backend.calls)
+        save.click()
+        page.locator(".tk-vpill-input").fill("Today focus")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(1800)
+        created = [data for name, data in backend.calls[start:] if name == "planner.savedView.create"]
+        assert len(created) == 1, backend.calls[start:]
+        config = created[0]["configuration"]
+        assert config.get("order") == 0 and config.get("filter") == "today", config
+        pill = page.locator(".tk-vpill[data-view-id]", has_text="Today focus")
+        expect(pill).to_be_visible(timeout=4000)
+        count = pill.locator(".tk-vpill-count").inner_text()
+        assert re.search(r"[0-9]", count), count
+        assert "is-on" in (pill.get_attribute("class") or ""), "new pill is not applied"
+        assert page.locator(".tk-vpill.is-save").count() == 0, "Save view still offered for the applied view"
+        assert page.locator(".tk-toolbar", has_text="Save view").count() == 0, "legacy toolbar Save view"
+        shoot(page, shots / f"{tag}-tasks-pills.png", width, height)
+        no_overflow("pills")
+        return {"count": count.strip(), "configuration": config}
+    check("savedViewPillShowsCount", saved_view_pill)
+
+    def page_title():
+        return page.locator("main h1, main h2").evaluate_all(
+            "els => els.filter(e => e.offsetParent && ['Tasks', 'Inbox', 'Board', 'Archive'].includes(e.textContent.trim())).map(e => e.textContent.trim())[0] || null")
+
     def visit(view):
         page.goto(args.url.rstrip("/") + f"/?destination=tasks&view={view}", wait_until="domcontentloaded")
         settle(page, 1500)
@@ -212,6 +393,7 @@ def run(browser, args, width, height, theme, reduced, shots: Path) -> dict:
     def inbox_view():
         visit("inbox")
         expect(page.locator(".tk-inbox")).to_be_visible(timeout=8000)
+        assert page_title() == "Tasks", page_title()
         shoot(page, shots / f"{tag}-tasks-inbox.png", width, height)
         no_overflow("inbox")
         return True
@@ -228,6 +410,10 @@ def run(browser, args, width, height, theme, reduced, shots: Path) -> dict:
     def board_view():
         visit("board")
         expect(page.locator('.tk-board[data-lens="week"]')).to_be_visible(timeout=8000)
+        assert page_title() == "Tasks", page_title()
+        if width >= 1024:
+            parent = page.locator(".is-active-parent").all_inner_texts()
+            assert any("Tasks" in text for text in parent) and not any("Inbox" in text for text in parent), parent
         zones = page.locator(".tk-col").evaluate_all("els => els.map(e => e.dataset.zone)")
         assert zones[0] == "day:none" and len(zones) == 8, zones
         assert page.locator(".task-lane-grid").count() == 0, "legacy lanes still rendered"

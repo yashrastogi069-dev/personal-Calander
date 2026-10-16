@@ -1,8 +1,8 @@
 // D3 TaskToolbar: search (`/` focuses, Escape clears then blurs), quick filter chips with live counts, the
 // Filter popover (category, project, priority), applied filters as removable chips, the Sort menu, the Board
-// lens toggle, the List Group by switch (Q7, Tasks T2a) and Save view. All state lives in the caller (URL and saved views); this only draws and reports.
+// lens toggle, the List Group by switch (Q7, Tasks T2a). Saved views are the pills under the tabs (SavedViewPills, T2b-2). All state lives in the caller (URL and saved views); this only draws and reports.
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { ArrowUpDown, BookmarkPlus, Flag, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, Flag, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, type KeyboardEvent, type RefObject } from "react";
 import { ChipSelect } from "@/components/premium/ChipSelect";
 import { FilterChips, RemovableChip, RollingCount, type FilterChipItem } from "@/components/premium/FilterChips";
@@ -45,9 +45,6 @@ export type TaskToolbarProps = {
   /** List Group by (When / Project / Category). Shows on the List only. */
   group?: TaskListGroupBy;
   onGroupChange?: (group: TaskListGroupBy) => void;
-  /** Show Save view: the current state differs from the applied saved view. */
-  canSaveView?: boolean;
-  onSaveView?: () => void;
   className?: string;
 };
 
@@ -88,8 +85,6 @@ export function TaskToolbar({
   onLensChange,
   group,
   onGroupChange,
-  canSaveView = false,
-  onSaveView,
   className,
 }: TaskToolbarProps) {
   const ownRef = useRef<HTMLInputElement | null>(null);
@@ -212,9 +207,6 @@ export function TaskToolbar({
             onValueChange={onSortChange}
             options={taskSortOptions.map(option => ({ value: option.id, label: option.label }))}
           />
-          {canSaveView && onSaveView ? (
-            <button type="button" className="tk-btn is-ghost pc-focusable" onClick={onSaveView}><BookmarkPlus size={16} strokeWidth={2} aria-hidden="true" />Save view</button>
-          ) : null}
         </div>
       </div>
       {view === "list" && group && onGroupChange ? (

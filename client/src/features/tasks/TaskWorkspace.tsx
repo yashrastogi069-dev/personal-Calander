@@ -7,14 +7,33 @@ import { cn } from "@/lib/utils";
 import type { CanonicalTask } from "@shared/canonicalTask";
 import { isInboxTask } from "@shared/taskBuckets";
 import type { TaskBoardFilter } from "@shared/taskBoardUrl";
-import { committedTaskPlans, taskArchiveCheck } from "@shared/taskDrop";
+import { committedTaskPlans, taskArchiveCheck, type TaskDropContext } from "@shared/taskDrop";
 import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
 import { rowPills, type RowPillContext } from "@shared/taskRowPills";
-import { topReason, type WhyReason } from "@shared/whyItMatters";
-import { Archive, CalendarCheck, PanelRight, Play } from "lucide-react";
+import { topReason, whyDetailSection, type WhyDetailSection, type WhyReason } from "@shared/whyItMatters";
+import type { WeekStartsOn } from "@shared/taskWeekBoard";
+import { Archive, CalendarCheck, CalendarClock, CalendarDays, PanelRight, Play, SquareCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { whyFactsFromSnapshot } from "@/features/why/whyFacts";
+import { useIsPhone } from "@/components/premium/useMediaQuery";
+import type { SheetMorphOrigin } from "@/components/premium/Sheet";
+import { SavedViewPills } from "./SavedViewPills";
+import { TaskBulkBar } from "./TaskBulkBar";
+import { TaskPullRefresh } from "./TaskPullRefresh";
+import type { TaskSwipeConfig } from "./TaskSwipe";
+import {
+  bulkPlanChoices,
+  bulkSelectionKey,
+  bulkUndoWrites,
+  emptyBulkSelection,
+  planBulkAction,
+  pruneBulkSelection,
+  toggleBulkSelection,
+  type BulkAction,
+  type BulkSelection,
+} from "./taskBulkSelection";
+import { swipeCompleteRefusal, swipeReschedule } from "./taskSwipeModel";
 import { InboxTriage } from "./InboxTriage";
 import { inboxDecisionMessage, inboxDecisionPatch, inboxDecisionUndoPatch, type InboxDecision } from "./inboxTriageModel";
 import { TaskArchive, type TaskArchiveTab } from "./TaskArchive";
@@ -31,7 +50,15 @@ import {
   adaptSavedTaskView as adaptSavedTaskViewV2,
   boardLensShown,
   clearedTaskFilters,
+  defaultTaskSavedView,
   emptyTaskFacets,
+  findSavedTaskViewByName,
+  nextSavedTaskViewOrder,
+  orderSavedTaskViewPills,
+  savedTaskViewConfiguration,
+  savedTaskViewCount,
+  savedTaskViewDiffers,
+  savedTaskViewMoves,
   hasActiveTaskFilters,
   quickFilterCounts,
   readStoredTaskListGroup,
@@ -51,6 +78,7 @@ import {
 } from "./taskWorkspaceModel";
 import "./task-workspace.css";
 import "./tasks-premium.css";
+import "./tasks-t2b2.css";
 
 export type { TaskWorkspaceSort, TaskWorkspaceView };
 
@@ -219,8 +247,18 @@ export type TaskWorkspaceProps = {
   categories: any[];
   projects: any[];
   goals: any[];
-  /** Saved task views. The pill row that uses them (Q8) arrives in T2b; the Views tab is gone. */
+  /** Saved task views, shown as pills under the tabs (Q8, T2b-2). */
   savedViews: any[];
+  /** `planner.savedView.create`; the configuration carries the pill `order` (jsonb, no migration). */
+  onCreateSavedView?: (name: string, configuration: Record<string, unknown>) => Promise<{ id?: string } | unknown>;
+  /** `planner.savedView.update` (rename, re-order, re-save). */
+  onUpdateSavedView?: (view: any, patch: { name?: string; configuration?: Record<string, unknown> }) => Promise<unknown>;
+  /** `planner.savedView.delete`. */
+  onDeleteSavedView?: (view: any) => Promise<unknown>;
+  /** Workspace week start (`snapshot.workspace.weekStartsOn`, 0 = Sunday, 1 = Monday). Default Monday. */
+  weekStartsOn?: WeekStartsOn;
+  /** Phone pull to refresh: the existing snapshot refetch. */
+  onRefresh?: () => Promise<void>;
   dependencies?: any[];
   /** `snapshot.milestones` and `snapshot.weeklyObjectives`, for the D4 reasons (milestone soon, weekly objective). */
   milestones?: readonly unknown[];
@@ -250,8 +288,6 @@ export type TaskWorkspaceProps = {
   /** Opens Plan, where R3 commitments are resolved. */
   onOpenPlan?: () => void;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
-  /** Legacy ↑/↓ lane re-order. Unused since T2b-1: Board re-order runs through the drop engine. Kept for Home. */
-  onReorder: (task: any, direction: -1 | 1, laneTasks: any[]) => Promise<string | null>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
   onRemoveDependency?: (dependency: any) => Promise<void>;
 };
@@ -266,6 +302,12 @@ export function TaskWorkspace({
   categories,
   projects,
   goals,
+  savedViews,
+  onCreateSavedView,
+  onUpdateSavedView,
+  onDeleteSavedView,
+  weekStartsOn = 1,
+  onRefresh,
   dependencies = [],
   milestones,
   weeklyObjectives,
@@ -305,6 +347,15 @@ export function TaskWorkspace({
   // Ids ticked this session (Fable Q2): they dim in place in their group until reload or local midnight.
   const [tickedIds, setTickedIds] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => setTickedIds(new Set()), [today]);
+  const phone = useIsPhone();
+  const sectionRef = useRef<HTMLElement | null>(null);
+  // Bulk select (Q10): the selection lives here; the bar, rows and cards only draw it.
+  const [selection, setSelection] = useState<BulkSelection>(emptyBulkSelection);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [appliedViewId, setAppliedViewId] = useState<string | null>(null);
+  const [viewBusy, setViewBusy] = useState(false);
+  const [morphFrom, setMorphFrom] = useState<SheetMorphOrigin | null>(null);
+  useEffect(() => setSelection(emptyBulkSelection), [view]);
   const setListGroup = useCallback((next: TaskListGroupBy) => {
     setListGroupState(next);
     storeTaskListGroup(safeLocalStorage(), next);
@@ -425,6 +476,164 @@ export function TaskWorkspace({
     () => tasks.filter(task => (conflictCountByTask.get(task.id) ?? 0) > 0).map(task => task.id),
     [conflictCountByTask, tasks],
   );
+  const dropCtx = useMemo<TaskDropContext>(
+    () => ({ today, timezone, sort, occurrences, dependencies, tasks, committedTasks, pendingTaskIds }),
+    [committedTasks, dependencies, occurrences, pendingTaskIds, sort, tasks, timezone, today],
+  );
+  // What can be selected on screen: Inbox cards, List rows or Board cards (never the Archive).
+  const visibleIds = useMemo(() => {
+    if (view === "inbox") return new Set(inboxRows.map(task => task.id));
+    if (view === "list") return new Set(listGroups.flatMap(group => group.rows.map(row => row.model.id)));
+    if (view === "board") return new Set(filtered.filter(task => task.state !== "archived").map(task => task.id));
+    return new Set<string>();
+  }, [filtered, inboxRows, listGroups, view]);
+  useEffect(() => setSelection(current => pruneBulkSelection(current, visibleIds)), [visibleIds]);
+  const displayOrder = () => {
+    const ids: string[] = [];
+    sectionRef.current?.querySelectorAll<HTMLElement>("[data-task-record-id]").forEach(element => {
+      const id = element.dataset.taskRecordId;
+      if (id && visibleIds.has(id) && !ids.includes(id)) ids.push(id);
+    });
+    return ids;
+  };
+  const selectTask = (taskId: string, options: { range: boolean }) => {
+    if (!visibleIds.has(taskId)) return;
+    setSelection(current => toggleBulkSelection(current, taskId, displayOrder(), options));
+  };
+  // X toggles the focused task, Esc leaves select mode (a dialog or menu keeps its own Esc).
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-task-record-id]");
+      const inside = Boolean(focused && sectionRef.current?.contains(focused));
+      const focusedId = inside ? focused?.dataset.taskRecordId ?? null : null;
+      const intent = bulkSelectionKey(event, event.target, focusedId && visibleIds.has(focusedId) ? focusedId : null, selection.ids.size);
+      if (!intent) return;
+      if (document.querySelector("[role='dialog'][data-state='open'], [role='menu'], [data-radix-popper-content-wrapper]")) return;
+      event.preventDefault();
+      if (intent === "clear") setSelection(emptyBulkSelection);
+      else if (focusedId) setSelection(current => toggleBulkSelection(current, focusedId, displayOrder(), { range: event.shiftKey }));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  const planChoices = useMemo(() => bulkPlanChoices(today, weekStartsOn), [today, weekStartsOn]);
+  /** One batch from the bar: sequential `planner.task.update` writes, one toast, ONE Undo for the batch. */
+  const runBulk = async (action: BulkAction) => {
+    const chosen = tasks.filter(task => selection.ids.has(task.id));
+    const plan = planBulkAction(chosen, action, dropCtx);
+    if (!plan.writes.length) {
+      toast.info(plan.skipped ?? (plan.unchanged.length ? "Already set. Nothing changed." : "Nothing to change."));
+      return;
+    }
+    setBulkBusy(true);
+    const done: Array<{ write: (typeof plan.writes)[number]; record: Record<string, unknown> | null }> = [];
+    let failed = 0;
+    let queued = false;
+    for (const write of plan.writes) {
+      try {
+        const result = await onUpdate(write.task, write.patch);
+        queued = queued || result.queued;
+        done.push({ write, record: result.record ?? null });
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkBusy(false);
+    setSelection(emptyBulkSelection);
+    if (!done.length) {
+      toast.error("Nothing was saved. Your tasks are unchanged.");
+      return;
+    }
+    const notes = [plan.skipped, failed ? `${failed} could not be saved` : null, queued ? "saved on this device" : null].filter(Boolean);
+    const undoWrites = bulkUndoWrites(done);
+    toast.success(`${plan.message}.`, {
+      description: notes.length ? notes.join(" · ") : undefined,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          void (async () => {
+            let undoFailed = 0;
+            for (const item of undoWrites) {
+              try { await onUpdate(item.task, item.patch); } catch { undoFailed += 1; }
+            }
+            if (undoFailed) toast.error(`${undoFailed} could not be undone. The rest are back.`);
+            else toast.success(done.length === 1 ? "Undone. The task is back as it was." : `Undone. ${done.length} tasks are back as they were.`);
+          })();
+        },
+      },
+    });
+  };
+  // Saved-view pills (Q8): "All" plus the owner's views in their stored order, each with a live count.
+  const taskViews = useMemo(() => orderSavedTaskViewPills((savedViews ?? []) as Array<{ id: string; name: string; configuration?: unknown; isPinned?: number | boolean | null; viewType?: string }>), [savedViews]);
+  const viewPills = useMemo(
+    () => taskViews.map(item => ({ id: item.id, name: item.name, count: savedTaskViewCount(tasks, item.configuration, bucketCtx) })),
+    [bucketCtx, taskViews, tasks],
+  );
+  const allViewCount = useMemo(() => savedTaskViewCount(tasks, defaultTaskSavedView, bucketCtx), [bucketCtx, tasks]);
+  const appliedView = taskViews.find(item => item.id === appliedViewId) ?? null;
+  useEffect(() => {
+    if (appliedViewId && !taskViews.some(item => item.id === appliedViewId)) setAppliedViewId(null);
+  }, [appliedViewId, taskViews]);
+  const currentViewState = { view: view === "board" ? "board" as const : "list" as const, lens: boardLens, group: listGroup, query, filter, sort, ...facets };
+  const canSaveView = Boolean(onCreateSavedView) && (view === "list" || view === "board") && savedTaskViewDiffers(currentViewState, appliedView?.configuration ?? null);
+  const applySavedView = (id: string | null) => {
+    if (!id) {
+      setAppliedViewId(null);
+      clearFilters();
+      return;
+    }
+    const saved = taskViews.find(item => item.id === id);
+    if (!saved) return;
+    const full = adaptSavedTaskViewV2(saved.configuration);
+    setAppliedViewId(id);
+    setFacets({ categoryIds: full.categoryIds, projectIds: full.projectIds, priorities: full.priorities });
+    setListGroup(full.group);
+    setBoardLens(full.lens as BoardLens);
+    onViewStateChange({ query: full.query, filter: full.filter, sort: full.sort });
+    if (full.view !== view) onViewChange(full.view);
+  };
+  const withViewBusy = async (work: () => Promise<unknown>, failure: string) => {
+    setViewBusy(true);
+    try {
+      await work();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : failure);
+    } finally {
+      setViewBusy(false);
+    }
+  };
+  const createSavedView = (name: string) => withViewBusy(async () => {
+    if (!onCreateSavedView) return;
+    const existing = findSavedTaskViewByName(taskViews, name);
+    if (existing && onUpdateSavedView) {
+      const order = adaptSavedTaskViewV2(existing.configuration).order;
+      await onUpdateSavedView(existing, { configuration: { ...savedTaskViewConfiguration(currentViewState), ...(order === undefined ? {} : { order }) } });
+      setAppliedViewId(existing.id);
+      toast.success(`Updated "${existing.name}".`);
+      return;
+    }
+    const created = await onCreateSavedView(name, { ...savedTaskViewConfiguration(currentViewState), order: nextSavedTaskViewOrder(taskViews) });
+    const id = created && typeof created === "object" && "id" in created ? String((created as { id?: unknown }).id ?? "") : "";
+    if (id) setAppliedViewId(id);
+    toast.success(`Saved "${name}".`);
+  }, "The view was not saved.");
+  const renameSavedView = (id: string, name: string) => withViewBusy(async () => {
+    const saved = taskViews.find(item => item.id === id);
+    if (!saved || !onUpdateSavedView) return;
+    await onUpdateSavedView(saved, { name });
+  }, "The view kept its name.");
+  const moveSavedView = (id: string, direction: -1 | 1) => withViewBusy(async () => {
+    if (!onUpdateSavedView) return;
+    for (const move of savedTaskViewMoves(taskViews, id, direction)) await onUpdateSavedView(move.view, { configuration: move.configuration });
+  }, "The view order was not saved.");
+  const deleteSavedView = (id: string) => withViewBusy(async () => {
+    const saved = taskViews.find(item => item.id === id);
+    if (!saved || !onDeleteSavedView) return;
+    await onDeleteSavedView(saved);
+    if (appliedViewId === id) setAppliedViewId(null);
+    toast.success(`Deleted "${saved.name}". Your tasks are unchanged.`);
+  }, "The view was not deleted.");
   const filtersActive = hasActiveTaskFilters({ query, filter, ...facets });
   const viewState = (patch: Partial<{ query: string; filter: TaskBoardFilter; sort: TaskWorkspaceSort }>) =>
     onViewStateChange({ query, filter, sort, ...patch });
@@ -436,6 +645,10 @@ export function TaskWorkspace({
 
   const openDetail = (task: Pick<CanonicalTask, "id">, trigger: HTMLElement | null) => {
     returnFocusRef.current = trigger;
+    // The detail grows from its row (shared-element morph); without a row it slides in as before.
+    const host = trigger?.closest<HTMLElement>("[data-task-record-id]");
+    const rect = host?.getBoundingClientRect();
+    setMorphFrom(rect && rect.width > 0 ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null);
     onSelectedRecordChange(task.id);
   };
   const rowTrigger = (taskId: string) =>
@@ -564,6 +777,54 @@ export function TaskWorkspace({
       toast.error(caught instanceof Error ? caught.message : "Undo could not be saved.");
     }
   };
+  /** G3 and "Move to tomorrow": the board's day-drop rules, one write, one Undo. */
+  const moveToTomorrow = async (task: CanonicalTask) => {
+    const plan = swipeReschedule(task, dropCtx);
+    if (!plan.ok) {
+      toast.info(plan.reason);
+      return;
+    }
+    try {
+      const result = await onUpdate(task, plan.patch);
+      toast.success(result.queued ? `${plan.message} Saved on this device.` : plan.message, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void onUpdate(result.record ?? task, plan.undo).then(
+              () => toast.success("Moved back."),
+              (caught: unknown) => toast.error(caught instanceof Error ? caught.message : "Undo could not be saved."),
+            );
+          },
+        },
+      });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "The task was left unchanged.");
+    }
+  };
+  /** Phone row gestures (G1-G3) and long-press select. Board cards never get this. */
+  const swipeFor = (task: CanonicalTask, model: TaskCardModel): TaskSwipeConfig => ({
+    enabled: phone,
+    canCommit: side => {
+      if (side === "complete") {
+        const dispatch = taskCheckDispatch(model);
+        return swipeCompleteRefusal({
+          pending: pendingTaskIds.has(task.id),
+          state: task.state,
+          dispatch: dispatch.kind,
+          refuseReason: dispatch.kind === "refuse" ? dispatch.reason : null,
+        });
+      }
+      const plan = swipeReschedule(task, dropCtx);
+      return plan.ok ? null : plan.reason;
+    },
+    onCommit: side => {
+      if (side === "complete") void checkTask(task, model);
+      else void moveToTomorrow(task);
+    },
+    onRefuse: (_side, reason) => toast.info(reason),
+    onPickDate: () => openDetail(task, rowTrigger(task.id)),
+    onLongPress: () => selectTask(task.id, { range: false }),
+  });
   const canFocusOn = (task: CanonicalTask) => Boolean(onStartFocus && task.state !== "completed" && task.state !== "archived" && task.outcome !== "wont_do");
   const rowActions = (model: TaskCardModel): TaskRowAction[] => {
     const task = taskById.get(model.id);
@@ -575,6 +836,15 @@ export function TaskWorkspace({
     const open = task.state !== "completed" && task.state !== "archived";
     if (open && !model.recurring && task.scheduledLocalDate !== today) {
       actions.push({ id: "plan-today", label: "Plan for today", icon: CalendarCheck, onSelect: () => void planToday(task) });
+    }
+    // The gesture is never the only path (G2/G3): the same moves live in the menu.
+    if (open && !model.recurring) {
+      actions.push({ id: "tomorrow", label: "Move to tomorrow", icon: CalendarClock, onSelect: () => void moveToTomorrow(task) });
+      actions.push({ id: "pick-date", label: "Pick a date", icon: CalendarDays, onSelect: () => openDetail(task, rowTrigger(task.id)) });
+    }
+    if (task.state !== "archived") {
+      const on = selection.ids.has(task.id);
+      actions.push({ id: "select", label: on ? "Deselect" : "Select", icon: SquareCheck, onSelect: () => selectTask(task.id, { range: false }) });
     }
     if (task.state !== "archived") {
       const allowed = taskArchiveCheck(task, cardCtx);
@@ -603,9 +873,30 @@ export function TaskWorkspace({
       onClear: clearFilters,
     };
   const selectedModel = selectedTask ? taskCardModel(selectedTask, cardCtx) : null;
+  const selectedWhy: WhyDetailSection | null = useMemo(() => {
+    if (!selectedTask) return null;
+    const entity = whyFactTasks.get(selectedTask.id);
+    if (!entity) return null;
+    try {
+      return whyDetailSection({ kind: "task", task: entity }, whyFacts, new Date(), timezone);
+    } catch {
+      return null;
+    }
+  }, [selectedTask, timezone, whyFactTasks, whyFacts]);
+  const selectMode = selection.ids.size > 0;
+  const listSelectionFor = (model: TaskCardModel) => ({
+    selected: selection.ids.has(model.id),
+    selectMode,
+    onSelect: (picked: TaskCardModel, options: { range: boolean }) => selectTask(picked.id, options),
+  });
+  const listSwipeFor = (model: TaskCardModel) => {
+    const task = taskById.get(model.id);
+    return task ? swipeFor(task, model) : undefined;
+  };
 
   return (
-    <section className="task-workspace tk-workspace" aria-label="Task workspace">
+    <section ref={sectionRef} className={cn("task-workspace tk-workspace", selectMode && "is-selecting")} aria-label="Task workspace">
+      <TaskPullRefresh enabled={phone && Boolean(onRefresh)} offlineReason={isOnline ? null : "You're offline. Tasks refresh when you reconnect."} onRefresh={onRefresh ?? (async () => undefined)} />
       <TaskHeader
         summary={summary}
         view={view}
@@ -614,6 +905,22 @@ export function TaskWorkspace({
         onReview={conflictedTaskIds.length ? () => openDetail({ id: conflictedTaskIds[0] }, rowTrigger(conflictedTaskIds[0])) : undefined}
         offline={!isOnline}
       />
+
+      {/* The pill row appears once there is a view to show or the filters can be saved (no lone "All"). */}
+      {(view === "list" || view === "board") && (viewPills.length || canSaveView) ? (
+        <SavedViewPills
+          pills={viewPills}
+          allCount={allViewCount}
+          activeId={appliedViewId}
+          canSave={canSaveView}
+          busy={viewBusy}
+          onApply={applySavedView}
+          onCreate={createSavedView}
+          onRename={renameSavedView}
+          onMove={moveSavedView}
+          onDelete={deleteSavedView}
+        />
+      ) : null}
 
       {view === "list" || view === "board" ? (
         <TaskToolbar
@@ -644,7 +951,11 @@ export function TaskWorkspace({
           timezone={timezone}
           projects={projects}
           pendingTaskIds={pendingTaskIds}
+          weekStartsOn={weekStartsOn}
           whyFor={task => whyFor(task, "inbox_triage")}
+          selectedIds={selection.ids}
+          onSelect={(task, options) => selectTask(task.id, options)}
+          swipeFor={task => swipeFor(task, taskCardModel(task, cardCtx))}
           onDecide={decideInbox}
           onOpenDetail={openDetail}
           onCapture={onCapture}
@@ -661,6 +972,9 @@ export function TaskWorkspace({
           onBlockedCheck={withTask(explainBlockedCheck)}
           onStartFocus={onStartFocus ? withTask(task => onStartFocus(task)) : undefined}
           actionsFor={rowActions}
+          selectionFor={listSelectionFor}
+          swipeFor={listSwipeFor}
+          openId={selectedRecordId ?? null}
           empty={listEmpty}
         />
       ) : null}
@@ -673,6 +987,7 @@ export function TaskWorkspace({
           allTasks={tasks}
           today={today}
           timezone={timezone}
+          weekStartsOn={weekStartsOn}
           occurrences={occurrences}
           dropContext={boardDropContext}
           modelFor={boardModelFor}
@@ -683,6 +998,9 @@ export function TaskWorkspace({
           onOpen={openDetail}
           onToggle={(task, model) => void checkTask(task, model)}
           onBlockedCheck={explainBlockedCheck}
+          selectedIds={selection.ids}
+          onSelect={(task, options) => selectTask(task.id, options)}
+          longPressSelect={phone}
         />
       ) : null}
 
@@ -715,6 +1033,8 @@ export function TaskWorkspace({
         conflictCount={selectedTask ? conflictCountByTask.get(selectedTask.id) ?? 0 : 0}
         isOnline={isOnline}
         cardModel={selectedModel}
+        why={selectedWhy}
+        morphFrom={morphFrom}
         onComplete={task => { if (selectedModel) void checkTask(task, selectedModel); }}
         onOpenChange={open => { if (!open) onSelectedRecordChange(null); }}
         onStartFocus={onStartFocus}
@@ -723,6 +1043,18 @@ export function TaskWorkspace({
         onAddDependency={onAddDependency}
         onRemoveDependency={onRemoveDependency}
       />
+
+      {view !== "archive" ? (
+        <TaskBulkBar
+          count={selection.ids.size}
+          planChoices={planChoices}
+          projects={projectOptions}
+          today={today}
+          busy={bulkBusy}
+          onAction={action => void runBulk(action)}
+          onExit={() => setSelection(emptyBulkSelection)}
+        />
+      ) : null}
     </section>
   );
 }

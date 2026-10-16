@@ -193,7 +193,7 @@ html .tk-check-wrap.is-celebrating .tk-check { animation: pc-spring-pop 420ms va
   border-radius: var(--pc-r-control);
   background: var(--pc-card);
   box-shadow: var(--pc-e1);
-  transition: transform var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
+  transition: translate var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
 }
 .tk-row > .tk-check-wrap { grid-area: check; }
 /* Calm rows (Q6) carry the estimate in its own column. Without an area it auto-placed into a second grid row
@@ -228,10 +228,6 @@ html .tk-row-title:focus-visible { outline: none; }
 .tk-row.is-complete { background: color-mix(in srgb, var(--pc-card) 70%, var(--pc-page)); box-shadow: none; }
 html .tk-row.is-complete .tk-row-title { color: var(--ink-muted); text-decoration-color: color-mix(in srgb, currentColor 60%, transparent); }
 .tk-row.is-pending { border-style: dashed; }
-.task-row-swipe { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
-.task-row-swipe > span { position: absolute; inset-block: 0; width: 50%; opacity: 0; }
-.task-row-swipe > [data-swipe="complete"] { left: 0; }
-.task-row-swipe > [data-swipe="reschedule"] { right: 0; }
 
 /* Narrow lists (the container, not the viewport): pills drop under the title. */
 @container tk-rows (max-width: 719px) {
@@ -255,7 +251,7 @@ html .tk-row.is-complete .tk-row-title { color: var(--ink-muted); text-decoratio
 @media (hover: hover) and (pointer: fine) {
   .tk-row-actions { opacity: 0; transition: opacity var(--pc-dur-fast) var(--pc-ease); }
   .tk-row:hover .tk-row-actions, .tk-row:focus-within .tk-row-actions, .tk-row-actions:has([data-state="open"]) { opacity: 1; }
-  .tk-row:not(.is-complete):hover { transform: translateY(-1px); box-shadow: var(--pc-e2); border-color: color-mix(in srgb, var(--pc-k, var(--accent)) 35%, var(--pc-line)); }
+  .tk-row:not(.is-complete):hover { translate: 0 -1px; box-shadow: var(--pc-e2); border-color: color-mix(in srgb, var(--pc-k, var(--accent)) 35%, var(--pc-line)); }
   html .tk-btn:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
   html .tk-btn.is-accent:not(:disabled):hover { border-color: transparent; background: var(--pc-accent-strong); }
   html .tk-ghost-btn:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--pc-line)); }
@@ -424,7 +420,8 @@ html .tk-filter-reset { margin-top: 14px; width: 100%; }
   html .tk-menu { animation: none !important; }
   .tk-check-mark { transform: none; transition: opacity var(--pc-dur-fast) linear; }
   html :is(.tk-btn, .tk-ghost-btn, .tk-icon-btn, .tk-check) { transform: none !important; }
-  .tk-row, .tk-row:not(.is-complete):hover { transform: none !important; }
+  /* `translate`, not `transform`: the swipe face moves on framer's inline transform. */
+  .tk-row, .tk-row:not(.is-complete):hover { translate: none !important; transition: none; }
   .tk-section-body { transition: none; }
   .tk-section-caret { transition: none; }
   .tk-mini-bar > i { transition: none; }
