@@ -6,6 +6,7 @@
 - **P3:** push nudges: morning plan, evening shutdown, meeting in N min with Join.
 - **P4:** AI assist later (phase F), drafts only.
 - Settings: designed by the primary inside prototype #7 (owner OK).
+- **Routing (later 2026-10-16):** prototypes are built by **Opus**, kept light (see `04-prototypes.md` standard); **Fable only for suggestions, recommendations and consultations** (one-line confirm first). Work one item at a time; record every decision in the MDs.
 - **Tasks T1 logic committed `8b01c2e`:** Inbox = undecided only; Week board columns + late-drop confirm; When/project/category grouping; archive selectors; row pills. Finding: a **"This week, no day" flag needs a migration** (`tasks.plannedWeekStartLocalDate`, gated). Until the owner approves, triage "This week" opens a day picker limited to this week. Saved views need no migration (jsonb `configuration`; new `group` key).
 
 ## 2026-10-13: BEST Shots redesign programme approved

@@ -3,7 +3,21 @@
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
-- **LATEST (2026-10-16).** Read `docs/superpowers/ux-restructure/README.md`, then `03-interview-log.md` (Q1–Q16 locked; "RESUME HERE" names the next question, Q17).
+- **NEWEST (2026-10-16, evening).** Read `docs/superpowers/ux-restructure/05-product-direction.md` (the app's purpose, the core loop, connectors, timeline A–G, owner answers P1–P4, n8n ideas §9), then `docs/DECISIONS.md` (top section).
+  - Done: `ba4aa6b` direction doc; `8b01c2e` Tasks T1 logic (156 files / 1385 tests, tsc clean); `3432497` decisions + n8n ideas.
+  - **Prototype + Fable rule (owner, 2026-10-16, later):** prototypes are now built by **Opus** and kept **light**: one HTML file showing the key states on desktop and phone, the main interaction only, about a third of the Tasks v1 size. A page that is a small variation of an approved one may skip its prototype. **Fable is only for suggestions, recommendations and consultations** (a flow critique, a second opinion), and each Fable run still gets a one-line owner confirmation. Work proceeds **one item at a time**; every decision is recorded in the MDs.
+  - Gated, waiting on the owner: the `tasks.plannedWeekStartLocalDate` migration (This-week flag); Google OAuth setup; Inbox API token storage. The owner still checks the timezone (Q48).
+  - **Build queue (one at a time, core loop first, P1):**
+    1. **T2a Tasks UI** (Opus, RUNNING): tabs, List grouped by When, row pills + D4 reason, Inbox triage, Archive, cut-list removals.
+    2. **T2b Tasks UI** (Opus): Week board + late-drop prompt, bulk bar, saved-view pills, detail morph, D3.5 gesture hooks mounted in Tasks.
+    3. **Today + Focus light prototype** (Opus), so the owner can quickly see it → owner yes/changes.
+    4. **Today build:** Next-up hero, timeline, tick in place, habit chips, Plan my day (3 moves + energy tap), Shut down (calm but strict).
+    5. **Focus upgrades:** immersive, presets/breaks, ambient sounds, notes/stats.
+    6. **Nav + Settings:** light prototype → build (rail, phone bar + More, one-page Settings as in `05-product-direction.md` §5).
+    7. **Phase C, connected:** push nudges ×3; Inbox API + iOS Shortcut + n8n recipes (pick the first 3 from §9); the Google OAuth sync design. Gated steps need the owner.
+    8. Then D (Calendar, Week), E (Goals, Habits, Insights), F (finish), G (release, owner-gated).
+  - **Checkpoint target for this run:** T2a + T2b committed and pushed, and the Today+Focus light prototype published for the owner.
+- **Earlier on 2026-10-16.** Read `docs/superpowers/ux-restructure/README.md`, then `03-interview-log.md` (Q1–Q16 locked; "RESUME HERE" names the next question, Q17).
   - **Done 2026-10-16:**
     - `0aef6b7` D3.5 gesture hooks + phone bar default (Opus): 14 files / 153 tests in the lane, tsc clean. Not mounted.
     - Interview Q14 (every Today row tickable in place), Q15 (Today = "habits due" chips; heatmap and traces → Habits tab), Q16 (calm 3-step shutdown with strictness: Close day needs an explicit decision per open item; 3+ carries must be scheduled, broken down or let go).

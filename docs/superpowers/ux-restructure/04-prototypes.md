@@ -4,6 +4,13 @@
 |---|---|---|---|---|---|---|
 | Tasks | v1 (2026-10-16) | `prototypes/tasks.html` (+ `tasks-notes.md`) | https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR | Fable 5.1 | Screens: List, Board (Week), Inbox, Archive, phone 390. No horizontal scroll, no console errors. Shows Q1–Q11. Primary added an auto phone mode at ≤600px and moved the prototype toolbar above the bottom nav on phones. | **APPROVED 2026-10-16**; Fable's 5 open questions take their recommended answers |
 
+## Light-prototype standard (owner, 2026-10-16)
+- Built by **Opus** (Fable only consults, confirmed first). Purpose: owner understanding before the build, not a full app.
+- One self-contained HTML file in `prototypes/`, about 30–40 KB. Shows the key states on desktop and phone (390 px), plus the main interaction. Uses tokens-v2 colours and M1 motion. No fake features beyond the locked decisions.
+- The primary checks screenshots (no horizontal scroll, no console errors), publishes privately, and records the verdict here.
+- Skip a prototype when the page is a small variation of an approved one; describe it in words instead.
+- Planned: Today+Focus (next) → Nav+Settings → Calendar → Week → Goals → Habits → Insights (later ones may be skipped).
+
 ## Tasks v1: notes
 - Publish copy = `tasks.html` minus the doctype/html/head/body wrapper (the artifact host adds its own). To update, edit `tasks.html`, regenerate the copy, and publish to the same URL.
 - Known prototype limits: header search is visual only; "Rename view" uses `prompt()`, which the artifact viewer blocks; the phone bottom nav still shows Today/Tasks/Calendar/Goals/More, not the D3.5 default Home/Today/+/Calendar/More (the build uses the D3.5 default).

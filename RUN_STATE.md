@@ -148,3 +148,4 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - Owner answers P1–P4: core loop first; Inbox API + Shortcut + n8n (+ explore more n8n); nudges x3; AI later, drafts only.
 - `8b01c2e` Tasks T1 logic (156 files / 1385 tests, tsc clean). Next: Tasks T2 UI (Opus) from the approved prototype; a Fable Today+Focus prototype once the owner confirms.
 - Gated, awaiting owner: the `tasks.plannedWeekStartLocalDate` migration (This-week flag).
+- Owner (later 2026-10-16): prototypes by Opus, light; Fable consults only; one item at a time. T2a Tasks UI running (Opus). Checkpoint target: T2a + T2b committed and the Today+Focus light prototype published.

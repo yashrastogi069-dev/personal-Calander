@@ -572,4 +572,6 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
   - Meetings count in capacity (Plan my day / week).
   - They never appear in Tasks lists.
 
-**RESUME HERE (2026-10-16):** the interview is COMPLETE (Q1–Q51, incl. integrations). Tasks v1 APPROVED. Next: owner confirmation for each Fable prototype run (Today+Focus was 'not now' on 2026-10-16); the D4 engine (Opus, running); the Google OAuth design (gated steps need the owner).
+**Product direction + routing (2026-10-16, evening):** owner answers P1–P4 in `05-product-direction.md` §8 (core loop first; Inbox API + Shortcut + n8n, explore more n8n; nudges ×3; AI later, drafts only). Prototypes: Opus, light; Fable only consults (confirm first).
+
+**RESUME HERE (2026-10-16, evening):** the interview is COMPLETE. Build queue in HANDOFF "NEWEST": T2a (running) → T2b → Today+Focus light prototype → Today → Focus → Nav+Settings → phase C.
