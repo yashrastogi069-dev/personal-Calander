@@ -196,6 +196,11 @@ html .tk-check-wrap.is-celebrating .tk-check { animation: pc-spring-pop 420ms va
   transition: transform var(--pc-dur-fast) var(--pc-ease), box-shadow var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease);
 }
 .tk-row > .tk-check-wrap { grid-area: check; }
+/* Calm rows (Q6) carry the estimate in its own column. Without an area it auto-placed into a second grid row
+   under the check, widening that column on "1h 15m" rows and pushing their titles right (T2b-1 fix). */
+.tk-row.is-calm { grid-template-columns: auto minmax(0, 1fr) auto auto auto; grid-template-areas: "check title pills est actions"; }
+.tk-row-est { grid-area: est; min-width: 0; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.tk-row.is-calm .tk-row-est:empty { display: none; }
 html .tk-row-title {
   grid-area: title;
   min-width: 0;
@@ -235,6 +240,12 @@ html .tk-row.is-complete .tk-row-title { color: var(--ink-muted); text-decoratio
     grid-template-areas:
       "check title actions"
       ".     pills pills";
+  }
+  .tk-row.is-calm {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "check title est actions"
+      ".     pills pills pills";
   }
   .tk-row .tk-row-pills { margin-top: 6px; max-width: none; justify-content: flex-start; flex-wrap: wrap; overflow: visible; }
   html .tk-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
@@ -329,6 +340,9 @@ html .tk-header .pc-page-header > .pc-icon-tile { width: 44px; height: 44px; bor
 html .tk-header .pc-page-header > .pc-icon-tile svg { width: 20px; height: 20px; }
 html .tk-header .pc-page-header .pc-page-header-title { font: var(--pc-w-display) var(--pc-text-h1)/var(--pc-lh-h1) var(--pc-font); letter-spacing: var(--pc-tracking-display); }
 html .tk-header .pc-page-header .pc-page-header-subtitle { font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.tk-header-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; min-width: 0; }
+html .tk-summary-line { margin: 0; color: var(--ink-muted); font-size: var(--pc-text-body-sm); line-height: var(--pc-lh-body-sm); }
+.tk-header-actions:empty { display: none; }
 .tk-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .tk-summary { font-variant-numeric: tabular-nums; }
 .tk-summary-part.is-off { color: var(--pc-off); font-weight: var(--pc-w-semibold); }
@@ -391,6 +405,13 @@ html .tk-filter-reset { margin-top: 14px; width: 100%; }
 }
 @media (max-width: 420px) {
   .tk-tab-icon { display: none; }
+  /* The seg label already names the switch ("Group by"), so the visible label goes and every option fits. */
+  .tk-lens .tk-lens-label { display: none; }
+  html .tk-lens .pc-seg-tab { flex: 1 1 auto; padding: 0 10px; }
+  /* Four quick chips fit a 390 screen; they still scroll (never the page) if counts grow. */
+  .tk-quick { gap: 5px; }
+  html .tk-quick > .pc-chip { padding: 0 9px; gap: 4px; }
+  html .tk-quick > .pc-chip .pc-count { min-width: 0; padding: 2px 5px; }
 }
 
 /* ---------- reduced motion: state changes still read, nothing travels ---------- */

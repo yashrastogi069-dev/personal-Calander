@@ -12,6 +12,7 @@ import {
   savedTaskViewCount,
   savedTaskViewDiffers,
   savedTaskViewSummary,
+  boardLensShown,
   searchWithTaskBoardLensAndFacets,
   taskBoardLensAndFacetsFromSearch,
   taskHeaderSummary,
@@ -132,9 +133,9 @@ describe("taskListSections", () => {
 describe("saved views v2", () => {
   it("reads v1 configurations with defaults, including the legacy risk filter", () => {
     expect(adaptSavedTaskView({ filter: "risk", sort: "due", query: "lease" })).toEqual({
-      version: 2, view: "list", lens: "status", group: "when", query: "lease", filter: "deadline_risk", sort: "due", categoryIds: [], projectIds: [], priorities: [],
+      version: 2, view: "list", lens: "week", group: "when", query: "lease", filter: "deadline_risk", sort: "due", categoryIds: [], projectIds: [], priorities: [],
     });
-    expect(adaptSavedTaskView(null)).toMatchObject({ filter: "all", sort: "manual", view: "list", lens: "status" });
+    expect(adaptSavedTaskView(null)).toMatchObject({ filter: "all", sort: "manual", view: "list", lens: "week" });
     expect(adaptSavedTaskView({ filter: "nonsense", sort: "random" })).toMatchObject({ filter: "all", sort: "manual" });
   });
 
@@ -153,7 +154,8 @@ describe("saved views v2", () => {
     const current = { view: "board" as const, lens: "when" as const, query: "", filter: "open" as const, sort: "manual" as const, categoryIds: ["a", "b"], projectIds: [], priorities: [] };
     expect(savedTaskViewDiffers(current, { version: 2, view: "board", lens: "when", filter: "open", categoryIds: ["b", "a"] })).toBe(false);
     expect(savedTaskViewDiffers(current, { version: 2, view: "board", lens: "status", filter: "open", categoryIds: ["a", "b"] })).toBe(true);
-    expect(savedTaskViewDiffers({ ...current, view: "list", lens: "status", filter: "all", categoryIds: [] }, null)).toBe(false);
+    expect(savedTaskViewDiffers({ ...current, view: "list", lens: "week", filter: "all", categoryIds: [] }, null)).toBe(false);
+    expect(savedTaskViewDiffers({ ...current, view: "list", lens: "status", filter: "all", categoryIds: [] }, null)).toBe(true);
     expect(savedTaskViewDiffers(current, null)).toBe(true);
   });
 
@@ -184,7 +186,17 @@ describe("URL lens and facets", () => {
     const search = searchWithTaskBoardLensAndFacets("view=board&taskQ=cv", { lens: "when", categoryIds: ["work", "health"], projectIds: [], priorities: ["high"] });
     expect(search).toBe("view=board&taskQ=cv&taskLens=when&taskCat=work%2Chealth&taskPriority=high");
     expect(taskBoardLensAndFacetsFromSearch(search)).toEqual({ lens: "when", categoryIds: ["work", "health"], projectIds: [], priorities: ["high"] });
-    expect(taskBoardLensAndFacetsFromSearch("taskPriority=urgent,low")).toEqual({ lens: "status", categoryIds: [], projectIds: [], priorities: ["low"] });
-    expect(searchWithTaskBoardLensAndFacets(search, { lens: "status", ...emptyTaskFacets })).toBe("view=board&taskQ=cv");
+    expect(taskBoardLensAndFacetsFromSearch("taskPriority=urgent,low")).toEqual({ lens: "week", categoryIds: [], projectIds: [], priorities: ["low"] });
+    expect(searchWithTaskBoardLensAndFacets(search, { lens: "week", ...emptyTaskFacets })).toBe("view=board&taskQ=cv");
+  });
+
+  it("defaults the Board to the Week lens and keeps old status/when URLs working", () => {
+    expect(taskBoardLensAndFacetsFromSearch("").lens).toBe("week");
+    expect(taskBoardLensAndFacetsFromSearch("taskLens=bogus").lens).toBe("week");
+    expect(taskBoardLensAndFacetsFromSearch("taskLens=status").lens).toBe("status");
+    expect(taskBoardLensAndFacetsFromSearch("taskLens=when").lens).toBe("when");
+    expect(boardLensShown("when")).toBe("week");
+    expect(boardLensShown("status")).toBe("status");
+    expect(searchWithTaskBoardLensAndFacets("", { lens: "status", ...emptyTaskFacets })).toBe("taskLens=status");
   });
 });

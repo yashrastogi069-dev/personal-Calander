@@ -41,6 +41,8 @@ export type PlannerShellProps = {
   badges?: NavBadgeCounts;
   /** Opens the ⌘K command palette. */
   onOpenCommand?: () => void;
+  /** Page-level Capture key shown on the shell's Capture button (Tasks: "C"). */
+  captureShortcut?: string;
   children: ReactNode;
 };
 
@@ -66,6 +68,7 @@ export function PlannerShell({
   tabsInHeader = false,
   badges,
   onOpenCommand,
+  captureShortcut,
   children,
 }: PlannerShellProps) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -113,6 +116,7 @@ export function PlannerShell({
             <GlobalActions
               onAction={onGlobalAction}
               disabled={globalActionsDisabled}
+              captureShortcut={captureShortcut}
               secondaryControls={<>{utilityActions}{quickCapture ? <details className="planner-quick-entry"><summary>Quick entry</summary><div className="planner-quick-entry-form">{quickCapture}</div></details> : null}</>}
             />
           </div>

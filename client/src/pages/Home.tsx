@@ -8599,6 +8599,7 @@ export default function Home() {
       ) : undefined}
       badges={navBadges}
       onOpenCommand={openCommandPalette}
+      captureShortcut={surface === "tasks" ? "C" : undefined}
       quickCapture={
         <form className="quick-capture" onSubmit={createQuickTask}>
           <Plus size={19} />

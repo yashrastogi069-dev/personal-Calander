@@ -1,11 +1,11 @@
-// TaskHeader: title, a real summary line, Capture and the tabs Inbox · List · Board, then the quiet Archive
-// (owner decisions Q8, Q9; Tasks T2a). The Views tab, the unwired Select button and the separate archived page
-// are gone. The page h1 belongs to the shell, so this renders an h2 through PageHeader. Numbers in the summary
-// roll when they change. Tabs use manual activation because choosing one navigates.
-import { Archive, CloudOff, Inbox, LayoutGrid, List, ListChecks, Plus, RefreshCw } from "lucide-react";
+// TaskHeader: the summary line and the tabs Inbox · List · Board, then the quiet Archive (owner decisions Q8,
+// Q9; Tasks T2a). T2b-1 "one header, not two": the shell bar owns the page title ("Tasks", the h1) and the one
+// Capture button (shortcut C), so this no longer repeats either. Numbers in the summary roll when they change.
+// Tabs use manual activation because choosing one navigates.
+import { Archive, CloudOff, Inbox, LayoutGrid, List, RefreshCw } from "lucide-react";
 import { RollingCount } from "@/components/premium/FilterChips";
 import { SegmentedTabs, type SegmentedItem } from "@/components/premium/SegmentedTabs";
-import { PageHeader, ReviewChip } from "@/components/premium/Surfaces";
+import { ReviewChip } from "@/components/premium/Surfaces";
 import { cn } from "@/lib/utils";
 import type { TaskHeaderSummary, TaskWorkspaceView } from "./taskWorkspaceModel";
 import "./tasks-premium.css";
@@ -16,7 +16,6 @@ export type TaskHeaderProps = {
   summary: TaskHeaderSummary;
   view: TaskWorkspaceView;
   onViewChange: (view: TaskTabView) => void;
-  onCapture: () => void;
   /** Tasks with kept field conflicts. Hidden at zero. */
   reviewCount?: number;
   onReview?: () => void;
@@ -38,7 +37,6 @@ export function TaskHeader({
   summary,
   view,
   onViewChange,
-  onCapture,
   reviewCount = 0,
   onReview,
   offline = false,
@@ -55,11 +53,9 @@ export function TaskHeader({
   const parts = taskSummaryParts(summary);
   return (
     <div className={cn("tk-header", className)}>
-      <PageHeader
-        icon={ListChecks}
-        tone="pc-tone-accent"
-        title="Tasks"
-        subtitle={
+      <div className="tk-header-row">
+        <p className="tk-summary-line">
+          <span className="pc-sr-only">Tasks: </span>
           <span className="tk-summary">
             {parts.map((part, index) => (
               <span key={part.key} className={cn("tk-summary-part", part.key === "overdue" && "is-off")}>
@@ -68,17 +64,14 @@ export function TaskHeader({
               </span>
             ))}
           </span>
-        }
-        actions={
-          <div className="tk-header-actions">
-            <ReviewChip icon={RefreshCw} count={reviewCount} label="to review" onClick={onReview} />
-            {offline ? (
-              <span className="tk-offline" role="status"><CloudOff size={14} strokeWidth={2} aria-hidden="true" />Offline · changes save on this device</span>
-            ) : null}
-            <button type="button" className="tk-btn is-accent pc-focusable" onClick={onCapture}><Plus size={16} strokeWidth={2.5} aria-hidden="true" />Capture</button>
-          </div>
-        }
-      />
+        </p>
+        <div className="tk-header-actions">
+          <ReviewChip icon={RefreshCw} count={reviewCount} label="to review" onClick={onReview} />
+          {offline ? (
+            <span className="tk-offline" role="status"><CloudOff size={14} strokeWidth={2} aria-hidden="true" />Offline · changes save on this device</span>
+          ) : null}
+        </div>
+      </div>
       {savedCopyLabel ? <p className="tk-saved-copy" role="status">{savedCopyLabel}</p> : null}
       <SegmentedTabs<TaskTabView> label="Task views" items={tabs} value={view} onValueChange={onViewChange} activationMode="manual" className="tk-tabs" />
     </div>

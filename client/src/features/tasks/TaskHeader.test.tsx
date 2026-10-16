@@ -4,7 +4,7 @@ import { TaskHeader, taskSummaryParts } from "./TaskHeader";
 
 const noop = () => {};
 const summary = { open: 36, overdue: 3, forToday: 13, inbox: 4 };
-const base = { summary, view: "list" as const, onViewChange: noop, onCapture: noop };
+const base = { summary, view: "list" as const, onViewChange: noop };
 
 describe("taskSummaryParts", () => {
   it("lists open, overdue and today from real counts", () => {
@@ -22,12 +22,10 @@ describe("taskSummaryParts", () => {
 });
 
 describe("TaskHeader", () => {
-  it("shows the title, summary, Capture and the tabs Inbox · List · Board · Archive (no Views, no Select)", () => {
+  it("shows the summary and the tabs Inbox · List · Board · Archive (no Views, no Select)", () => {
     const html = renderToStaticMarkup(<TaskHeader {...base} />);
-    expect(html).toContain("Tasks");
     expect(html).toContain("36");
     expect(html).toContain("for today");
-    expect(html).toContain("Capture");
     for (const tab of ["Inbox", "List", "Board", "Archive"]) expect(html).toContain(tab);
     expect(html).not.toContain("Views");
     expect(html).not.toContain("Select");
@@ -40,10 +38,16 @@ describe("TaskHeader", () => {
     expect(renderToStaticMarkup(<TaskHeader {...base} summary={{ ...summary, inbox: 0 }} />)).not.toContain("pc-seg-badge");
   });
 
-  it("keeps the tabs and Capture on the Archive tab, which is selected like any other", () => {
+  it("is one header, not two: no second title and no second Capture (the shell bar owns both, T2b-1)", () => {
+    const html = renderToStaticMarkup(<TaskHeader {...base} />);
+    expect(html).not.toContain("Capture");
+    expect(html).not.toMatch(/<h[12][^>]*>\s*Tasks/);
+    expect(html).not.toContain("pc-page-header-title");
+  });
+
+  it("keeps the tabs on the Archive tab, which is selected like any other", () => {
     const html = renderToStaticMarkup(<TaskHeader {...base} view="archive" />);
     expect(html).toContain('role="tablist"');
-    expect(html).toContain("Capture");
     expect(html).not.toContain("Back to tasks");
     expect(html).toMatch(/aria-selected="true"[^>]*>(?:(?!<\/button>)[\s\S])*Archive/);
   });

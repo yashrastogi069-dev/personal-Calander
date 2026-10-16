@@ -66,10 +66,10 @@ export default function PremiumGalleryTasks() {
       </div>
 
       <Frame title="Header">
-        <TaskHeader summary={{ open: 36, overdue: 3, forToday: 13, inbox: 4 }} view={view} onViewChange={setView} onCapture={noop} reviewCount={2} onReview={noop} />
+        <TaskHeader summary={{ open: 36, overdue: 3, forToday: 13, inbox: 4 }} view={view} onViewChange={setView} reviewCount={2} onReview={noop} />
       </Frame>
       <Frame title="Header, offline with saved copy">
-        <TaskHeader summary={{ open: 36, overdue: 0, forToday: 0, inbox: 0 }} view="list" onViewChange={noop} onCapture={noop} offline savedCopyLabel="Showing saved copy from 10:42" />
+        <TaskHeader summary={{ open: 36, overdue: 0, forToday: 0, inbox: 0 }} view="list" onViewChange={noop} offline savedCopyLabel="Showing saved copy from 10:42" />
       </Frame>
 
       <Frame title="Toolbar (List)">

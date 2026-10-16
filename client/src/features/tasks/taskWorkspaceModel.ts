@@ -25,8 +25,19 @@ import type { WeekStartsOn } from "@shared/taskWeekBoard";
 /** Tabs Inbox · List · Board, then the quiet Archive (Q8 removed the Views tab, Q9 the separate archive page). */
 export type TaskWorkspaceView = "inbox" | "list" | "board" | "archive";
 export type TaskWorkspaceSort = "manual" | "priority" | "due" | "scheduled" | "created";
-/** "week" is the T1 Week board (Unscheduled · Mon…Sun, Q3); "when" is the legacy bucket lens. */
+/**
+ * "week" is the Week board (Unscheduled · Mon…Sun, Q3) and the default since T2b; "status" is To do · Doing ·
+ * Done (Q5). "when" is the legacy bucket lens: still parsed so old URLs and saved views keep working, and the
+ * Board shows it as the Week board (`boardLensShown`).
+ */
 export type TaskBoardLens = "status" | "when" | "week";
+
+/** The board lens a Tasks Board renders: legacy "when" opens the Week board. */
+export function boardLensShown(lens: TaskBoardLens): "week" | "status" {
+  return lens === "status" ? "status" : "week";
+}
+
+export const DEFAULT_TASK_BOARD_LENS: TaskBoardLens = "week";
 /** List "Group by" switch (Q7). */
 export type TaskListGroupBy = "when" | "project" | "category";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "critical";
@@ -248,7 +259,7 @@ function forecastTask(task: WorkspaceTask) {
 // `group` (Q8: filter + group + sort + layout) are not a schema change.
 
 function parseLens(value: unknown): TaskBoardLens {
-  return value === "when" || value === "week" ? value : "status";
+  return value === "when" || value === "status" ? value : DEFAULT_TASK_BOARD_LENS;
 }
 
 function parseGroup(value: unknown): TaskListGroupBy {
@@ -274,7 +285,7 @@ export type TaskSavedViewConfig = {
 export type TaskSavedViewState = Omit<TaskSavedViewConfig, "version" | "group"> & { group?: TaskListGroupBy };
 
 export const defaultTaskSavedView: TaskSavedViewConfig = {
-  version: 2, view: "list", lens: "status", group: "when", query: "", filter: "all", sort: "manual", categoryIds: [], projectIds: [], priorities: [],
+  version: 2, view: "list", lens: DEFAULT_TASK_BOARD_LENS, group: "when", query: "", filter: "all", sort: "manual", categoryIds: [], projectIds: [], priorities: [],
 };
 
 function stringList(value: unknown) {
@@ -317,7 +328,7 @@ function sameSet(left: readonly string[], right: readonly string[]) {
 /** "Save view" appears only when the current state differs from the applied saved view (or none is applied). */
 export function savedTaskViewDiffers(state: TaskSavedViewState, applied: unknown | null) {
   const current = savedTaskViewConfiguration(state);
-  if (applied === null || applied === undefined) return hasActiveTaskFilters(current) || current.sort !== "manual" || current.view !== "list" || current.lens !== "status" || current.group !== "when";
+  if (applied === null || applied === undefined) return hasActiveTaskFilters(current) || current.sort !== "manual" || current.view !== "list" || current.lens !== DEFAULT_TASK_BOARD_LENS || current.group !== "when";
   const saved = adaptSavedTaskView(applied);
   return current.view !== saved.view || current.lens !== saved.lens || current.group !== saved.group || current.query !== saved.query.trim() || current.filter !== saved.filter
     || current.sort !== saved.sort || !sameSet(current.categoryIds, saved.categoryIds) || !sameSet(current.projectIds, saved.projectIds)
@@ -387,7 +398,7 @@ export function taskBoardLensAndFacetsFromSearch(search: string): TaskFacetFilte
 
 export function searchWithTaskBoardLensAndFacets(search: string, value: TaskFacetFilters & { lens: TaskBoardLens }) {
   const params = new URLSearchParams(search);
-  if (value.lens !== "status") params.set(LENS_PARAM, value.lens); else params.delete(LENS_PARAM);
+  if (value.lens !== DEFAULT_TASK_BOARD_LENS) params.set(LENS_PARAM, value.lens); else params.delete(LENS_PARAM);
   const write = (key: string, items: readonly string[]) => { if (items.length) params.set(key, items.join(",")); else params.delete(key); };
   write(CATEGORY_PARAM, value.categoryIds);
   write(PROJECT_PARAM, value.projectIds);

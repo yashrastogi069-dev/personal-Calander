@@ -8,6 +8,7 @@ const root = resolve(import.meta.dirname, "..", "..");
 const files = {
   tasks: readFileSync(resolve(root, "features/tasks/tasks-premium.css"), "utf8"),
   inspector: readFileSync(resolve(root, "features/tasks/task-detail-inspector.css"), "utf8"),
+  weekBoard: readFileSync(resolve(root, "features/tasks/task-week-board.css"), "utf8"),
 };
 const premium = readFileSync(resolve(root, "components/premium/premium.css"), "utf8");
 const d3Premium = premium.slice(premium.indexOf("/* ---------- D3:"));
@@ -35,7 +36,7 @@ const animatedSelectors = (css: string) => selectorsWhere(css, body => /(^|[;\s]
 const optedOutSelectors = (css: string) => new Set(selectorsWhere(css, body => /animation\s*:\s*none/.test(body)));
 
 describe("D3 stylesheets", () => {
-  for (const [name, css] of [["tasks-premium.css", files.tasks], ["task-detail-inspector.css", files.inspector], ["premium.css D3 section", d3Premium]] as const) {
+  for (const [name, css] of [["tasks-premium.css", files.tasks], ["task-detail-inspector.css", files.inspector], ["task-week-board.css", files.weekBoard], ["premium.css D3 section", d3Premium]] as const) {
     const { main, reduced } = split(css);
 
     it(`${name}: every animated selector is opted out under prefers-reduced-motion`, () => {
@@ -51,8 +52,8 @@ describe("D3 stylesheets", () => {
     });
   }
 
-  it("tasks-premium.css: transitions take their timing from motion tokens", () => {
-    for (const match of stripComments(files.tasks).matchAll(/transition:([^;]+);/g)) {
+  it("tasks-premium.css and task-week-board.css: transitions take their timing from motion tokens", () => {
+    for (const match of stripComments(files.tasks + files.weekBoard).matchAll(/transition:([^;]+);/g)) {
       const value = match[1].trim();
       if (value === "none") continue;
       expect(value, match[0]).toMatch(/var\(--pc-dur-/);

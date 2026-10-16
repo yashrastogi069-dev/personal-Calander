@@ -22,10 +22,13 @@ export function GlobalActions({
   onAction,
   disabled = false,
   secondaryControls,
+  captureShortcut,
 }: {
   onAction: (action: GlobalPlannerAction) => void;
   disabled?: boolean;
   secondaryControls?: ReactNode;
+  /** A page-level Capture key (Tasks: "C"), shown on the Capture button. */
+  captureShortcut?: string;
 }) {
   return (
     <nav className="phase4-global-actions" aria-label="Global planner actions">
@@ -38,9 +41,11 @@ export function GlobalActions({
             disabled={disabled}
             className={action.id === "capture" ? "is-primary" : "is-search"}
             onClick={() => onAction(action.id)}
+            aria-keyshortcuts={action.id === "capture" && captureShortcut ? captureShortcut : undefined}
           >
             <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
             <span>{action.label}</span>
+            {action.id === "capture" && captureShortcut ? <kbd className="phase4-shortcut" aria-hidden="true">{captureShortcut}</kbd> : null}
           </button>
         );
       })}

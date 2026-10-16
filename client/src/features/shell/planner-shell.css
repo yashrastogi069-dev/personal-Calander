@@ -258,3 +258,21 @@
 @media (max-width: 680px) {
   .phase4-planner-shell .workspace-view-switch button { flex: 1 1 auto; }
 }
+
+/* T2b-1: a page-level Capture key on the shell's Capture button (Tasks shows "C"). */
+.phase4-global-actions .phase4-shortcut {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 6px;
+  color: inherit;
+  font: 600 11px/1 inherit;
+  opacity: .85;
+}
+@media (max-width: 680px), (hover: none), (pointer: coarse) {
+  .phase4-global-actions .phase4-shortcut { display: none; }
+}

@@ -1,29 +1,20 @@
 // Tasks workspace container (D3, reshaped by Tasks T2a to the approved prototype): tabs Inbox · List · Board
 // plus the quiet Archive. Inbox = undecided work with triage cards (Q1/Q2); List = calm rows grouped by When,
 // Project or Category (Q6/Q7) with ticked work dimming in place until midnight (Fable Q2); Archive = Completed
-// | Archived (Q9). The Board keeps the D3 status lanes until the T2b Week board replaces them.
-import { PageHeader } from "@/components/premium/Surfaces";
+// | Archived (Q9). Board (T2b-1) = the Week board by default, with the Status lens (Q3-Q5), in TaskWeekBoard.
 import { resolveCategoryTones } from "@/design/categoryTone";
 import { cn } from "@/lib/utils";
 import type { CanonicalTask } from "@shared/canonicalTask";
 import { isInboxTask } from "@shared/taskBuckets";
-import {
-  laneForTaskState,
-  stateForTaskLane,
-  taskBoardLanes,
-  visibleTasksForLane,
-  type TaskBoardLaneId,
-} from "@shared/taskBoard";
 import type { TaskBoardFilter } from "@shared/taskBoardUrl";
 import { committedTaskPlans, taskArchiveCheck } from "@shared/taskDrop";
 import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
 import { rowPills, type RowPillContext } from "@shared/taskRowPills";
 import { topReason, type WhyReason } from "@shared/whyItMatters";
-import { Archive, ArrowRightLeft, CalendarCheck, GripVertical, ListChecks, PanelRight, Play } from "lucide-react";
+import { Archive, CalendarCheck, PanelRight, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { whyFactsFromSnapshot } from "@/features/why/whyFacts";
-import { CanonicalTaskRow } from "./CanonicalTaskRow";
 import { InboxTriage } from "./InboxTriage";
 import { inboxDecisionMessage, inboxDecisionPatch, inboxDecisionUndoPatch, type InboxDecision } from "./inboxTriageModel";
 import { TaskArchive, type TaskArchiveTab } from "./TaskArchive";
@@ -31,12 +22,14 @@ import { TaskDetailSheet, type TaskMutationResult } from "./TaskDetailSheet";
 import { TaskHeader } from "./TaskHeader";
 import { TaskListGroups, type CalmTaskGroup } from "./TaskListGroups";
 import type { TaskListEmpty } from "./TaskListSections";
-import { TaskActionsMenu, type TaskRowAction } from "./TaskRow";
+import type { TaskRowAction } from "./TaskRow";
 import { TaskSkeleton } from "./TaskSkeleton";
-import { TaskToolbar } from "./TaskToolbar";
+import { isSearchShortcut, TaskToolbar } from "./TaskToolbar";
+import { TaskWeekBoard, type BoardLens } from "./TaskWeekBoard";
 import { createTaskCardContext, taskCardModel, type TaskCardModel } from "./taskCardModel";
 import {
   adaptSavedTaskView as adaptSavedTaskViewV2,
+  boardLensShown,
   clearedTaskFilters,
   emptyTaskFacets,
   hasActiveTaskFilters,
@@ -51,6 +44,7 @@ import {
   taskQuickFilters,
   taskRowsForWorkspace as workspaceRows,
   type TaskFacetFilters,
+  type TaskBoardLens,
   type TaskListGroupBy,
   type TaskWorkspaceSort,
   type TaskWorkspaceView,
@@ -171,6 +165,29 @@ function writeFacetsToUrl(facets: TaskFacetFilters) {
   }
 }
 
+function readLensFromUrl(): TaskBoardLens {
+  if (typeof window === "undefined") return "week";
+  return taskBoardLensAndFacetsFromSearch(window.location.search).lens;
+}
+
+function writeLensToUrl(lens: TaskBoardLens) {
+  if (typeof window === "undefined") return;
+  try {
+    const url = new URL(window.location.href);
+    const current = taskBoardLensAndFacetsFromSearch(url.search);
+    url.search = searchWithTaskBoardLensAndFacets(url.search, { ...current, lens });
+    window.history.replaceState(window.history.state, "", url);
+  } catch {
+    // The lens still applies for this session when the URL cannot be written.
+  }
+}
+
+/** True when a key press should open Capture: a bare "c" outside any text field (prototype header, T2b-1). */
+export function isCaptureShortcut(event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">, target: EventTarget | null) {
+  if ((event.key !== "c" && event.key !== "C") || event.ctrlKey || event.metaKey || event.altKey) return false;
+  return isSearchShortcut({ key: "/", ctrlKey: false, metaKey: false, altKey: false }, target);
+}
+
 function safeLocalStorage(): Storage | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;
@@ -183,8 +200,9 @@ function safeLocalStorage(): Storage | null {
 export function TaskWorkspaceLoading() {
   return (
     <section className="task-workspace tk-workspace" aria-label="Task workspace" aria-busy="true">
+      {/* The shell bar carries the one "Tasks" title and Capture (T2b-1: one header, not two). */}
       <div className="tk-header">
-        <PageHeader icon={ListChecks} tone="pc-tone-accent" title="Tasks" subtitle="Loading your tasks" />
+        <p className="tk-summary-line">Loading your tasks</p>
       </div>
       <TaskSkeleton variant="list" />
     </section>
@@ -232,6 +250,7 @@ export type TaskWorkspaceProps = {
   /** Opens Plan, where R3 commitments are resolved. */
   onOpenPlan?: () => void;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
+  /** Legacy ↑/↓ lane re-order. Unused since T2b-1: Board re-order runs through the drop engine. Kept for Home. */
   onReorder: (task: any, direction: -1 | 1, laneTasks: any[]) => Promise<string | null>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
   onRemoveDependency?: (dependency: any) => Promise<void>;
@@ -271,14 +290,14 @@ export function TaskWorkspace({
   onResolveOccurrence,
   onOpenPlan,
   onCreateSubtask,
-  onReorder,
   onAddDependency,
   onRemoveDependency,
 }: TaskWorkspaceProps) {
-  const [activeMobileLane, setActiveMobileLane] = useState<TaskBoardLaneId>("todo");
-  const [expandedLanes, setExpandedLanes] = useState<Partial<Record<TaskBoardLaneId, boolean>>>({});
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [dropLane, setDropLane] = useState<TaskBoardLaneId | null>(null);
+  const [boardLens, setBoardLensState] = useState<TaskBoardLens>(readLensFromUrl);
+  const setBoardLens = useCallback((next: BoardLens) => {
+    setBoardLensState(next);
+    writeLensToUrl(next);
+  }, []);
   const [undo, setUndo] = useState<{ label: string; task: any; patch: Record<string, unknown> } | null>(null);
   const [facets, setFacetsState] = useState<TaskFacetFilters>(readFacetsFromUrl);
   const [listGroup, setListGroupState] = useState<TaskListGroupBy>(() => readStoredTaskListGroup(safeLocalStorage()));
@@ -298,24 +317,27 @@ export function TaskWorkspace({
   }, []);
   // Back/forward restores the facets that the URL carries.
   useEffect(() => {
-    const onPop = () => setFacetsState(readFacetsFromUrl());
+    const onPop = () => {
+      setFacetsState(readFacetsFromUrl());
+      setBoardLensState(readLensFromUrl());
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+  // C opens Capture from anywhere on Tasks (the one Capture button in the shell bar shows the key).
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || !isCaptureShortcut(event, event.target)) return;
+      if (document.querySelector("[role='dialog'][data-state='open'], [role='menu']")) return;
+      event.preventDefault();
+      onCapture();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCapture]);
 
   const selectedTask = tasks.find(task => task.id === selectedRecordId) ?? null;
   const taskById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
-  const categoryNames = useMemo(() => new Map(categories.map(item => [item.id, item.name])), [categories]);
-  const projectTitles = useMemo(() => new Map(projects.map(item => [item.id, item.title])), [projects]);
-  const goalTitles = useMemo(() => new Map(goals.map(item => [item.id, item.title])), [goals]);
-  const taskTitles = useMemo(() => new Map(tasks.map(item => [item.id, item.title])), [tasks]);
-  const childCounts = useMemo(
-    () => tasks.reduce((counts, task) => {
-      if (task.parentTaskId) counts.set(task.parentTaskId, (counts.get(task.parentTaskId) ?? 0) + 1);
-      return counts;
-    }, new Map<string, number>()),
-    [tasks],
-  );
   const bucketCtx = useMemo(() => ({ today, timezone, occurrences }), [occurrences, timezone, today]);
   const committedTasks = useMemo(() => committedTaskPlans(dailyPlans ?? [], dailyPlanItems ?? []), [dailyPlanItems, dailyPlans]);
   const cardCtx = useMemo(
@@ -365,6 +387,13 @@ export function TaskWorkspace({
     tasks,
   }), [categories, dependencies, listGroup, occurrences, projects, tasks, timezone]);
   const categoryTones = useMemo(() => resolveCategoryTones(categories), [categories]);
+  // Board (T2b-1): stable callbacks, so the board's columns only rebuild when the data changes.
+  const boardModelFor = useCallback((task: CanonicalTask) => taskCardModel(task, cardCtx), [cardCtx]);
+  const boardPillsFor = useCallback(
+    (task: CanonicalTask, lens: BoardLens) => rowPills(task, today, { ...pillCtx, variant: "board", boardLens: lens, groupBy: undefined }),
+    [pillCtx, today],
+  );
+  const boardDropContext = useMemo(() => ({ sort, dependencies, committedTasks }), [committedTasks, dependencies, sort]);
   const listGroups = useMemo<CalmTaskGroup[]>(() => {
     if (view !== "list") return [];
     // The List shows decided work; undecided work waits in the Inbox (Q1).
@@ -405,15 +434,6 @@ export function TaskWorkspace({
     onViewStateChange({ query: cleared.query, filter: cleared.filter, sort });
   };
 
-  const contextFor = (task: CanonicalTask) => ({
-    surface: "tasks" as const,
-    localDate: today,
-    timezone,
-    occurrences,
-    categoryName: task.categoryId ? categoryNames.get(task.categoryId) : null,
-    projectTitle: task.projectId ? projectTitles.get(task.projectId) : null,
-    goalTitle: task.goalId ? goalTitles.get(task.goalId) : null,
-  });
   const openDetail = (task: Pick<CanonicalTask, "id">, trigger: HTMLElement | null) => {
     returnFocusRef.current = trigger;
     onSelectedRecordChange(task.id);
@@ -496,15 +516,6 @@ export function TaskWorkspace({
       toast.error(caught instanceof Error ? caught.message : "The task was left unchanged.");
     }
   };
-  const moveToLane = async (task: CanonicalTask, lane: TaskBoardLaneId) => {
-    if (laneForTaskState(task.state) === lane) return;
-    try {
-      const result = await onUpdate(task, { state: stateForTaskLane(lane) });
-      toast.success(result.queued ? "Move saved on this device." : `Moved to ${taskBoardLanes.find(item => item.id === lane)?.label ?? "lane"}.`);
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "The task stayed in its previous lane.");
-    }
-  };
   const restore = async (task: CanonicalTask) => {
     try {
       const result = await onUpdate(task, { state: "not_started" });
@@ -583,23 +594,6 @@ export function TaskWorkspace({
     const task = taskById.get(model.id);
     if (task) handler(task, model);
   };
-  const renderRow = (task: CanonicalTask) => (
-    <CanonicalTaskRow
-      key={task.id}
-      task={task}
-      context={contextFor(task)}
-      parentTitle={task.parentTaskId ? taskTitles.get(task.parentTaskId) : null}
-      childCount={childCounts.get(task.id)}
-      pending={pendingTaskIds.has(task.id) || String(task.id).startsWith("offline:")}
-      workspaceMenu
-      onStartFocus={onStartFocus}
-      contextualActionLabel={canFocusOn(task) ? "Focus" : undefined}
-      onPrimaryAction={canFocusOn(task) ? () => onStartFocus?.(task) : undefined}
-      onToggle={toggle}
-      onArchive={archive}
-      onOpenDetail={openDetail}
-    />
-  );
   const listEmpty: TaskListEmpty = !tasks.length || (!filtersActive && !filtered.length)
     ? { kind: "first-run", onCapture }
     : {
@@ -616,7 +610,6 @@ export function TaskWorkspace({
         summary={summary}
         view={view}
         onViewChange={next => onViewChange(next)}
-        onCapture={onCapture}
         reviewCount={conflictedTaskIds.length}
         onReview={conflictedTaskIds.length ? () => openDetail({ id: conflictedTaskIds[0] }, rowTrigger(conflictedTaskIds[0])) : undefined}
         offline={!isOnline}
@@ -673,81 +666,24 @@ export function TaskWorkspace({
       ) : null}
 
       {view === "board" ? (
-        <section className="task-board" aria-labelledby="task-board-heading">
-          <div className="task-board-heading"><div><h3 id="task-board-heading">Work lanes</h3><p>Drag is optional. Every card has a Move to menu.</p></div><span>{filtered.length} shown</span></div>
-          {sort !== "manual" ? <p className="task-sort-guidance" role="status">{TASK_REORDER_GUIDANCE}</p> : null}
-          <div className="task-lane-tabs" role="group" aria-label="Choose the task lane shown on small screens">
-            {taskBoardLanes.map(lane => <button key={lane.id} type="button" aria-pressed={activeMobileLane === lane.id} className={cn("task-lane-tab", `task-lane-tab-${lane.id}`, activeMobileLane === lane.id && "is-active")} onClick={() => setActiveMobileLane(lane.id)}><span aria-hidden="true" /><b>{lane.id === "todo" ? "To do" : lane.id === "in_progress" ? "Doing" : "Done"}</b><small>{filtered.filter(task => laneForTaskState(task.state) === lane.id).length}</small></button>)}
-          </div>
-          <div className="task-lane-grid">
-            {taskBoardLanes.map(lane => {
-              const laneTasks = filtered.filter(task => laneForTaskState(task.state) === lane.id);
-              const visible = visibleTasksForLane(laneTasks, lane.id, Boolean(expandedLanes[lane.id]) || Boolean(query));
-              return (
-                <section
-                  key={lane.id}
-                  className={cn(
-                    "task-lane",
-                    `task-lane-${lane.id}`,
-                    activeMobileLane !== lane.id && "is-mobile-hidden",
-                    dropLane === lane.id && "is-drop-target",
-                  )}
-                >
-                  <header className="task-lane-header"><div><span className="task-lane-marker" aria-hidden="true" /><h3>{lane.label}</h3></div><span>{laneTasks.length}</span></header>
-                  <p className="task-lane-description">{lane.description}</p>
-                  <div
-                    className="task-lane-list"
-                    onDragOver={event => {
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
-                      setDropLane(lane.id);
-                    }}
-                    onDragLeave={event => {
-                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropLane(null);
-                    }}
-                    onDrop={event => {
-                      event.preventDefault();
-                      const taskId = event.dataTransfer.getData("text/plain") || draggedTaskId;
-                      const task = tasks.find(candidate => candidate.id === taskId);
-                      if (task) void moveToLane(task, lane.id);
-                      setDraggedTaskId(null);
-                      setDropLane(null);
-                    }}
-                  >
-                    {visible.items.length ? visible.items.map(task => (
-                      <div
-                        key={task.id}
-                        className={cn("task-lane-task", draggedTaskId === task.id && "is-dragging")}
-                        draggable={sort === "manual"}
-                        onDragStart={event => {
-                          event.dataTransfer.effectAllowed = "move";
-                          event.dataTransfer.setData("text/plain", task.id);
-                          setDraggedTaskId(task.id);
-                        }}
-                        onDragEnd={() => {
-                          setDraggedTaskId(null);
-                          setDropLane(null);
-                        }}
-                      >
-                        {sort === "manual" ? <span className="task-drag-handle" aria-hidden="true"><GripVertical size={15} /></span> : null}
-                        {renderRow(task)}
-                        <div className="task-order-actions" aria-label={`Reorder ${task.title}`}><button type="button" aria-label={`Move ${task.title} up in ${lane.label}`} title={sort === "manual" ? undefined : TASK_REORDER_GUIDANCE} disabled={sort !== "manual" || laneTasks.indexOf(task) === 0} onClick={() => void runTaskReorder(sort, () => onReorder(task, -1, laneTasks))}>↑</button><button type="button" aria-label={`Move ${task.title} down in ${lane.label}`} title={sort === "manual" ? undefined : TASK_REORDER_GUIDANCE} disabled={sort !== "manual" || laneTasks.indexOf(task) === laneTasks.length - 1} onClick={() => void runTaskReorder(sort, () => onReorder(task, 1, laneTasks))}>↓</button></div>
-                        {/* Q3: the per-card Move to dropdown is gone; this menu is the keyboard and touch alternative to drag. */}
-                        <TaskActionsMenu
-                          title={task.title}
-                          label={`Move ${task.title} to another lane`}
-                          className="task-lane-move"
-                          actions={taskBoardLanes.filter(option => option.id !== lane.id).map(option => ({ id: `move-${option.id}`, label: `Move to ${option.label}`, icon: ArrowRightLeft, onSelect: () => void moveToLane(task, option.id) }))}
-                        />
-                      </div>
-                    )) : <div className="task-lane-empty">No tasks in this lane.</div>}
-                    {visible.hiddenCount ? <button type="button" className="task-history-toggle" onClick={() => setExpandedLanes(current => ({ ...current, [lane.id]: true }))}>Show {visible.hiddenCount} more</button> : null}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        </section>
+        <TaskWeekBoard
+          lens={boardLensShown(boardLens)}
+          onLensChange={setBoardLens}
+          tasks={filtered}
+          allTasks={tasks}
+          today={today}
+          timezone={timezone}
+          occurrences={occurrences}
+          dropContext={boardDropContext}
+          modelFor={boardModelFor}
+          pillsFor={boardPillsFor}
+          categoryTones={categoryTones}
+          onUpdate={onUpdate}
+          onResolveOccurrence={onResolveOccurrence}
+          onOpen={openDetail}
+          onToggle={(task, model) => void checkTask(task, model)}
+          onBlockedCheck={explainBlockedCheck}
+        />
       ) : null}
 
       {view === "archive" ? (

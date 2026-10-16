@@ -79,6 +79,11 @@ export type TaskDndOptions<T extends TaskDndTask = TaskDndTask> = {
   errorTtlMs?: number;
   /** Exposed back to the UI unchanged; the logic never depends on it. */
   reducedMotion?: boolean;
+  /**
+   * Long-press touch drag (default true). The Week board passes false (owner Q3, T2b-1): on touch the card
+   * ⋯ "Plan for" menu is the way to move work, so a swipe always scrolls.
+   */
+  touch?: boolean;
 };
 
 export type TaskDndSnapshot = {
@@ -871,11 +876,10 @@ export function useTaskDnd<T extends TaskDndTask>(options: TaskDndOptions<T>): U
     }),
     [engine],
   );
-  const sensors = useSensors(
-    useSensor(TaskPointerSensor, { activationConstraint: TASK_POINTER_ACTIVATION }),
-    useSensor(TaskTouchSensor, { activationConstraint: TASK_TOUCH_ACTIVATION }),
-    useSensor(TaskKeyboardSensor, { coordinateGetter }),
-  );
+  const pointerSensor = useSensor(TaskPointerSensor, { activationConstraint: TASK_POINTER_ACTIVATION });
+  const touchSensor = useSensor(TaskTouchSensor, { activationConstraint: TASK_TOUCH_ACTIVATION });
+  const keyboardSensor = useSensor(TaskKeyboardSensor, { coordinateGetter });
+  const sensors = useSensors(pointerSensor, options.touch === false ? null : touchSensor, keyboardSensor);
   const handlers = useMemo(() => taskDndContextHandlers(engine), [engine]);
   const contextProps = useMemo(() => ({ ...handlers, sensors }), [handlers, sensors]);
   const moveTo = useMemo(() => (taskId: string, zone: TaskDropZoneId) => {

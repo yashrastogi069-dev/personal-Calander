@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CanonicalTask } from "@shared/canonicalTask";
 import { createTaskCardContext, taskCardModel } from "./taskCardModel";
-import { inboxTasks, TaskWorkspace, TaskWorkspaceLoading, taskCheckDispatch, type TaskWorkspaceProps } from "./TaskWorkspace";
+import { inboxTasks, isCaptureShortcut, TaskWorkspace, TaskWorkspaceLoading, taskCheckDispatch, type TaskWorkspaceProps } from "./TaskWorkspace";
 
 // 2026-10-14 is a Wednesday.
 const today = "2026-10-14";
@@ -125,12 +125,32 @@ describe("TaskWorkspace container", () => {
     expect(html).toContain("Clear filters");
   });
 
-  it("keeps the status Board but swaps the Move to dropdown for a menu, with no Archive N completed button", () => {
+  it("opens the Board on the Week lens: Unscheduled then Mon…Sun, no legacy lanes or Move to menus", () => {
     const board = renderToStaticMarkup(<TaskWorkspace {...props({ view: "board" })} />);
-    expect(board).toContain("task-lane-grid");
+    expect(board).toContain('data-lens="week"');
+    expect(board).toContain('data-zone="day:none"');
+    expect(board).toContain('data-zone="day:2026-10-12"');
+    expect(board).toContain('data-zone="day:2026-10-18"');
+    expect(board).not.toContain("task-lane-grid");
+    expect(board).not.toContain("Work lanes");
+    expect(board).not.toContain("to another lane");
     expect(board).not.toContain("<select");
-    expect(board).not.toContain("task-archive-completed");
-    expect(board).toContain('aria-label="Move Pay rent to another lane"');
+    expect(board).toContain('aria-label="Plan Pay rent for a day"');
+  });
+
+  it("puts a deadline-only card in Unscheduled with the short Due pill (the column says the rest)", () => {
+    const board = renderToStaticMarkup(<TaskWorkspace {...props({ view: "board" })} />);
+    const unscheduled = board.slice(board.indexOf('data-zone="day:none"'), board.indexOf('data-zone="day:2026-10-12"'));
+    expect(unscheduled).toContain("Send the application");
+    expect(unscheduled).toContain("Due Fri");
+    expect(unscheduled).not.toContain("not planned");
+  });
+
+  it("is one header: no second Tasks title or Capture inside the page", () => {
+    const html = renderToStaticMarkup(<TaskWorkspace {...props()} />);
+    expect(html).not.toContain("Capture");
+    expect(html).not.toContain("pc-page-header-title");
+    expect(renderToStaticMarkup(<TaskWorkspaceLoading />)).not.toContain("pc-page-header-title");
   });
 
   it("shows only undecided work in the Inbox, as triage cards with every decision", () => {
@@ -170,5 +190,14 @@ describe("TaskWorkspace container", () => {
     const html = renderToStaticMarkup(<TaskWorkspaceLoading />);
     expect(html).toContain("tk-skeleton");
     expect(html).toContain("Loading tasks");
+  });
+
+  it("opens Capture on a bare C outside text fields only", () => {
+    const key = (extra: Partial<KeyboardEvent> = {}) => ({ key: "c", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...extra });
+    expect(isCaptureShortcut(key(), null)).toBe(true);
+    expect(isCaptureShortcut(key({ key: "C", shiftKey: true }), null)).toBe(true);
+    expect(isCaptureShortcut(key({ metaKey: true }), null)).toBe(false);
+    expect(isCaptureShortcut(key({ key: "x" }), null)).toBe(false);
+    expect(isCaptureShortcut(key(), { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget)).toBe(false);
   });
 });

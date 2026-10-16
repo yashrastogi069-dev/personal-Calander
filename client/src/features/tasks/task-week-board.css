@@ -1,0 +1,140 @@
+/* Tasks T2b-1 Board: Week lens (Unscheduled · Mon…Sun) and Status lens (To do · Doing · Done).
+   Values come from tokens-v2.css; motion uses --pc-dur-* and --pc-ease only. The board scrolls sideways inside
+   its own box on narrow desktops; on phones the columns stack, so the page never scrolls sideways. */
+
+.tk-board { display: grid; gap: 12px; min-width: 0; }
+.tk-board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; min-width: 0; }
+.tk-board-pager { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.tk-board-week { min-width: 112px; padding: 0 4px; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+html .tk-board-today { min-height: 34px; gap: 6px; }
+.tk-board-note { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink-muted); font-size: var(--pc-text-label); line-height: var(--pc-lh-label); }
+.tk-board-note > svg { flex: none; }
+.tk-board-note-narrow { display: none; }
+
+.tk-board-scroll { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px; margin: -4px; }
+.tk-board-grid { display: grid; grid-template-columns: var(--tk-week-cols, repeat(8, minmax(128px, 1fr))); gap: 10px; align-items: stretch; min-height: 320px; }
+.tk-board-grid.is-status { grid-template-columns: repeat(3, minmax(240px, 1fr)); max-width: 1100px; }
+
+/* ---------- column ---------- */
+.tk-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--pc-r-panel);
+  background: transparent;
+  transition: background-color var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease);
+}
+.tk-col.is-unscheduled { border: 1px dashed var(--pc-line); background: var(--pc-card-2); }
+.tk-col.is-today { border-color: color-mix(in srgb, var(--accent) 18%, transparent); background: color-mix(in srgb, var(--selection) 55%, transparent); }
+.tk-col.is-past .tk-col-head { opacity: .6; }
+.tk-col.is-over { border-style: solid; border-color: var(--accent); background: var(--selection); }
+.tk-col.is-over.is-refused { border-color: color-mix(in srgb, var(--pc-off) 45%, var(--pc-line)); background: var(--pc-off-soft); }
+.tk-board-grid.is-status .tk-col { border-color: var(--pc-line); background: var(--pc-card-2); }
+.tk-board-grid.is-status .tk-col.is-over { border-color: var(--accent); background: var(--selection); }
+
+.tk-col-head { padding: 4px 6px 10px; }
+html .tk-col-title { display: flex; align-items: baseline; gap: 6px; margin: 0; color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-label)/var(--pc-lh-label) var(--pc-font); }
+.tk-col-title > svg { align-self: center; flex: none; color: var(--ink-muted); }
+.tk-col-day { font: var(--pc-w-display) 20px/24px var(--pc-font); letter-spacing: var(--pc-tracking-display); font-variant-numeric: tabular-nums; }
+.tk-col.is-today .tk-col-day { color: var(--accent); }
+.tk-col-today { margin-left: auto; padding: 0 6px; border-radius: var(--pc-r-chip); background: var(--accent); color: var(--accent-foreground); font-size: var(--pc-text-caption); line-height: 18px; font-weight: var(--pc-w-semibold); }
+html .tk-col-facts { display: flex; gap: 2px; margin: 2px 0 0; color: var(--pc-faint, var(--ink-muted)); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-variant-numeric: tabular-nums; }
+
+.tk-col-cards { display: flex; flex: 1; flex-direction: column; gap: 8px; min-height: 48px; margin: 0; padding: 0; list-style: none; }
+.tk-col-hint { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; margin: 8px 0 0; padding: 0 6px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); border-radius: var(--pc-r-control); color: var(--accent); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); text-align: center; opacity: 0; transition: opacity var(--pc-dur-fast) var(--pc-ease); }
+.tk-col.is-over .tk-col-hint { opacity: 1; }
+.tk-col-hint.is-refused { border-color: color-mix(in srgb, var(--pc-off) 45%, transparent); color: var(--pc-off); }
+.tk-col-hint.is-late { border-color: color-mix(in srgb, var(--pc-risk) 45%, transparent); color: var(--pc-risk); }
+
+/* ---------- card ---------- */
+.tk-wcard { position: relative; list-style: none; border-radius: var(--pc-r-control); cursor: grab; touch-action: pan-y; transition: opacity var(--pc-dur-base) var(--pc-ease), transform var(--pc-dur-base) var(--pc-ease); }
+.tk-wcard.is-ghost { opacity: .35; transform: scale(.98); }
+.tk-wcard.is-pending .tk-wcard-face { border-style: dashed; }
+.tk-wcard-face {
+  position: relative;
+  padding: 10px 8px 10px 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-control);
+  background: var(--pc-card);
+  box-shadow: var(--pc-e1);
+  transition: box-shadow var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease), transform var(--pc-dur-fast) var(--pc-ease);
+}
+.tk-wcard-face.is-done { background: color-mix(in srgb, var(--pc-card) 70%, var(--pc-page)); box-shadow: none; }
+.tk-wcard-face.is-lifted { box-shadow: var(--pc-e3); transform: rotate(1.6deg) scale(1.03); cursor: grabbing; }
+.tk-wcard-top { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.tk-wcard-check { flex: none; margin-top: -3px; margin-left: -3px; }
+.tk-wcard-dot { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 2px solid var(--pc-k, var(--accent)); border-radius: var(--pc-r-pill); }
+html .tk-wcard-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: var(--pc-w-medium) 13.5px/19px var(--pc-font);
+  text-align: left;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  cursor: inherit;
+}
+.tk-wcard-face.is-done .tk-wcard-title { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 60%, transparent); }
+/* Grip and ⋯ float over the card's top-right corner and take no width from the title (prototype .mini). */
+.tk-wcard-tools { position: absolute; top: 4px; right: 4px; z-index: 1; display: inline-flex; align-items: center; gap: 0; padding: 2px; border-radius: var(--pc-r-chip); background: var(--pc-card); box-shadow: 0 0 0 1px var(--pc-line); }
+html .tk-wcard-grip, html .tk-wcard-tools .tk-icon-btn { display: grid; place-items: center; width: 28px; height: 28px; min-height: 0; padding: 0; border: 0; border-radius: var(--pc-r-chip); background: transparent; color: var(--ink-muted); cursor: grab; }
+html .tk-wcard-tools .tk-icon-btn { cursor: pointer; }
+.tk-wcard-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; min-width: 0; }
+.tk-wcard-meta .tk-pills { min-width: 0; flex-wrap: wrap; }
+.tk-wcard-meta .tk-pill { max-width: 100%; }
+.tk-wcard-est { margin-left: auto; color: var(--ink-muted); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-variant-numeric: tabular-nums; }
+.tk-wcard-error { margin: 8px 0 0; color: var(--pc-off); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); }
+
+/* Late drop (Q4): asks once, on the card. */
+.tk-late { margin-top: 10px; padding: 10px; border-radius: var(--pc-r-chip); background: var(--pc-risk-soft); color: var(--pc-risk); font-size: var(--pc-text-caption); line-height: var(--pc-lh-caption); font-weight: var(--pc-w-semibold); animation: pc-rise var(--pc-dur-base) var(--pc-ease) both; cursor: default; }
+html .tk-late-q { display: flex; align-items: flex-start; gap: 6px; margin: 0; }
+.tk-late-q > svg { flex: none; margin-top: 1px; }
+.tk-late-actions { display: grid; gap: 6px; margin-top: 8px; }
+html .tk-late-btn { width: 100%; min-height: 30px; padding: 0 10px; border: 1px solid var(--pc-line); border-radius: var(--pc-r-chip); background: var(--pc-card); color: var(--ink); font: var(--pc-w-semibold) var(--pc-text-caption)/1 var(--pc-font); white-space: nowrap; cursor: pointer; transition: transform var(--pc-dur-press) var(--pc-ease), background-color var(--pc-dur-fast) var(--pc-ease); }
+html .tk-late-btn.is-go { border-color: var(--ink); background: var(--ink); color: var(--pc-card); }
+html .tk-late-btn:active { transform: scale(.97); }
+
+@media (hover: hover) and (pointer: fine) {
+  .tk-wcard:not(.is-ghost):hover .tk-wcard-face:not(.is-done) { box-shadow: var(--pc-e2); border-color: color-mix(in srgb, var(--pc-k, var(--accent)) 35%, var(--pc-line)); }
+  .tk-wcard-tools { opacity: 0; transition: opacity var(--pc-dur-fast) var(--pc-ease); }
+  .tk-wcard:hover .tk-wcard-tools, .tk-wcard:focus-within .tk-wcard-tools, .tk-wcard-tools:has([data-state="open"]) { opacity: 1; }
+  html .tk-wcard-grip:hover, html .tk-wcard-tools .tk-icon-btn:hover { background: var(--pc-card-2); color: var(--ink); }
+}
+/* Touch has no drag in v1 (Fable Q3): the grip goes, the ⋯ menu stays visible. */
+@media (hover: none), (pointer: coarse) {
+  html .tk-wcard-grip { display: none; }
+  .tk-wcard { cursor: default; }
+  html .tk-wcard-tools .tk-icon-btn { width: 36px; height: 36px; }
+  .tk-wcard-tools { top: 2px; right: 2px; box-shadow: none; background: transparent; }
+  html .tk-wcard-title { padding-right: 30px; }
+}
+
+/* ---------- phone: stacked columns, past empty days hidden ---------- */
+@media (max-width: 680px) {
+  .tk-board-note-wide { display: none; }
+  .tk-board-note-narrow { display: inline; }
+  .tk-board-scroll { overflow-x: visible; }
+  .tk-board-grid, .tk-board-grid.is-status { grid-template-columns: minmax(0, 1fr); gap: 6px; min-height: 0; }
+  .tk-col { padding: 8px 4px; }
+  .tk-col.is-past.is-empty { display: none; }
+  .tk-col-cards { min-height: 0; }
+  .tk-col-hint { display: none; }
+  .tk-board-bar { justify-content: space-between; }
+  html .tk-board-bar .pc-seg.tk-board-lens { width: auto; flex: none; }
+  html .tk-board-lens .pc-seg-tab { flex: 0 0 auto; padding: 0 12px; }
+  .tk-board-week { min-width: 0; }
+}
+
+/* ---------- reduced motion: state changes still read, nothing travels ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .tk-late { animation: none !important; }
+  .tk-wcard, .tk-wcard.is-ghost { transform: none !important; transition: none; }
+  .tk-wcard-face, .tk-wcard-face.is-lifted { transform: none !important; transition: none; }
+  .tk-col, .tk-col-hint, .tk-wcard-tools { transition: none; }
+}
