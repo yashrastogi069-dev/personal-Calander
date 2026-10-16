@@ -287,4 +287,102 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
   - **Roles stay distinct:** Week = the planning ritual + overview; Tasks Board = everyday drag-to-day; Calendar = time grid; Today = do.
   - **Cut:** the 5,100px forms, the duplicate board, and the planning-history block (history lives in Review).
 
-**RESUME HERE (usage limit, 2026-10-15):** Q14 LOCKED 2026-10-16. Q15 LOCKED 2026-10-16. Q16 LOCKED 2026-10-16. Q17 LOCKED 2026-10-16; Today branch DONE. Calendar Q18–Q21 LOCKED 2026-10-16; Plan Q22–Q23 LOCKED 2026-10-16. Next: Roadmap Q24+. Then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
+**Q24 [Roadmap › rows]**
+- **Recommended:** goals as rows, with projects nested.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Each goal is a row: a runway bar to its target date, with milestones as diamonds.
+  - Expanding a goal shows its projects as bars beneath it.
+  - Projects without a goal sit in a "No goal" group at the bottom.
+
+**Q25 [Roadmap › editing dates]**
+- **Recommended:** drag the bar ends, with a form as fallback.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Drag a bar to move it; drag its ends to resize. A live date tooltip shows while dragging, and an Undo toast follows.
+  - Clicking a bar opens the side pane with date fields; this is the keyboard and phone path.
+  - The separate "Review project dates" form goes.
+
+**Q26 [Roadmap › window]**
+- **Recommended:** this quarter plus the next.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Roadmap opens on about 6 months with today marked.
+  - Zoom chips: Month / Quarter / Year. Quarter and Year live here now (Q20).
+
+**Q27 [Goals & Projects › structure]**
+- **Recommended:** usually linked; one page.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - There is one **Goals** page: goals with their projects inside.
+  - Projects without a goal sit in a "Standalone projects" section.
+  - The separate Projects / Outcome goals tabs go.
+
+**Q28 [Goals › Directions]**
+- **Recommended:** one line on a goal.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The Directions tab goes.
+  - Each goal gets an optional "Why this matters to me" line, which also feeds the D4 "Why it matters" reasons.
+  - Existing direction rows stay untouched; no migration.
+
+**Q29 [Goals › view]**
+- **Recommended:** runway bars with milestones.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Each goal shows a progress runway to its date with milestones, % done (from its projects and tasks), and a "next step" task.
+  - Cards on the phone.
+  - This view moves out from behind "More tools" to lead the page.
+
+**Q30 [Projects › board]**
+- **Recommended:** reuse the Tasks views.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Opening a project shows the same Tasks List and Board components filtered to that project, under a header with goal, dates and progress.
+  - There is one board concept app-wide.
+
+**Habits: settled earlier.** Check-ins happen on Today as "habits due" chips (Q15). Habits is for history and setup.
+
+**Q31 [Habits › layout]**
+- **Recommended:** habit cards plus one heatmap.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - **Top:** one year heatmap of all habits combined (GitHub style, with an animated fill).
+  - **Below:** one card per habit with its streak, a this-week ring and 7-day dots.
+  - **Card tap:** opens a detail with that habit's month calendar, its own heatmap, and edit.
+  - No duplicate views on one screen.
+
+**Q32 [Habits › settings]**
+- **Recommended:** no settings tab; edit in the habit detail.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Cadence, target, reminder and archive are all edited in the habit's detail pane.
+  - "+ New habit" sits on the page.
+  - The Habits Settings tab goes.
+
+**Q33 [Review › weekly ritual]**
+- **Recommended:** one ritual, Review → Plan.
+- **Owner (2026-10-16):** same.
+- **Locked decision:** one weekly flow on the Week page, which refines the Q22 flow:
+  1. **Review:** wins; numbers (done, focus hours, habits, energy); resolve recurring and leftover work; a one-line "lesson".
+  2. **Objectives:** 1–3.
+  3. **Place:** capacity strip and the Week board.
+
+  It is saved as that week's review. The daily reflection stays in Today's shutdown (Q16).
+
+**Q34 [Review › history & Analytics]**
+- **Recommended:** one page, "Insights", with history and charts.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Review and Analytics become one page, **Insights**: past weekly reviews (a searchable timeline) plus Analytics charts (focus hours, completion, habits, energy vs focus).
+  - One rail item.
+  - The Ritual panel and the duplicate review lists go.
+
+**Q35 [Review › cadence]**
+- **Recommended:** weekly, plus the daily shutdown.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The weekly ritual runs on the planning day; the daily close is Today's shutdown.
+  - An optional monthly recap card is auto-generated in Insights. It is not a ritual.
+
+**RESUME HERE (usage limit, 2026-10-15):** Q14 LOCKED 2026-10-16. Q15 LOCKED 2026-10-16. Q16 LOCKED 2026-10-16. Q17 LOCKED 2026-10-16; Today branch DONE. Calendar Q18–Q21 LOCKED 2026-10-16; Plan Q22–Q23 LOCKED 2026-10-16. Roadmap Q24–Q26 LOCKED 2026-10-16. Goals & Projects Q27–Q30 LOCKED 2026-10-16. Habits Q31–Q32 LOCKED 2026-10-16. Review Q33–Q35 LOCKED 2026-10-16. Next: Nav/More/Settings Q36+. Then the, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
