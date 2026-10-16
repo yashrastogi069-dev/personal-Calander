@@ -46,9 +46,9 @@ describe("premium navigation model", () => {
       todayTaskCount: null,
       dueHabitCount: null,
     });
-    // Inbox: the weekly task and the unplanned series; Someday has been decided. Overdue: only the planned
+    // Inbox: only the undated weekly task (Q1/Q2: any date, even a series start, is a decision; Someday too). Overdue: only the planned
     // series, whose deadline is a real one (its Plan for date is the anchor).
-    expect(counts).toMatchObject({ inbox: 2, overdue: 1 });
+    expect(counts).toMatchObject({ inbox: 1, overdue: 1 });
   });
 
   it("formats badges and hides zero counts", () => {

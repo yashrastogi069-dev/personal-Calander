@@ -25,12 +25,15 @@ import {
   type TouchSensorOptions,
 } from "@dnd-kit/core";
 import { statusLaneForTaskState, statusLaneLabel, taskStatusLanes, type TaskStatusLaneId } from "@shared/taskBoard";
-import { taskWhenBuckets, taskWhenPlacement, type TaskWhenBucket } from "@shared/taskBuckets";
+import { reservedLocalDate, taskWhenBuckets, taskWhenPlacement, type TaskWhenBucket } from "@shared/taskBuckets";
+import { weekdayDayLabel } from "@shared/taskDateLabels";
 import {
   planTaskDrop,
   sortOrderNotice,
   taskDropDateChoice,
+  taskLateDropChoice,
   type DropTask,
+  type TaskLateDropConfirm,
   type TaskDropContext,
   type TaskDropPatch,
   type TaskDropPlan,
@@ -47,6 +50,7 @@ import type {
   TaskDndController,
   TaskDragPreview,
   TaskDropZoneId,
+  TaskLateDropRequest,
 } from "./taskDndTypes";
 import { sortWorkspaceTasks, taskTieBreak, type TaskBoardLens, type WorkspaceTask } from "./taskWorkspaceModel";
 
@@ -83,6 +87,8 @@ export type TaskDndSnapshot = {
   optimisticZone: ReadonlyMap<string, TaskDropZoneId>;
   optimisticPatches: ReadonlyMap<string, TaskDropPatch>;
   dateRequest: TaskDateRequest | null;
+  /** The late-drop prompt (Q4) waiting for Plan anyway / Move deadline / Cancel. */
+  lateDrop: TaskLateDropRequest | null;
   inlineErrors: ReadonlyMap<string, string>;
   announcement: TaskDndAnnouncement | null;
 };
@@ -103,6 +109,9 @@ export const OCCURRENCE_UNAVAILABLE_REASON = "Today's repeat can only be resolve
 export const CONFLICT_REASON = "Changed elsewhere.";
 export const STILL_SAVING_REASON = "The last move is still saving.";
 export const WHEN_LENS_REORDER_REASON = "Dates set the order in the When lens.";
+export const WEEK_LENS_REORDER_REASON = "Plan days set the order on the Week board.";
+export const UNSCHEDULED_ZONE: TaskDropZoneId = "day:none";
+const DAY_ZONE = /^day:\d{4}-\d{2}-\d{2}$/;
 const FALLBACK_ERROR = "Nothing was saved.";
 
 const DOCK_LABELS: Record<"dock:plan_today" | "dock:archive", string> = {
@@ -117,19 +126,30 @@ export function isTaskDropZoneId(id: unknown): id is TaskDropZoneId {
   if (id === "dock:plan_today" || id === "dock:archive") return true;
   if (id.startsWith("lane:")) return taskStatusLanes.some(lane => `lane:${lane.id}` === id);
   if (id.startsWith("bucket:")) return taskWhenBuckets.some(bucket => `bucket:${bucket.id}` === id);
+  if (id.startsWith("day:")) return id === UNSCHEDULED_ZONE || DAY_ZONE.test(id);
   return false;
+}
+
+/** The Week board zone for a local day, or Unscheduled for null. */
+export function dayZone(localDate: string | null): TaskDropZoneId {
+  return localDate ? `day:${localDate}` : UNSCHEDULED_ZONE;
 }
 
 export function dropTargetForZone(zone: TaskDropZoneId): TaskDropTarget {
   if (zone.startsWith("lane:")) return { kind: "status", lane: zone.slice(5) as TaskStatusLaneId };
   if (zone.startsWith("bucket:")) return { kind: "when", bucket: zone.slice(7) as TaskWhenBucket };
+  if (zone.startsWith("day:")) return { kind: "day", date: zone === UNSCHEDULED_ZONE ? null : zone.slice(4) };
   return { kind: "dock", action: zone === "dock:archive" ? "archive" : "plan_today" };
 }
 
-/** The zone a task sits in under a lens; archived work leaves the board (`dock:archive`). */
+/**
+ * The zone a task sits in under a lens; archived work leaves the board (`dock:archive`). Week lens: the
+ * Plan for day (a reservation stands in when there is no Plan for, as in the When buckets), else Unscheduled.
+ */
 export function zoneForTask(task: DropTask, lens: TaskBoardLens, ctx: Pick<TaskDropContext, "today" | "timezone" | "occurrences">): TaskDropZoneId {
   if (task.state === "archived") return "dock:archive";
   if (lens === "status") return `lane:${statusLaneForTaskState(task.state) ?? "todo"}`;
+  if (lens === "week") return dayZone(task.scheduledLocalDate ?? reservedLocalDate(task, ctx.timezone));
   return `bucket:${taskWhenPlacement(task, ctx).bucket}`;
 }
 
@@ -137,6 +157,8 @@ export function zoneLabel(zone: TaskDropZoneId, lanes: readonly TaskBoardLaneVie
   const view = lanes.find(lane => lane.zone === zone);
   if (view) return view.label;
   if (zone === "dock:plan_today" || zone === "dock:archive") return DOCK_LABELS[zone];
+  if (zone === UNSCHEDULED_ZONE) return "Unscheduled";
+  if (zone.startsWith("day:")) return weekdayDayLabel(zone.slice(4));
   if (zone.startsWith("lane:")) return statusLaneLabel(zone.slice(5) as TaskStatusLaneId);
   return taskWhenBuckets.find(bucket => `bucket:${bucket.id}` === zone)?.label ?? zone;
 }
@@ -166,7 +188,7 @@ function errorText(error: unknown) {
 
 /** Non-null when in-lane re-ordering is off: a non-Manual sort, or the When lens (dates order it). */
 export function taskReorderDisabledReason(lens: TaskBoardLens, sort: TaskDropContext["sort"]) {
-  return sortOrderNotice(sort) ?? (lens === "when" ? WHEN_LENS_REORDER_REASON : null);
+  return sortOrderNotice(sort) ?? (lens === "when" ? WHEN_LENS_REORDER_REASON : lens === "week" ? WEEK_LENS_REORDER_REASON : null);
 }
 
 const INTERACTIVE_SELECTOR =
@@ -236,7 +258,7 @@ type LaneStops = { zone: TaskDropZoneId; stops: string[] };
 
 function laneStops(lanes: readonly TaskBoardLaneView[], activeId: string): LaneStops[] {
   return lanes
-    .filter(lane => lane.zone.startsWith("lane:") || lane.zone.startsWith("bucket:"))
+    .filter(lane => lane.zone.startsWith("lane:") || lane.zone.startsWith("bucket:") || lane.zone.startsWith("day:"))
     .map(lane => {
       const ids = lane.models.map(model => model.id);
       // Another lane ends with its own well (= drop at the end); the origin lane is just its cards.
@@ -303,15 +325,23 @@ type Located = { zone: TaskDropZoneId; index: number | null };
 
 type DateSession = { token: number; taskId: string; zone: TaskDropZoneId; origin: TaskDropZoneId; write: Extract<TaskDropWrite, { kind: "needsDate" }> };
 
+type LateSession = { token: number; taskId: string; zone: TaskDropZoneId; origin: TaskDropZoneId; write: TaskLateDropConfirm };
+
 const EMPTY_SNAPSHOT: TaskDndSnapshot = {
   preview: null,
   pendingIds: new Set(),
   optimisticZone: new Map(),
   optimisticPatches: new Map(),
   dateRequest: null,
+  lateDrop: null,
   inlineErrors: new Map(),
   announcement: null,
 };
+
+/** "Mon is after the Sat deadline. Plan anyway, move the deadline, or cancel." */
+export function lateQuestion(write: Pick<TaskLateDropConfirm, "prompt">) {
+  return `${write.prompt}. Plan anyway, move the deadline, or cancel.`;
+}
 
 function hasQueuedFlag(result: unknown) {
   return Boolean(result && typeof result === "object" && (result as { queued?: unknown }).queued === true);
@@ -332,6 +362,7 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
   private inFlight = new Set<Promise<void>>();
   private drag: DragSession | null = null;
   private dateSession: DateSession | null = null;
+  private lateSession: LateSession | null = null;
   private sequence = 0;
   private dateToken = 0;
   /** The last message per dnd-kit event, read by `announcements` right after the matching handler ran. */
@@ -367,7 +398,8 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
   // data
   private get dropCtx(): TaskDropContext {
     const ctx = this.options.ctx;
-    return ctx.tasks ? ctx : { ...ctx, tasks: this.effectiveTasks() as TaskDropContext["tasks"] };
+    const pendingTaskIds = ctx.pendingTaskIds ?? this.snapshot.pendingIds;
+    return ctx.tasks ? { ...ctx, pendingTaskIds } : { ...ctx, pendingTaskIds, tasks: this.effectiveTasks() as TaskDropContext["tasks"] };
   }
   private rawTask(id: string) {
     return this.options.tasks.find(task => task.id === id) ?? null;
@@ -465,6 +497,7 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
   // dnd-kit events
   dragStart(activeId: string): string {
     if (this.dateSession) this.cancelDate(this.dateSession.token);
+    if (this.lateSession) this.cancelLate(this.lateSession.token);
     const origin = this.zoneOf(activeId);
     this.drag = { activeId, origin };
     this.keyboardTarget = activeId;
@@ -488,7 +521,8 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
     }
     const planned = this.plan(activeId, located.zone, located.index);
     const refusal = planned && !planned.plan.ok ? { reason: planned.plan.reason, rule: planned.plan.rule, ...(planned.plan.action ? { action: planned.plan.action } : {}) } : null;
-    this.update({ preview: { activeId, overZone: located.zone, refusal } });
+    const lateWarning = planned?.plan.ok && planned.plan.write.kind === "confirmLate" ? planned.plan.write.prompt : null;
+    this.update({ preview: { activeId, overZone: located.zone, refusal, ...(lateWarning ? { lateWarning } : {}) } });
     const label = this.label(located.zone);
     let message: string;
     if (refusal) {
@@ -534,6 +568,7 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
    */
   moveTo(taskId: string, zone: TaskDropZoneId): TaskDropOutcome {
     if (this.dateSession) this.cancelDate(this.dateSession.token, false);
+    if (this.lateSession) this.cancelLate(this.lateSession.token, false);
     const outcome = this.execute(taskId, this.locate(taskId, zone) ?? { zone, index: null }, this.zoneOf(taskId));
     this.announce(outcome.message);
     return outcome;
@@ -569,6 +604,11 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
       const optimisticZone = new Map(this.snapshot.optimisticZone).set(taskId, located.zone);
       this.update({ optimisticZone, dateRequest: this.dateRequestFor(this.dateSession, null) });
       return { message: taskDndMessages.end(title, zoneName, null), done: settled };
+    }
+
+    if (write.kind === "confirmLate") {
+      this.startLate(taskId, located.zone, origin, write);
+      return { message: `${taskDndMessages.end(title, zoneName, null)} ${lateQuestion(write)}`, done: settled };
     }
 
     if (write.kind === "resolveOccurrence") {
@@ -681,13 +721,20 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
   resolveDate(token: number, localDate: string): Promise<void> {
     const session = this.dateSession;
     if (!session || session.token !== token) return Promise.resolve();
-    const choice = taskDropDateChoice(session.write, localDate);
+    const choice = taskDropDateChoice(session.write, localDate, this.options.ctx.today);
     if (!choice.ok) {
       this.update({ dateRequest: this.dateRequestFor(session, choice.reason) });
       this.announce(choice.reason);
       return Promise.resolve();
     }
     this.dateSession = null;
+    if (choice.write.kind === "confirmLate") {
+      // The chosen day is after the deadline: the popover closes and the late prompt asks once (Q4).
+      this.update({ dateRequest: null });
+      this.startLate(session.taskId, session.zone, session.origin, choice.write);
+      this.announce(lateQuestion(choice.write));
+      return Promise.resolve();
+    }
     const optimisticZone = new Map(this.snapshot.optimisticZone);
     optimisticZone.delete(session.taskId);
     this.update({ dateRequest: null, optimisticZone });
@@ -702,6 +749,55 @@ export class TaskDndEngine<T extends TaskDndTask = TaskDndTask> {
     const optimisticZone = new Map(this.snapshot.optimisticZone);
     optimisticZone.delete(session.taskId);
     this.update({ dateRequest: null, optimisticZone });
+    if (announce) this.announce(taskDndMessages.cancel(this.title(session.taskId), this.label(session.origin)));
+  }
+
+  // late-drop prompt (Q4: ask once, then allow)
+  private startLate(taskId: string, zone: TaskDropZoneId, origin: TaskDropZoneId, write: TaskLateDropConfirm) {
+    const token = ++this.dateToken;
+    this.lateSession = { token, taskId, zone, origin, write };
+    const optimisticZone = new Map(this.snapshot.optimisticZone).set(taskId, zone);
+    this.update({ optimisticZone, lateDrop: this.lateRequestFor(this.lateSession) });
+  }
+
+  private lateRequestFor(session: LateSession): TaskLateDropRequest {
+    return {
+      taskId: session.taskId,
+      zone: session.zone,
+      day: session.write.day,
+      deadline: session.write.deadline,
+      prompt: session.write.prompt,
+      planAnyway: () => {
+        void this.resolveLate(session.token, "plan_anyway");
+      },
+      moveDeadline: () => {
+        void this.resolveLate(session.token, "move_deadline");
+      },
+      cancel: () => this.cancelLate(session.token),
+    };
+  }
+
+  /** Applies "Plan anyway" or "Move deadline" through the same optimistic write path as a drop. */
+  resolveLate(token: number, choice: "plan_anyway" | "move_deadline"): Promise<void> {
+    const session = this.lateSession;
+    if (!session || session.token !== token) return Promise.resolve();
+    this.lateSession = null;
+    const optimisticZone = new Map(this.snapshot.optimisticZone);
+    optimisticZone.delete(session.taskId);
+    this.update({ lateDrop: null, optimisticZone });
+    const plan = taskLateDropChoice(session.write, choice);
+    if (!plan.ok || plan.write.kind !== "update") return Promise.resolve();
+    if (plan.announcement) this.announce(plan.announcement);
+    return this.applyPatch(session.taskId, plan.write.patch, [], this.label(session.origin), this.title(session.taskId));
+  }
+
+  cancelLate(token: number, announce = true) {
+    const session = this.lateSession;
+    if (!session || session.token !== token) return;
+    this.lateSession = null;
+    const optimisticZone = new Map(this.snapshot.optimisticZone);
+    optimisticZone.delete(session.taskId);
+    this.update({ lateDrop: null, optimisticZone });
     if (announce) this.announce(taskDndMessages.cancel(this.title(session.taskId), this.label(session.origin)));
   }
 
@@ -793,6 +889,7 @@ export function useTaskDnd<T extends TaskDndTask>(options: TaskDndOptions<T>): U
     optimisticZone: snapshot.optimisticZone,
     optimisticPatches: snapshot.optimisticPatches,
     dateRequest: snapshot.dateRequest,
+    lateDrop: snapshot.lateDrop,
     reorderDisabledReason: taskReorderDisabledReason(options.lens, options.ctx.sort),
     inlineErrors: snapshot.inlineErrors,
     announcement: snapshot.announcement,

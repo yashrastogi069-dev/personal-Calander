@@ -79,7 +79,7 @@ export type TaskWorkspaceState = {
   today: string;
 };
 
-/** Inbox = undecided open work (shared rule, so Someday leaves the Inbox and the rail badge agrees). */
+/** Inbox = undecided open work: no date, no project, not Someday (shared rule, so the rail badge agrees). */
 export function inboxTasks<TTask extends TaskLike>(tasks: readonly TTask[]): TTask[] {
   return tasks.filter(isInboxTask);
 }

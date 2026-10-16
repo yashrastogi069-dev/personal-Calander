@@ -20,7 +20,10 @@ import type { TaskBoardFilter } from "@shared/taskBoardUrl";
 
 export type TaskWorkspaceView = "inbox" | "list" | "board" | "saved" | "archive";
 export type TaskWorkspaceSort = "manual" | "priority" | "due" | "scheduled" | "created";
-export type TaskBoardLens = "status" | "when";
+/** "week" is the T1 Week board (Unscheduled · Mon…Sun, Q3); "when" is the legacy bucket lens. */
+export type TaskBoardLens = "status" | "when" | "week";
+/** List "Group by" switch (Q7). */
+export type TaskListGroupBy = "when" | "project" | "category";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "critical";
 
 export const taskPriorities: readonly TaskPriority[] = ["critical", "high", "medium", "low", "none"];
@@ -64,8 +67,8 @@ function isOpen(task: { state: string }) {
 }
 
 /**
- * Inbox = undecided work: open, with no Plan for date and no reserved time. Someday tasks have been decided
- * ("not now"), so they leave the Inbox and its badge (owner decision 2026-10-14). Same rule as the rail badge.
+ * Inbox = undecided work: open, with no date of any kind (Plan for, reserved time, deadline), no project and
+ * not Someday (owner decisions Q1/Q2, 2026-10-15). Same shared rule as the rail badge.
  */
 export function inboxTasks<TTask extends WorkspaceTask>(tasks: readonly TTask[]): TTask[] {
   return tasks.filter(isInboxTask);
@@ -235,12 +238,25 @@ function forecastTask(task: WorkspaceTask) {
   };
 }
 
-// Saved views (configuration v2, §10). `configuration` is jsonb, so new keys are not a schema change.
+// Saved views (configuration v2, §10). `configuration` is jsonb (drizzle/schema.ts savedViews.configuration,
+// validated as `z.record(z.string(), z.unknown())` by planner.savedView.create/update), so new keys such as
+// `group` (Q8: filter + group + sort + layout) are not a schema change.
+
+function parseLens(value: unknown): TaskBoardLens {
+  return value === "when" || value === "week" ? value : "status";
+}
+
+function parseGroup(value: unknown): TaskListGroupBy {
+  return value === "project" || value === "category" ? value : "when";
+}
 
 export type TaskSavedViewConfig = {
   version: 2;
+  /** Layout: List or Board. */
   view: "list" | "board";
   lens: TaskBoardLens;
+  /** List grouping (Q7/Q8). Absent in older configurations, read as "when". */
+  group: TaskListGroupBy;
   query: string;
   filter: TaskBoardFilter;
   sort: TaskWorkspaceSort;
@@ -249,10 +265,11 @@ export type TaskSavedViewConfig = {
   priorities: TaskPriority[];
 };
 
-export type TaskSavedViewState = Omit<TaskSavedViewConfig, "version">;
+/** `group` is optional so callers that predate the List group switch keep compiling (read as "when"). */
+export type TaskSavedViewState = Omit<TaskSavedViewConfig, "version" | "group"> & { group?: TaskListGroupBy };
 
 export const defaultTaskSavedView: TaskSavedViewConfig = {
-  version: 2, view: "list", lens: "status", query: "", filter: "all", sort: "manual", categoryIds: [], projectIds: [], priorities: [],
+  version: 2, view: "list", lens: "status", group: "when", query: "", filter: "all", sort: "manual", categoryIds: [], projectIds: [], priorities: [],
 };
 
 function stringList(value: unknown) {
@@ -272,7 +289,8 @@ export function adaptSavedTaskView(configuration: unknown): TaskSavedViewConfig 
   return {
     version: 2,
     view: config.view === "board" ? "board" : "list",
-    lens: config.lens === "when" ? "when" : "status",
+    lens: parseLens(config.lens),
+    group: parseGroup(config.group),
     query: typeof config.query === "string" ? config.query : "",
     filter,
     sort,
@@ -294,9 +312,9 @@ function sameSet(left: readonly string[], right: readonly string[]) {
 /** "Save view" appears only when the current state differs from the applied saved view (or none is applied). */
 export function savedTaskViewDiffers(state: TaskSavedViewState, applied: unknown | null) {
   const current = savedTaskViewConfiguration(state);
-  if (applied === null || applied === undefined) return hasActiveTaskFilters(current) || current.sort !== "manual" || current.view !== "list" || current.lens !== "status";
+  if (applied === null || applied === undefined) return hasActiveTaskFilters(current) || current.sort !== "manual" || current.view !== "list" || current.lens !== "status" || current.group !== "when";
   const saved = adaptSavedTaskView(applied);
-  return current.view !== saved.view || current.lens !== saved.lens || current.query !== saved.query.trim() || current.filter !== saved.filter
+  return current.view !== saved.view || current.lens !== saved.lens || current.group !== saved.group || current.query !== saved.query.trim() || current.filter !== saved.filter
     || current.sort !== saved.sort || !sameSet(current.categoryIds, saved.categoryIds) || !sameSet(current.projectIds, saved.projectIds)
     || !sameSet(current.priorities, saved.priorities);
 }
@@ -325,7 +343,8 @@ export function savedTaskViewSummary(
 ) {
   const config = adaptSavedTaskView(configuration);
   const pills: string[] = [config.view === "board" ? "Board" : "List"];
-  if (config.view === "board") pills.push(config.lens === "when" ? "When" : "Status");
+  if (config.view === "board") pills.push(config.lens === "when" ? "When" : config.lens === "week" ? "Week" : "Status");
+  if (config.view === "list" && config.group !== "when") pills.push(config.group === "project" ? "By project" : "By category");
   if (config.filter !== "all") pills.push(taskQuickFilters.find(item => item.id === config.filter)!.label);
   if (config.query.trim()) pills.push(`"${config.query.trim()}"`);
   for (const id of config.categoryIds) { const name = names.categories?.get(id); if (name) pills.push(name); }
@@ -354,7 +373,7 @@ function listParam(params: URLSearchParams, key: string) {
 export function taskBoardLensAndFacetsFromSearch(search: string): TaskFacetFilters & { lens: TaskBoardLens } {
   const params = new URLSearchParams(search);
   return {
-    lens: params.get(LENS_PARAM) === "when" ? "when" : "status",
+    lens: parseLens(params.get(LENS_PARAM)),
     categoryIds: Array.from(new Set(listParam(params, CATEGORY_PARAM))),
     projectIds: Array.from(new Set(listParam(params, PROJECT_PARAM))),
     priorities: Array.from(new Set(listParam(params, PRIORITY_PARAM))).filter((item): item is TaskPriority => (taskPriorities as readonly string[]).includes(item)),
@@ -363,7 +382,7 @@ export function taskBoardLensAndFacetsFromSearch(search: string): TaskFacetFilte
 
 export function searchWithTaskBoardLensAndFacets(search: string, value: TaskFacetFilters & { lens: TaskBoardLens }) {
   const params = new URLSearchParams(search);
-  if (value.lens === "when") params.set(LENS_PARAM, "when"); else params.delete(LENS_PARAM);
+  if (value.lens !== "status") params.set(LENS_PARAM, value.lens); else params.delete(LENS_PARAM);
   const write = (key: string, items: readonly string[]) => { if (items.length) params.set(key, items.join(",")); else params.delete(key); };
   write(CATEGORY_PARAM, value.categoryIds);
   write(PROJECT_PARAM, value.projectIds);

@@ -11,9 +11,9 @@
 //      (a missing prerequisite record also blocks). Only checked when the task is not already completed.
 
 import { incompleteHardPrerequisites, type DependencyEdge, type DependencyTask } from "./dependencyPolicy";
-import { reservedLocalDate, taskWhenBuckets, taskWhenPlacement, type BucketTask, type TaskWhenBucket } from "./taskBuckets";
+import { isInboxTask, reservedLocalDate, taskWhenPlacement, type BucketTask, type TaskWhenBucket } from "./taskBuckets";
 import { stateForStatusLane, statusLaneForTaskState, statusLaneLabel, type TaskStatusLaneId } from "./taskBoard";
-import { dayMonthLabel, localTimeLabel, weekdayDayMonthLabel } from "./taskDateLabels";
+import { dayMonthLabel, localDaysBetween, localTimeLabel, weekdayDayMonthLabel, weekdayLabel } from "./taskDateLabels";
 import { planSortOrderMove, type SortableTask } from "./taskOrdering";
 import { isRecurrenceRule, recurrenceCadenceLabel, recurringTaskStatus, shiftLocalDate, type TaskOccurrenceLike } from "./taskRecurrence";
 
@@ -37,18 +37,43 @@ export type TaskDropContext = {
   tasks?: readonly DependencyTask[];
   /** Task id → local date of the open plan that commits it; build with `committedTaskPlans`. */
   committedTasks?: ReadonlyMap<string, string>;
+  /** Tasks with a write still in flight: every drop on them is refused until it settles. */
+  pendingTaskIds?: ReadonlySet<string>;
 };
 
 export type TaskDropTarget =
   /** `placement.laneTasks` is the full target lane in display order (it may contain the moved task). */
   | { kind: "status"; lane: TaskStatusLaneId; placement?: { laneTasks: readonly SortableTask[]; index: number } }
   | { kind: "when"; bucket: TaskWhenBucket }
+  /** Week board day column (Q3): `date` sets Plan for; null is the Unscheduled column (clears Plan for). */
+  | { kind: "day"; date: string | null }
   | { kind: "dock"; action: "plan_today" | "archive" };
 
 export type TaskDropPatch = {
   state?: "not_started" | "in_progress" | "blocked" | "completed" | "archived";
   sortOrder?: number;
   scheduledLocalDate?: string | null;
+  /** Only written by the late-drop "Move deadline" choice. */
+  dueLocalDate?: string | null;
+};
+
+/**
+ * A drop on a day after the deadline (Q4, "ask once, then allow"). The UI shows the inline prompt on the card
+ * ("Mon is after the Sat deadline") with Plan anyway / Move deadline / Cancel; resolve with
+ * `taskLateDropChoice`. Nothing is written until the owner chooses.
+ */
+export type TaskLateDropConfirm = {
+  kind: "confirmLate";
+  /** The day the card was dropped on (the new Plan for). */
+  day: string;
+  /** The deadline it lands after. */
+  deadline: string;
+  /** "Mon is after the Sat deadline" */
+  prompt: string;
+  /** "Plan anyway": keep the deadline. */
+  planAnyway: TaskDropPatch;
+  /** "Move deadline": the deadline moves to the dropped day. */
+  moveDeadline: TaskDropPatch;
 };
 
 export type TaskDropWrite =
@@ -58,12 +83,18 @@ export type TaskDropWrite =
   | { kind: "rebalance"; writes: Array<{ id: string; sortOrder: number }>; patch: TaskDropPatch }
   /** `planner.occurrence.resolve({id, expectedVersion, state: "completed"})`. */
   | { kind: "resolveOccurrence"; occurrenceId: string; expectedVersion: number; state: "completed" }
-  /** Open a date popover limited to [min, max] (max null = open-ended); resolve with `taskDropDateChoice`. */
-  | { kind: "needsDate"; min: string; max: string | null }
+  /**
+   * Open a date popover limited to [min, max] (max null = open-ended); resolve with `taskDropDateChoice`.
+   * `deadline` is set when a choice after it must be confirmed (the choice then returns `confirmLate`).
+   */
+  | { kind: "needsDate"; min: string; max: string | null; deadline?: string }
+  | TaskLateDropConfirm
   /** Nothing to write (dropped where it already is). */
   | { kind: "none" };
 
-export type TaskDropRule = "R1" | "R2" | "R3" | "past" | "recurring_schedule" | "reserved" | "deadline" | "long_lane" | "occurrence_loading";
+export type TaskDropRule =
+  | "R1" | "R2" | "R3" | "past" | "recurring_schedule" | "reserved" | "deadline" | "long_lane" | "occurrence_loading"
+  | "archived" | "saving";
 
 export type TaskDropRefusal = {
   ok: false;
@@ -238,10 +269,6 @@ const RECURRING_SCHEDULE_REFUSAL: TaskDropRefusal = {
   action: "open_detail",
 };
 
-function bucketLabel(bucket: TaskWhenBucket) {
-  return taskWhenBuckets.find(item => item.id === bucket)!.label;
-}
-
 function planForToday(task: DropTask, ctx: TaskDropContext): TaskDropPlan {
   if (hasRecurrence(task)) return RECURRING_SCHEDULE_REFUSAL;
   const reserved = reservationRefusal(task, ctx, ctx.today);
@@ -255,6 +282,69 @@ function planForToday(task: DropTask, ctx: TaskDropContext): TaskDropPlan {
   };
 }
 
+function withDeadline(write: { kind: "needsDate"; min: string; max: string | null }, task: DropTask): Extract<TaskDropWrite, { kind: "needsDate" }> {
+  return task.dueLocalDate ? { ...write, deadline: task.dueLocalDate } : write;
+}
+
+/** "Mon" within a week of today, "Today", else "16 Oct". */
+function shortDayLabel(localDate: string, today: string) {
+  if (localDate === today) return "Today";
+  return Math.abs(localDaysBetween(today, localDate)) < 7 ? weekdayLabel(localDate) : dayMonthLabel(localDate);
+}
+
+/** The `confirmLate` write for planning `day` after `deadline`. */
+export function lateDropConfirm(day: string, deadline: string, today: string): TaskLateDropConfirm {
+  const deadlineLabel = deadline === today ? "today's" : `the ${shortDayLabel(deadline, today)}`;
+  return {
+    kind: "confirmLate",
+    day,
+    deadline,
+    prompt: `${shortDayLabel(day, today)} is after ${deadlineLabel} deadline`,
+    planAnyway: { scheduledLocalDate: day },
+    moveDeadline: { scheduledLocalDate: day, dueLocalDate: day },
+  };
+}
+
+/** Resolves the late-drop prompt: "plan_anyway" keeps the deadline, "move_deadline" moves it to the day. */
+export function taskLateDropChoice(write: TaskLateDropConfirm, choice: "plan_anyway" | "move_deadline"): TaskDropPlan {
+  if (choice === "move_deadline") {
+    return { ok: true, write: { kind: "update", patch: write.moveDeadline }, announcement: `Planned and deadline moved to ${weekdayDayMonthLabel(write.day)}.` };
+  }
+  return { ok: true, write: { kind: "update", patch: write.planAnyway }, announcement: `Planned for ${weekdayDayMonthLabel(write.day)}, after the deadline.` };
+}
+
+const ARCHIVED_REFUSAL: TaskDropRefusal = { ok: false, rule: "archived", reason: "Archived. Restore it first.", action: "open_detail" };
+
+/**
+ * Week board day column (Q3): Plan for = the column's day; Unscheduled clears it. Hard refusals are kept
+ * only for moves that can't happen: archived work, a recurring series (its schedule decides), a reservation
+ * on another day (Calendar owns it) and a day already past. A day after the deadline asks once (Q4).
+ */
+function dayDrop(task: DropTask, date: string | null, ctx: TaskDropContext): TaskDropPlan {
+  if (task.state === "archived") return ARCHIVED_REFUSAL;
+  if (hasRecurrence(task)) return RECURRING_SCHEDULE_REFUSAL;
+
+  if (date === null) {
+    if (!task.scheduledLocalDate && !task.plannedStartAt) return { ok: true, write: { kind: "none" } };
+    const reserved = reservationRefusal(task, ctx, null);
+    if (reserved) return reserved;
+    const backInInbox = isInboxTask({ ...task, scheduledLocalDate: null });
+    return {
+      ok: true,
+      write: { kind: "update", patch: { scheduledLocalDate: null } },
+      announcement: backInInbox ? "Moved to Unscheduled. It is back in Inbox." : "Moved to Unscheduled.",
+    };
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, rule: "past", reason: "Choose a day." };
+  if (date < ctx.today) return { ok: false, rule: "past", reason: "You can't plan into the past." };
+  const reserved = reservationRefusal(task, ctx, date);
+  if (reserved) return reserved;
+  if (task.scheduledLocalDate === date) return { ok: true, write: { kind: "none" } };
+  if (task.dueLocalDate && date > task.dueLocalDate) return { ok: true, write: lateDropConfirm(date, task.dueLocalDate, ctx.today) };
+  return { ok: true, write: { kind: "update", patch: { scheduledLocalDate: date } } };
+}
+
 function whenDrop(task: DropTask, bucket: TaskWhenBucket, ctx: TaskDropContext): TaskDropPlan {
   const source = taskWhenPlacement(task, ctx).bucket;
   if (source === bucket) return { ok: true, write: { kind: "none" } };
@@ -264,33 +354,21 @@ function whenDrop(task: DropTask, bucket: TaskWhenBucket, ctx: TaskDropContext):
   const reserved = reservationRefusal(task, ctx, null);
   if (reserved) return reserved;
 
+  // Q4: a deadline never refuses a date. The popover offers the whole range; a day after the deadline is
+  // confirmed once (`taskDropDateChoice` returns `confirmLate`) and then allowed.
   if (bucket === "next_7_days") {
-    const min = shiftLocalDate(ctx.today, 1);
-    const weekEnd = shiftLocalDate(ctx.today, 7);
-    // Like Later: never plan past the deadline, and a deadline today or earlier keeps the card where it is.
-    if (task.dueLocalDate && task.dueLocalDate < min) {
-      const keeps = task.dueLocalDate < ctx.today ? "past_due" : "today";
-      return { ok: false, rule: "deadline", reason: `Deadline ${dayMonthLabel(task.dueLocalDate)} keeps this in ${bucketLabel(keeps)}.`, action: "open_detail" };
-    }
-    const max = task.dueLocalDate && task.dueLocalDate < weekEnd ? task.dueLocalDate : weekEnd;
-    return { ok: true, write: { kind: "needsDate", min, max } };
+    return { ok: true, write: withDeadline({ kind: "needsDate", min: shiftLocalDate(ctx.today, 1), max: shiftLocalDate(ctx.today, 7) }, task) };
   }
 
   if (bucket === "later") {
-    const laterStart = shiftLocalDate(ctx.today, 8);
-    if (task.dueLocalDate && task.dueLocalDate < laterStart) {
-      const keeps = task.dueLocalDate < ctx.today ? "past_due" : task.dueLocalDate === ctx.today ? "today" : "next_7_days";
-      return { ok: false, rule: "deadline", reason: `Deadline ${dayMonthLabel(task.dueLocalDate)} keeps this in ${bucketLabel(keeps)}.`, action: "open_detail" };
-    }
-    return { ok: true, write: { kind: "needsDate", min: laterStart, max: task.dueLocalDate ?? null } };
+    return { ok: true, write: withDeadline({ kind: "needsDate", min: shiftLocalDate(ctx.today, 8), max: null }, task) };
   }
 
   // No date
   if (task.dueLocalDate) {
     return { ok: false, rule: "deadline", reason: `Has a deadline (${dayMonthLabel(task.dueLocalDate)}). Clear it in details.`, action: "open_detail" };
   }
-  const open = task.state !== "completed" && task.state !== "archived";
-  const backInInbox = open && task.horizon !== "someday";
+  const backInInbox = isInboxTask({ ...task, scheduledLocalDate: null });
   return {
     ok: true,
     write: { kind: "update", patch: { scheduledLocalDate: null } },
@@ -311,16 +389,22 @@ function dockDrop(task: DropTask, action: "plan_today" | "archive", ctx: TaskDro
  * write, or a refusal with the reason the lane shows while the card hovers. Never fails silently.
  */
 export function planTaskDrop(task: DropTask, target: TaskDropTarget, ctx: TaskDropContext): TaskDropPlan {
+  if (ctx.pendingTaskIds?.has(task.id)) return { ok: false, rule: "saving", reason: "The last move is still saving." };
   if (target.kind === "status") return statusDrop(task, target, ctx);
+  if (target.kind === "day") return dayDrop(task, target.date, ctx);
   if (target.kind === "when") return whenDrop(task, target.bucket, ctx);
   return dockDrop(task, target.action, ctx);
 }
 
-/** Resolves a `needsDate` popover choice into the `task.update` patch, rejecting days outside the range. */
-export function taskDropDateChoice(write: Extract<TaskDropWrite, { kind: "needsDate" }>, localDate: string): TaskDropPlan {
+/**
+ * Resolves a `needsDate` popover choice into the `task.update` patch, rejecting days outside the range.
+ * A day after `write.deadline` returns `confirmLate` (Q4); pass `today` so its prompt can say "Mon".
+ */
+export function taskDropDateChoice(write: Extract<TaskDropWrite, { kind: "needsDate" }>, localDate: string, today?: string): TaskDropPlan {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate) || localDate < write.min || (write.max !== null && localDate > write.max)) {
     return { ok: false, rule: "deadline", reason: write.max ? `Choose a day from ${dayMonthLabel(write.min)} to ${dayMonthLabel(write.max)}.` : `Choose a day from ${dayMonthLabel(write.min)}.` };
   }
+  if (write.deadline && localDate > write.deadline) return { ok: true, write: lateDropConfirm(localDate, write.deadline, today ?? write.min) };
   return { ok: true, write: { kind: "update", patch: { scheduledLocalDate: localDate } } };
 }
 

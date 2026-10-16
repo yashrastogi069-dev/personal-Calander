@@ -50,8 +50,8 @@ function state(overrides: Partial<TaskWorkspaceFilterState> = {}): TaskWorkspace
 const ids = (rows: readonly { id: string }[]) => rows.map(row => row.id);
 
 describe("Inbox v2", () => {
-  it("holds open, unplanned, unreserved work (a deadline alone stays in Inbox) and lets Someday leave it", () => {
-    expect(ids(inboxTasks(tasks))).toEqual(["overdue", "inbox"]);
+  it("holds undecided work only: any date (a deadline too), a project or Someday takes it out (Q1/Q2)", () => {
+    expect(ids(inboxTasks(tasks))).toEqual(["inbox"]);
   });
 });
 
@@ -73,7 +73,7 @@ describe("taskRowsForWorkspace", () => {
   });
 
   it("does not apply quick filters or facets to Inbox and Archive", () => {
-    expect(ids(taskRowsForWorkspace(tasks, state({ view: "inbox", filter: "today", categoryIds: ["work"] }), ctx))).toEqual(["inbox", "overdue"]);
+    expect(ids(taskRowsForWorkspace(tasks, state({ view: "inbox", filter: "today", categoryIds: ["work"] }), ctx))).toEqual(["inbox"]);
     expect(ids(taskRowsForWorkspace(tasks, state({ view: "archive", filter: "open" }), ctx))).toEqual(["archived"]);
   });
 
@@ -92,7 +92,7 @@ describe("counts and summary", () => {
 
   it("summarises the header from real data", () => {
     const summary = taskHeaderSummary(tasks, ctx);
-    expect(summary).toEqual({ open: 8, overdue: 1, forToday: 2, inbox: 2 });
+    expect(summary).toEqual({ open: 8, overdue: 1, forToday: 2, inbox: 1 });
     expect(taskHeaderSummaryText(summary)).toBe("8 open · 1 overdue · 2 for today");
     expect(taskHeaderSummaryText({ open: 3, overdue: 0, forToday: 0, inbox: 0 })).toBe("3 open");
   });
@@ -132,7 +132,7 @@ describe("taskListSections", () => {
 describe("saved views v2", () => {
   it("reads v1 configurations with defaults, including the legacy risk filter", () => {
     expect(adaptSavedTaskView({ filter: "risk", sort: "due", query: "lease" })).toEqual({
-      version: 2, view: "list", lens: "status", query: "lease", filter: "deadline_risk", sort: "due", categoryIds: [], projectIds: [], priorities: [],
+      version: 2, view: "list", lens: "status", group: "when", query: "lease", filter: "deadline_risk", sort: "due", categoryIds: [], projectIds: [], priorities: [],
     });
     expect(adaptSavedTaskView(null)).toMatchObject({ filter: "all", sort: "manual", view: "list", lens: "status" });
     expect(adaptSavedTaskView({ filter: "nonsense", sort: "random" })).toMatchObject({ filter: "all", sort: "manual" });
@@ -146,7 +146,7 @@ describe("saved views v2", () => {
 
   it("writes a trimmed v2 configuration", () => {
     expect(savedTaskViewConfiguration({ view: "board", lens: "when", query: "  cv ", filter: "open", sort: "priority", categoryIds: ["work"], projectIds: [], priorities: ["high"] }))
-      .toEqual({ version: 2, view: "board", lens: "when", query: "cv", filter: "open", sort: "priority", categoryIds: ["work"], projectIds: [], priorities: ["high"] });
+      .toEqual({ version: 2, view: "board", lens: "when", group: "when", query: "cv", filter: "open", sort: "priority", categoryIds: ["work"], projectIds: [], priorities: ["high"] });
   });
 
   it("offers Save view only when the state differs from the applied view", () => {

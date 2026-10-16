@@ -10,6 +10,8 @@ import type { TaskCardModel } from "./taskCardModel";
 export type TaskDropZoneId =
   | `lane:${TaskStatusLaneId}`
   | `bucket:${TaskWhenBucket}`
+  /** Week board (Q3): `day:YYYY-MM-DD` sets Plan for to that day; `day:none` is the Unscheduled column. */
+  | `day:${string}`
   | "dock:plan_today"
   | "dock:archive";
 
@@ -34,6 +36,24 @@ export type TaskDragPreview = {
   overZone: TaskDropZoneId | null;
   /** Set while hovering a zone that would refuse the drop (lock icon + reason). */
   refusal: TaskDragRefusal | null;
+  /** Additive (T1): set while hovering a day after the deadline; the drop will ask once (Q4). */
+  lateWarning?: string | null;
+};
+
+/**
+ * Additive (T1, Q4): a drop past the deadline waits for the owner. Render the inline prompt on the card
+ * ("Mon is after the Sat deadline") with Plan anyway / Move deadline / Cancel. The card sits in `zone`
+ * optimistically until a choice is made; nothing is written before that.
+ */
+export type TaskLateDropRequest = {
+  taskId: string;
+  zone: TaskDropZoneId;
+  day: string;
+  deadline: string;
+  prompt: string;
+  planAnyway(): void;
+  moveDeadline(): void;
+  cancel(): void;
 };
 
 /** A drop that needs a date first (When lens "Next 7 days" / "Later", triage "Pick date"). */
@@ -61,6 +81,8 @@ export type TaskDndController = {
   /** Where a card sits optimistically before the server answers; the container applies it to lanes. */
   optimisticZone: ReadonlyMap<string, TaskDropZoneId>;
   dateRequest: TaskDateRequest | null;
+  /** Additive (T1): the pending late-drop prompt, or null. */
+  lateDrop?: TaskLateDropRequest | null;
   /** Non-null when in-lane reordering is off: non-Manual sort, or filters hide tasks (review #9). */
   reorderDisabledReason: string | null;
   /** Task id → server/policy error text shown under the card for about 6s. */

@@ -1,5 +1,6 @@
 import { tasksByStatusLane, taskStatusLanes } from "@shared/taskBoard";
 import { groupTasksByWhen, taskWhenBuckets } from "@shared/taskBuckets";
+import { weekBoardColumns } from "@shared/taskWeekBoard";
 import type { TaskDropContext } from "@shared/taskDrop";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,8 +15,13 @@ import {
   TaskKeyboardSensor,
   TaskPointerSensor,
   TaskTouchSensor,
+  WEEK_LENS_REORDER_REASON,
   WHEN_LENS_REORDER_REASON,
   canStartTaskDrag,
+  dropTargetForZone,
+  isTaskDropZoneId,
+  zoneForTask,
+  zoneLabel,
   createTaskCollisionDetection,
   createTaskKeyboardCoordinates,
   taskDndContextHandlers,
@@ -73,10 +79,22 @@ function whenLanes(tasks: readonly Task[]): TaskBoardLaneView[] {
   }));
 }
 
+/** The Week board (Q3) as the container renders it: Unscheduled · Mon 12 … Sun 18. */
+function weekLanes(tasks: readonly Task[]): TaskBoardLaneView[] {
+  return weekBoardColumns(tasks, { today, timezone: "Pacific/Auckland", weekStart: "2026-10-12" }).map(column => ({
+    zone: `day:${column.id}` as const,
+    label: column.label,
+    count: column.count,
+    models: column.tasks.map(item => model(item.id)),
+    hiddenCount: 0,
+    showAll: false,
+  }));
+}
+
 function setup(input: {
   tasks: Task[];
   lanes?: TaskBoardLaneView[];
-  lens?: "status" | "when";
+  lens?: "status" | "when" | "week";
   sort?: TaskDropContext["sort"];
   ctx?: Partial<TaskDropContext>;
   onUpdate?: TaskDndOptions<Task>["onUpdate"];
@@ -89,7 +107,7 @@ function setup(input: {
   const options: TaskDndOptions<Task> = {
     lens,
     tasks: input.tasks,
-    lanes: input.lanes ?? (lens === "status" ? statusLanes(input.tasks) : whenLanes(input.tasks)),
+    lanes: input.lanes ?? (lens === "status" ? statusLanes(input.tasks) : lens === "week" ? weekLanes(input.tasks) : whenLanes(input.tasks)),
     ctx: { today, timezone: "Pacific/Auckland", sort: input.sort ?? "manual", occurrences: [], dependencies: [], committedTasks: new Map(), ...input.ctx },
     onUpdate,
     onResolveOccurrence,
@@ -591,5 +609,114 @@ describe("useTaskDnd", () => {
     expect(controller.reorderDisabledReason).toBe("Sorted by due date, so the order follows the sort.");
     expect(controller.reducedMotion).toBe(true);
     expect(typeof controller.moveTo).toBe("function");
+  });
+});
+
+describe("Week board day-column lens (T1, Q3/Q4)", () => {
+  const ctx = { today, timezone: "Pacific/Auckland" };
+
+  it("maps day zones to drop targets, labels and task positions", () => {
+    expect(isTaskDropZoneId("day:none")).toBe(true);
+    expect(isTaskDropZoneId("day:2026-10-16")).toBe(true);
+    expect(isTaskDropZoneId("day:friday")).toBe(false);
+    expect(dropTargetForZone("day:2026-10-16")).toEqual({ kind: "day", date: "2026-10-16" });
+    expect(dropTargetForZone("day:none")).toEqual({ kind: "day", date: null });
+    expect(zoneLabel("day:none")).toBe("Unscheduled");
+    expect(zoneLabel("day:2026-10-16")).toBe("Fri 16");
+    expect(zoneForTask(task("a", { scheduledLocalDate: "2026-10-16" }), "week", ctx)).toBe("day:2026-10-16");
+    expect(zoneForTask(task("a", { dueLocalDate: "2026-10-16" }), "week", ctx)).toBe("day:none");
+    expect(zoneForTask(task("a", { plannedStartAt: "2026-10-15T20:15:00.000Z", plannedEndAt: "2026-10-15T21:00:00.000Z" }), "week", ctx)).toBe("day:2026-10-16");
+    expect(taskReorderDisabledReason("week", "manual")).toBe(WEEK_LENS_REORDER_REASON);
+  });
+
+  it("dragging a card to a day sets Plan for to that day", async () => {
+    const { engine, onUpdate } = setup({ lens: "week", tasks: [task("a", { projectId: "p1" }), task("b", { scheduledLocalDate: today })] });
+    engine.dragStart("a");
+    expect(engine.dragOver("a", "day:2026-10-16")).toBe("Task A is over Fri 16, position 1 of 1.");
+    const outcome = engine.dragEnd("a", "day:2026-10-16");
+    expect(outcome.message).toBe("Task A moved to Fri 16, position 1.");
+    expect(onUpdate.mock.calls[0][1]).toEqual({ scheduledLocalDate: "2026-10-16" });
+    expect(engine.getSnapshot().optimisticZone.get("a")).toBe("day:2026-10-16");
+    await outcome.done;
+    expect(engine.getSnapshot().announcement?.text).toBe("Saved.");
+  });
+
+  it("Unscheduled clears Plan for", () => {
+    const { engine, onUpdate } = setup({ lens: "week", tasks: [task("b", { scheduledLocalDate: today, dueLocalDate: "2026-10-20" })] });
+    engine.dragStart("b");
+    expect(engine.dragEnd("b", "day:none").message).toBe("Task B moved to Unscheduled, position 1. Moved to Unscheduled.");
+    expect(onUpdate.mock.calls[0][1]).toEqual({ scheduledLocalDate: null });
+  });
+
+  it("refuses a past day while hovering and on drop", () => {
+    const { engine, onUpdate } = setup({ lens: "week", tasks: [task("a", { projectId: "p1" })] });
+    engine.dragStart("a");
+    engine.dragOver("a", "day:2026-10-13");
+    expect(engine.getSnapshot().preview?.refusal).toMatchObject({ rule: "past" });
+    expect(engine.dragEnd("a", "day:2026-10-13").message).toBe("Could not move. You can't plan into the past. Task A is back in Unscheduled.");
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("a drop after the deadline asks once: Plan anyway writes the day only", async () => {
+    const { engine, onUpdate } = setup({ lens: "week", tasks: [task("a", { dueLocalDate: "2026-10-16" })] });
+    engine.dragStart("a");
+    engine.dragOver("a", "day:2026-10-18");
+    expect(engine.getSnapshot().preview).toMatchObject({ refusal: null, lateWarning: "Sun is after the Fri deadline" });
+    const outcome = engine.dragEnd("a", "day:2026-10-18");
+    expect(outcome.message).toBe("Task A moved to Sun 18. Sun is after the Fri deadline. Plan anyway, move the deadline, or cancel.");
+    expect(onUpdate).not.toHaveBeenCalled();
+    const late = engine.getSnapshot().lateDrop!;
+    expect(late).toMatchObject({ taskId: "a", zone: "day:2026-10-18", day: "2026-10-18", deadline: "2026-10-16", prompt: "Sun is after the Fri deadline" });
+    expect(engine.getSnapshot().optimisticZone.get("a")).toBe("day:2026-10-18");
+    late.planAnyway();
+    expect(engine.getSnapshot().lateDrop).toBeNull();
+    expect(onUpdate.mock.calls[0][1]).toEqual({ scheduledLocalDate: "2026-10-18" });
+    expect(engine.getSnapshot().announcement?.text).toBe("Planned for Sun 18 Oct, after the deadline.");
+    await engine.idle();
+    expect(engine.getSnapshot().announcement?.text).toBe("Saved.");
+    late.moveDeadline(); // stale prompt: no second write
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("Move deadline writes both dates; Cancel rolls back with no write", () => {
+    const first = setup({ lens: "week", tasks: [task("a", { dueLocalDate: "2026-10-16" })] });
+    first.engine.dragStart("a");
+    first.engine.dragEnd("a", "day:2026-10-18");
+    first.engine.getSnapshot().lateDrop!.moveDeadline();
+    expect(first.onUpdate.mock.calls[0][1]).toEqual({ scheduledLocalDate: "2026-10-18", dueLocalDate: "2026-10-18" });
+
+    const second = setup({ lens: "week", tasks: [task("a", { dueLocalDate: "2026-10-16" })] });
+    second.engine.dragStart("a");
+    second.engine.dragEnd("a", "day:2026-10-18");
+    second.engine.getSnapshot().lateDrop!.cancel();
+    expect(second.engine.getSnapshot().lateDrop).toBeNull();
+    expect(second.engine.getSnapshot().optimisticZone.size).toBe(0);
+    expect(second.engine.getSnapshot().announcement?.text).toBe("Move cancelled. Task A is back in Unscheduled.");
+    expect(second.onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("a new drag dismisses a pending late prompt", () => {
+    const { engine, onUpdate } = setup({ lens: "week", tasks: [task("a", { dueLocalDate: "2026-10-16" }), task("b", { projectId: "p1" })] });
+    engine.dragStart("a");
+    engine.dragEnd("a", "day:2026-10-18");
+    engine.dragStart("b");
+    expect(engine.getSnapshot().lateDrop).toBeNull();
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("When lens late popover choice (Q4)", () => {
+  it("turns a popover day after the deadline into the late prompt instead of refusing", () => {
+    const { engine, onUpdate } = setup({ lens: "when", tasks: [task("a", { scheduledLocalDate: today, dueLocalDate: "2026-10-16" })] });
+    engine.dragStart("a");
+    engine.dragEnd("a", "bucket:next_7_days");
+    expect(engine.getSnapshot().dateRequest).toMatchObject({ min: "2026-10-15", max: "2026-10-21" });
+    engine.getSnapshot().dateRequest!.resolve("2026-10-19");
+    expect(engine.getSnapshot().dateRequest).toBeNull();
+    expect(engine.getSnapshot().lateDrop).toMatchObject({ day: "2026-10-19", prompt: "Mon is after the Fri deadline", zone: "bucket:next_7_days" });
+    expect(engine.getSnapshot().announcement?.text).toBe("Mon is after the Fri deadline. Plan anyway, move the deadline, or cancel.");
+    expect(onUpdate).not.toHaveBeenCalled();
+    engine.getSnapshot().lateDrop!.planAnyway();
+    expect(onUpdate.mock.calls[0][1]).toEqual({ scheduledLocalDate: "2026-10-19" });
   });
 });

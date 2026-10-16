@@ -146,9 +146,14 @@ describe("shared overdue and Inbox rules", () => {
     expect(isOverdueTask(task({ recurrenceRule: { frequency: "daily" }, dueLocalDate: "2026-09-20" }), ctx.today)).toBe(false);
   });
 
-  it("keeps Someday out of the Inbox", () => {
+  it("keeps only undecided work in the Inbox (Q1/Q2: any date, a project or Someday takes it out)", () => {
     expect(isInboxTask(task())).toBe(true);
-    expect(isInboxTask(task({ dueLocalDate: "2026-10-20" }))).toBe(true);
+    expect(isInboxTask(task({ dueLocalDate: "2026-10-20" }))).toBe(false);
+    expect(isInboxTask(task({ dueLocalDate: "2026-10-01" }))).toBe(false);
+    expect(isInboxTask(task({ projectId: "p1" }))).toBe(false);
+    expect(isInboxTask(task({ plannedWeekStartLocalDate: "2026-10-12" }))).toBe(false);
+    expect(isInboxTask(task({ state: "completed" }))).toBe(false);
+    expect(isInboxTask(task({ state: "blocked" }))).toBe(true);
     expect(isInboxTask(task({ horizon: "someday" }))).toBe(false);
     expect(isInboxTask(task({ scheduledLocalDate: "2026-10-20" }))).toBe(false);
     expect(isInboxTask(task({ plannedStartAt: "2026-10-15T20:00:00.000Z", plannedEndAt: "2026-10-15T21:00:00.000Z" }))).toBe(false);
@@ -205,8 +210,9 @@ describe("taskWhenBucketCounts", () => {
     expect(pastDueDeadline).toHaveLength(badges.overdue!);
     const rows = mixed.map(item => ({ ...item, title: item.id, createdAt: undefined }));
     expect(taskHeaderSummary(rows, withOccurrences).overdue).toBe(badges.overdue);
-    // Inbox badge equals the Inbox tab and the header: Someday ("e", "p") and dated work leave it.
-    expect(inboxTasks(rows).map(item => item.id)).toEqual(["a", "f", "i", "k", "m", "n"]);
+    // Inbox badge equals the Inbox tab and the header: Someday ("e", "p") and any dated work (deadlines too,
+    // owner decision Q2) leave it; only the undecided "f" stays.
+    expect(inboxTasks(rows).map(item => item.id)).toEqual(["f"]);
     expect(badges.inbox).toBe(inboxTasks(rows).length);
     expect(taskHeaderSummary(rows, withOccurrences).inbox).toBe(badges.inbox);
   });

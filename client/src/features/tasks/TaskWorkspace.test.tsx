@@ -73,8 +73,8 @@ describe("TaskWorkspace check dispatch", () => {
 });
 
 describe("TaskWorkspace container", () => {
-  it("uses the shared Inbox rule, so Someday leaves the Inbox", () => {
-    expect(inboxTasks(allTasks).map(item => item.id)).toEqual(["waiting", "prereq"]);
+  it("uses the shared Inbox rule, so Someday and deadline-only work leave the Inbox", () => {
+    expect(inboxTasks(allTasks).map(item => item.id)).toEqual(["prereq"]);
   });
 
   it("renders the premium List: header, toolbar and When sections, never the anchor date on a recurring row", () => {

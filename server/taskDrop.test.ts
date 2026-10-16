@@ -6,7 +6,9 @@ import {
   sortOrderNotice,
   taskArchiveCheck,
   taskCompletionCheck,
+  lateDropConfirm,
   taskDropDateChoice,
+  taskLateDropChoice,
   type DropTask,
   type TaskDropContext,
 } from "@shared/taskDrop";
@@ -198,11 +200,11 @@ describe("planTaskDrop: When lens", () => {
       .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-15", max: "2026-10-21" } });
   });
 
-  it("refuses Next 7 days when the deadline is today or already past (never plans after it)", () => {
+  it("no longer refuses Next 7 days for a deadline today or past: the popover carries it to confirm (Q4)", () => {
     expect(planTaskDrop(task({ dueLocalDate: today }), { kind: "when", bucket: "next_7_days" }, ctx()))
-      .toMatchObject({ ok: false, rule: "deadline" });
+      .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-15", max: "2026-10-21", deadline: today } });
     expect(planTaskDrop(task({ scheduledLocalDate: "2026-11-30", dueLocalDate: "2026-10-10" }), { kind: "when", bucket: "next_7_days" }, ctx()))
-      .toMatchObject({ ok: false, rule: "deadline", reason: "Deadline 10 Oct keeps this in Past due." });
+      .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-15", max: "2026-10-21", deadline: "2026-10-10" } });
   });
 
   it("refuses Next 7 days, Later and No date for reserved work", () => {
@@ -212,19 +214,17 @@ describe("planTaskDrop: When lens", () => {
     }
   });
 
-  it("asks for a Later date capped by the deadline", () => {
+  it("asks for a Later date and carries the deadline instead of capping the range (Q4)", () => {
     expect(planTaskDrop(task(), { kind: "when", bucket: "later" }, ctx())).toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-22", max: null } });
     expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16", dueLocalDate: "2026-11-30" }), { kind: "when", bucket: "later" }, ctx()))
-      .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-22", max: "2026-11-30" } });
+      .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-22", max: null, deadline: "2026-11-30" } });
   });
 
-  it("refuses Later when the deadline keeps the task sooner", () => {
+  it("lets Later through when the deadline is sooner; the chosen day then asks once", () => {
     expect(planTaskDrop(task({ dueLocalDate: "2026-10-16" }), { kind: "when", bucket: "later" }, ctx()))
-      .toEqual({ ok: false, rule: "deadline", reason: "Deadline 16 Oct keeps this in Next 7 days.", action: "open_detail" });
-    expect(planTaskDrop(task({ dueLocalDate: today, scheduledLocalDate: "2026-12-01" }), { kind: "when", bucket: "later" }, ctx()))
-      .toMatchObject({ ok: false, reason: "Deadline 14 Oct keeps this in Today." });
+      .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-22", max: null, deadline: "2026-10-16" } });
     expect(planTaskDrop(task({ dueLocalDate: "2026-10-01", scheduledLocalDate: "2026-12-01" }), { kind: "when", bucket: "later" }, ctx()))
-      .toMatchObject({ ok: false, reason: "Deadline 1 Oct keeps this in Past due." });
+      .toEqual({ ok: true, write: { kind: "needsDate", min: "2026-10-22", max: null, deadline: "2026-10-01" } });
     expect(planTaskDrop(task({ dueLocalDate: "2026-12-20" }), { kind: "when", bucket: "later" }, ctx())).toEqual({ ok: true, write: { kind: "none" } });
   });
 
@@ -238,6 +238,18 @@ describe("planTaskDrop: When lens", () => {
   it("refuses No date for a task with a deadline", () => {
     expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16", dueLocalDate: "2026-10-20" }), { kind: "when", bucket: "no_date" }, ctx()))
       .toEqual({ ok: false, rule: "deadline", reason: "Has a deadline (20 Oct). Clear it in details.", action: "open_detail" });
+  });
+
+  it("returns confirmLate for a popover day after the carried deadline", () => {
+    const write = { kind: "needsDate" as const, min: "2026-10-15", max: "2026-10-21", deadline: "2026-10-17" };
+    expect(taskDropDateChoice(write, "2026-10-17", today)).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: "2026-10-17" } } });
+    expect(taskDropDateChoice(write, "2026-10-19", today)).toEqual({
+      ok: true,
+      write: {
+        kind: "confirmLate", day: "2026-10-19", deadline: "2026-10-17", prompt: "Mon is after the Sat deadline",
+        planAnyway: { scheduledLocalDate: "2026-10-19" }, moveDeadline: { scheduledLocalDate: "2026-10-19", dueLocalDate: "2026-10-19" },
+      },
+    });
   });
 
   it("resolves a date popover choice inside its range only", () => {
@@ -342,4 +354,64 @@ it("phrases the sort notice for each sort", () => {
   expect(sortOrderNotice("manual")).toBeNull();
   expect(sortOrderNotice("scheduled")).toBe("Sorted by plan date, so the order follows the sort.");
   expect(sortOrderNotice("created")).toBe("Sorted by newest, so the order follows the sort.");
+});
+
+describe("planTaskDrop: Week board day columns (Q3) and late drops (Q4)", () => {
+  const day = (date: string | null) => ({ kind: "day" as const, date });
+
+  it("sets Plan for to the column's day", () => {
+    expect(planTaskDrop(task(), day("2026-10-16"), ctx())).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: "2026-10-16" } } });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-20" }), day(today), ctx())).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: today } } });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16" }), day("2026-10-16"), ctx())).toEqual({ ok: true, write: { kind: "none" } });
+  });
+
+  it("asks once for a day after the deadline instead of refusing", () => {
+    expect(planTaskDrop(task({ dueLocalDate: "2026-10-17" }), day("2026-10-19"), ctx())).toEqual({
+      ok: true,
+      write: {
+        kind: "confirmLate", day: "2026-10-19", deadline: "2026-10-17", prompt: "Mon is after the Sat deadline",
+        planAnyway: { scheduledLocalDate: "2026-10-19" }, moveDeadline: { scheduledLocalDate: "2026-10-19", dueLocalDate: "2026-10-19" },
+      },
+    });
+    // Due today, dropped tomorrow.
+    expect(planTaskDrop(task({ dueLocalDate: today }), day("2026-10-15"), ctx())).toMatchObject({ ok: true, write: { kind: "confirmLate", prompt: "Thu is after today's deadline" } });
+    // Already overdue, dropped on today.
+    expect(planTaskDrop(task({ dueLocalDate: "2026-10-10" }), day(today), ctx())).toMatchObject({ ok: true, write: { kind: "confirmLate", prompt: "Today is after the Sat deadline" } });
+    // On the deadline itself: no prompt.
+    expect(planTaskDrop(task({ dueLocalDate: "2026-10-17" }), day("2026-10-17"), ctx())).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: "2026-10-17" } } });
+  });
+
+  it("resolves the late prompt into one update", () => {
+    const plan = planTaskDrop(task({ dueLocalDate: "2026-10-17" }), day("2026-10-19"), ctx());
+    if (!plan.ok || plan.write.kind !== "confirmLate") throw new Error("expected confirmLate");
+    expect(taskLateDropChoice(plan.write, "plan_anyway")).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: "2026-10-19" } }, announcement: "Planned for Mon 19 Oct, after the deadline." });
+    expect(taskLateDropChoice(plan.write, "move_deadline")).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: "2026-10-19", dueLocalDate: "2026-10-19" } }, announcement: "Planned and deadline moved to Mon 19 Oct." });
+    expect(lateDropConfirm("2026-11-02", "2026-10-17", today).prompt).toBe("2 Nov is after the Sat deadline");
+  });
+
+  it("Unscheduled clears Plan for and says when the task is back in Inbox", () => {
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16" }), day(null), ctx()))
+      .toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: null } }, announcement: "Moved to Unscheduled. It is back in Inbox." });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16", dueLocalDate: "2026-10-20" }), day(null), ctx()))
+      .toMatchObject({ ok: true, announcement: "Moved to Unscheduled." });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16", projectId: "p1" }), day(null), ctx()))
+      .toMatchObject({ ok: true, announcement: "Moved to Unscheduled." });
+    expect(planTaskDrop(task({ dueLocalDate: "2026-10-20" }), day(null), ctx())).toEqual({ ok: true, write: { kind: "none" } });
+  });
+
+  it("keeps hard refusals only for impossible moves", () => {
+    expect(planTaskDrop(task({ state: "archived" }), day("2026-10-16"), ctx())).toMatchObject({ ok: false, rule: "archived" });
+    expect(planTaskDrop(task({ recurrenceRule: weekly, scheduledLocalDate: "2026-09-25" }), day("2026-10-16"), ctx())).toMatchObject({ ok: false, rule: "recurring_schedule" });
+    expect(planTaskDrop(task({ recurrenceRule: weekly, scheduledLocalDate: "2026-09-25" }), day(null), ctx())).toMatchObject({ ok: false, rule: "recurring_schedule" });
+    expect(planTaskDrop(task(), day("2026-10-13"), ctx())).toEqual({ ok: false, rule: "past", reason: "You can't plan into the past." });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16", ...reservedFriday }), day("2026-10-17"), ctx())).toMatchObject({ ok: false, rule: "reserved" });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-16", ...reservedFriday }), day(null), ctx())).toMatchObject({ ok: false, rule: "reserved" });
+    expect(planTaskDrop(task({ scheduledLocalDate: "2026-10-15", ...reservedFriday }), day("2026-10-16"), ctx())).toEqual({ ok: true, write: { kind: "update", patch: { scheduledLocalDate: "2026-10-16" } } });
+  });
+
+  it("refuses any drop while the task's last write is still saving", () => {
+    const pending = ctx({ pendingTaskIds: new Set(["t1"]) });
+    expect(planTaskDrop(task(), day("2026-10-16"), pending)).toEqual({ ok: false, rule: "saving", reason: "The last move is still saving." });
+    expect(planTaskDrop(task(), { kind: "status", lane: "in_progress" }, pending)).toMatchObject({ ok: false, rule: "saving" });
+  });
 });

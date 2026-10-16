@@ -96,6 +96,7 @@ type BadgeTask = {
   scheduledLocalDate?: string | null;
   plannedStartAt?: unknown;
   plannedEndAt?: unknown;
+  projectId?: string | null;
   recurrenceRule?: unknown;
 };
 

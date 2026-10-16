@@ -22,6 +22,8 @@ export type BucketTask = {
   id: string;
   state: string;
   horizon?: string | null;
+  projectId?: string | null;
+  plannedWeekStartLocalDate?: string | null;
   dueLocalDate?: string | null;
   scheduledLocalDate?: string | null;
   plannedStartAt?: Date | string | null;
@@ -78,20 +80,30 @@ export function isOverdueTask(task: DeadlineTask & { state: string }, today: str
 type InboxCandidate = {
   state: string;
   horizon?: string | null;
+  dueLocalDate?: string | null;
   scheduledLocalDate?: string | null;
   plannedStartAt?: unknown;
   plannedEndAt?: unknown;
+  projectId?: string | null;
+  /**
+   * Inbox triage "This week" (Fable Q1): the week's first local day, with no plan day. No column holds this
+   * yet (adding one is a gated schema migration), so it is optional and absent on every record today.
+   */
+  plannedWeekStartLocalDate?: string | null;
 };
 
 /**
- * Inbox = undecided work: open, with no Plan for date and no reserved time. A deadline alone keeps it in the
- * Inbox. Someday (`horizon = "someday"`) is a decision ("not now"), so it leaves the Inbox and its badge and
- * lives under No date with a Someday pill (owner decision 2026-10-14).
+ * Inbox = undecided work (owner decisions Q1/Q2, 2026-10-15). A task waits in the Inbox only until ONE
+ * decision is made: any date (Plan for, reserved time or a deadline), a project, Someday, or (once the field
+ * exists) a "this week" flag. Same rule for the rail badge, the Tasks header and the Inbox tab.
  */
 export function isInboxTask(task: InboxCandidate) {
   return task.state !== "completed" && task.state !== "archived"
     && !task.scheduledLocalDate && !task.plannedStartAt && !task.plannedEndAt
-    && task.horizon !== "someday";
+    && !task.dueLocalDate
+    && !task.projectId
+    && task.horizon !== "someday"
+    && !task.plannedWeekStartLocalDate;
 }
 
 /** The workspace-local day of a task's reservation, or null when it has no complete reservation. */
