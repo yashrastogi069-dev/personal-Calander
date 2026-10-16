@@ -1,5 +1,13 @@
 # Current decisions
 
+## 2026-10-17: no more standalone prototypes; "layout first, then motion" build flow (owner approved)
+- **Decision:** the planned page prototypes (Today+Focus, Calendar, Week, Nav+Settings, Goals, Habits, Insights) are **dropped**. The interview (Q1–Q51) already fixes the structure, and a prototype is throwaway work.
+- **New flow per page:** (1) Opus **layout pass** in real code on demo data (structure, cards, rows, pills, phone layout; no drag/gestures/rich motion yet) → (2) primary publishes a private **screenshot gallery** (desktop + phone, light + dark, plus a short "what to check" list) from the harness shots → owner says yes / change X → (3) Opus **interaction pass** (drag, gestures, morphs, motion) on the approved layout → (4) owner checks motion on the auto Vercel Preview with `docs/OWNER_PREVIEW_CHECKLIST.md`.
+- Calendar (total redesign) also uses this flow; its layout pass replaces the prototype. Small pages (Habits, Goals, Insights) may share one gallery.
+- Guardrail: if a layout pass looks wrong to the owner, a quick prototype for that page is still allowed.
+- The approved Tasks prototype (`ux-restructure/prototypes/tasks.html`) stays the quality bar for gallery look and density (owner liked it).
+- Effect: about six agent runs and ~1 week saved; feature-complete estimate ~5–6 weeks from 2026-10-17. Source: owner chat 2026-10-17.
+
 ## 2026-10-16: product direction (P1–P4) + Tasks T1 logic
 - **P1:** build the core daily loop first (Tasks → Today/Plan/Shutdown → Focus → Nav+Settings), then Calendar/Week, then Goals/Habits/Insights.
 - **P2:** capture from everywhere: a personal Inbox API + iOS Shortcut/Siri + n8n recipes; also explore wider n8n use (ideas in `05-product-direction.md` §9).
