@@ -9,7 +9,13 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
     - Interview Q14 (every Today row tickable in place), Q15 (Today = "habits due" chips; heatmap and traces → Habits tab), Q16 (calm 3-step shutdown with strictness: Close day needs an explicit decision per open item; 3+ carries must be scheduled, broken down or let go).
     - Tasks prototype v1 (Fable, relaunched after the rate limit): `docs/superpowers/ux-restructure/prototypes/tasks.html` + `tasks-notes.md`. Primary checked screenshots (List, Board, Inbox, phone 390: no h-scroll, no console errors). Added phone auto-mode at ≤600px. Published privately: https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR (publish copy = the file minus the doctype/html/head/body wrapper). **Awaiting the owner's verdict** and their answers to Fable's 5 open questions (in `tasks-notes.md`).
   - **New standing rule (owner 2026-10-16):** ask the owner for a one-line confirmation before EVERY Fable run (confirmation only, not a ban). Opus/Sonnet runs need no confirmation.
-  - **Next:**
+  - **INTERVIEW COMPLETE (Q1–Q49, 2026-10-16).** The full app map is under "INTERVIEW COMPLETE" in `03-interview-log.md`. Calendar gets a total redesign; Focus gets 4 upgrades; the D4 §9 questions are answered (the owner checks the timezone personally).
+  - **Next (current):**
+    1. Owner verdict on the Tasks prototype → record it in `04-prototypes.md`.
+    2. Prototypes, one Fable run per page, **each confirmed by the owner first**: Today+Focus → Calendar → Week → Goals → Habits → Insights → Nav+Settings.
+    3. D4 engine (Opus, pure logic, files in the D4 spec §6), which can run now.
+    4. Then build the approved pages (Opus), mount the D3.5 hooks inside them, and run D3.5.2 browser verification.
+  - **Older next-list (superseded):**
     1. Owner verdict on the Tasks prototype → record it in `04-prototypes.md`.
     2. Interview Q17 (energy/mood), then the Calendar, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks, plus the 8 D4 owner questions (D4 spec §6).
     3. D4 engine (Opus, pure logic) can run in the interview gaps.

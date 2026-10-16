@@ -158,7 +158,20 @@ Delivery: verify locally, create/push only `dev/personal-calendar-premium-v2`, t
 - **Q15:** Today shows only a compact "habits due" chip row. Heatmap, 7-day traces, streaks and history live in the Habits tab.
 - **Q16:** "Shut down day" is a calm 3-step overlay (wins → open items → one-line reflection) with strictness. Close day needs an explicit decision per open item ("Move all to tomorrow" is one explicit tap). Items carried 3+ times must be scheduled, broken down or let go.
 - **Process:** confirm with the owner before every Fable run (confirmation only).
-- Full log: `docs/superpowers/ux-restructure/03-interview-log.md`.
+- **Q17–Q49 (same day; the interview is complete):**
+  - optional energy tap
+  - **Calendar total redesign** (Week desktop / Day phone, 00–24 grid, Unscheduled tray, no Quarter/Year)
+  - a lean **Week** page as one weekly ritual: Review → Objectives (1–3) → Place
+  - **Goals** = Overview | Timeline (Roadmap merged)
+  - Habits = a combined heatmap plus cards, no settings tab
+  - **Insights** = Review + Analytics
+  - rail: Dashboard · Today · Tasks · Calendar · Week | Goals · Habits · Insights | Settings
+  - phone bar kept
+  - palette search and one-page Settings
+  - Dashboard is home everywhere
+  - **Focus upgrades:** immersive mode, presets and breaks, Web Audio ambient sounds, session notes and stats
+  - D4 §9 answered (the owner checks the timezone personally)
+- Full log: `docs/superpowers/ux-restructure/03-interview-log.md` ("INTERVIEW COMPLETE").
 
 ## 2026-10-15: owner decisions (UX restructure)
 

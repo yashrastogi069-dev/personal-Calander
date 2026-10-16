@@ -385,4 +385,145 @@ Inputs: `01-structure-map.md` (Opus, 40 surfaces) and `02-competitor-patterns.md
   - The weekly ritual runs on the planning day; the daily close is Today's shutdown.
   - An optional monthly recap card is auto-generated in Insights. It is not a ritual.
 
-**RESUME HERE (usage limit, 2026-10-15):** Q14 LOCKED 2026-10-16. Q15 LOCKED 2026-10-16. Q16 LOCKED 2026-10-16. Q17 LOCKED 2026-10-16; Today branch DONE. Calendar Q18–Q21 LOCKED 2026-10-16; Plan Q22–Q23 LOCKED 2026-10-16. Roadmap Q24–Q26 LOCKED 2026-10-16. Goals & Projects Q27–Q30 LOCKED 2026-10-16. Habits Q31–Q32 LOCKED 2026-10-16. Review Q33–Q35 LOCKED 2026-10-16. Next: Nav/More/Settings Q36+. Then the, Plan weekly, Roadmap, Goals & Projects, Habits, Review/Analytics and Nav/More/Settings banks in `01-structure-map.md` "Interview question bank", plus the 8 D4 owner questions in the D4 spec §6. Today's code also drops tasks with a deadline; confirm during the build.
+**Q36 [Nav › Goals vs Roadmap]**
+- **Recommended:** one Goals page with two lenses.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - One **Goals** rail item with a switch: **Overview** (goal runways and projects, Q29) | **Timeline** (the Roadmap: drag dates, Month/Quarter/Year, Q24–Q26).
+  - Roadmap is no longer its own page.
+
+**Q37 [Nav › desktop rail]**
+- **Recommended:** the rail as proposed.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The rail has 9 items in 3 groups:
+    - **Do:** Dashboard · Today · Tasks · Calendar · Week
+    - **Grow:** Goals · Habits · Insights
+    - **Bottom:** Settings
+  - The rail collapses to icons.
+  - Focus opens from anywhere (hero, task, palette, mini capsule).
+  - The Inbox count shows as a badge on Tasks.
+
+**Q38 [Nav › phone bar]**
+- **Recommended:** keep it, with the Inbox badge on More.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The bar is Home (Dashboard) · Today · + · Calendar · More, as built in D3.5 `0aef6b7`.
+  - More is a launcher grid with Tasks first (carrying the Inbox badge), then Week, Goals, Habits, Insights, Settings.
+  - The bar stays user-customisable.
+
+**Q39 [Search & Settings]**
+- **Recommended:** palette search and a one-page Settings.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Search is the ⌘K palette with a "show all results" panel. There is no Search page, and the extra search fields go.
+  - Settings is one scrolling page with section anchors; the duplicate tabs go.
+  - Connections shows status plus one action each, without engineering copy.
+
+**Q40 [Dashboard › home]**
+- **Recommended:** home on every device.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - The app opens on Dashboard on desktop and phone (the phone bar's "Home").
+  - Polish only, plus the "Plan your week" card (Q22) and the weekly objectives strip (Q23).
+
+**Q41 [Focus]**
+- **Recommended:** only fix the picker overlap.
+- **Owner (2026-10-16):** "Bigger changes", with no detail yet. The primary asked a follow-up (see Q41b).
+
+**Q42 [D4 › rows]**
+- **Recommended:** detail and triage only.
+- **Owner (2026-10-16):** same.
+- **Locked decision:** "Supports a goal" never shows on task rows; it appears in the detail's Why section and on the Inbox triage card. (D4 spec §9 Q1.)
+
+**Q43 [D4 › no reasons]**
+- **Recommended:** one quiet line plus a Link button.
+- **Owner (2026-10-16):** same.
+- **Locked decision:**
+  - Open, non-Someday tasks with no reasons show "Not linked to a goal or project yet" with a "Link to a goal" button.
+  - The section is hidden for done and Someday tasks. (D4 spec §9 Q2.)
+
+**Q41b [Focus › bigger changes]**, multi-select
+- **Owner (2026-10-16):** all four.
+- **Locked decision:** Focus gains:
+  1. **Immersive full-screen mode:** a distraction-free timer with ambient motion; the app is hidden until exit. Reduced motion means a static version. On desktop, the Fullscreen API is optional with graceful fallback.
+  2. **Session presets and breaks:** 25/5, 50/10 and custom, auto-breaks, and a long break after N sessions.
+  3. **Ambient sounds:** brown noise and rain are synthesised with Web Audio (no audio files, no network). A café loop would need one small bundled asset, which must be owner-approved. Sounds start only from a tap.
+  4. **Session notes and stats:** a one-line intention before each session and a note after it; per-task and per-day focus stats feed Insights (Q34).
+- Data impact: if presets, notes and intention need new columns, that is a migration, which is GATED. Prefer existing JSON/preference fields; otherwise ask the owner before any schema change.
+- Focus stays the quality bar visually; these are additive. A Fable prototype covers them with Today (owner confirms the run).
+
+**Q44 [D4 › slipping]**
+- **Owner (2026-10-16):** "Yes, from 2, amber".
+- **Locked decision:** "Pushed back N times" shows from N=2 in the amber risk tone, using the neutral words "pushed back". It appears in the detail, and as the urgency pill when it is the strongest signal.
+
+**Q45 [D4 › windows]**
+- **Owner (2026-10-16):** "Use those windows".
+- **Locked decision:** `WHY_WINDOWS` = deadline 3 days, milestone 14, project 14, goal 30, streak from 3. Tune after a week of real use.
+
+**Q46 [D4 › Someday]**
+- **Owner (2026-10-16):** "Only 'Unblocks N tasks'".
+- **Locked decision:** Someday tasks show no reason except "Unblocks N tasks".
+
+**Q47 [D4 › Dashboard]**
+- **Owner (2026-10-16):** "No, hero only".
+- **Locked decision:** reasons appear on the Dashboard only as one "because..." line on the Up Next hero.
+
+**Q48 [D4 › timezone]**
+- **Owner (2026-10-16):** "I'll check it myself".
+- **Locked decision:** the owner checks the workspace timezone in Settings (expected Pacific/Auckland; the database default is UTC). Agents do not read or change it. Until the owner confirms, the D4 engine takes the timezone as a parameter (it already does).
+
+**Q49 [D4 › merged pages]**
+- **Owner (2026-10-16):** "Yes, follow the rows".
+- **Locked decision:** reason lines follow their rows into merged pages (Today, Goals › Timeline, Insights). No extra prototype round just for reasons.
+
+## INTERVIEW COMPLETE (2026-10-16): Q1–Q49 locked
+
+**App map after the restructure**
+- **Desktop rail** (Q37):
+  - **Do:** Dashboard · Today · Tasks · Calendar · Week
+  - **Grow:** Goals (Overview | Timeline) · Habits · Insights
+  - **Bottom:** Settings
+- **Phone bar** (Q38): Home · Today · + · Calendar · More. More is a launcher, with Tasks and its Inbox badge first.
+- **Dashboard** (Q12, Q40): look; the home on every device; plus the "Plan your week" card and the objectives strip.
+- **Today** (Q12–Q17):
+  - do: Next-up hero, timeline, everything tickable, habits-due chips
+  - Plan my day: 3 moves plus an optional energy tap
+  - Shut down day: calm but strict
+- **Focus** (Q41b): immersive full-screen, presets and breaks, synthesised ambient sounds, session notes and stats.
+- **Tasks** (Q1–Q11):
+  - tabs: Inbox (undecided only) · List (calm, grouped by When) · Board (Week with a Status switch)
+  - Archive: Completed | Archived
+  - saved-view pills, a bulk bar, an autosave detail
+- **Calendar** (Q18–Q21): total redesign. Day / Week / Month (Week on desktop, Day on phone), a 00–24 grid scrolled to now, and an Unscheduled tray.
+- **Week** (Q22, Q23, Q33): one weekly ritual, Review → Objectives (1–3) → Place (capacity strip plus the same Week board as Tasks). Afterwards it is a calm "This week" overview.
+- **Goals** (Q24–Q30, Q36):
+  - **Overview:** goal runways with milestones, nested projects, a "Why this matters to me" line
+  - **Timeline:** the former Roadmap; drag dates; opens on 6 months; Month/Quarter/Year
+  - A project reuses the Tasks views.
+- **Habits** (Q15, Q31, Q32): a combined year heatmap, habit cards, and detail with month + heatmap + edit. No Settings tab; check-ins happen on Today.
+- **Insights** (Q34, Q35): past weekly reviews plus Analytics charts, and an auto monthly recap card.
+- **Search and Settings** (Q39): the ⌘K palette; one-page Settings; plain Connections.
+- **D4** (Q42–Q49): spec §9 answered as above.
+
+**Cut overall:**
+- the legacy dark board and Move-to dropdowns
+- the Views tab and the SavedViewsPanel creation path
+- the triage stub and the unwired Select
+- Plan › Daily as a page, and Plan › Weekly's forms and duplicate board
+- the Calendar Quarter/Year view and the Roadmap page (it is now a lens)
+- the Directions tab and the Habits Settings tab
+- the Ritual panel and duplicate review lists
+- the Search page and the extra search fields
+- the DailyCompass form, and the Recovery copy on Today
+
+**Next (step 4, prototypes):** Tasks v1 is published (https://claude.ai/artifact/NXrHCqtnRYEC1cCJ1kSazR) and awaits a verdict. Every remaining prototype is a Fable run, and the **owner must confirm each one first**. Suggested order:
+1. Today + Focus
+2. Calendar
+3. Week
+4. Goals (both lenses)
+5. Habits
+6. Insights
+7. Nav (rail, phone More) + Settings
+
+**RESUME HERE (2026-10-16):** the interview is COMPLETE (Q1–Q49). Next: the owner verdict on Tasks v1; owner confirmation for each Fable prototype run (order above); the D4 engine build (Opus).

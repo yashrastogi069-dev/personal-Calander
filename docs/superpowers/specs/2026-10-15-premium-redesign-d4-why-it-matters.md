@@ -433,6 +433,8 @@ Rules for every step:
 
 ## 9. Owner questions (for the grill-me interview, one at a time)
 
+> **ANSWERED 2026-10-16** (interview log Q42–Q49). All recommendations accepted except Q7: **the owner checks the timezone personally**, and agents do not read or change it. Mapping: 1→Q42, 2→Q43, 3→Q44, 4→Q45, 5→Q46, 6→Q47, 7→Q48, 8→Q49.
+
 1. **Should "Supports a goal" ever show on task rows?**
    **Recommended: no.** It shows only in the detail and on the Inbox triage card. The row's context chip already names the goal or project, so the chip would repeat it on every linked row.
 
