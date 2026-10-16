@@ -99,6 +99,40 @@ function SectionBlock({
   );
 }
 
+/** First-run and filtered-empty states, shared by the When sections and the T2a calm groups. */
+export function TaskListEmptyState({ empty, className }: { empty: TaskListEmpty; className?: string }) {
+  if (empty.kind === "first-run") {
+    return (
+      <div className={cn("tk-empty", className)}>
+        <EmptyState
+          icon={ListChecks}
+          title="Your tasks start with one captured thought"
+          body={plannerObjectDefinitions.task.description}
+          action={<button type="button" className="tk-btn is-accent pc-focusable" onClick={empty.onCapture}>Capture a task</button>}
+        />
+        <ul className="tk-definitions" aria-label="How tasks use dates">
+          {([taskSchedulingLanguage.deadline, taskSchedulingLanguage.planFor, taskSchedulingLanguage.reserveTime] as const).map(item => (
+            <li key={item.label} className="tk-pill is-neutral" title={item.help}>
+              <span className="tk-pill-text">{item.label}</span>
+              <span className="pc-sr-only">{`: ${item.help}`}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  return (
+    <div className={cn("tk-empty", className)}>
+      <EmptyState
+        icon={SearchX}
+        title={empty.query ? `No task matches "${empty.query}" in ${empty.scope}` : `No task in ${empty.scope}`}
+        body="Clear the filters to see every task again. Your sort order stays."
+        action={<button type="button" className="tk-btn is-ghost pc-focusable" onClick={empty.onClear}>Clear filters</button>}
+      />
+    </div>
+  );
+}
+
 export function TaskListSections({
   sections,
   onOpen,
@@ -118,41 +152,7 @@ export function TaskListSections({
     first.current = false;
   }, []);
 
-  if (!sections.length) {
-    if (empty?.kind === "first-run") {
-      return (
-        <div className={cn("tk-empty", className)}>
-          <EmptyState
-            icon={ListChecks}
-            title="Your tasks start with one captured thought"
-            body={plannerObjectDefinitions.task.description}
-            action={<button type="button" className="tk-btn is-accent pc-focusable" onClick={empty.onCapture}>Capture a task</button>}
-          />
-          <ul className="tk-definitions" aria-label="How tasks use dates">
-            {([taskSchedulingLanguage.deadline, taskSchedulingLanguage.planFor, taskSchedulingLanguage.reserveTime] as const).map(item => (
-              <li key={item.label} className="tk-pill is-neutral" title={item.help}>
-                <span className="tk-pill-text">{item.label}</span>
-                <span className="pc-sr-only">{`: ${item.help}`}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-    if (empty?.kind === "filtered") {
-      return (
-        <div className={cn("tk-empty", className)}>
-          <EmptyState
-            icon={SearchX}
-            title={empty.query ? `No task matches "${empty.query}" in ${empty.scope}` : `No task in ${empty.scope}`}
-            body="Clear the filters to see every task again. Your sort order stays."
-            action={<button type="button" className="tk-btn is-ghost pc-focusable" onClick={empty.onClear}>Clear filters</button>}
-          />
-        </div>
-      );
-    }
-    return null;
-  }
+  if (!sections.length) return empty ? <TaskListEmptyState empty={empty} className={className} /> : null;
 
   return (
     <div className={cn("tk-sections", className)}>

@@ -4,7 +4,7 @@ import { TaskHeader, taskSummaryParts } from "./TaskHeader";
 
 const noop = () => {};
 const summary = { open: 36, overdue: 3, forToday: 13, inbox: 4 };
-const base = { summary, view: "list" as const, onViewChange: noop, selectMode: false, onSelectModeChange: noop, onCapture: noop, onOpenArchive: noop, onCloseArchive: noop };
+const base = { summary, view: "list" as const, onViewChange: noop, onCapture: noop };
 
 describe("taskSummaryParts", () => {
   it("lists open, overdue and today from real counts", () => {
@@ -22,20 +22,17 @@ describe("taskSummaryParts", () => {
 });
 
 describe("TaskHeader", () => {
-  it("shows the title, summary, Select, Capture and the four view tabs", () => {
+  it("shows the title, summary, Capture and the tabs Inbox · List · Board · Archive (no Views, no Select)", () => {
     const html = renderToStaticMarkup(<TaskHeader {...base} />);
     expect(html).toContain("Tasks");
     expect(html).toContain("36");
     expect(html).toContain("for today");
-    expect(html).toContain("Select");
     expect(html).toContain("Capture");
-    for (const tab of ["Inbox", "List", "Board", "Views"]) expect(html).toContain(tab);
+    for (const tab of ["Inbox", "List", "Board", "Archive"]) expect(html).toContain(tab);
+    expect(html).not.toContain("Views");
+    expect(html).not.toContain("Select");
     expect(html).toContain('role="tablist"');
-  });
-
-  it("reports Select as a pressed toggle", () => {
-    expect(renderToStaticMarkup(<TaskHeader {...base} selectMode />)).toContain('aria-pressed="true"');
-    expect(renderToStaticMarkup(<TaskHeader {...base} />)).toContain('aria-pressed="false"');
+    expect(html.match(/role="tab"/g)).toHaveLength(4);
   });
 
   it("badges the Inbox tab with the real inbox count", () => {
@@ -43,12 +40,12 @@ describe("TaskHeader", () => {
     expect(renderToStaticMarkup(<TaskHeader {...base} summary={{ ...summary, inbox: 0 }} />)).not.toContain("pc-seg-badge");
   });
 
-  it("swaps to the archive view with a way back and no tabs", () => {
+  it("keeps the tabs and Capture on the Archive tab, which is selected like any other", () => {
     const html = renderToStaticMarkup(<TaskHeader {...base} view="archive" />);
-    expect(html).toContain("Archived tasks");
-    expect(html).toContain("Back to tasks");
-    expect(html).not.toContain('role="tablist"');
-    expect(html).not.toContain("Capture");
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain("Capture");
+    expect(html).not.toContain("Back to tasks");
+    expect(html).toMatch(/aria-selected="true"[^>]*>(?:(?!<\/button>)[\s\S])*Archive/);
   });
 
   it("says so when offline or showing a saved copy, and hides review at zero", () => {

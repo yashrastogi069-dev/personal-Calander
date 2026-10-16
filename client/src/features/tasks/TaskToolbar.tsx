@@ -1,6 +1,6 @@
 // D3 TaskToolbar: search (`/` focuses, Escape clears then blurs), quick filter chips with live counts, the
 // Filter popover (category, project, priority), applied filters as removable chips, the Sort menu, the Board
-// lens toggle and Save view. All state lives in the caller (URL and saved views); this only draws and reports.
+// lens toggle, the List Group by switch (Q7, Tasks T2a) and Save view. All state lives in the caller (URL and saved views); this only draws and reports.
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { ArrowUpDown, BookmarkPlus, Flag, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, type KeyboardEvent, type RefObject } from "react";
@@ -16,6 +16,7 @@ import {
   taskSortOptions,
   type TaskBoardLens,
   type TaskFacetFilters,
+  type TaskListGroupBy,
   type TaskPriority,
   type TaskWorkspaceSort,
 } from "./taskWorkspaceModel";
@@ -41,6 +42,9 @@ export type TaskToolbarProps = {
   onSortChange: (sort: TaskWorkspaceSort) => void;
   lens?: TaskBoardLens;
   onLensChange?: (lens: TaskBoardLens) => void;
+  /** List Group by (When / Project / Category). Shows on the List only. */
+  group?: TaskListGroupBy;
+  onGroupChange?: (group: TaskListGroupBy) => void;
   /** Show Save view: the current state differs from the applied saved view. */
   canSaveView?: boolean;
   onSaveView?: () => void;
@@ -82,6 +86,8 @@ export function TaskToolbar({
   onSortChange,
   lens,
   onLensChange,
+  group,
+  onGroupChange,
   canSaveView = false,
   onSaveView,
   className,
@@ -211,6 +217,17 @@ export function TaskToolbar({
           ) : null}
         </div>
       </div>
+      {view === "list" && group && onGroupChange ? (
+        <div className="tk-lens">
+          <span className="tk-lens-label">Group</span>
+          <SegmentedTabs<TaskListGroupBy>
+            label="Group by"
+            value={group}
+            onValueChange={onGroupChange}
+            items={[{ value: "when", label: "When" }, { value: "project", label: "Project" }, { value: "category", label: "Category" }]}
+          />
+        </div>
+      ) : null}
       {view === "board" && lens && onLensChange ? (
         <div className="tk-lens">
           <span className="tk-lens-label">Lens</span>

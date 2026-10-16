@@ -1,7 +1,8 @@
 // Pure workspace model for the D3 Tasks page (spec §3, §10): view rows, quick-filter and facet filters with
 // live counts, sort, header summary, When-grouped List sections and saved view configuration v2.
 // TaskWorkspace.tsx still carries the v1 copies of inboxTasks/taskRowsForWorkspace/adaptSavedTaskView until
-// the D3 container wiring switches to this module.
+// the D3 container wiring switches to this module. Tasks T2a adds the calm List groups (Q7) and the per-device
+// Group by memory at the end of this file.
 
 import type { CanonicalTask } from "@shared/canonicalTask";
 import { dailyCapacityForecast, deadlineRiskForTask } from "@shared/planningForecast";
@@ -17,8 +18,12 @@ import {
   type TaskWhenBucket,
 } from "@shared/taskBuckets";
 import type { TaskBoardFilter } from "@shared/taskBoardUrl";
+import { groupTasksByCategory, groupTasksByProject, groupTasksByWhen, type GroupableTask, type TaskGroup } from "@shared/taskListGroups";
+import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
+import type { WeekStartsOn } from "@shared/taskWeekBoard";
 
-export type TaskWorkspaceView = "inbox" | "list" | "board" | "saved" | "archive";
+/** Tabs Inbox · List · Board, then the quiet Archive (Q8 removed the Views tab, Q9 the separate archive page). */
+export type TaskWorkspaceView = "inbox" | "list" | "board" | "archive";
 export type TaskWorkspaceSort = "manual" | "priority" | "due" | "scheduled" | "created";
 /** "week" is the T1 Week board (Unscheduled · Mon…Sun, Q3); "when" is the legacy bucket lens. */
 export type TaskBoardLens = "status" | "when" | "week";
@@ -388,6 +393,59 @@ export function searchWithTaskBoardLensAndFacets(search: string, value: TaskFace
   write(PROJECT_PARAM, value.projectIds);
   write(PRIORITY_PARAM, value.priorities);
   return params.toString();
+}
+
+// ---------- Tasks T2a: calm List groups (Q7) ----------
+
+export type TaskListGroupSources = {
+  today: string;
+  timezone: string;
+  occurrences?: readonly TaskOccurrenceLike[];
+  weekStartsOn?: WeekStartsOn;
+  /** Ids ticked this session: they stay dimmed in their group until reload or midnight (Fable Q2). */
+  keepInPlaceIds?: ReadonlySet<string>;
+  projects?: readonly { id: string; title?: string | null; name?: string | null; categoryId?: string | null; state?: string | null }[];
+  categories?: readonly { id: string; name: string }[];
+};
+
+/**
+ * The List rows grouped by When, Project or Category, through the T1 selectors. Empty groups are dropped, so
+ * the UI only draws what has rows. Undecided Inbox work is the caller's to leave out (the List shows decided
+ * work only, as the approved prototype does).
+ */
+export function taskListGroups<TTask extends GroupableTask>(rows: readonly TTask[], groupBy: TaskListGroupBy, sources: TaskListGroupSources): TaskGroup<TTask>[] {
+  const options = { occurrences: sources.occurrences, weekStartsOn: sources.weekStartsOn, keepInPlaceIds: sources.keepInPlaceIds };
+  const projects = (sources.projects ?? [])
+    .filter(project => project.state !== "archived")
+    .map(project => ({ id: String(project.id), name: String(project.title ?? project.name ?? "Project"), categoryId: project.categoryId ?? null }));
+  const categories = (sources.categories ?? []).map(category => ({ id: String(category.id), name: String(category.name) }));
+  const groups = groupBy === "project"
+    ? groupTasksByProject(rows, projects, sources.today, sources.timezone, options)
+    : groupBy === "category"
+      ? groupTasksByCategory(rows, categories, sources.today, sources.timezone, { ...options, projects })
+      : groupTasksByWhen(rows, sources.today, sources.timezone, options);
+  return groups.filter(group => group.tasks.length > 0);
+}
+
+/** Group by is remembered per device (Q7), stored with the same values as the saved-view `group` key (Q8). */
+export const TASK_LIST_GROUP_STORAGE_KEY = "pc.tasks.listGroup";
+
+type GroupStorage = Pick<Storage, "getItem" | "setItem">;
+
+export function readStoredTaskListGroup(storage: Pick<GroupStorage, "getItem"> | null | undefined): TaskListGroupBy {
+  try {
+    return adaptSavedTaskView({ group: storage?.getItem(TASK_LIST_GROUP_STORAGE_KEY) }).group;
+  } catch {
+    return "when";
+  }
+}
+
+export function storeTaskListGroup(storage: Pick<GroupStorage, "setItem"> | null | undefined, group: TaskListGroupBy) {
+  try {
+    storage?.setItem(TASK_LIST_GROUP_STORAGE_KEY, savedTaskViewConfiguration({ ...defaultTaskSavedView, group }).group);
+  } catch {
+    // Private windows can refuse storage; the choice still holds for this session.
+  }
 }
 
 export type { TaskBoardFilter, TaskWhenBucket };

@@ -1,11 +1,14 @@
 // D3 TaskRow: one List row (Tasks surface only; CanonicalTaskRow still serves Today and Calendar until D3.5).
 // Left to right: check, title, meta pills, then Focus and More on hover or focus, and the drag handle slot.
 // Narrow lists (a container query, so it also covers the phone) stack the pills under the title.
+// The calm List (Tasks T2a, Q6) passes `meta` (at most 2 smart pills plus the reason chip) and `estimate`;
+// its Focus and More float in over the row end and reserve no width.
 // Presentation only: it takes a TaskCardModel and callbacks, never snapshot data.
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontal, Play, type LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { toneClassName } from "@/design/categoryTone";
+import { formatMinutes } from "@/design/timeFormat";
 import { cn } from "@/lib/utils";
 import { CheckButton } from "./CheckButton";
 import type { TaskCardModel } from "./taskCardModel";
@@ -39,6 +42,10 @@ export type TaskRowProps = {
   actions?: ReadonlyArray<TaskRowAction>;
   /** Drag handle (Manual sort only). D3b supplies the dnd-kit handle button. */
   dragHandle?: ReactNode;
+  /** Calm row (Q6): replaces the full TaskMetaPills set with the caller's smart pills. */
+  meta?: ReactNode;
+  /** Calm row: the time estimate on the right. Null or 0 keeps the column empty. */
+  estimate?: number | null;
   className?: string;
 };
 
@@ -76,13 +83,14 @@ export function TaskActionsMenu({ title, actions, label, className }: { title: s
   );
 }
 
-export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onBlockedCheck, onStartFocus, actions = [], dragHandle, className }: TaskRowProps) {
+export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onBlockedCheck, onStartFocus, actions = [], dragHandle, meta, estimate, className }: TaskRowProps) {
+  const calm = meta !== undefined;
   const open = !model.isComplete && model.state !== "archived";
   const guarded = model.completionBlock?.reason ?? null;
   const inert = model.check.action.kind === "none" && !guarded;
   return (
     <li
-      className={cn("tk-row", toneClassName(model.tone), model.isComplete && "is-complete", model.pending && "is-pending", enter && "pc-rise", className)}
+      className={cn("tk-row", calm && "is-calm", toneClassName(model.tone), model.isComplete && "is-complete", model.pending && "is-pending", enter && "pc-rise", className)}
       style={enter ? ({ ["--pc-i" as string]: index } as CSSProperties) : undefined}
       data-task-record-id={model.id}
       data-task-version={model.version}
@@ -105,7 +113,12 @@ export function TaskRow({ model, index = 0, enter = false, onOpen, onToggle, onB
       <button type="button" className="tk-row-title pc-focusable" title={model.title} onClick={event => onOpen(model, event.currentTarget)}>
         {model.title}
       </button>
-      <TaskMetaPills model={model} className="tk-row-pills" />
+      {calm ? <div className="tk-row-pills tk-row-meta">{meta}</div> : <TaskMetaPills model={model} className="tk-row-pills" />}
+      {calm ? (
+        <span className="tk-row-est">
+          {estimate ? <><span aria-hidden="true">{formatMinutes(estimate)}</span><span className="pc-sr-only">{`Estimate ${formatMinutes(estimate)}`}</span></> : null}
+        </span>
+      ) : null}
       <div className="tk-row-actions">
         {open && onStartFocus ? (
           <button type="button" className="tk-ghost-btn pc-focusable" onClick={() => onStartFocus(model)} aria-label={`Start focus on ${model.title}`}>

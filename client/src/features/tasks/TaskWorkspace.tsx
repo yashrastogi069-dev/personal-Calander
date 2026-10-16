@@ -1,6 +1,9 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// Tasks workspace container (D3, reshaped by Tasks T2a to the approved prototype): tabs Inbox · List · Board
+// plus the quiet Archive. Inbox = undecided work with triage cards (Q1/Q2); List = calm rows grouped by When,
+// Project or Category (Q6/Q7) with ticked work dimming in place until midnight (Fable Q2); Archive = Completed
+// | Archived (Q9). The Board keeps the D3 status lanes until the T2b Week board replaces them.
 import { PageHeader } from "@/components/premium/Surfaces";
+import { resolveCategoryTones } from "@/design/categoryTone";
 import { cn } from "@/lib/utils";
 import type { CanonicalTask } from "@shared/canonicalTask";
 import { isInboxTask } from "@shared/taskBuckets";
@@ -14,15 +17,21 @@ import {
 import type { TaskBoardFilter } from "@shared/taskBoardUrl";
 import { committedTaskPlans, taskArchiveCheck } from "@shared/taskDrop";
 import type { TaskOccurrenceLike } from "@shared/taskRecurrence";
-import { Archive, ArchiveRestore, CalendarCheck, GripVertical, Inbox, ListChecks, PanelRight, Play, Search } from "lucide-react";
+import { rowPills, type RowPillContext } from "@shared/taskRowPills";
+import { topReason, type WhyReason } from "@shared/whyItMatters";
+import { Archive, ArrowRightLeft, CalendarCheck, GripVertical, ListChecks, PanelRight, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { whyFactsFromSnapshot } from "@/features/why/whyFacts";
 import { CanonicalTaskRow } from "./CanonicalTaskRow";
 import { InboxTriage } from "./InboxTriage";
+import { inboxDecisionMessage, inboxDecisionPatch, inboxDecisionUndoPatch, type InboxDecision } from "./inboxTriageModel";
+import { TaskArchive, type TaskArchiveTab } from "./TaskArchive";
 import { TaskDetailSheet, type TaskMutationResult } from "./TaskDetailSheet";
 import { TaskHeader } from "./TaskHeader";
-import { TaskListSections, type TaskListEmpty } from "./TaskListSections";
-import type { TaskRowAction } from "./TaskRow";
+import { TaskListGroups, type CalmTaskGroup } from "./TaskListGroups";
+import type { TaskListEmpty } from "./TaskListSections";
+import { TaskActionsMenu, type TaskRowAction } from "./TaskRow";
 import { TaskSkeleton } from "./TaskSkeleton";
 import { TaskToolbar } from "./TaskToolbar";
 import { createTaskCardContext, taskCardModel, type TaskCardModel } from "./taskCardModel";
@@ -32,13 +41,17 @@ import {
   emptyTaskFacets,
   hasActiveTaskFilters,
   quickFilterCounts,
+  readStoredTaskListGroup,
   searchWithTaskBoardLensAndFacets,
+  sortWorkspaceTasks,
+  storeTaskListGroup,
   taskBoardLensAndFacetsFromSearch,
   taskHeaderSummary,
-  taskListSections,
+  taskListGroups,
   taskQuickFilters,
   taskRowsForWorkspace as workspaceRows,
   type TaskFacetFilters,
+  type TaskListGroupBy,
   type TaskWorkspaceSort,
   type TaskWorkspaceView,
 } from "./taskWorkspaceModel";
@@ -158,6 +171,14 @@ function writeFacetsToUrl(facets: TaskFacetFilters) {
   }
 }
 
+function safeLocalStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /** First paint before the snapshot: the header text stays, rows are skeleton shapes (D3 §6). */
 export function TaskWorkspaceLoading() {
   return (
@@ -180,8 +201,12 @@ export type TaskWorkspaceProps = {
   categories: any[];
   projects: any[];
   goals: any[];
+  /** Saved task views. The pill row that uses them (Q8) arrives in T2b; the Views tab is gone. */
   savedViews: any[];
   dependencies?: any[];
+  /** `snapshot.milestones` and `snapshot.weeklyObjectives`, for the D4 reasons (milestone soon, weekly objective). */
+  milestones?: readonly unknown[];
+  weeklyObjectives?: readonly unknown[];
   /** `snapshot.taskOccurrences`: recurring rows show their occurrence, and checking one resolves it. */
   occurrences?: readonly TaskOccurrenceLike[];
   /** `snapshot.dailyPlans` and `snapshot.dailyPlanItems`, for the R3 "committed in a plan" check. */
@@ -208,7 +233,6 @@ export type TaskWorkspaceProps = {
   onOpenPlan?: () => void;
   onCreateSubtask: (task: any, title: string) => Promise<TaskMutationResult>;
   onReorder: (task: any, direction: -1 | 1, laneTasks: any[]) => Promise<string | null>;
-  onArchiveCompleted: (tasks: any[]) => Promise<boolean>;
   onAddDependency?: (task: any, dependsOnTaskId: string) => Promise<void>;
   onRemoveDependency?: (dependency: any) => Promise<void>;
 };
@@ -223,8 +247,9 @@ export function TaskWorkspace({
   categories,
   projects,
   goals,
-  savedViews,
   dependencies = [],
+  milestones,
+  weeklyObjectives,
   occurrences,
   dailyPlans,
   dailyPlanItems,
@@ -247,7 +272,6 @@ export function TaskWorkspace({
   onOpenPlan,
   onCreateSubtask,
   onReorder,
-  onArchiveCompleted,
   onAddDependency,
   onRemoveDependency,
 }: TaskWorkspaceProps) {
@@ -257,6 +281,15 @@ export function TaskWorkspace({
   const [dropLane, setDropLane] = useState<TaskBoardLaneId | null>(null);
   const [undo, setUndo] = useState<{ label: string; task: any; patch: Record<string, unknown> } | null>(null);
   const [facets, setFacetsState] = useState<TaskFacetFilters>(readFacetsFromUrl);
+  const [listGroup, setListGroupState] = useState<TaskListGroupBy>(() => readStoredTaskListGroup(safeLocalStorage()));
+  const [archiveTab, setArchiveTab] = useState<TaskArchiveTab>("completed");
+  // Ids ticked this session (Fable Q2): they dim in place in their group until reload or local midnight.
+  const [tickedIds, setTickedIds] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => setTickedIds(new Set()), [today]);
+  const setListGroup = useCallback((next: TaskListGroupBy) => {
+    setListGroupState(next);
+    storeTaskListGroup(safeLocalStorage(), next);
+  }, []);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const setFacets = useCallback((next: TaskFacetFilters) => {
@@ -306,12 +339,51 @@ export function TaskWorkspace({
   const filtered = useMemo(() => workspaceRows(tasks, filterState, bucketCtx), [bucketCtx, filterState, tasks]);
   const summary = useMemo(() => taskHeaderSummary(tasks, bucketCtx), [bucketCtx, tasks]);
   const counts = useMemo(() => quickFilterCounts(tasks, { query, ...facets }, bucketCtx), [bucketCtx, facets, query, tasks]);
-  const listSections = useMemo(
-    () => view === "list"
-      ? taskListSections(filtered, tasks, bucketCtx).map(section => ({ ...section, tasks: section.tasks.map(task => taskCardModel(task, cardCtx)) }))
-      : [],
-    [bucketCtx, cardCtx, filtered, tasks, view],
+  // D4 facts from the snapshot slices this page receives; memoised so the engine's index is built once.
+  const whyFacts = useMemo(
+    () => whyFactsFromSnapshot({ tasks, goals, projects, milestones, taskDependencies: dependencies, taskOccurrences: occurrences, dailyPlans, dailyPlanItems, weeklyObjectives }),
+    [dailyPlanItems, dailyPlans, dependencies, goals, milestones, occurrences, projects, tasks, weeklyObjectives],
   );
+  const whyFactTasks = useMemo(() => new Map(whyFacts.tasks.map(task => [task.id, task])), [whyFacts]);
+  const whyFor = useCallback((task: CanonicalTask, surface: "task_row" | "inbox_triage"): WhyReason | null => {
+    const entity = whyFactTasks.get(task.id);
+    if (!entity) return null;
+    try {
+      return topReason({ kind: "task", task: entity }, whyFacts, new Date(), timezone, surface);
+    } catch {
+      return null;
+    }
+  }, [timezone, whyFactTasks, whyFacts]);
+  const pillCtx = useMemo<RowPillContext>(() => ({
+    timezone,
+    variant: "list",
+    groupBy: listGroup,
+    projects: new Map(projects.map(item => [String(item.id), { id: String(item.id), name: String(item.title), color: item.color ?? null, categoryId: item.categoryId ?? null }])),
+    categories: new Map(categories.map(item => [String(item.id), { id: String(item.id), name: String(item.name), color: item.color ?? null }])),
+    occurrences,
+    dependencies,
+    tasks,
+  }), [categories, dependencies, listGroup, occurrences, projects, tasks, timezone]);
+  const categoryTones = useMemo(() => resolveCategoryTones(categories), [categories]);
+  const listGroups = useMemo<CalmTaskGroup[]>(() => {
+    if (view !== "list") return [];
+    // The List shows decided work; undecided work waits in the Inbox (Q1).
+    const rows = filtered.filter(task => !isInboxTask(task));
+    return taskListGroups(rows, listGroup, { today, timezone, occurrences, keepInPlaceIds: tickedIds, projects, categories }).map(group => ({
+      id: group.id,
+      label: group.label,
+      count: group.count,
+      estimateMinutes: group.estimateMinutes,
+      collapsedByDefault: group.collapsedByDefault,
+      tone: listGroup === "category" && group.id !== "none" && group.id !== "done_today" ? categoryTones.get(group.id) ?? "neutral" : undefined,
+      rows: group.tasks.map(task => ({
+        model: { ...taskCardModel(task, cardCtx), why: whyFor(task, "task_row") },
+        pills: rowPills(task, today, pillCtx),
+        estimateMinutes: typeof task.estimateMinutes === "number" && task.estimateMinutes > 0 ? task.estimateMinutes : null,
+      })),
+    }));
+  }, [cardCtx, categories, categoryTones, filtered, listGroup, occurrences, pillCtx, projects, tickedIds, timezone, today, view, whyFor]);
+  const inboxRows = useMemo(() => sortWorkspaceTasks(tasks.filter(isInboxTask), "created"), [tasks]);
   const categoryOptions = useMemo(
     () => categories.map(item => ({ value: String(item.id), label: String(item.name), tone: cardCtx.categoryTones.get(item.id) ?? "neutral" })),
     [cardCtx, categories],
@@ -355,6 +427,7 @@ export function TaskWorkspace({
   ) => {
     try {
       const result = await onUpdate(task, patch);
+      if (action === "complete") setTickedIds(current => new Set(current).add(task.id));
       const inverse = taskUndoPatch(task, action);
       setUndo(inverse ? {
         label: action === "complete" ? `${task.title} completed.` : `${task.title} archived.`,
@@ -420,7 +493,7 @@ export function TaskWorkspace({
       const result = await onUpdate(task, { scheduledLocalDate: today });
       toast.success(result.queued ? "Plan for today saved on this device." : "Planned for today.");
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "The task was left in Inbox.");
+      toast.error(caught instanceof Error ? caught.message : "The task was left unchanged.");
     }
   };
   const moveToLane = async (task: CanonicalTask, lane: TaskBoardLaneId) => {
@@ -432,19 +505,40 @@ export function TaskWorkspace({
       toast.error(caught instanceof Error ? caught.message : "The task stayed in its previous lane.");
     }
   };
-  const archiveCompleted = async (completedTasks: CanonicalTask[]) => {
-    if (!completedTasks.length) return;
-    const confirmed = window.confirm(
-      `Archive ${completedTasks.length} completed task${completedTasks.length === 1 ? "" : "s"}? They will remain restorable from Archived work.`,
-    );
-    if (confirmed) await onArchiveCompleted(completedTasks);
-  };
   const restore = async (task: CanonicalTask) => {
     try {
       const result = await onUpdate(task, { state: "not_started" });
-      toast.success(result.queued ? "Restore saved on this device." : "Task restored to To do.");
+      toast.success(result.queued ? "Restore saved on this device." : "Restored to your tasks.");
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "The archived task was left unchanged.");
+      toast.error(caught instanceof Error ? caught.message : "The task was left unchanged.");
+    }
+  };
+  /** One Inbox decision (Q1): a single patch, then an Undo toast that puts the task back in the Inbox. */
+  const decideInbox = async (task: CanonicalTask, decision: InboxDecision) => {
+    if (decision.kind === "delete") {
+      const allowed = taskArchiveCheck(task, cardCtx);
+      if (!allowed.ok) {
+        toast.info(allowed.reason);
+        return;
+      }
+    }
+    try {
+      const result = await onUpdate(task, inboxDecisionPatch(decision, today));
+      const undoPatch = inboxDecisionUndoPatch(decision, task);
+      const message = inboxDecisionMessage(decision, today);
+      toast.success(result.queued ? `${message} (saved on this device).` : message, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void onUpdate(result.record ?? task, undoPatch).then(
+              () => toast.success("Back in the Inbox."),
+              (caught: unknown) => toast.error(caught instanceof Error ? caught.message : "Undo could not be saved."),
+            );
+          },
+        },
+      });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "The task stayed in the Inbox.");
     }
   };
   const undoLast = async () => {
@@ -523,8 +617,6 @@ export function TaskWorkspace({
         view={view}
         onViewChange={next => onViewChange(next)}
         onCapture={onCapture}
-        onOpenArchive={() => onViewChange("archive")}
-        onCloseArchive={() => onViewChange("list")}
         reviewCount={conflictedTaskIds.length}
         onReview={conflictedTaskIds.length ? () => openDetail({ id: conflictedTaskIds[0] }, rowTrigger(conflictedTaskIds[0])) : undefined}
         offline={!isOnline}
@@ -545,40 +637,32 @@ export function TaskWorkspace({
           projectOptions={projectOptions}
           sort={sort}
           onSortChange={next => viewState({ sort: next })}
+          group={listGroup}
+          onGroupChange={setListGroup}
         />
-      ) : view === "inbox" || view === "archive" ? (
-        <div className="task-workspace-toolbar">
-          <label className="task-search"><Search aria-hidden="true" size={18} /><Input data-task-search value={query} onChange={event => viewState({ query: event.target.value })} placeholder="Search tasks" aria-label="Search tasks" /></label>
-        </div>
       ) : null}
 
       {undo ? <div className="task-undo" role="status"><span>{undo.label}</span><button type="button" onClick={() => void undoLast()}>Undo</button><button type="button" aria-label="Dismiss undo" onClick={() => setUndo(null)}>×</button></div> : null}
 
       {view === "inbox" ? (
         <InboxTriage
-          tasks={filtered}
-          allTasks={tasks}
-          categories={categories}
-          projects={projects}
-          goals={goals}
+          tasks={inboxRows}
           today={today}
           timezone={timezone}
+          projects={projects}
           pendingTaskIds={pendingTaskIds}
-          occurrences={occurrences}
-          onToggle={toggle}
-          onPlanToday={planToday}
-          onArchive={archive}
+          whyFor={task => whyFor(task, "inbox_triage")}
+          onDecide={decideInbox}
           onOpenDetail={openDetail}
           onCapture={onCapture}
-          onStartFocus={onStartFocus}
-          queryActive={Boolean(query.trim())}
-          onResetQuery={() => viewState({ query: "" })}
         />
       ) : null}
 
       {view === "list" ? (
-        <TaskListSections
-          sections={listSections}
+        <TaskListGroups
+          groupBy={listGroup}
+          groups={listGroups}
+          categoryTones={categoryTones}
           onOpen={(model, trigger) => openDetail(model, trigger)}
           onToggle={withTask((task, model) => void checkTask(task, model))}
           onBlockedCheck={withTask(explainBlockedCheck)}
@@ -590,7 +674,7 @@ export function TaskWorkspace({
 
       {view === "board" ? (
         <section className="task-board" aria-labelledby="task-board-heading">
-          <div className="task-board-heading"><div><h3 id="task-board-heading">Work lanes</h3><p>Drag is optional. Every card has a visible Move to control.</p></div><span>{filtered.length} shown</span></div>
+          <div className="task-board-heading"><div><h3 id="task-board-heading">Work lanes</h3><p>Drag is optional. Every card has a Move to menu.</p></div><span>{filtered.length} shown</span></div>
           {sort !== "manual" ? <p className="task-sort-guidance" role="status">{TASK_REORDER_GUIDANCE}</p> : null}
           <div className="task-lane-tabs" role="group" aria-label="Choose the task lane shown on small screens">
             {taskBoardLanes.map(lane => <button key={lane.id} type="button" aria-pressed={activeMobileLane === lane.id} className={cn("task-lane-tab", `task-lane-tab-${lane.id}`, activeMobileLane === lane.id && "is-active")} onClick={() => setActiveMobileLane(lane.id)}><span aria-hidden="true" /><b>{lane.id === "todo" ? "To do" : lane.id === "in_progress" ? "Doing" : "Done"}</b><small>{filtered.filter(task => laneForTaskState(task.state) === lane.id).length}</small></button>)}
@@ -648,11 +732,16 @@ export function TaskWorkspace({
                         {sort === "manual" ? <span className="task-drag-handle" aria-hidden="true"><GripVertical size={15} /></span> : null}
                         {renderRow(task)}
                         <div className="task-order-actions" aria-label={`Reorder ${task.title}`}><button type="button" aria-label={`Move ${task.title} up in ${lane.label}`} title={sort === "manual" ? undefined : TASK_REORDER_GUIDANCE} disabled={sort !== "manual" || laneTasks.indexOf(task) === 0} onClick={() => void runTaskReorder(sort, () => onReorder(task, -1, laneTasks))}>↑</button><button type="button" aria-label={`Move ${task.title} down in ${lane.label}`} title={sort === "manual" ? undefined : TASK_REORDER_GUIDANCE} disabled={sort !== "manual" || laneTasks.indexOf(task) === laneTasks.length - 1} onClick={() => void runTaskReorder(sort, () => onReorder(task, 1, laneTasks))}>↓</button></div>
-                        <label className="task-lane-select"><span>Move to</span><select value={laneForTaskState(task.state)} onChange={event => void moveToLane(task, event.target.value as TaskBoardLaneId)}>{taskBoardLanes.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
+                        {/* Q3: the per-card Move to dropdown is gone; this menu is the keyboard and touch alternative to drag. */}
+                        <TaskActionsMenu
+                          title={task.title}
+                          label={`Move ${task.title} to another lane`}
+                          className="task-lane-move"
+                          actions={taskBoardLanes.filter(option => option.id !== lane.id).map(option => ({ id: `move-${option.id}`, label: `Move to ${option.label}`, icon: ArrowRightLeft, onSelect: () => void moveToLane(task, option.id) }))}
+                        />
                       </div>
                     )) : <div className="task-lane-empty">No tasks in this lane.</div>}
                     {visible.hiddenCount ? <button type="button" className="task-history-toggle" onClick={() => setExpandedLanes(current => ({ ...current, [lane.id]: true }))}>Show {visible.hiddenCount} more</button> : null}
-                    {lane.id === "completed" && laneTasks.length ? <button type="button" className="task-archive-completed" onClick={() => void archiveCompleted(laneTasks)}><ArchiveRestore size={16} /> Archive {laneTasks.length} completed</button> : null}
                   </div>
                 </section>
               );
@@ -661,12 +750,20 @@ export function TaskWorkspace({
         </section>
       ) : null}
 
-      {view === "saved" ? (
-        <section className="task-saved-views" aria-labelledby="task-saved-heading"><header><h3 id="task-saved-heading">Saved views</h3><p>Saved filters point to the same task records; they never copy task state.</p></header>{savedViews.filter(saved => saved.viewType === "tasks").length ? <div>{savedViews.filter(saved => saved.viewType === "tasks").map(saved => <button type="button" key={saved.id} onClick={() => { const adapted = adaptSavedTaskViewV2(saved.configuration ?? {}); setFacets({ categoryIds: adapted.categoryIds, projectIds: adapted.projectIds, priorities: adapted.priorities }); onViewStateChange({ query: adapted.query, filter: adapted.filter, sort: adapted.sort }); onViewChange(adapted.view); }}><strong>{saved.name}</strong><span>{saved.isPinned ? "Pinned" : "Saved"}</span></button>)}</div> : <div className="task-workspace-empty"><Inbox aria-hidden="true" size={24} /><h3>No task views saved yet</h3><p>Your current task filters remain available in List and Board.</p></div>}</section>
-      ) : null}
-
       {view === "archive" ? (
-        <section className="task-archive-panel" aria-labelledby="archived-task-heading"><div><h3 id="archived-task-heading">Archived work</h3><p>Archive retains identity and history. Restore returns the same record to To do.</p></div><span>{filtered.length} stored</span>{filtered.length ? <ul>{filtered.map(task => <li key={task.id}><div><strong>{task.title}</strong><small>{task.completedAt ? "Completed before archive" : "Archived without completion"}</small></div><Button type="button" variant="ghost" onClick={() => void restore(task)}><ArchiveRestore size={16} /> Restore</Button></li>)}</ul> : <div className="task-workspace-empty"><p>{query ? "No archived task matches this search." : "No archived tasks yet."}</p>{query ? <button type="button" onClick={() => viewState({ query: "" })}>Reset task search</button> : null}</div>}</section>
+        <TaskArchive
+          tasks={tasks}
+          today={today}
+          timezone={timezone}
+          tab={archiveTab}
+          onTabChange={setArchiveTab}
+          query={query}
+          onQueryChange={next => viewState({ query: next })}
+          pillsFor={task => rowPills(task, today, pillCtx)}
+          categoryTones={categoryTones}
+          onRestore={restore}
+          onOpenDetail={openDetail}
+        />
       ) : null}
 
       <TaskDetailSheet

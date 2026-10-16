@@ -9,6 +9,7 @@ import { overdueDays, reservedLocalDate } from "@shared/taskBuckets";
 import { dayMonthLabel, localDateForInstant, localTimeLabel, weekdayDayLabel, weekdayDayMonthLabel, weekdayLabel } from "@shared/taskDateLabels";
 import { taskCompletionCheck, type TaskDropContext, type TaskDropSort } from "@shared/taskDrop";
 import { recurrenceCadenceLabel, recurringTaskStatus, shiftLocalDate, type TaskOccurrenceLike } from "@shared/taskRecurrence";
+import type { WhyReason } from "@shared/whyItMatters";
 
 type PillExtras = { accessibleLabel?: string };
 
@@ -52,8 +53,8 @@ export type TaskCardModel = {
   conflictCount: number;
   /** R1-R3 pre-check for the check button and the Done lane. Null when the task can be completed. */
   completionBlock: { reason: string; action?: "open_plan" | "open_detail" } | null;
-  /** D4 fills this; D3 renders nothing. */
-  why: null;
+  /** D4 reason chip (`topReason(..., "task_row")`). The model leaves it null; the List fills it per row. */
+  why: WhyReason | null;
   // Additive to the §5.1 contract:
   /** "Done today" | "Done 14 Oct" for finished work (the Done lane footer). */
   completedLabel: string | null;

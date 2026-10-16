@@ -45,8 +45,7 @@ export default function PremiumGalleryTasks() {
   const [filter, setFilter] = useState("today");
   const [sort, setSort] = useState("manual");
   const [cats, setCats] = useState<string[]>(["work"]);
-  const [view, setView] = useState<"inbox" | "list" | "board" | "saved" | "archive">("list");
-  const [select, setSelect] = useState(false);
+  const [view, setView] = useState<"inbox" | "list" | "board" | "archive">("list");
   const [toolbar, setToolbar] = useState<Pick<TaskToolbarProps, "query" | "facets" | "filter" | "sort">>({
     query: "",
     facets: { categoryIds: ["work"], projectIds: [], priorities: ["high"] },
@@ -67,10 +66,10 @@ export default function PremiumGalleryTasks() {
       </div>
 
       <Frame title="Header">
-        <TaskHeader summary={{ open: 36, overdue: 3, forToday: 13, inbox: 4 }} view={view} onViewChange={setView} selectMode={select} onSelectModeChange={setSelect} onCapture={noop} onOpenArchive={() => setView("archive")} onCloseArchive={() => setView("list")} reviewCount={2} onReview={noop} />
+        <TaskHeader summary={{ open: 36, overdue: 3, forToday: 13, inbox: 4 }} view={view} onViewChange={setView} onCapture={noop} reviewCount={2} onReview={noop} />
       </Frame>
       <Frame title="Header, offline with saved copy">
-        <TaskHeader summary={{ open: 36, overdue: 0, forToday: 0, inbox: 0 }} view="list" onViewChange={noop} selectMode={false} onSelectModeChange={noop} onCapture={noop} onOpenArchive={noop} onCloseArchive={noop} offline savedCopyLabel="Showing saved copy from 10:42" />
+        <TaskHeader summary={{ open: 36, overdue: 0, forToday: 0, inbox: 0 }} view="list" onViewChange={noop} onCapture={noop} offline savedCopyLabel="Showing saved copy from 10:42" />
       </Frame>
 
       <Frame title="Toolbar (List)">

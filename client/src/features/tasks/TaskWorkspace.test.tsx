@@ -37,7 +37,7 @@ function props(overrides: Partial<TaskWorkspaceProps> = {}): TaskWorkspaceProps 
     view: "list", tasks: allTasks, categories: [], projects: [], goals: [], savedViews: [], dependencies, occurrences,
     today, timezone, query: "", filter: "all", sort: "manual",
     onViewChange: noop, onViewStateChange: noop, onSelectedRecordChange: noop, onCapture: noop,
-    onUpdate: write, onCreateSubtask: write, onReorder: async () => null, onArchiveCompleted: async () => true,
+    onUpdate: write, onCreateSubtask: write, onReorder: async () => null,
     ...overrides,
   } as TaskWorkspaceProps;
 }
@@ -77,15 +77,40 @@ describe("TaskWorkspace container", () => {
     expect(inboxTasks(allTasks).map(item => item.id)).toEqual(["prereq"]);
   });
 
-  it("renders the premium List: header, toolbar and When sections, never the anchor date on a recurring row", () => {
+  it("renders the calm List: header, toolbar with Group by and When groups, never the anchor date on a recurring row", () => {
     const html = renderToStaticMarkup(<TaskWorkspace {...props()} />);
     expect(html).toContain("tk-header");
     expect(html).toContain("tk-toolbar");
+    expect(html).toContain('aria-label="Group by"');
+    expect(html).toContain('data-group-by="when"');
     expect(html).toContain('data-section="today"');
+    expect(html).toContain('data-section="someday"');
     expect(html).toContain('data-task-record-id="daily"');
+    expect(html).toContain("tk-row is-calm");
     expect(html).not.toContain("Plan for 24 Sep");
     expect(html).not.toContain("2026-09-24");
     expect(html).not.toContain("task-workspace-tabs");
+  });
+
+  it("leaves undecided Inbox work out of the List", () => {
+    const html = renderToStaticMarkup(<TaskWorkspace {...props()} />);
+    expect(html).not.toContain('data-task-record-id="prereq"');
+  });
+
+  it("draws at most the smart pills on a row: urgency first, then the Waiting chip", () => {
+    const html = renderToStaticMarkup(<TaskWorkspace {...props()} />);
+    const row = html.slice(html.indexOf('data-task-record-id="waiting"'));
+    expect(row).toContain("Due Fri · not planned");
+    expect(row).toContain("Waiting · Write the cover letter");
+  });
+
+  it("keeps work finished earlier today in a collapsed Done today group", () => {
+    const doneToday = task({ id: "done-today", title: "Posted the parcel", state: "completed", completedAt: "2026-10-13T22:00:00.000Z", estimateMinutes: 20 });
+    const html = renderToStaticMarkup(<TaskWorkspace {...props({ tasks: [...allTasks, doneToday] })} />);
+    const group = html.slice(html.lastIndexOf("<section", html.indexOf('data-section="done_today"')));
+    expect(group).toContain("Done today");
+    expect(group).toContain('aria-expanded="false"');
+    expect(group).toContain("20m done");
   });
 
   it("shows the first-run state when there are no tasks", () => {
@@ -100,11 +125,45 @@ describe("TaskWorkspace container", () => {
     expect(html).toContain("Clear filters");
   });
 
-  it("keeps the Board and Inbox views on their current rows", () => {
-    expect(renderToStaticMarkup(<TaskWorkspace {...props({ view: "board" })} />)).toContain("task-lane-grid");
+  it("keeps the status Board but swaps the Move to dropdown for a menu, with no Archive N completed button", () => {
+    const board = renderToStaticMarkup(<TaskWorkspace {...props({ view: "board" })} />);
+    expect(board).toContain("task-lane-grid");
+    expect(board).not.toContain("<select");
+    expect(board).not.toContain("task-archive-completed");
+    expect(board).toContain('aria-label="Move Pay rent to another lane"');
+  });
+
+  it("shows only undecided work in the Inbox, as triage cards with every decision", () => {
     const inbox = renderToStaticMarkup(<TaskWorkspace {...props({ view: "inbox" })} />);
-    expect(inbox).toContain("inbox-triage");
+    expect(inbox).toContain("tk-inbox");
+    expect(inbox).toContain("to sort");
+    expect(inbox).toContain("Write the cover letter");
     expect(inbox).not.toContain("Look into certification");
+    expect(inbox).not.toContain('data-task-record-id="waiting"');
+    for (const action of ["Today", "This week", "Pick date", "Project", "Someday"]) expect(inbox).toContain(action);
+    expect(inbox).toContain('aria-label="Delete Write the cover letter"');
+  });
+
+  it("puts the D4 reason on the triage card", () => {
+    const inbox = renderToStaticMarkup(<TaskWorkspace {...props({ view: "inbox" })} />);
+    expect(inbox).toContain('data-why="unblocks"');
+    expect(inbox).toContain("Unblocks 1 task");
+  });
+
+  it("opens the Archive on Completed, with the Archived switch and a search", () => {
+    const html = renderToStaticMarkup(<TaskWorkspace {...props({ view: "archive", tasks: [...allTasks, task({ id: "old", title: "Filed the tax return", state: "completed", completedAt: "2026-10-06T01:00:00.000Z", estimateMinutes: 45 })] })} />);
+    expect(html).toContain("tk-arch");
+    expect(html).toContain("Completed");
+    expect(html).toContain("Archived");
+    expect(html).toContain("Search the archive");
+    expect(html).toContain("Filed the tax return");
+    expect(html).toContain("Last week");
+  });
+
+  it("no longer renders the Views tab or the saved views panel", () => {
+    const html = renderToStaticMarkup(<TaskWorkspace {...props()} />);
+    expect(html).not.toContain("task-saved-views");
+    expect(html).not.toContain(">Views<");
   });
 
   it("renders skeleton shapes while the snapshot loads", () => {

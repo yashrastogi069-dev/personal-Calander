@@ -253,8 +253,9 @@ describe("Phase 4 canonical task workspace", () => {
     expect(fallbackTaskPrimaryAction("complete")).toBe("toggle");
   });
 
-  it("states the truthful route for intentional noncompletion", () => {
-    expect(INBOX_TRIAGE_GUIDANCE).toContain("Plan commitment");
+  it("states the approved Inbox exit rule without claiming an intentional-noncompletion action", () => {
+    // Tasks T2a (Q2, approved prototype copy): a task leaves the Inbox once it has a day, a project or Someday.
+    expect(INBOX_TRIAGE_GUIDANCE).toContain("a day, a project, or Someday");
     expect(INBOX_TRIAGE_GUIDANCE).not.toContain("mark intentional noncompletion");
   });
 

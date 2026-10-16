@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CanonicalTask } from "@shared/canonicalTask";
-import { InboxTriage } from "@/features/tasks/InboxTriage";
 import { TodayFlexibleWork } from "./TodayFlexibleWork";
 import { TodayTimeline } from "./TodayTimeline";
 
@@ -71,28 +70,6 @@ describe("recurring occurrence labels outside the Tasks page", () => {
     expect(html).toContain("Skipped today");
     expect(html).not.toContain("Plan for");
   });
-
-  it("Inbox rows show the next occurrence of a deadline-anchored series", () => {
-    // Weekly from Thu 24 Sep: the next one is Thu 15 Oct.
-    const task = series({ recurrenceRule: { frequency: "weekly" }, scheduledLocalDate: null, dueLocalDate: "2026-09-24" });
-    const html = renderToStaticMarkup(
-      <InboxTriage
-        tasks={[task]}
-        allTasks={[task]}
-        today={today}
-        timezone={timezone}
-        categories={[]}
-        projects={[]}
-        goals={[]}
-        occurrences={[]}
-        onToggle={noop}
-        onPlanToday={noop}
-        onArchive={noop}
-        onOpenDetail={noop}
-        onCapture={noop}
-      />,
-    );
-    expect(html).toContain("Next Thu 15 Oct");
-    expect(html).not.toContain("Due by");
-  });
+  // The Inbox case moved: a dated series is never undecided (Q1/Q2), and triage cards show no date at all
+  // (InboxTriage.test.tsx).
 });

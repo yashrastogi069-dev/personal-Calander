@@ -8875,7 +8875,8 @@ export default function Home() {
           <TaskWorkspace
             taskDraftScopeKey={taskDraftScopeKey}
             view={
-              (["inbox", "list", "board", "saved", "archive"] as string[]).includes(
+              // "saved" (the old Views tab, cut by Q8) falls back to List.
+              (["inbox", "list", "board", "archive"] as string[]).includes(
                 plannerLocation.view
               )
                 ? (plannerLocation.view as TaskWorkspaceView)
@@ -8887,6 +8888,8 @@ export default function Home() {
             goals={snapshot.goals}
             savedViews={snapshot.savedViews}
             dependencies={snapshot.taskDependencies}
+            milestones={snapshot.milestones}
+            weeklyObjectives={snapshot.weeklyObjectives}
             occurrences={snapshot.taskOccurrences}
             dailyPlans={snapshot.dailyPlans}
             dailyPlanItems={snapshot.dailyPlanItems}
@@ -8927,13 +8930,9 @@ export default function Home() {
             onOpenPlan={() => navigatePlanner({ destination: "plan", view: "daily" })}
             onCreateSubtask={createSubtaskSafely}
             onReorder={reorderTaskInLane}
-            onArchiveCompleted={archiveCompletedTasks}
             onAddDependency={addTaskDependencySafely}
             onRemoveDependency={removeTaskDependencySafely}
           />
-          <OwnedToolsDisclosure summary="Task triage tools">
-            <TaskTriagePanel />
-          </OwnedToolsDisclosure>
           </div>
         ) : null}
         {surface === "calendar" ? (
