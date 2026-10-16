@@ -1,9 +1,35 @@
-# HANDOFF: premium redesign (updated 2026-10-14 ~13:20 NZ: five agents running when the owner's usage limit ran out)
+# HANDOFF: premium redesign (updated 2026-10-17 ~19:35 IST: T2b-2 Opus subagent running; T2a + T2b-1 pushed)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
 ## Start here (read this first; it is enough to resume)
-- **RESUME HERE (2026-10-16, owner's usage limit ending).**
+- **CURRENT STATE (2026-10-17 ~19:35 IST / NZ evening). Read this block first; everything below it is history.**
+  - **Checkpoint goal of this run:** (1) T2a ✅ (2) T2b ⏳ (3) **Today layout pass + private screenshot gallery** (replaces the old Today+Focus prototype under the new flow).
+  - **Status:**
+
+    | Item | State | Commit / where |
+    |---|---|---|
+    | T2a Tasks UI (tabs, When-grouped List, row pills + D4 reason, Inbox triage, Archive) | ✅ pushed | `d514d76` |
+    | T2b-1 (Week board default, inline late-drop prompt, ⋯ Plan menu, Status lens, one header, row indent, 390 toolbar) | ✅ pushed | `23f891a` |
+    | T2b-2 (bulk bar, saved-view pills, detail morph + autosave, phone swipe/long-press/pull-to-refresh, follow-ups a–e) | ⏳ **RUNNING, uncommitted on disk** | see "Subagents" below |
+    | Today layout pass + gallery | next | brief not yet written; inputs listed below |
+    | Docs: new flow decision | ✅ pushed | `6c121e0` (DECISIONS top) |
+
+  - **Subagents (one at a time, owner laptop rule):**
+    - **T2b-2: model Opus, general-purpose background subagent of the 2026-10-17 Claude session (job `dfcd08fd`).** It edits THIS worktree directly; it never commits. Its full brief is stored word for word in `docs/superpowers/plans/2026-10-14-agent-runs.md` → "T2b-2 full brief", so it can be relaunched identically.
+      - At 19:30 IST: 31 changed/new files, harness extended (+187 lines), 66 screenshots taken: it was in final verification.
+      - Its files: new `client/src/features/tasks/{SavedViewPills.tsx,TaskBulkBar.tsx,TaskPullRefresh.tsx,TaskSwipe.tsx,taskBulkSelection.ts,taskSwipeModel.ts,tasks-t2b2.css}` + tests (`savedViewPills.test.tsx`, `taskBulkSelection.test.ts`, `taskDetailAutosave.test.ts`, `taskSwipeModel.test.ts`); modified `client/src/components/premium/Sheet.tsx`, `client/src/features/shell/premiumNavigation{,.test}.ts`, `client/src/features/tasks/{InboxTriage,TaskDetailSheet,TaskListGroups,TaskRow,TaskToolbar,TaskWeekBoard,TaskWorkspace}.tsx`, `taskWorkspaceModel.ts`, `task-week-board.css`, `tasks-premium.css`, tests, `client/src/pages/{Home,PremiumGalleryTasks}.tsx`, `scripts/demo-fixtures.py`, `scripts/preview-premium-tasks.py`.
+      - Screenshots: `C:\Users\win 10\.claude\jobs\dfcd08fd\tmp\shots-t2b2` (job tmp: deleted with the job, never committed; re-run the harness to regenerate).
+    - **If the session/agent is gone when you resume:** (1) `git status --short` and match the files above; (2) run `npx tsc --noEmit`, `npx vitest run shared client server`, `npx vite build`, then start `npx vite --port 3100 --strictPort --host 127.0.0.1`, run `python scripts/preview-premium-tasks.py --shots <dir outside repo> --url http://127.0.0.1:3100/`, and stop Vite; (3) all green + scope matches the brief → commit only those files and push; otherwise relaunch **Opus** with the stored brief plus "continue from the current files on disk; don't redo finished parts". Never delete the uncommitted files.
+    - Earlier subagents this run: T2a (Opus; finished on disk by the 2026-10-16 agent, re-verified + committed by the primary), T2b-1 (Opus; finished; report summarised in the ledger).
+  - **Servers:** :3100 = agents' Vite (agents stop it when done). :3200 = owner's live demo window, started 2026-10-17 from this worktree (`npx vite --port 3200 --strictPort --host 127.0.0.1` + `python scripts/open-demo-preview.py --url http://127.0.0.1:3200/`; synthetic data only). Stop both when finished (laptop RAM).
+  - **Next after T2b-2 commits:** write the Today layout-pass brief → Opus layout pass (Next-up hero, timeline, tick in place, habit chips, Plan my day + Shut down entry points; no rich motion) → harness shots → publish ONE private screenshot gallery (desktop + phone, light + dark, "what to check") → owner yes/changes = checkpoint. Inputs: interview Q12–Q16 + Q51 (`ux-restructure/03-interview-log.md`), the content of `ux-restructure/prototypes/today-focus-brief.md` (reuse as layout requirements, not as a prototype), D4 `today_row` surface, `05-product-direction.md` §3.
+  - **New flow (owner approved 2026-10-17, `docs/DECISIONS.md` top):** no standalone prototypes. Per page: Opus layout pass → private screenshot gallery → owner yes/changes → Opus interaction pass → owner checks motion on the auto Vercel Preview. The approved Tasks prototype stays the quality bar. Calendar uses the same flow.
+  - **Primary assumptions logged today (owner may correct):** the Tasks page title reads "Tasks" on every view (prototype), not "Board"/"List"; the Week board uses the workspace week-start setting (default Monday). Both are in the T2b-2 brief.
+  - **Open owner items (none block phase B):** `tasks.plannedWeekStartLocalDate` migration (This-week flag); Google Cloud project for OAuth; Inbox API token storage; timezone check (Q48).
+  - **Full plan to finished product (est. ~5–6 weeks from 2026-10-17):** B core loop (Tasks nearly done, Today, Focus upgrades, Nav+Settings) → C connected (nudges, Inbox API + Shortcut + n8n, Google OAuth meetings; owner does the gated steps) → D Calendar total redesign + Week ritual → E Goals, Habits, Insights → F finish (motion pass, empty states, D3.5.2 browser verification, Fable visual-audit consult, D7 badges/reminders, optional AI drafts) → G release (owner-gated). Source: `ux-restructure/05-product-direction.md` §6 (its prototype phase A is now dropped).
+  - **Rules:** one agent at a time; Opus builds (logic + UI), Fable only for consults with a one-line owner confirm; never commit PNGs; stop dev servers; push only to `dev/personal-calendar-premium-v2`; update ALL MDs + push after each checkpoint.
+- **(History) RESUME HERE block from 2026-10-16; superseded by CURRENT STATE above.**
   0a. **NEW FLOW (owner approved 2026-10-17, `docs/DECISIONS.md` top):** no more standalone prototypes. Each page = Opus layout pass → private screenshot gallery for owner → Opus interaction pass → owner checks motion on Vercel Preview. Item 3 below (Today+Focus prototype) is REPLACED by the **Today layout pass**.
   0. **2026-10-17 session:** T2a DONE + pushed `d514d76`. T2b-1 DONE + pushed `23f891a` (Week board default, late drop, one header). **T2b-2 (Opus) RUNNING** (bulk, saved pills, morph, gestures, T2b-1 follow-ups). See `docs/superpowers/plans/2026-10-14-agent-runs.md` "2026-10-17 runs". If cut off: verify files on disk with the T2b verify line, commit if green, else relaunch Opus "continue from files on disk".
   1. ~~T2a~~ (done `d514d76`). **T2a Tasks UI (Opus) was RUNNING at the cutoff.** Its uncommitted files may be on disk (e.g. `client/src/features/tasks/*`, `taskWorkspaceModel.ts`). Run `git status`, then verify: `npx vitest run shared client server`, `npx tsc --noEmit`, `npx vite build`. If all pass and the scope matches the T2a brief (`docs/superpowers/plans/2026-10-14-agent-runs.md` item 3), commit only those files and push. Otherwise relaunch Opus with "continue T2a from files on disk" using that scope.

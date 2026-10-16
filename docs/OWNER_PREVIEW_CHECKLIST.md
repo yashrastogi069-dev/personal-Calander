@@ -2,6 +2,17 @@
 
 The owner runs these checks; agents do not run Vercel checks (gated). Report back with: what snapped instead of animating, anything that felt slow or janky, anything clipped, and any wrong numbers.
 
+## Tasks T2a + T2b-1 (pushed `23f891a`, 2026-10-17)
+Where: the local demo window at http://127.0.0.1:3200/ (synthetic data) or the auto Vercel Preview for `dev/personal-calendar-premium-v2`.
+- Tasks has ONE header with one Capture button (press C).
+- Tabs Inbox (count) · List · Board · Archive. List groups Overdue · Today · This week · Later · Someday, each collapsible; the Group switch offers When / Project / Category and is remembered.
+- Rows: at most 2 smart pills plus the "why it matters" chip (e.g. "Milestone in 9 days", "On today's plan"); titles line up.
+- Inbox: only undecided tasks; triage to a day, project or Someday removes the card.
+- Board opens on the Week view: Unscheduled + Mon–Sun, ← → paging, Today chip. Drag a card to a day → "Planned for … · Undo". A drop after the deadline → inline "Plan anyway / Move deadline / Cancel". ⋯ on a card = Plan today/tomorrow/weekday.
+- Status switch: To do · Doing · Done (this week only).
+- Phone 390: nothing scrolls sideways; the toolbar fits.
+- Coming in T2b-2: bulk bar, saved-view pills, detail opening animation, swipe rows.
+
 ## Why it looked old or empty (owner report, 2026-10-13)
 
 - `https://personal-calander.vercel.app` and the installed home-screen app are **production**, built from `main`, so they still run the old code. The redesign is only on the branch Preview below; its bundle was confirmed to contain the D2 Dashboard code.

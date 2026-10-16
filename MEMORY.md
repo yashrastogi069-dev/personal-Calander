@@ -1,5 +1,7 @@
 # Working memory
 
+- 2026-10-17 (newest): premium Tasks rebuild on `work/premium-redesign`, pushed to `dev/personal-calendar-premium-v2`: T2a `d514d76`, T2b-1 `23f891a`; the T2b-2 Opus subagent is running uncommitted. Owner approved dropping standalone prototypes for a layout-first + screenshot-gallery flow (`docs/DECISIONS.md`). Resume from that worktree's `HANDOFF.md` "CURRENT STATE".
+
 - 2026-10-13 (owner): Claude sessions use subagents with model routing: opus for UI/UX design (design skills loaded) and all logic, haiku mechanical, sonnet read-only, Fable key design moments (owner told). Rules and the local preview command live in [CLAUDE.md](CLAUDE.md). Premium redesign status: [HANDOFF.md](HANDOFF.md).
 - 2026-10-13 D2: the Dashboard is the default landing (home/overview), with an owner-requested icon and motion pass on top. Verified (859 tests, harnesses green) and pushed. Standing owner design rule: cool, futuristic icons, animations and motion, and a modern UI on every screen (CLAUDE.md "Design direction"). Sources: [D2 spec](docs/superpowers/specs/2026-10-13-premium-redesign-d2-dashboard.md), [evidence](docs/PHASE4_SLICE_EVIDENCE.md). Open owner question: the phone shortcut defaults.
 
