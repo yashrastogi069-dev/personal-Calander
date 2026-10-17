@@ -98,6 +98,7 @@ import { projectDashboard } from "@/features/dashboard/dashboardModel";
 import { useMinuteNow } from "@/features/dashboard/useMinuteNow";
 import { roadmapProjection } from "@shared/roadmap";
 import { TodayWorkspace } from "@/features/today/TodayWorkspace";
+import { useTodayWrites } from "@/features/today/useTodayWrites";
 import { buildRecoveryEntries } from "@/features/recovery/recoveryModel";
 import {
   DestinationBoundary,
@@ -6872,6 +6873,7 @@ function SettingsSurface({
 
 export default function Home() {
   const scope = useWorkspaceScope();
+  const todayWrites = useTodayWrites(scope);
   const plannerSyncScope = usePlannerSyncScope();
   const taskDraftScopeKey = JSON.stringify([plannerSyncScope.accountId, plannerSyncScope.workspaceId]);
   const plannerSyncStore = useMemo(() => getBrowserPlannerSyncStore(), []);
@@ -8706,6 +8708,14 @@ export default function Home() {
         {surface === "today" && plannerLocation.view !== "overview" ? (
           todayProjection && snapshot ? (
             <TodayWorkspace
+              writes={todayWrites}
+              externalEvents={snapshot.externalEvents}
+              focusSessions={snapshot.focusSessions}
+              carriedCommitments={snapshot.carriedCommitments}
+              commitmentResolutions={snapshot.commitmentResolutions}
+              weeklyObjectives={snapshot.weeklyObjectives}
+              dailyCheckIns={snapshot.dailyCheckIns}
+              workspace={snapshot.workspace}
               habitCheckIns={snapshot.habitCheckIns}
               milestones={snapshot.milestones}
               onOpenProject={openProjectRecord}

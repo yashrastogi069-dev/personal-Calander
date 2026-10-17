@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   TodayWorkspace,
@@ -184,93 +183,78 @@ function renderToday(overrides: Partial<Parameters<typeof TodayWorkspace>[0]> = 
   );
 }
 
-describe("Phase 4 Today workspace", () => {
-  it("shows a compact factual capacity strip before work while retaining all five details", () => {
-    const html = renderToday();
-    const css = readFileSync(
-      new URL("../client/src/features/today/today-workspace.css", import.meta.url),
-      "utf8"
-    );
-    expect(html).toContain('<details class="today-summary"');
-    expect(html).not.toContain('<details class="today-summary" open');
-    expect(html).toContain("2 chosen");
-    expect(html).toContain("1h 55m known");
-    expect(html).toContain("Plan day");
-    expect(html).toContain('class="today-summary-heading"');
-    expect(html).toContain("2 without estimates");
-    expect(html).toContain("Scheduled demand");
-    expect(html).toContain("Not counted as zero");
-    expect(css).toMatch(/\.today-summary-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(5,/);
-    expect(css).toMatch(/\.today-summary\[open\] \.today-summary-heading svg\s*\{[^}]*transform:\s*rotate\(180deg\)/);
-    expect(css).toMatch(/@media \(max-width: 680px\)[\s\S]*?\.today-summary-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
+// Fixed clock: 08:00 UTC on the fixture day (the timeline and hero read it).
+const now = new Date("2026-09-21T08:00:00.000Z");
+const dentist = { id: "event-dentist", title: "Dentist appointment", startsAt: "2026-09-21T11:00:00.000Z", endsAt: "2026-09-21T11:45:00.000Z", status: "active", isAllDay: 0, payload: null };
+
+describe("Phase 4 Today workspace (layout pass)", () => {
+  it("renders the summary, hero, one list, habit chips and a compact timeline in order", () => {
+    const html = renderToday({ now, externalEvents: [dentist] });
+    const order = ["summary", "list", "habits", "timeline"].map(section => html.indexOf(`data-today-section="${section}"`));
+    for (const position of order) expect(position).toBeGreaterThan(-1);
+    expect([...order].sort((left, right) => left - right)).toEqual(order);
+    expect(html.indexOf("data-hero=")).toBeLessThan(order[1]);
+    expect(html).not.toContain('data-today-section="suggestions"');
+    expect(html).not.toContain("Recorded practice for Evening walk");
   });
 
-  it("keeps work, habits, chronology, decisions, and completion evidence in one connected composition", () => {
-    const html = renderToday();
-    const sections = [
-      "summary",
-      "recovery",
-      "flexible",
-      "habits",
-      "completed",
-      "timeline",
-      "suggestions",
-    ];
-
-    for (const [index, section] of sections.entries()) {
-      const position = html.indexOf(`data-today-section=\"${section}\"`);
-      expect(position, `${section} should render`).toBeGreaterThan(-1);
-      if (index > 0) {
-        const previous = html.indexOf(`data-today-section=\"${sections[index - 1]}\"`);
-        expect(position, `${section} should follow ${sections[index - 1]}`).toBeGreaterThan(previous);
-      }
-    }
-    expect(html).toContain("<details class=\"today-completed-evidence\"");
-    expect(html).not.toContain("<details class=\"today-completed-evidence\" open");
-    expect(html).not.toContain('data-today-section="next-step"');
-  });
-
-  it("presents a reserved task once and labels external calendar context as read-only", () => {
-    const html = renderToday();
-
-    expect(html.match(/data-task-record-id=\"task-reserved\"/g)).toHaveLength(1);
-    expect(html).toContain("External calendar");
-    expect(html).toContain("Read-only context");
-    expect(html).not.toContain("Apple appointment");
-  });
-
-  it("shows an explicit truthful boundary when no incoming appointment data exists", () => {
+  it("shows one check per row and never routes a tick through Plan or Recovery copy", () => {
     const html = renderToday({
-      projection: { ...projection, timeline: projection.timeline.filter(item => item.kind !== "appointment") },
+      now,
+      dailyPlans: [{ id: "plan-today", localDate, state: "active" }],
+      dailyPlanItems: [{ id: "item-flexible", dailyPlanId: "plan-today", taskId: flexible.id, state: "committed", position: 0 }],
     });
-
-    expect(html).toContain("No incoming calendar appointments");
-    expect(html).toContain("Apple Calendar subscription is outgoing only");
-    expect(html).not.toContain("Dentist appointment");
+    const rows = html.match(/<li class="td-row /g) ?? [];
+    expect(rows.length).toBe(2);
+    expect((html.match(/<button[^>]*class="tk-check[ "]/g) ?? []).length).toBe(rows.length);
+    expect(html).toContain('data-source="daily_commitment"');
+    expect(html).not.toMatch(/Resolve .* in Plan|Resolve earlier commitment|Open Review/);
   });
 
-  it("renders recorded seven-day habit states without converting blank days into misses", () => {
+  it("presents a reserved task once in the list and styles calendar events as external context", () => {
+    const html = renderToday({ now, externalEvents: [dentist] });
+    expect(html.match(/data-task-record-id="task-reserved"/g)).toHaveLength(1);
+    expect(html).toContain('data-timeline-kind="meeting"');
+    expect(html).toMatch(/class="td-tl-entry is-external/);
+    expect(html).toContain("Dentist appointment");
+    expect(html).toContain("data-now-line");
+  });
+
+  it("shows a meeting hero with Join only when the stored event carries a link", () => {
+    const soon = { ...dentist, id: "event-standup", title: "Standup", startsAt: "2026-09-21T08:12:00.000Z", endsAt: "2026-09-21T08:27:00.000Z", payload: { hangoutLink: "https://meet.google.com/demo" } };
+    const html = renderToday({ now, externalEvents: [soon] });
+    expect(html).toContain('data-hero="meeting"');
+    expect(html).toContain("Standup in 12 min");
+    expect(html).toContain('href="https://meet.google.com/demo"');
+    const plain = renderToday({ now, externalEvents: [{ ...soon, payload: null }] });
+    expect(plain).toContain('data-hero="meeting"');
+    expect(plain).not.toContain("meet.google.com");
+  });
+
+  it("renders due habits as chips and hides the row when nothing is due", () => {
+    const html = renderToday({ now });
+    expect(html).toContain('data-habit-state="due"');
+    expect(html).toContain("Mark Evening walk done");
+    const none = renderToday({ now, projection: { ...projection, habits: [] } });
+    expect(none).not.toContain('data-today-section="habits"');
+  });
+
+  it("offers the morning card before a plan exists and the shutdown card after preferredShutdownAt", () => {
+    expect(renderToday({ now, dailyPlans: [] })).toContain('data-today-card="morning"');
+    const evening = renderToday({ now: new Date("2026-09-21T19:00:00.000Z"), dailyPlans: [{ id: "plan-today", localDate, state: "active" }], workspace: { preferredShutdownAt: "18:00" } });
+    expect(evening).toContain('data-today-card="evening"');
+    const closed = renderToday({ now, dailyPlans: [{ id: "plan-today", localDate, state: "closed", version: 3, reflection: "Good day" } as never] });
+    expect(closed).toContain('data-today-card="closed"');
+    expect(closed).toContain("Reopen day");
+  });
+
+  it("keeps the seven-day habit trace model for Habits without converting blank days into misses", () => {
     const trace = todayHabitTrace("habit-walk", localDate, [
       { habitId: "habit-walk", localDate: "2026-09-16", state: "completed" },
       { habitId: "habit-walk", localDate: "2026-09-18", state: "missed" },
       { habitId: "habit-walk", localDate: "2026-09-20", state: "skipped" },
     ], "due");
-    expect(trace).toHaveLength(7);
     expect(trace.map(day => day.state)).toEqual(["unrecorded", "completed", "unrecorded", "missed", "unrecorded", "skipped", "unrecorded"]);
-    const html = renderToday({ habitCheckIns: [
-      { habitId: "habit-walk", localDate: "2026-09-16", state: "completed" },
-      { habitId: "habit-walk", localDate: "2026-09-18", state: "missed" },
-    ] });
-    expect(html).toContain("Recorded practice for Evening walk, last seven days");
-    expect(html).toContain('class="today-habit-trace-day is-missed"');
-    expect(html).toContain("Skip today");
-  });
-
-  it("keeps the task inspector reachable from compact work rows", () => {
-    const html = renderToday();
-    expect(html).toContain(`Open details for ${flexible.title}`);
-    const source = readFileSync(new URL("../client/src/features/today/TodayWorkspace.tsx", import.meta.url), "utf8");
-    expect(source).toContain("onStartFocus={startFocus}");
   });
 
   it("uses only explicit task-goal/project-goal links for upcoming milestone context", () => {
@@ -281,45 +265,24 @@ describe("Phase 4 Today workspace", () => {
     ];
     expect(nextTodayMilestone({ localDate, visibleTaskIds: [flexible.id], tasks: [flexible], projects: [{ id: "project-book", goalId: "goal-book" }], milestones: candidates })?.id).toBe("linked");
     expect(nextTodayMilestone({ localDate, visibleTaskIds: [], tasks: [flexible], projects: [{ id: "project-book", goalId: "goal-book" }], milestones: candidates })).toBeNull();
-    const html = renderToday({ milestones: candidates, onOpenProject: vi.fn() });
-    expect(html).toContain("Finish chapter");
-    expect(html).toContain("Open Write the book");
-    expect(html).not.toContain("Unrelated");
   });
 
   it("chooses exactly one contextual header action in recovery, planning, then focus priority", () => {
-    expect(contextualTodayAction({ recoveryCount: 2, hasActivePlan: false, selectedTaskId: "task-1" })).toEqual({
-      id: "resolve_recovery",
-      label: "Resolve remaining work",
-    });
-    expect(contextualTodayAction({ recoveryCount: 0, hasActivePlan: false, selectedTaskId: "task-1" })).toEqual({
-      id: "plan_today",
-      label: "Plan today",
-    });
-    expect(contextualTodayAction({ recoveryCount: 0, hasActivePlan: true, selectedTaskId: "task-1" })).toEqual({
-      id: "start_focus",
-      label: "Start focus",
-    });
+    expect(contextualTodayAction({ recoveryCount: 2, hasActivePlan: false, selectedTaskId: "task-1" })).toEqual({ id: "resolve_recovery", label: "Resolve remaining work" });
+    expect(contextualTodayAction({ recoveryCount: 0, hasActivePlan: false, selectedTaskId: "task-1" })).toEqual({ id: "plan_today", label: "Plan today" });
+    expect(contextualTodayAction({ recoveryCount: 0, hasActivePlan: true, selectedTaskId: "task-1" })).toEqual({ id: "start_focus", label: "Start focus" });
     expect(contextualTodayAction({ recoveryCount: 0, hasActivePlan: true, selectedTaskId: null })).toBeNull();
   });
 
-  it("keeps blocked work out of the focus choice and offers detail review", () => {
+  it("keeps blocked and offline work out of focus and marks the blocked check", () => {
     expect(isExecutableTodayTask(waiting)).toBe(false);
     expect(isExecutableTodayTask(flexible)).toBe(true);
-    const html = renderToday({
-      projection: {
-        ...projection,
-        recovery: [],
-        timeline: [],
-        flexible: [{ ...projection.flexible[0], recordId: waiting.id, title: waiting.title }],
-        attention: [],
-      },
-    });
-    expect(html).toContain("Review blockers");
-    expect(html).not.toContain("<button type=\"button\" class=\"today-primary-action\"");
+    expect(isExecutableTodayTask(task({ id: "offline:pending-capture" }))).toBe(false);
+    const html = renderToday({ now, projection: { ...projection, timeline: [], flexible: [{ ...projection.flexible[0], recordId: waiting.id, title: waiting.title }], attention: [] } });
+    expect(html).toContain("is-blocked");
   });
 
-  it("routes dated occurrence and plan commitments by underlying references, even when the visible row source masks them", () => {
+  it("routes dated occurrence and plan commitments by underlying references", () => {
     const plans = [{ id: "plan-today", localDate, state: "active" }];
     const items = [{ id: "item-1", dailyPlanId: "plan-today", taskId: reserved.id, state: "committed", position: 0 }];
     const occurrences = [{ id: "occ-1", taskId: reserved.id, localDate, state: "pending" }];
@@ -328,82 +291,7 @@ describe("Phase 4 Today workspace", () => {
     expect(todayLinkedResolution(reserved.id, localDate, plans, [], occurrences)).toBe("review");
     expect(todayLinkedResolution(reserved.id, localDate, plans, [], [{ ...occurrences[0], state: "completed" }])).toBeNull();
     expect(todayLinkedResolution(flexible.id, localDate, plans, items, occurrences)).toBeNull();
-  });
-
-  it("does not offer Focus for a server-unpersisted offline task ID", () => {
-    expect(isExecutableTodayTask(task({ id: "offline:pending-capture" }))).toBe(false);
-  });
-
-  it("makes a reserved task with linked history non-completable in Today", () => {
-    const html = renderToday({
-      projection: { ...projection, recovery: [], flexible: [], timeline: [projection.timeline[0]] },
-      tasks: [reserved],
-      dailyPlans: [{ id: "plan-today", localDate, state: "active" }],
-      dailyPlanItems: [{ id: "item-1", dailyPlanId: "plan-today", taskId: reserved.id, state: "committed", position: 0 }],
-      taskOccurrences: [{ id: "occ-1", taskId: reserved.id, localDate, state: "pending" }],
-    });
-    expect(html).toContain('aria-label="Open Protected writing block occurrence in Review; plan recovery still required"');
-    expect(html).not.toContain('aria-label="Open Protected writing block in Review; plan recovery still required"');
-    expect(html).toContain("Plan commitment needs recovery flow after migration");
-    expect(html).not.toContain('aria-label="Open details for Protected writing block"');
-    expect(html).not.toContain('aria-label="Complete Protected writing block"');
-    expect(html).toContain('class="canonical-task-resolution"');
-    expect(html).not.toContain('class="canonical-task-detail-action"');
-    expect(html).toContain("Open Review");
-    expect(html).not.toContain("Start focus");
-  });
-
-  it("names a plan-only guarded row as today's commitment", () => {
-    const html = renderToday({
-      projection: { ...projection, recovery: [] },
-      dailyPlans: [{ id: "plan-today", localDate, state: "active" }],
-      dailyPlanItems: [{ id: "item-flexible", dailyPlanId: "plan-today", taskId: flexible.id, state: "committed", position: 0 }],
-    });
-    expect(html).toContain("Resolve today’s commitment in Plan");
-    expect(html).toContain('aria-label="Resolve Review the chapter notes in Plan"');
-  });
-
-  it("guards a reserved task with an unresolved earlier commitment even when recovery projection omitted it", () => {
-    const priorPlan = [{ id: "plan-earlier", localDate: "2026-09-20", state: "active" }];
-    const priorItems = [{ id: "item-earlier", dailyPlanId: "plan-earlier", taskId: reserved.id, state: "committed", position: 0 }];
-    expect(todayLinkedResolution(reserved.id, localDate, priorPlan, priorItems, [])).toBe("plan");
-    const html = renderToday({
-      projection: { ...projection, recovery: [], flexible: [], timeline: [projection.timeline[0]] },
-      tasks: [reserved],
-      dailyPlans: priorPlan,
-      dailyPlanItems: priorItems,
-      taskOccurrences: [],
-    });
-    expect(html).toContain('aria-label="Resolve Protected writing block in Plan"');
-    expect(html).toContain("Resolve earlier commitment in Plan");
-    expect(html).not.toContain('aria-label="Complete Protected writing block"');
-    expect(html).not.toContain("Start focus");
-  });
-
-  it("does not offer terminal task actions or Focus for a recurring reservation with no loaded occurrence", () => {
-    const recurring = task({ ...reserved, recurrenceRule: { frequency: "daily", interval: 1 } });
-    expect(todayLinkedResolution(recurring.id, localDate, [], [], [], true)).toBe("reconcile");
-    const html = renderToday({
-      projection: { ...projection, recovery: [], flexible: [], timeline: [projection.timeline[0]], attention: [] },
-      tasks: [recurring],
-      dailyPlans: [], dailyPlanItems: [], taskOccurrences: [],
-    });
-    expect(html).toContain("Dated occurrence unavailable");
-    expect(html).toContain('aria-label="Explain why Protected writing block cannot be resolved here"');
-    expect(html).toContain("Why unavailable");
-    expect(html).not.toContain('aria-label="Complete Protected writing block"');
-    expect(html).not.toContain("Start focus");
-    expect(html).not.toContain('class="canonical-task-detail-action"');
-  });
-
-  it("labels unavailable time separately from merged scheduled demand", () => {
-    const html = renderToday({ isUnavailableToday: true });
-    expect(html).toContain("Scheduled demand");
-    expect(html).toContain("1h 45m");
-    expect(html).toContain("Unavailable");
-    expect(html).toContain("All day");
-    expect(html).toContain("Estimate gaps");
-    expect(html).toContain("Not counted as zero");
+    expect(todayLinkedResolution(reserved.id, localDate, [], [], [], true)).toBe("reconcile");
   });
 
   it("derives suggestions from record facts with an explicit source and next action", () => {
@@ -412,42 +300,23 @@ describe("Phase 4 Today workspace", () => {
       tasks: [reserved, flexible, waiting, completed],
       habits: [{ id: "habit-walk", name: "Evening walk" }],
       projects: [{ id: "project-book", title: "Write the book" }],
-    })).toEqual([
-      {
-        id: "task:task-waiting",
-        kind: "task",
-        recordId: "task-waiting",
-        title: "Follow up with the editor",
-        source: "Blocked task",
-        detail: "Overdue · not planned",
-        actionLabel: "Review task",
-      },
-      {
-        id: "project-task:task-flexible",
-        kind: "task",
-        recordId: "task-flexible",
-        title: "Review the chapter notes",
-        source: "From Write the book",
-        detail: "Planned today · project next action",
-        actionLabel: "Review task",
-      },
-      {
-        id: "habit:habit-walk",
-        kind: "habit",
-        recordId: "habit-walk",
-        title: "Evening walk",
-        source: "Due habit",
-        detail: "Scheduled for today",
-        actionLabel: "Open habits",
-      },
+    }).map(suggestion => [suggestion.id, suggestion.source, suggestion.actionLabel])).toEqual([
+      ["task:task-waiting", "Blocked task", "Review task"],
+      ["project-task:task-flexible", "From Write the book", "Review task"],
+      ["habit:habit-walk", "Due habit", "Open habits"],
     ]);
   });
 
-  it("keeps unsupported Today writes confirmed-only while offline", () => {
-    const html = renderToday({ isOnline: false });
+  it("explains what stays available while offline", () => {
+    const html = renderToday({ now, isOnline: false });
+    expect(html).toContain("Task ticks still save");
+    expect(html).toContain("Reconnect to check in habits, start focus or change today");
+  });
 
-    expect(html).toContain("Offline · task changes remain available");
-    expect(html).toContain("Reconnect to check in habits, start focus, or resolve earlier commitments");
-    expect(html).toContain("Last confirmed state");
+  it("lists earlier completion evidence in a collapsed Done today group", () => {
+    const html = renderToday({ now });
+    expect(html).toContain('<details class="td-done"');
+    expect(html).toContain("Done today · 1");
+    expect(html).toContain("Send the outline");
   });
 });

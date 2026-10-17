@@ -1,34 +1,37 @@
-import { Button } from "@/components/ui/button";
-import {
-  TaskDetailSheet,
-  type TaskMutationResult,
-} from "@/features/tasks/TaskDetailSheet";
+// Today (layout pass, interview Q12-Q17): next-up hero, one tickable list, habits-due chips and a compact
+// timeline, plus the "Plan my day" and "Shut down day" overlays. Every write goes through an existing tRPC
+// procedure (see useTodayWrites); a tick waits TODAY_UNDO_MS for Undo before its single write is sent.
+// The older Today sections (TodayFlexibleWork, TodayHabits heatmap/traces, TodayTimeline) stay in the
+// codebase but are no longer mounted here.
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { CalendarDays, CalendarPlus, Moon, MoreHorizontal, RotateCcw, Sunrise, WifiOff } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { TaskDetailSheet, type TaskMutationResult } from "@/features/tasks/TaskDetailSheet";
 import type { CanonicalTask } from "@shared/canonicalTask";
-import type {
-  TodayDailyPlan,
-  TodayDailyPlanItem,
-  TodayProjection,
-  TodayTaskOccurrence,
-} from "@shared/todayProjection";
+import type { TodayDailyPlan, TodayDailyPlanItem, TodayProjection, TodayTaskOccurrence } from "@shared/todayProjection";
+import { topReason, type WhyReason } from "@shared/whyItMatters";
+import { whyFactsFromSnapshot } from "@/features/why/whyFacts";
+import { resolveCategoryTones, type ToneOrNeutral } from "@/design/categoryTone";
+import { buildRecoveryEntries, recoveryDecisionInput, type RecoveryEntry } from "@/features/recovery/recoveryModel";
+import type { AccountabilityLevel } from "@/features/recovery/RecoveryIndicator";
+import type { TodayHabitCheckInFact, TodayMilestoneFact } from "./todayContext";
 import {
-  ArrowRight,
-  CalendarCheck2,
-  Check,
-  ChevronDown,
-  CalendarDays,
-  Sparkles,
-  WifiOff,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { TodayFlexibleWork } from "./TodayFlexibleWork";
-import { TodayHabits } from "./TodayHabits";
-import { TodayTimeline } from "./TodayTimeline";
-import { nextTodayMilestone, type TodayHabitCheckInFact, type TodayMilestoneFact } from "./todayContext";
-import {
-  RecoveryIndicator,
-  type AccountabilityLevel,
-} from "@/features/recovery/RecoveryIndicator";
-import "./today-workspace.css";
+  buildTodayItems, carryCount, clockLabel, completeTodayItem, dayPart, habitChipAction, habitChipRow, itemPlannedMinutes,
+  localMinuteOfDay, meetingJoinUrl, nextUp, pickTray, shiftDate, shutdownDue, shutdownWrite, timedEventsForDay, allDayEventsForDay,
+  todayCapacity, TODAY_UNDO_MS,
+  type HabitChipState, type ShutdownDecision, type ShutdownItem, type TodayCarryFact, type TodayEventFact, type TodayFacts,
+  type TodayItem, type TodayWrite,
+} from "./todayModel";
+import { TodayHero } from "./TodayHero";
+import { TodayItemList, type TodayDoneRow, type TodayListRow } from "./TodayItemList";
+import { TodayHabitChips } from "./TodayHabitChips";
+import { TodayDayTimeline, type TimelineEntry } from "./TodayDayTimeline";
+import { CapacityBar, PlanMyDaySheet, type LeftoverChoice, type Placement } from "./PlanMyDaySheet";
+import { ShutdownSheet } from "./ShutdownSheet";
+import type { TodayWrites } from "./useTodayWrites";
+import "@/features/tasks/tasks-premium.css";
+import "./today-premium.css";
 
 export type TodayHeaderAction =
   | { id: "resolve_recovery"; label: "Resolve remaining work" }
@@ -167,13 +170,7 @@ export function todaySuggestions(input: {
   return suggestions.slice(0, 4);
 }
 
-function minutesLabel(minutes: number) {
-  const safe = Math.max(0, Math.round(minutes));
-  if (safe < 60) return `${safe} min`;
-  const hours = Math.floor(safe / 60);
-  const remainder = safe % 60;
-  return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
-}
+type Row = Record<string, unknown>;
 
 export type TodayWorkspaceProps = {
   taskDraftScopeKey?: string;
@@ -184,11 +181,23 @@ export type TodayWorkspaceProps = {
   milestones?: TodayMilestoneFact[];
   projects: Array<{ id: string; title: string; goalId?: string | null }>;
   goals: Array<{ id: string; title: string }>;
-  categories: Array<{ id: string; name: string }>;
+  categories: Array<{ id: string; name: string; color?: string | null }>;
   dependencies?: any[];
   dailyPlans?: TodayDailyPlan[];
   dailyPlanItems?: TodayDailyPlanItem[];
   taskOccurrences?: TodayTaskOccurrence[];
+  /** Layout pass inputs (all already in the planner snapshot). */
+  externalEvents?: readonly TodayEventFact[];
+  focusSessions?: ReadonlyArray<{ startedAt: Date | string; activeSeconds?: number | null; state?: string }>;
+  carriedCommitments?: readonly TodayCarryFact[];
+  commitmentResolutions?: readonly Row[];
+  weeklyObjectives?: readonly Row[];
+  dailyCheckIns?: ReadonlyArray<{ localDate: string; energy?: number | null }>;
+  workspace?: { workdayStartsAt?: string | null; workdayEndsAt?: string | null; defaultBreakMinutes?: number | null; preferredShutdownAt?: string | null } | null;
+  /** Existing tRPC write adapters (useTodayWrites). Missing in render-only tests: the actions then explain. */
+  writes?: TodayWrites;
+  /** Fixed clock for tests; the page otherwise ticks once a minute. */
+  now?: Date;
   timezone: string;
   hasActivePlan: boolean;
   commitmentCount: number;
@@ -213,398 +222,445 @@ export type TodayWorkspaceProps = {
   onOpenCalendar?: () => void;
   onToggleTask?: (task: CanonicalTask) => void | Promise<unknown>;
   onArchiveTask?: (task: CanonicalTask) => void | Promise<unknown>;
-  onUpdateTask: (
-    task: CanonicalTask,
-    patch: Record<string, unknown>
-  ) => Promise<TaskMutationResult>;
-  onCreateSubtask: (
-    task: CanonicalTask,
-    title: string
-  ) => Promise<TaskMutationResult>;
-  onAddDependency?: (
-    task: CanonicalTask,
-    dependsOnTaskId: string
-  ) => Promise<void>;
+  onUpdateTask: (task: CanonicalTask, patch: Record<string, unknown>) => Promise<TaskMutationResult>;
+  onCreateSubtask: (task: CanonicalTask, title: string) => Promise<TaskMutationResult>;
+  onAddDependency?: (task: CanonicalTask, dependsOnTaskId: string) => Promise<void>;
   onRemoveDependency?: (dependency: any) => Promise<void>;
-  onHabitCheckIn: (
-    habitId: string,
-    localDate: string,
-    state: "completed" | "skipped"
-  ) => void;
+  onHabitCheckIn: (habitId: string, localDate: string, state: "completed" | "skipped") => void;
   onClearHabitCheckIn: (habitId: string, localDate: string) => void;
   onRetryHabit?: () => void;
   onSelectedRecordChange: (recordId: string | null) => void;
 };
 
-export function TodayWorkspace({
-  taskDraftScopeKey,
-  projection,
-  tasks,
-  habits,
-  habitCheckIns = [],
-  milestones = [],
-  projects,
-  goals,
-  categories,
-  dependencies = [],
-  dailyPlans = [],
-  dailyPlanItems = [],
-  taskOccurrences = [],
-  timezone,
-  hasActivePlan,
-  commitmentCount,
-  recoveryCount = projection.recovery.length,
-  accountabilityLevel = "structured",
-  isUnavailableToday = false,
-  captureStatus,
-  selectedRecordId,
-  pendingTaskIds = new Set(),
-  conflictCountByTask = new Map(),
-  isOnline,
-  habitPending,
-  habitError,
-  onPlanToday,
-  onOpenPlan = onPlanToday,
-  onOpenReview = onPlanToday,
-  onStartFocus,
-  onResolveRecovery,
-  onOpenHabits,
-  onOpenHabit,
-  onOpenProject,
-  onOpenCalendar,
-  onToggleTask,
-  onArchiveTask,
-  onUpdateTask,
-  onCreateSubtask,
-  onAddDependency,
-  onRemoveDependency,
-  onHabitCheckIn,
-  onClearHabitCheckIn,
-  onRetryHabit = () => undefined,
-  onSelectedRecordChange,
-}: TodayWorkspaceProps) {
-  const taskById = useMemo(
-    () => new Map(tasks.map(task => [task.id, task])),
-    [tasks]
-  );
-  const linkedResolutionByTaskId = useMemo(
-    () =>
-      new Map(
-        tasks.flatMap(task => {
-          const route = todayLinkedResolution(
-            task.id,
-            projection.localDate,
-            dailyPlans,
-            dailyPlanItems,
-            taskOccurrences,
-            Boolean(task.recurrenceRule)
-          );
-          return route ? [[task.id, route] as const] : [];
-        })
-      ),
-    [tasks, projection.localDate, dailyPlans, dailyPlanItems, taskOccurrences]
-  );
-  const linkedPlanContextByTaskId = useMemo(() => {
-    const planDateById = new Map(
-      dailyPlans.map(plan => [plan.id, plan.localDate])
-    );
-    const occurrenceTaskIds = new Set(taskOccurrences.map(item => item.taskId));
-    return new Map(
-      tasks.map(
-        task =>
-          [
-            task.id,
-            {
-              isEarlier: dailyPlanItems.some(
-                item =>
-                  item.taskId === task.id &&
-                  item.state === "committed" &&
-                  (planDateById.get(item.dailyPlanId) ?? projection.localDate) <
-                    projection.localDate
-              ),
-              needsRecovery: Boolean(
-                task.recurrenceRule || occurrenceTaskIds.has(task.id)
-              ),
-            },
-          ] as const
-      )
-    );
-  }, [
-    tasks,
-    dailyPlans,
-    dailyPlanItems,
-    taskOccurrences,
-    projection.localDate,
-  ]);
-  const firstExecutableId =
-    [
-      ...projection.flexible.map(row => row.recordId),
-      ...projection.timeline
-        .filter(row => row.kind === "task")
-        .map(row => row.recordId),
-      ...projection.attention.map(row => row.recordId),
-    ].find(
-      id =>
-        isExecutableTodayTask(taskById.get(id)) &&
-        !linkedResolutionByTaskId.has(id)
-    ) ?? null;
-  const [focusTaskId, setFocusTaskId] = useState(firstExecutableId);
-  const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(
-    null
-  );
-  const returnFocusRef = useRef<HTMLElement | null>(null);
+type Tick = { item: TodayItem; index: number; committed: boolean };
+
+let operationCounter = 0;
+function operationId(prefix: string) {
+  operationCounter += 1;
+  const random = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `today-${prefix}-${operationCounter}-${random}`.slice(0, 120);
+}
+
+function errorText(error: unknown) {
+  return error instanceof Error && error.message ? error.message : "That change did not save. Nothing else was changed.";
+}
+
+const EMPTY: never[] = [];
+
+export function TodayWorkspace(props: TodayWorkspaceProps) {
+  const {
+    taskDraftScopeKey, projection, tasks, milestones = EMPTY, projects, goals, categories,
+    dependencies = EMPTY, dailyPlans = EMPTY, dailyPlanItems = EMPTY, taskOccurrences = EMPTY, externalEvents = EMPTY,
+    focusSessions = EMPTY, carriedCommitments = EMPTY, commitmentResolutions = EMPTY, weeklyObjectives = EMPTY, dailyCheckIns = EMPTY,
+    workspace, writes, timezone, isUnavailableToday = false, captureStatus, selectedRecordId, conflictCountByTask = new Map(),
+    isOnline, habitPending, habitError, onStartFocus, onOpenHabits, onOpenCalendar, onUpdateTask, onCreateSubtask,
+    onAddDependency, onRemoveDependency, onHabitCheckIn, onClearHabitCheckIn, onSelectedRecordChange,
+  } = props;
+  const localDate = projection.localDate;
+  const tomorrow = shiftDate(localDate, 1);
+
+  // A minute clock (or the fixed test clock) drives the hero, now-line and evening card.
+  const [clock, setClock] = useState(() => props.now ?? new Date());
   useEffect(() => {
-    if (
-      focusTaskId &&
-      isExecutableTodayTask(taskById.get(focusTaskId)) &&
-      !linkedResolutionByTaskId.has(focusTaskId)
-    )
-      return;
-    setFocusTaskId(firstExecutableId);
-  }, [firstExecutableId, focusTaskId, taskById, linkedResolutionByTaskId]);
+    if (props.now) return;
+    const timer = window.setInterval(() => setClock(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [props.now]);
+  const now = props.now ?? clock;
 
-  const projectTitles = useMemo(
-    () => new Map(projects.map(project => [project.id, project.title])),
-    [projects]
-  );
-  const goalTitles = useMemo(
-    () => new Map(goals.map(goal => [goal.id, goal.title])),
-    [goals]
-  );
-  const categoryNames = useMemo(
-    () => new Map(categories.map(category => [category.id, category.name])),
-    [categories]
-  );
-  const selectedTask =
-    tasks.find(
-      task =>
-        task.id === selectedRecordId && !linkedResolutionByTaskId.has(task.id)
-    ) ?? null;
-  const effectiveFocusTaskId =
-    focusTaskId &&
-    isExecutableTodayTask(taskById.get(focusTaskId)) &&
-    !linkedResolutionByTaskId.has(focusTaskId)
-      ? focusTaskId
-      : firstExecutableId;
-  const focusTask = effectiveFocusTaskId
-    ? (taskById.get(effectiveFocusTaskId) ?? null)
-    : null;
-  const headerAction = contextualTodayAction({
-    recoveryCount: accountabilityLevel === "gentle" ? 0 : recoveryCount,
-    hasActivePlan,
-    selectedTaskId: focusTask?.id ?? null,
-  });
-  const flexibleEstimateMinutes = projection.flexible.reduce((total, row) => {
-    const estimate = taskById.get(row.recordId)?.estimateMinutes;
-    return total + (typeof estimate === "number" ? Math.max(0, estimate) : 0);
-  }, 0);
-  const unavailableMinutes = projection.capacity.breakMinutes;
-  const suggestions = todaySuggestions({ projection, tasks, habits, projects });
-  const nextMilestone = nextTodayMilestone({
-    localDate: projection.localDate,
-    visibleTaskIds: [...projection.flexible, ...projection.timeline.filter(row => row.kind === "task")].map(row => row.recordId),
-    tasks,
-    projects,
-    milestones,
-  });
-  const milestoneGoal = nextMilestone?.goalId ? goals.find(goal => goal.id === nextMilestone.goalId) : null;
-  const milestoneProject = nextMilestone?.goalId ? projects.find(project => project.goalId === nextMilestone.goalId) : null;
+  const facts: TodayFacts = useMemo(() => ({
+    localDate, timezone, tasks, plans: dailyPlans as TodayFacts["plans"], items: dailyPlanItems as TodayFacts["items"],
+    occurrences: taskOccurrences as TodayFacts["occurrences"], carries: carriedCommitments,
+  }), [localDate, timezone, tasks, dailyPlans, dailyPlanItems, taskOccurrences, carriedCommitments]);
+  const factsRef = useRef(facts);
+  factsRef.current = facts;
+  const taskById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
+  const tasksRef = useRef(taskById);
+  tasksRef.current = taskById;
+  const categoryTones = useMemo(() => resolveCategoryTones(categories), [categories]);
+  const toneFor = useCallback((categoryId: string | null): ToneOrNeutral => (categoryId ? categoryTones.get(categoryId) ?? "neutral" : "neutral"), [categoryTones]);
 
-  const openLinkedResolution = (task: CanonicalTask) => {
-    const route = linkedResolutionByTaskId.get(task.id);
-    if (route === "reconcile") {
-      setUnsupportedMessage(
-        "Dated occurrence unavailable. This recurring series cannot be completed, archived, or focused from Today until its dated occurrence is available. No task outcome was changed."
-      );
-      return;
+  const whyFacts = useMemo(() => whyFactsFromSnapshot({ tasks, goals, projects, milestones, taskDependencies: dependencies, taskOccurrences, dailyPlans, dailyPlanItems, weeklyObjectives }),
+    [tasks, goals, projects, milestones, dependencies, taskOccurrences, dailyPlans, dailyPlanItems, weeklyObjectives]);
+  const whyTasks = useMemo(() => new Map(whyFacts.tasks.map(task => [task.id, task])), [whyFacts]);
+  const whyFor = useCallback((taskId: string): WhyReason | null => {
+    const entity = whyTasks.get(taskId);
+    if (!entity) return null;
+    try { return topReason({ kind: "task", task: entity }, whyFacts, now, timezone, "today_row"); } catch { return null; }
+  }, [whyTasks, whyFacts, now, timezone]);
+
+  const todayPlan = facts.plans.find(plan => plan.localDate === localDate && plan.state !== "archived") ?? null;
+  const planState = todayPlan?.state ?? "none";
+  const planDate = useMemo(() => new Map(dailyPlans.map(plan => [plan.id, plan.localDate])), [dailyPlans]);
+  const itemDate = useCallback((itemId?: string) => {
+    const item = itemId ? dailyPlanItems.find(row => row.id === itemId) : null;
+    return item ? planDate.get(item.dailyPlanId) ?? null : null;
+  }, [dailyPlanItems, planDate]);
+
+  const items = useMemo(() => buildTodayItems(projection, facts), [projection, facts]);
+
+  // ---------------------------------------------------------------- ticks with a deferred, undoable write
+  const [ticks, setTicks] = useState<Record<string, Tick>>({});
+  const timers = useRef(new Map<string, number>());
+  const pending = useRef(new Map<string, { write: TodayWrite; title: string }>());
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busyWriting, setBusyWriting] = useState(false);
+
+  const runWrite = useCallback(async (write: TodayWrite): Promise<boolean> => {
+    try {
+      if (write.procedure === "planner.task.update") {
+        const task = tasksRef.current.get(write.taskId);
+        if (!task) throw new Error("This task is not loaded. Refresh and try again.");
+        await onUpdateTask(task, write.patch);
+        return true;
+      }
+      if (!writes) throw new Error("This action is not available here.");
+      if (write.procedure === "planner.occurrence.resolve") await writes.resolveOccurrence(write.input);
+      else await writes.resolveCommitment(write.decision);
+      return true;
+    } catch (error) {
+      toast.error(errorText(error));
+      return false;
     }
-    if (route === "review" || route === "both") {
-      const occurrence = taskOccurrences.find(
-        item =>
-          item.taskId === task.id &&
-          item.localDate === projection.localDate &&
-          item.state === "pending"
-      );
-      if (occurrence) onOpenReview(occurrence.id);
-    } else if (route) {
-      const planDateById = new Map(
-        dailyPlans
-          .filter(
-            plan =>
-              plan.localDate <= projection.localDate &&
-              plan.state !== "archived"
-          )
-          .map(plan => [plan.id, plan.localDate])
-      );
-      const item = dailyPlanItems
-        .filter(
-          candidate =>
-            candidate.taskId === task.id &&
-            candidate.state === "committed" &&
-            planDateById.has(candidate.dailyPlanId)
-        )
-        .sort((left, right) => {
-          const leftDate = planDateById.get(left.dailyPlanId)!;
-          const rightDate = planDateById.get(right.dailyPlanId)!;
-          const leftEarlier = leftDate < projection.localDate;
-          const rightEarlier = rightDate < projection.localDate;
-          return (
-            Number(rightEarlier) - Number(leftEarlier) ||
-            rightDate.localeCompare(leftDate) ||
-            left.id.localeCompare(right.id)
-          );
-        })[0];
-      if (item) onOpenPlan(item.id);
-    }
-  };
-  const openTask = (task: CanonicalTask, trigger: HTMLElement) => {
-    if (linkedResolutionByTaskId.has(task.id))
-      return openLinkedResolution(task);
-    returnFocusRef.current = trigger;
-    setFocusTaskId(task.id);
-    onSelectedRecordChange(task.id);
-  };
-  const toggleTask = (task: CanonicalTask) => {
-    if (linkedResolutionByTaskId.has(task.id))
-      return openLinkedResolution(task);
-    if (onToggleTask) return onToggleTask(task);
-    return onUpdateTask(task, {
-      state: task.state === "completed" ? "not_started" : "completed",
+  }, [onUpdateTask, writes]);
+  const runWriteRef = useRef(runWrite);
+  runWriteRef.current = runWrite;
+
+  const commitTick = useCallback(async (key: string) => {
+    window.clearTimeout(timers.current.get(key));
+    timers.current.delete(key);
+    const entry = pending.current.get(key);
+    if (!entry) return true;
+    pending.current.delete(key);
+    const ok = await runWriteRef.current(entry.write);
+    setTicks(current => {
+      if (!current[key]) return current;
+      if (!ok) { const next = { ...current }; delete next[key]; return next; }
+      return { ...current, [key]: { ...current[key], committed: true } };
     });
+    return ok;
+  }, []);
+
+  const undoTick = useCallback((key: string) => {
+    window.clearTimeout(timers.current.get(key));
+    timers.current.delete(key);
+    if (!pending.current.delete(key)) return;
+    setTicks(current => { const next = { ...current }; delete next[key]; return next; });
+    toast.dismiss(`today-tick-${key}`);
+  }, []);
+
+  // Leaving Today sends what is waiting (the Undo window is a delay, not a cancel-on-navigate).
+  useEffect(() => () => {
+    for (const [key, entry] of Array.from(pending.current.entries())) {
+      window.clearTimeout(timers.current.get(key));
+      void runWriteRef.current(entry.write);
+    }
+    pending.current.clear();
+    timers.current.clear();
+  }, []);
+
+  const flushTicks = useCallback(async () => {
+    const keys = Array.from(pending.current.keys());
+    for (const key of keys) if (!(await commitTick(key))) return false;
+    return true;
+  }, [commitTick]);
+
+  const needsServer = (write: TodayWrite) => write.procedure !== "planner.task.update";
+
+  const toggle = (row: TodayListRow) => {
+    const key = row.item.key;
+    const tick = ticks[key];
+    if (tick) { if (!tick.committed) undoTick(key); return; }
+    const completion = completeTodayItem(row.item, factsRef.current, operationId("done"));
+    if (completion.kind === "refuse") { setNotice(completion.reason); return; }
+    if (needsServer(completion.write) && !isOnline) { setNotice("Reconnect to close this plan item or repeat. Nothing was changed."); return; }
+    if (needsServer(completion.write) && !writes) { setNotice("This action is not available here. Nothing was changed."); return; }
+    setNotice(null);
+    const index = Math.max(0, items.findIndex(item => item.key === key));
+    pending.current.set(key, { write: completion.write, title: row.item.title });
+    setTicks(current => ({ ...current, [key]: { item: row.item, index, committed: false } }));
+    timers.current.set(key, window.setTimeout(() => { void commitTick(key); }, TODAY_UNDO_MS));
+    toast(`Done · ${row.item.title}`, { id: `today-tick-${key}`, duration: TODAY_UNDO_MS, action: { label: "Undo", onClick: () => undoTick(key) } });
   };
-  const startFocus = (task: CanonicalTask) => {
-    if (linkedResolutionByTaskId.has(task.id))
-      return openLinkedResolution(task);
-    if (task.id.startsWith("offline:")) {
-      setUnsupportedMessage(
-        "Sync this captured task before starting focus. No session was started."
-      );
-      return;
+
+  const tickedKeys = useMemo(() => new Set(Object.keys(ticks)), [ticks]);
+  const openItems = useMemo(() => items.filter(item => !tickedKeys.has(item.key)), [items, tickedKeys]);
+
+  const blockedReasonFor = (item: TodayItem) => {
+    const task = taskById.get(item.taskId);
+    if (!task) return null;
+    if (task.id.startsWith("offline:")) return "Sync this captured task first";
+    if (task.state === "blocked") return "Blocked. Open it to clear the blocker";
+    return null;
+  };
+  const fromDateFor = (item: TodayItem) => {
+    if (item.carryId) {
+      const carry = carriedCommitments.find(row => row.id === item.carryId);
+      return carry ? itemDate(carry.rootDailyPlanItemId) : null;
     }
-    if (!isExecutableTodayTask(task)) {
-      setUnsupportedMessage(
-        "Review this task's blocker before starting focus. No session was started."
-      );
-      return;
-    }
-    setFocusTaskId(task.id);
-    if (!isOnline) {
-      setUnsupportedMessage(
-        "Reconnect to start focus. No focus session was started; the last confirmed state is unchanged."
-      );
-      return;
-    }
+    const date = itemDate(item.dailyPlanItemId);
+    return date && date < localDate ? date : null;
+  };
+  const listRows: TodayListRow[] = useMemo(() => {
+    const live = items.map(item => ({ item, ticked: tickedKeys.has(item.key), committed: Boolean(ticks[item.key]?.committed) }));
+    // A ticked row stays where it was (dimmed) even after the snapshot drops it.
+    const missing = Object.values(ticks).filter(tick => !items.some(item => item.key === tick.item.key)).sort((left, right) => left.index - right.index);
+    for (const tick of missing) live.splice(Math.min(tick.index, live.length), 0, { item: tick.item, ticked: true, committed: tick.committed });
+    return live.map(row => ({ ...row, tone: toneFor(row.item.categoryId), reason: row.ticked ? null : whyFor(row.item.taskId), fromLocalDate: fromDateFor(row.item), blockedReason: blockedReasonFor(row.item) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, ticks, tickedKeys, toneFor, whyFor, carriedCommitments, itemDate, taskById]);
+
+  const tickedTaskIds = new Set(Object.values(ticks).map(tick => tick.item.taskId));
+  const doneRows: TodayDoneRow[] = projection.completionEvidence
+    .filter(evidence => evidence.kind !== "habit" && !tickedTaskIds.has(evidence.recordId))
+    .map(evidence => ({ key: `${evidence.kind}:${evidence.evidenceId}`, title: evidence.title,
+      detail: evidence.kind === "task_occurrence" ? "Today's repeat" : "Task", time: evidence.completedAt ? clockLabel(evidence.completedAt, timezone) : null }));
+
+  // ---------------------------------------------------------------- events, hero, timeline, capacity
+  const timedEvents = useMemo(() => timedEventsForDay(externalEvents, localDate, timezone), [externalEvents, localDate, timezone]);
+  const allDay = useMemo(() => allDayEventsForDay(externalEvents, localDate, timezone), [externalEvents, localDate, timezone]);
+  const next = nextUp({ now, items: openItems, events: timedEvents });
+  const followingTask = next.kind === "meeting" ? (() => { const after = nextUp({ now: new Date(Math.max(now.getTime(), new Date(next.event.endsAt).getTime())), items: openItems, events: [] }); return after.kind === "task" ? after.item : null; })() : null;
+  const heroTaskId = next.kind === "task" ? next.item.taskId : null;
+  const because = heroTaskId ? whyFor(heroTaskId) : null;
+
+  const timelineEntries: TimelineEntry[] = [
+    ...listRows.filter(row => row.item.startsAt && row.item.endsAt).map(row => ({ kind: "task" as const, key: `task:${row.item.key}`, taskId: row.item.taskId, title: row.item.title,
+      startsAt: row.item.startsAt!, endsAt: row.item.endsAt!, tone: row.tone, done: row.ticked })),
+    ...timedEvents.map(event => ({ kind: "meeting" as const, key: `event:${event.id}`, title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, joinUrl: meetingJoinUrl(event) })),
+  ];
+
+  const capacityInput = {
+    workdayStartsAt: workspace?.workdayStartsAt ?? "08:30",
+    workdayEndsAt: workspace?.workdayEndsAt ?? "17:30",
+    breakMinutes: workspace?.defaultBreakMinutes ?? 30,
+    meetings: timedEvents.map(event => [localMinuteOfDay(event.startsAt, timezone, localDate), localMinuteOfDay(event.endsAt, timezone, localDate)] as const),
+    unavailable: isUnavailableToday,
+  };
+  const basePlannedMinutes = openItems.reduce((total, item) => total + itemPlannedMinutes(item), 0);
+  const capacity = todayCapacity({ ...capacityInput, plannedMinutes: basePlannedMinutes });
+
+  const habitModel = habitChipRow(projection.habits);
+  const minuteNow = localMinuteOfDay(now, timezone, localDate);
+  const eveningDue = shutdownDue(minuteNow, workspace?.preferredShutdownAt) && planState !== "closed";
+
+  // ---------------------------------------------------------------- focus and detail
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const selectedTask = tasks.find(task => task.id === selectedRecordId) ?? null;
+  const focusBlockReason = (task: CanonicalTask | undefined | null) => {
+    if (!task) return "This task is not loaded";
+    if (task.id.startsWith("offline:")) return "Sync this captured task before starting focus";
+    if (!isExecutableTodayTask(task)) return "Clear this task's blocker before starting focus";
+    if (!isOnline) return "Reconnect to start focus";
+    return null;
+  };
+  const startFocusFor = (task: CanonicalTask | undefined | null) => {
+    const reason = focusBlockReason(task);
+    if (reason || !task) { setNotice(`${reason}. No session was started.`); return; }
     onStartFocus(task);
   };
-  const resolveRecovery = () => {
-    onResolveRecovery();
+  const openTaskId = (taskId: string, trigger: HTMLElement) => {
+    returnFocusRef.current = trigger;
+    onSelectedRecordChange(taskId);
   };
+  const heroFocusReason = next.kind === "task" ? focusBlockReason(taskById.get(next.item.taskId)) : followingTask ? focusBlockReason(taskById.get(followingTask.taskId)) : null;
+
+  // ---------------------------------------------------------------- habits
+  const tapHabit = (habitId: string, state: HabitChipState, intent: "tap" | "skip") => {
+    const action = habitChipAction(state, intent);
+    if (!action) return;
+    if (!isOnline) { setNotice("Reconnect to check in habits. The last confirmed state is shown."); return; }
+    if (action.kind === "clear") onClearHabitCheckIn(habitId, localDate);
+    else onHabitCheckIn(habitId, localDate, action.state);
+  };
+
+  // ---------------------------------------------------------------- Plan my day
+  const [planOpen, setPlanOpen] = useState(false);
+  const [shutdownOpen, setShutdownOpen] = useState(false);
+  const leftovers: RecoveryEntry[] = useMemo(() => buildRecoveryEntries({
+    todayLocalDate: localDate, plans: dailyPlans, items: dailyPlanItems, tasks, occurrences: taskOccurrences,
+    carries: carriedCommitments, resolutions: commitmentResolutions,
+  } as unknown as Parameters<typeof buildRecoveryEntries>[0]).filter(entry => entry.canResolve), [localDate, dailyPlans, dailyPlanItems, tasks, taskOccurrences, carriedCommitments, commitmentResolutions]);
+  const tray = useMemo(() => pickTray(tasks, { localDate, excludeTaskIds: new Set([...items.map(item => item.taskId), ...leftovers.map(entry => entry.taskId)]) }), [tasks, localDate, items, leftovers]);
+  const placeable = openItems.filter(item => !item.startsAt && !taskById.get(item.taskId)?.recurrenceRule && !item.carryId)
+    .map(item => ({ taskId: item.taskId, title: item.title, estimateMinutes: item.estimateMinutes }));
+  const busy = [
+    ...timedEvents.map(event => ({ startsAt: event.startsAt, endsAt: event.endsAt })),
+    ...openItems.filter(item => item.startsAt && item.endsAt).map(item => ({ startsAt: item.startsAt!, endsAt: item.endsAt! })),
+  ];
+  const energy = dailyCheckIns.find(row => row.localDate === localDate)?.energy ?? null;
+  const [energyDraft, setEnergyDraft] = useState<number | null>(null);
+  useEffect(() => { setEnergyDraft(null); }, [energy]);
+
+  const guardServer = () => {
+    if (!writes) { toast.error("This action is not available here. Nothing was changed."); return false; }
+    if (!isOnline) { toast.error("Reconnect to change today's plan. Nothing was changed."); return false; }
+    return true;
+  };
+  const withBusy = async (work: () => Promise<boolean>) => {
+    setBusyWriting(true);
+    try { return await work(); } catch (error) { toast.error(errorText(error)); return false; } finally { setBusyWriting(false); }
+  };
+  const ensureActivePlan = async () => {
+    const plan = factsRef.current.plans.find(row => row.localDate === localDate && row.state !== "archived");
+    if (plan && plan.state === "active") return { id: plan.id };
+    if (plan) return writes!.upsertPlan({ localDate, expectedVersion: plan.version, state: "active" });
+    return writes!.upsertPlan({ localDate, state: "active" });
+  };
+  const onLeftovers = (choices: Record<string, LeftoverChoice>) => withBusy(async () => {
+    if (!guardServer()) return false;
+    for (const entry of leftovers) {
+      const choice = choices[entry.key];
+      if (!choice) continue;
+      const form = choice === "let_go" ? { action: "abandon" as const } : { action: "reschedule" as const, resolvedToLocalDate: choice === "keep" ? localDate : tomorrow };
+      await writes!.resolveCommitment(recoveryDecisionInput(entry, form, operationId("leftover")));
+    }
+    return true;
+  });
+  const onPicks = (taskIds: string[]) => withBusy(async () => {
+    if (!guardServer()) return false;
+    const plan = await ensureActivePlan();
+    for (const taskId of taskIds) await writes!.addPlanItem({ dailyPlanId: plan.id, taskId });
+    return true;
+  });
+  const onPlace = (placements: Placement[]) => withBusy(async () => {
+    if (!guardServer()) return false;
+    for (const placement of placements) {
+      const task = tasksRef.current.get(placement.taskId);
+      if (!task) continue;
+      await writes!.reserveTask({ id: task.id, expectedVersion: task.version, localDate, plannedStartAt: placement.startsAt, plannedEndAt: placement.endsAt });
+    }
+    return true;
+  });
+  const recordEnergy = (level: number) => {
+    if (!guardServer()) return;
+    setEnergyDraft(level);
+    void writes!.recordEnergy({ localDate, energy: level }).catch(error => { setEnergyDraft(null); toast.error(errorText(error)); });
+  };
+  const openPlan = () => { setNotice(null); setPlanOpen(true); };
+
+  // ---------------------------------------------------------------- Shut down day
+  const shutdownItems: ShutdownItem[] = useMemo(() => {
+    const out: ShutdownItem[] = openItems.map(item => ({
+      key: item.key, taskId: item.taskId, title: item.title, source: item.source, carryCount: carryCount(item.taskId, facts),
+      fromLocalDate: fromDateFor(item) ?? undefined, dailyPlanItemId: item.dailyPlanItemId, occurrenceId: item.occurrenceId, carryId: item.carryId,
+    }));
+    const covered = new Set(out.flatMap(item => [item.dailyPlanItemId, item.carryId].filter(Boolean) as string[]));
+    for (const entry of leftovers) {
+      if (covered.has(entry.sourceCarryId ?? entry.dailyPlanItemId) || tickedTaskIds.has(entry.taskId)) continue;
+      out.push({ key: `leftover:${entry.key}`, taskId: entry.taskId, title: entry.originalScope, source: entry.sourceCarryId ? "carried_commitment" : "daily_commitment",
+        carryCount: carryCount(entry.taskId, facts), fromLocalDate: entry.sourceLocalDate, dailyPlanItemId: entry.dailyPlanItemId, occurrenceId: entry.occurrenceId, carryId: entry.sourceCarryId });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openItems, leftovers, facts, ticks]);
+  const focusMinutes = Math.round(focusSessions
+    .filter(session => clockDate(session.startedAt, timezone) === localDate)
+    .reduce((total, session) => total + Math.max(0, Number(session.activeSeconds ?? 0)), 0) / 60);
+  const wins = {
+    doneCount: projection.completionEvidence.filter(evidence => evidence.kind !== "habit" && !tickedTaskIds.has(evidence.recordId)).length + Object.keys(ticks).length,
+    focusMinutes, habitsDone: habitModel.doneCount, habitsDue: habitModel.dueCount,
+  };
+  const onCloseDay = (decisions: Record<string, ShutdownDecision>, reflection: string) => withBusy(async () => {
+    if (!guardServer()) return false;
+    if (!(await flushTicks())) return false;
+    for (const item of shutdownItems) {
+      const decision = decisions[item.key];
+      if (!decision) return false;
+      const write = shutdownWrite(item, decision, factsRef.current, tomorrow, operationId("shutdown"));
+      if (write.kind === "refuse") throw new Error(`${item.title}: ${write.reason}`);
+      if (!(await runWriteRef.current(write.write))) return false;
+    }
+    const plan = factsRef.current.plans.find(row => row.localDate === localDate && row.state !== "archived");
+    if (plan?.version) await writes!.closePlan({ id: plan.id, expectedVersion: plan.version, reflection: reflection || null });
+    else await writes!.upsertPlan({ localDate, state: "closed", reflection: reflection || null });
+    setShutdownOpen(false);
+    toast("Day closed. See you tomorrow.");
+    return true;
+  });
+  const reopenDay = () => void withBusy(async () => {
+    if (!guardServer() || !todayPlan) return false;
+    await writes!.upsertPlan({ localDate, expectedVersion: todayPlan.version, state: "active" });
+    toast("Day reopened.");
+    return true;
+  });
+  const openShutdown = () => { setNotice(null); setShutdownOpen(true); };
+
+  // ---------------------------------------------------------------- render
+  const openCount = listRows.filter(row => !row.ticked).length;
   return (
-    <section className="today-workspace" aria-label="Today's work">
-      <div className="today-capacity-strip" data-today-section="summary">
-        <details className="today-summary" aria-label="Today commitment and capacity details">
-          <summary>
-            <span className="today-summary-heading">{commitmentCount} commitments · {minutesLabel(projection.capacity.knownDemandMinutes)} known <ChevronDown aria-hidden="true" size={17} /></span>
-            <small>{projection.capacity.unestimatedTaskCount ? `${projection.capacity.unestimatedTaskCount} without estimates` : "All known demand estimated"}</small>
-          </summary>
-          <div className="today-summary-metrics">
-            <div><span>Commitments</span><strong>{commitmentCount} chosen</strong><small>{recoveryCount ? `${recoveryCount} earlier ${recoveryCount === 1 ? "item" : "items"} for review` : "No unresolved earlier plan"}</small></div>
-            <div><span>Scheduled demand</span><strong>{minutesLabel(projection.capacity.busyMinutes)}</strong><small>Merged timed work and busy context</small></div>
-            <div><span>Flexible estimates</span><strong>{minutesLabel(flexibleEstimateMinutes)}</strong><small>{projection.flexible.length} planned without a time</small></div>
-            <div><span>Unavailable</span><strong>{isUnavailableToday ? "All day" : minutesLabel(unavailableMinutes)}</strong><small>{isUnavailableToday ? "Availability exception" : "Break allowance; calendar busy is above"}</small></div>
-            <div><span>Estimate gaps</span><strong>{projection.capacity.unestimatedTaskCount}</strong><small>{projection.capacity.isCompleteEstimate ? "Known demand is fully estimated" : "Not counted as zero"}</small></div>
-          </div>
-        </details>
-        {headerAction?.id === "start_focus" && focusTask ? <button className="today-context-action" type="button" onClick={() => startFocus(focusTask)}>Focus {focusTask.title}</button> : null}
-        <Button type="button" className="today-plan-action" onClick={onPlanToday}><CalendarDays aria-hidden="true" size={17} />Plan day</Button>
-      </div>
+    <section className="td-page" aria-label="Today's work" data-plan-state={planState}>
+      <header className="td-head" data-today-section="summary">
+        <div className="td-head-text">
+          <p className="td-head-sum pc-num"><strong>{openCount} to do</strong> · {capacity.label}</p>
+        </div>
+        <div className="td-head-actions">
+          {planState !== "closed" ? <button type="button" className="tk-btn" data-plan-open="" onClick={openPlan}><CalendarPlus size={16} strokeWidth={2} aria-hidden="true" />Plan my day</button> : null}
+          <DropdownMenuPrimitive.Root>
+            <DropdownMenuPrimitive.Trigger asChild>
+              <button type="button" className="tk-icon-btn td-more pc-focusable" aria-label="More for today" data-today-menu=""><MoreHorizontal size={18} strokeWidth={2} aria-hidden="true" /></button>
+            </DropdownMenuPrimitive.Trigger>
+            <DropdownMenuPrimitive.Portal>
+              <DropdownMenuPrimitive.Content className="tk-menu" align="end" sideOffset={6} collisionPadding={12}>
+                {planState !== "closed" ? <DropdownMenuPrimitive.Item className="tk-menu-item" onSelect={openPlan}><CalendarPlus size={16} aria-hidden="true" />Plan my day</DropdownMenuPrimitive.Item> : null}
+                {planState !== "closed" ? <DropdownMenuPrimitive.Item className="tk-menu-item" data-menu-shutdown="" onSelect={openShutdown}><Moon size={16} aria-hidden="true" />Shut down day</DropdownMenuPrimitive.Item> : null}
+                {planState === "closed" ? <DropdownMenuPrimitive.Item className="tk-menu-item" data-menu-reopen="" onSelect={reopenDay}><RotateCcw size={16} aria-hidden="true" />Reopen day</DropdownMenuPrimitive.Item> : null}
+                {props.onOpenCalendar ? <DropdownMenuPrimitive.Item className="tk-menu-item" onSelect={props.onOpenCalendar}><CalendarDays size={16} aria-hidden="true" />Open calendar</DropdownMenuPrimitive.Item> : null}
+              </DropdownMenuPrimitive.Content>
+            </DropdownMenuPrimitive.Portal>
+          </DropdownMenuPrimitive.Root>
+        </div>
+      </header>
 
       {captureStatus}
-
       {!isOnline ? (
-        <p className="today-offline-state" role="status">
-          <WifiOff aria-hidden="true" size={17} />
-          <span>
-            <strong>Offline · task changes remain available.</strong> Reconnect
-            to check in habits, start focus, or resolve earlier commitments.
-            Last confirmed state is shown for those actions.
-          </span>
-        </p>
+        <p className="td-banner" role="status"><WifiOff size={16} strokeWidth={2} aria-hidden="true" /><span><strong>Offline.</strong> Task ticks still save. Reconnect to check in habits, start focus or change today's plan.</span></p>
       ) : null}
-      {unsupportedMessage ? (
-        <p className="today-inline-guidance" role="status">
-          <span>{unsupportedMessage}</span>
-          <button
-            type="button"
-            aria-label="Dismiss reconnect guidance"
-            onClick={() => setUnsupportedMessage(null)}
-          >
-            ×
-          </button>
-        </p>
+      {notice ? (
+        <p className="td-banner is-notice" role="status"><span>{notice}</span><button type="button" className="tk-icon-btn" aria-label="Dismiss" onClick={() => setNotice(null)}>×</button></p>
       ) : null}
 
-      {recoveryCount && accountabilityLevel !== "gentle" ? (
-        <div data-today-section="recovery">
-          <RecoveryIndicator count={recoveryCount} level={accountabilityLevel} onOpen={resolveRecovery} />
-        </div>
+      {planState === "closed" ? (
+        <section className="td-card td-note is-closed" data-today-card="closed">
+          <span className="pc-icon-tile pc-tone-accent" aria-hidden="true"><Moon size={16} strokeWidth={2} /></span>
+          <div><h2>Day closed</h2><p>{todayPlan?.reflection ? `"${todayPlan.reflection}"` : "Everything open has a decision. Rest well."}</p></div>
+          <button type="button" className="tk-btn is-quiet" onClick={reopenDay} disabled={busyWriting}><RotateCcw size={15} strokeWidth={2} aria-hidden="true" />Reopen day</button>
+        </section>
+      ) : eveningDue ? (
+        <section className="td-card td-note is-evening" data-today-card="evening">
+          <span className="pc-icon-tile pc-tone-accent" aria-hidden="true"><Moon size={16} strokeWidth={2} /></span>
+          <div><h2>Time to shut down</h2><p>{shutdownItems.length ? `${shutdownItems.length} open ${shutdownItems.length === 1 ? "item needs" : "items need"} a decision before tomorrow.` : "Nothing is left open. Close the day in one tap."}</p></div>
+          <button type="button" className="tk-btn is-accent" data-shutdown-open="" onClick={openShutdown}>Shut down day</button>
+        </section>
+      ) : planState === "none" || planState === "draft" ? (
+        <section className="td-card td-note is-morning" data-today-card="morning">
+          <span className="pc-icon-tile pc-tone-accent" aria-hidden="true"><Sunrise size={16} strokeWidth={2} /></span>
+          <div><h2>Good {dayPart(minuteNow)}</h2><p>{leftovers.length ? `${leftovers.length} left over from earlier. Shape the day in about two minutes.` : "Shape the day in about two minutes."}</p></div>
+          <button type="button" className="tk-btn is-accent" data-morning-plan="" onClick={openPlan}>Plan my day</button>
+        </section>
       ) : null}
 
-      <div className="today-execution-grid">
-        <div className="today-work-column" data-today-section="work">
-          <TodayFlexibleWork
-            rows={projection.flexible} tasks={tasks} localDate={projection.localDate} timezone={timezone} occurrences={taskOccurrences}
-            projectTitles={projectTitles} goalTitles={goalTitles} categoryNames={categoryNames}
-            pendingTaskIds={pendingTaskIds} linkedResolutionByTaskId={linkedResolutionByTaskId}
-            linkedPlanContextByTaskId={linkedPlanContextByTaskId} onOpenLinkedResolution={openLinkedResolution}
-            onToggleTask={toggleTask} onArchiveTask={onArchiveTask} onStartFocus={startFocus} onOpenTask={openTask}
-          />
+      <div className="td-grid">
+        <div className="td-main">
+          <TodayHero next={next} timezone={timezone} because={because} followingTask={followingTask} focusDisabledReason={heroFocusReason}
+            onStartFocus={item => startFocusFor(taskById.get(item.taskId))} onOpenCalendar={onOpenCalendar} onPlanDay={openPlan} />
+          <TodayItemList rows={listRows} done={doneRows} timezone={timezone} enterKey={0}
+            onToggle={toggle} onBlocked={row => setNotice(`${row.blockedReason ?? "This item cannot be ticked here"}. Nothing was changed.`)}
+            onOpen={(row, trigger) => openTaskId(row.item.taskId, trigger)} onStartFocus={row => startFocusFor(taskById.get(row.item.taskId))} onPlanDay={openPlan} />
         </div>
-        <div className="today-habit-column">
-          <TodayHabits
-            rows={projection.habits} habits={habits} checkIns={habitCheckIns} localDate={projection.localDate} timezone={timezone}
-            isOnline={isOnline} pending={habitPending} error={habitError} onCheckIn={onHabitCheckIn}
-            onClearCheckIn={onClearHabitCheckIn} onRetry={onRetryHabit} onOpenHabits={onOpenHabits}
-            onOpenHabit={onOpenHabit} onUnsupportedOffline={setUnsupportedMessage}
-          />
-        </div>
-        <div className="today-day-column" data-today-section="day">
-          <details className="today-completed-evidence" data-today-section="completed">
-            <summary><span><Sparkles aria-hidden="true" size={17} /> Completed today</span><span>{projection.completionEvidence.length} evidence {projection.completionEvidence.length === 1 ? "record" : "records"}</span></summary>
-            <div className="today-completed-list">
-              {projection.completionEvidence.length ? projection.completionEvidence.map(evidence => (
-                <article key={`${evidence.kind}:${evidence.evidenceId}`}>
-                  <CalendarCheck2 aria-hidden="true" size={17} />
-                  <div><strong>{evidence.title}</strong><small>{evidence.kind === "habit" ? "Habit check-in" : evidence.kind === "task_occurrence" ? "Recurring task occurrence" : "Task completion"}</small></div>
-                  <time>{evidence.completedAt ? new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", minute: "2-digit" }).format(new Date(evidence.completedAt)) : "Time not recorded"}</time>
-                </article>
-              )) : <p>No completion evidence has been recorded today.</p>}
-            </div>
-          </details>
-          <TodayTimeline
-            rows={projection.timeline} tasks={tasks} timezone={timezone} localDate={projection.localDate} occurrences={taskOccurrences} projectTitles={projectTitles}
-            goalTitles={goalTitles} categoryNames={categoryNames} pendingTaskIds={pendingTaskIds}
-            linkedResolutionByTaskId={linkedResolutionByTaskId} linkedPlanContextByTaskId={linkedPlanContextByTaskId}
-            onOpenLinkedResolution={openLinkedResolution} onToggleTask={toggleTask} onArchiveTask={onArchiveTask}
-            onStartFocus={startFocus} onOpenTask={openTask} onOpenCalendar={onOpenCalendar} onPlanToday={onPlanToday}
-          />
-          {nextMilestone ? <section className="today-milestone" aria-label="Upcoming milestone">
-            <span>Upcoming milestone · {milestoneGoal?.title ?? "Linked goal"}</span>
-            <strong>{nextMilestone.title}</strong>
-            <small>Due <time dateTime={nextMilestone.dueLocalDate!}>{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${nextMilestone.dueLocalDate}T12:00:00Z`))}</time></small>
-            {milestoneProject && onOpenProject ? <button type="button" onClick={() => onOpenProject(milestoneProject.id)}>Open {milestoneProject.title} <ArrowRight aria-hidden="true" size={16} /></button> : null}
-          </section> : null}
-          <section className="today-suggestions" data-today-section="suggestions" aria-labelledby="today-suggestions-heading">
-            <header className="today-section-heading"><div><h2 id="today-suggestions-heading">Remaining decisions</h2></div><small>{suggestions.length} sourced</small></header>
-            {suggestions.length ? <div className="today-suggestion-list">{suggestions.map(suggestion => (
-              <article key={suggestion.id} data-suggestion-source={suggestion.source}>
-                <span>{suggestion.source}</span><div><strong>{suggestion.title}</strong><small>{suggestion.detail}</small></div>
-                <button type="button" onClick={event => { if (suggestion.kind === "habit") onOpenHabits(); else { const task = taskById.get(suggestion.recordId); if (task) openTask(task, event.currentTarget); } }}>{suggestion.actionLabel} <ArrowRight aria-hidden="true" size={16} /></button>
-              </article>
-            ))}</div> : <p className="today-suggestions-empty"><Check aria-hidden="true" size={18} /> Nothing else is asking for a planning decision.</p>}
-          </section>
-        </div>
+        <aside className="td-side" aria-label="Habits and timeline">
+          <TodayHabitChips rows={projection.habits} pending={habitPending} error={habitError}
+            onTap={(habitId, state) => tapHabit(habitId, state, "tap")} onSkip={habitId => tapHabit(habitId, "due", "skip")} onOpenHabits={onOpenHabits} />
+          <TodayDayTimeline entries={timelineEntries} allDay={allDay} now={now} timezone={timezone} onOpenTask={openTaskId} onOpenCalendar={onOpenCalendar} />
+          <section className="td-card td-cap-card" data-today-section="capacity" aria-label="Today's capacity"><CapacityBar capacity={capacity} /></section>
+        </aside>
       </div>
+
+      <PlanMyDaySheet open={planOpen} onOpenChange={setPlanOpen} localDate={localDate} timezone={timezone} now={now} leftovers={leftovers} tray={tray}
+        basePlannedMinutes={basePlannedMinutes} capacityInput={capacityInput} placeable={placeable} busy={busy} energy={energyDraft ?? energy} busyWriting={busyWriting}
+        onRecordEnergy={recordEnergy} onLeftovers={onLeftovers} onPicks={onPicks} onPlace={onPlace} onDone={() => { setPlanOpen(false); toast("Today is planned."); }} />
+      <ShutdownSheet open={shutdownOpen} onOpenChange={setShutdownOpen} localDate={localDate} tomorrow={tomorrow} wins={wins} items={shutdownItems}
+        initialReflection={todayPlan?.reflection ?? ""} busyWriting={busyWriting} onCloseDay={onCloseDay} />
 
       <TaskDetailSheet
         draftScopeKey={taskDraftScopeKey}
@@ -616,19 +672,21 @@ export function TodayWorkspace({
         categories={categories}
         tasks={tasks}
         dependencies={dependencies}
-        conflictCount={
-          selectedTask ? (conflictCountByTask.get(selectedTask.id) ?? 0) : 0
-        }
+        conflictCount={selectedTask ? (conflictCountByTask.get(selectedTask.id) ?? 0) : 0}
         isOnline={isOnline}
-        onOpenChange={open => {
-          if (!open) onSelectedRecordChange(null);
-        }}
+        onOpenChange={open => { if (!open) onSelectedRecordChange(null); }}
         onUpdate={onUpdateTask}
         onCreateSubtask={onCreateSubtask}
         onAddDependency={onAddDependency}
         onRemoveDependency={onRemoveDependency}
-        onStartFocus={startFocus}
+        onStartFocus={startFocusFor}
       />
     </section>
   );
+}
+
+function clockDate(value: Date | string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
