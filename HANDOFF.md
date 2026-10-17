@@ -1,4 +1,4 @@
-# HANDOFF: premium redesign (updated 2026-10-17 ~19:35 IST: T2b-2 Opus subagent running; T2a + T2b-1 pushed)
+# HANDOFF: premium redesign (updated 2026-10-17 late: T2a + T2b-1 + T2b-2 pushed; Today layout pass Opus subagent running)
 
 Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. Push with `git push origin HEAD:dev/personal-calendar-premium-v2`. Never push to main; never force-push.
 
@@ -11,10 +11,11 @@ Worktree: `.claude/worktrees/premium-redesign`, branch `work/premium-redesign`. 
     |---|---|---|
     | T2a Tasks UI (tabs, When-grouped List, row pills + D4 reason, Inbox triage, Archive) | ✅ pushed | `d514d76` |
     | T2b-1 (Week board default, inline late-drop prompt, ⋯ Plan menu, Status lens, one header, row indent, 390 toolbar) | ✅ pushed | `23f891a` |
-    | T2b-2 (bulk bar, saved-view pills, detail morph + autosave, phone swipe/long-press/pull-to-refresh, follow-ups a–e) | ⏳ **RUNNING, uncommitted on disk** | see "Subagents" below |
-    | Today layout pass + gallery | next | brief not yet written; inputs listed below |
+    | T2b-2 (bulk bar, saved-view pills, detail morph + autosave, phone swipe/long-press/pull-to-refresh, follow-ups a–e) | ✅ pushed | `e6759c8` |
+    | Today layout pass + gallery | ⏳ **RUNNING (Opus subagent, uncommitted on disk)** | brief: `docs/superpowers/plans/2026-10-14-agent-runs.md` → "Today layout pass full brief"; shots in job tmp `shots-today`; harness `scripts/preview-premium-today.py` (new) |
     | Docs: new flow decision | ✅ pushed | `6c121e0` (DECISIONS top) |
 
+  - **If cut off during the Today layout pass:** `git status --short` (files under `client/src/features/today/*`, `Home.tsx` wiring, `scripts/preview-premium-today.py`, maybe `scripts/demo-fixtures.py`); run `npx tsc --noEmit`, `npx vitest run shared client server`, `npx vite build`, then Vite on :3100 + `python scripts/preview-premium-today.py --shots <dir outside repo> --url http://127.0.0.1:3100/`, stop Vite. Green + scope matches → commit those files, push, publish the gallery. Otherwise relaunch Opus with the stored brief + "continue from the files on disk; don't redo finished parts". Never delete uncommitted files.
   - **Subagents (one at a time, owner laptop rule):**
     - **T2b-2: model Opus, general-purpose background subagent of the 2026-10-17 Claude session (job `dfcd08fd`).** It edits THIS worktree directly; it never commits. Its full brief is stored word for word in `docs/superpowers/plans/2026-10-14-agent-runs.md` → "T2b-2 full brief", so it can be relaunched identically.
       - At 19:30 IST: 31 changed/new files, harness extended (+187 lines), 66 screenshots taken: it was in final verification.
