@@ -1,5 +1,12 @@
 # Current decisions
 
+## 2026-10-17: Today layout pass (`f17f473`) built to the locked Q12–Q17 decisions
+- Tick in place uses a 5s Undo window, then exactly one write chosen by row source (plan item: `recovery.resolve`; repeat: `occurrence.resolve`; task: `task.update`). Pending ticks flush when leaving Today. Risk: a killed browser inside the 5s window loses that tick.
+- Shut down strictness: carry count = `tasks.rescheduleCount` + earlier rescheduled/deferred plan items. Items carried 3+ times cannot pick Tomorrow and are skipped by Move all. Close day stays locked until every item is decided. Reopen uses the existing `reopenPlan` (needs `dailyPlans.version` in the snapshot).
+- Plan my day move 3 = tap a free slot (`task.reserve`); dragging onto the timeline moves to the interaction pass. Energy uses the existing `dailyCheckIn.upsert`.
+- The habit heatmap/traces, TodayFlexibleWork and TodayTimeline are unmounted from Today (components kept for the Habits page).
+- Open owner questions (gallery https://claude.ai/artifact/C8SxpNFfdPt1jp6SHqQv9A): the hero after Close day; whether "Keep today" should count as a carry. Join needs event links, which calendar ingestion doesn't store yet (`payload: null`).
+
 ## 2026-10-17: no more standalone prototypes; "layout first, then motion" build flow (owner approved)
 - **Decision:** the planned page prototypes (Today+Focus, Calendar, Week, Nav+Settings, Goals, Habits, Insights) are **dropped**. The interview (Q1–Q51) already fixes the structure, and a prototype is throwaway work.
 - **New flow per page:** (1) Opus **layout pass** in real code on demo data (structure, cards, rows, pills, phone layout; no drag/gestures/rich motion yet) → (2) primary publishes a private **screenshot gallery** (desktop + phone, light + dark, plus a short "what to check" list) from the harness shots → owner says yes / change X → (3) Opus **interaction pass** (drag, gestures, morphs, motion) on the approved layout → (4) owner checks motion on the auto Vercel Preview with `docs/OWNER_PREVIEW_CHECKLIST.md`.

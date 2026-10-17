@@ -156,3 +156,5 @@ Design direction (owner standing rule, 2026-10-13): icons, animations and motion
 - `23f891a` T2b-1 Week board default + inline late-drop prompt + one header + row indent + 390 toolbar (Opus). Primary re-verified: tsc clean; vitest 160 files, 1432 passed / 3 skipped; build; harness 5/5, 0 live writes; Board/late-drop shots checked.
 - `6c121e0` Owner approved: no standalone prototypes; layout pass → screenshot gallery → interaction pass → Preview motion check. Feature-complete estimate ~5–6 weeks.
 - Running: T2b-2 (Opus), uncommitted; resume instructions in HANDOFF "CURRENT STATE" and the ledger's stored brief. Next: Today layout pass + gallery = end of this checkpoint.
+
+- **2026-10-17 checkpoint (Today layout):** T2b-2 `e6759c8` pushed; Today layout pass (Opus) `f17f473` pushed. Primary re-verified: tsc clean; vitest 165 files / 1479 passed / 3 skipped; vite build OK; `preview-premium-today.py` 5/5 (1440+390, light/dark, reduced motion), 0 live writes, no overflow at 390. Private gallery https://claude.ai/artifact/C8SxpNFfdPt1jp6SHqQv9A. Next: owner verdict, then the Today interaction pass, then the Focus upgrades.

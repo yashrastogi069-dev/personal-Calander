@@ -2,6 +2,15 @@
 
 The owner runs these checks; agents do not run Vercel checks (gated). Report back with: what snapped instead of animating, anything that felt slow or janky, anything clipped, and any wrong numbers.
 
+## Today layout pass (pushed `f17f473`, 2026-10-17)
+Where: the private gallery https://claude.ai/artifact/C8SxpNFfdPt1jp6SHqQv9A (screens), or the local demo / auto Vercel Preview for `dev/personal-calendar-premium-v2`.
+- Page order: hero + Today's list first; habits due and the timeline beside them (desktop) or below (phone).
+- Every row has one circle; a tick dims the row in place and shows Undo for 5 s.
+- Habits due = chips only (the heatmap lives in Habits). Tap fills the ring.
+- Plan my day: leftovers + energy, then the pick tray with the capacity bar, then an optional time slot.
+- Shut down: Close day stays locked until every item has a choice; an item pushed back 3+ times can't go to Tomorrow.
+- Motion, drag onto the timeline and swipe-to-tick are NOT in this pass (the interaction pass is next).
+
 ## Tasks T2a + T2b-1 (pushed `23f891a`, 2026-10-17)
 Where: the local demo window at http://127.0.0.1:3200/ (synthetic data) or the auto Vercel Preview for `dev/personal-calendar-premium-v2`.
 - Tasks has ONE header with one Capture button (press C).
